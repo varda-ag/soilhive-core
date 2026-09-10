@@ -20,9 +20,10 @@ async function withTempFile<T>(prefix: string, ext: string, fn: (filePath: strin
 }
 
 describe('buildTileVrt', () => {
-  it.each(['bdod_5-15cm_mean.tif', // Geographic WGS84: dataAxisToSRSAxisMapping swaps axes ("2,1")
-      'epsg8807_1b_250m.tif', // Projected Lambert Azimuthal Equal Area, no EPSG code: dataAxisToSRSAxisMapping does not swap ("1,2")
-      ])('produces a GDAL-valid, footprint-equivalent window for a $name source', async (file: string) => {
+  it.each([
+    'bdod_5-15cm_mean.tif', // Geographic WGS84: dataAxisToSRSAxisMapping swaps axes ("2,1")
+    'epsg8807_1b_250m.tif', // Projected Lambert Azimuthal Equal Area, no EPSG code: dataAxisToSRSAxisMapping does not swap ("1,2")
+  ])('produces a GDAL-valid, footprint-equivalent window', async (file: string) => {
     const filePath = path.join(rasterAssetsPath, file);
     const info = await GdalCLI.gdalinfo(filePath);
     const [width, height] = info.size!;

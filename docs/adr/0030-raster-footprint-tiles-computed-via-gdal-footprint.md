@@ -4,180 +4,98 @@
 
 ## Context
 
-`streamRasterFootprints` (`backend/src/scripts/computeRasterFootprints.ts`) computes, per band, one
-footprint geometry per cell of a grid tiling the raster (`computeGrid`, sized so each tile stays
-near a target pixel count) — the tiling exists for spatial-index/query performance, and to keep the
-memory and CPU cost of any one step bounded, not to represent the raster's true coverage shape as a
-single geometry.
+`streamRasterFootprints` (`backend/src/scripts/computeRasterFootprints.ts`) computes one footprint
+geometry per cell of a grid tiling each raster band (`computeGrid`) — for spatial-index/query
+performance and to bound per-step memory/CPU cost, not to represent the raster's true shape as one
+geometry.
 
-It originally did this by reading each tile's pixels through the `geotiff` npm package, tracing the
-valid/NoData boundary in JS with a `Map`/`Set`-based graph walk (`traceMaskToPolygons`), collapsing
-collinear points, and — for non-WGS84 rasters — reprojecting accumulated batches through
-`gdaltransform`. This ran as a pg-boss worker in the same process, and the same event loop, as the
-HTTP API server.
+It originally traced each tile's valid/NoData boundary in JS (`geotiff` + a `Map`/`Set` graph walk),
+running as a pg-boss worker in the same process and event loop as the API server. On a real
+high-resolution raster (~12,500 avg vertices/footprint), this reliably failed the pod's 1-second
+liveness/readiness probes. Memory, CPU throttling, and CPU starvation were all ruled out by direct
+measurement; three escalating rounds of event-loop yielding didn't help either. That points at V8
+stop-the-world GC pauses from the tracer's own allocation churn — a pause that preempts the JS thread
+below any yield point, so no amount of cooperative yielding could fix it.
 
-Processing a real high-resolution raster (30m native resolution, a complex enough valid-data mask to
-average around 12,500 vertices per traced footprint) reliably failed the pod's liveness and readiness
-probes — `Liveness probe failed: ... context deadline exceeded` — and the container was restarted.
-Kubernetes' default 1-second probe `timeoutSeconds` (neither probe overrode it) left almost no margin
-against the tracer's own cost, and a `/health` handler that does nothing but `res.json(...)` was still
-missing that window.
+After the fix below shipped, a second failure surfaced: a 16-layer bulk `RASTER_LOAD` job completed but left the pod's memory baseline ~1GiB higher than before it ran. The
+pod was then `OOMKilled` while running the *next* raster-load job on that same pod. RSS stayed flat throughout both jobs and
+cgroup `cache` reset to ~0 after each — ruling out a JS/native leak and page cache — leaving kernel
+memory (slab: dentry/inode caches) from this design's own volume of per-tile subprocess spawns and
+temp-file churn as the cause. Confirmed by direct reproduction: a synthetic fork+tempfile-churn test
+showed negligible growth, but the real pipeline against real rasters showed ~78MB/band that never
+reset at band boundaries — extrapolating to ~1.26GB over 16 bands, matching production.
 
-Ruled out by direct measurement, roughly in this order, before this decision: pod memory usage (well
-under the container limit), CFS quota CPU throttling (no CPU limit was set), and CPU share starvation
-under node contention (the node had idle cores available at the moment of failure). Three
-rounds of progressively more aggressive in-process event-loop yielding were then tried — `setImmediate`
-every 25 tiles, then every tile, then chunking the batch-flush's collinear-collapse work too — none of
-which changed the outcome. That points at V8 garbage-collection pauses driven by the tracer's own
-allocation churn (a `Map`, a `Set` and nested coordinate arrays per tile, becoming garbage almost
-immediately) as the remaining likely cause: a stop-the-world GC cycle preempts the JS thread below the
-level any in-process `await`/`setImmediate` yield point can reach, so no amount of cooperative
-yielding inside the tracer could have fixed it.
+## Considered Options
+
+- **Concurrency scheduling** — a plain sequential loop, then fixed-size `Promise.all` chunks, were
+  both measured and rejected: neither raised effective throughput much, because the bottleneck was
+  never scheduling, it was `libgdal`'s per-process dynamic-linking cost (~100-150ms uncontended,
+  ~450-480ms contended) — confirmed by isolating it directly and ruling out driver registration
+  (`GDAL_SKIP`) as a cause. A rolling-window pool (`FOOTPRINT_CONCURRENCY = 10`, `Map` +
+  `Promise.race`) was chosen instead, since it extracts close to the full scheduling benefit that
+  cost allows. `p-limit` — already a dependency, already used elsewhere in this codebase
+  (`BulkLoader`) — was considered and rejected for this specific spot: that existing usage never
+  submits more than ~10 tasks at once, while a rolling window over up to 54,300 tiles would mean
+  building that many wrapped promises upfront instead of launching each one on demand; it would also
+  scatter `handleResult`'s single-call-site state-mutation invariant across many `.then()` callbacks
+  rather than one visible loop.
+- **Eliminating per-tile GDAL process/file churn outright**, to fix the OOM at its root — batching
+  several tiles into one long-lived process (via Python + GDAL's own bindings, or a disposable
+  `gdal-async` child process) — was rejected: no new dependencies. GDAL's newer unified `gdal pipeline` CLI,
+  which might have offered the same thing, isn't available in the installed GDAL version either.
+- **Recovering per-tile spatial-index granularity** after making tiles larger — splitting each
+  footprint in JS (e.g. via `@turf/turf`) before insert — was rejected: even
+  cheap per-tile JS work risks the same GC-pause-duration problem this ADR exists to avoid, since it
+  concentrates many small tiles' worth of work into fewer, larger bursts.
 
 ## Decision
 
 Compute each tile's footprint with `gdal_footprint` (GDAL ≥ 3.8) instead of tracing pixels in JS:
 
-- A once-per-band local extract of the selected overview is still made (as it already was for
-  S3-hosted rasters) — but now unconditionally, since a VRT window addresses pixels of the file it
-  points to directly, with no way to select "overview level N" of a multi-resolution source.
-- Per tile, `gdal_translate -of VRT -srcwin <pxStart> <pyStart> <w> <h>` windows that tile out of the
-  overview extract — a small XML reference, not a pixel copy.
-- `gdal_footprint -b 1 -max_points unlimited -t_srs EPSG:4326 -of GeoJSON -q` then traces,
-  simplifies (or rather, does not — see below) and reprojects that window in one native call,
-  returned via `/vsistdout/` rather than a second temp file.
-- `-max_points unlimited` overrides GDAL's own default (100), which auto-simplifies to fit that
-  point budget. Measured directly against tiles with 0, ~1,800, ~4,800 and ~27,000 vertices: all took
-  ~0.12-0.15s, dominated by fixed process-spawn overhead rather than tracing complexity — so full
-  fidelity, matching what the JS tracer produced, costs nothing extra here.
-- Overview selection now reads `gdalinfo -json`'s own `bands[].overviews[].size` rather than opening
-  the file with `geotiff`, removing that dependency (and the file-handle lifecycle it needed) from
-  this file entirely.
-- Tiles are processed with bounded concurrency (`FOOTPRINT_CONCURRENCY`, 10), via a rolling-window
-  worker pool (plain `Map` + `Promise.race`: a tile's replacement is launched the instant it
-  finishes) rather than one at a time. This went through two earlier designs before landing here.
-  First, a plain sequential loop, on the reasoning that raising concurrency safely needed the
-  vertex-count batching separated from the per-tile compute step first, and that separation was real
-  work not worth doing speculatively. That held until measured against real ingestion times: the
-  same near-global raster took 9 minutes to ingest under the prior JS implementation but was
-  estimated at ~3.8-4.5 hours sequentially under this one (54,300 tiles × ~0.25-0.3s), and with 64%
-  of this deployment's rasters global and 25% continental, that's not an edge case — it's most
-  ingestions. A raster-load job going from minutes to hours also directly hurts the `RASTER_LOAD`
-  queue's own throughput, since it runs at `localConcurrency: 1` per node specifically because raster
-  ingest is heavy — one job taking hours blocks every other raster queued behind it on that node.
-  That regression was large enough to do the batching separation immediately: `computeTileFootprint`
-  is pure and side-effect-free (touches only its own tile's VRT file, cleaned up before returning);
-  `batch`/`batchVertexCount`/`tilesProcessed`/the timing accumulators are mutated only inside
-  `handleResult`, which is only ever called from one linear point of control — that split is what
-  makes any concurrency safe, regardless of how it's scheduled. Second, fixed-size chunks run via
-  `Promise.all` (`FOOTPRINT_CONCURRENCY` tiles launched together, awaited together, next batch
-  launched only once the whole chunk had settled) — chosen at the time because tile cost looked
-  fairly uniform (the `-max_points unlimited` measurement above), so a chunk boundary seemed unlikely
-  to wait long on a straggler. Measured against the same near-global raster, that design produced
-  ~1h40min at `FOOTPRINT_CONCURRENCY = 10` — far short of the naive ~10x speedup a fixed floor of
-  concurrency implies. Two compounding causes, not one: process fork/exec and GDAL's driver-registry
-  initialization are real CPU work, not idle wait, so 10 concurrent subprocesses are bounded by
-  however many cores this pod can actually get scheduled onto at once, which depends on its CPU
-  request/limit configuration and the node's own contention; and fixed-size chunking has its own tax
-  independent of core count,
-  since every chunk has to fully drain — including its slowest straggler under real contention, which
-  is worse than the uncontended measurement suggested — before the next chunk's tiles are even
-  submitted, repeated across 54,300 ÷ 10 ≈ 5,430 chunk boundaries. The rolling window removes the
-  second cause entirely.
-- That re-measurement is what settled which of the two causes actually mattered: the rolling window
-  produced no measurable improvement over fixed-size chunking (~5-6min per 2,715-tile progress
-  interval either way, on the same near-global raster) — ruling out the chunk-drain tax as
-  significant and pointing squarely at per-call CPU cost. A real log line from that run made this
-  precise: cumulative `vrtMs + footprintMs` (2,520,677ms) against wall-clock `elapsedMs` (255,216ms)
-  for the same 2,715 tiles gives ≈9.88x — essentially the full `FOOTPRINT_CONCURRENCY = 10` benefit
-  at the scheduling level. But each individual subprocess call ran 3-4x slower than the same call
-  measured uncontended (~450-480ms/call against ~100-150ms), so raising concurrency further couldn't
-  have helped: 10 CPU-heavy subprocesses contending for however many cores this pod can actually get
-  scheduled onto each just run slower, not more of them in parallel. `GDAL_SKIP` (skips registering named drivers) was tested as a way to cut that
-  per-call cost — confirmed to actually take effect (only 3 of 153 drivers remained registered) — and
-  made no measurable difference, ruling out driver *registration* as the cost. Directly isolated
-  instead: bare `fork`/`exec` (`/usr/bin/true`) is ~0ms, while `gdalinfo --version` (loads `libgdal`,
-  does nothing else) is consistently ~0.10-0.11s. The entire per-invocation cost is dynamically
-  linking the shared library itself (`libgdal` and its dependencies — PROJ, SQLite), which is paid in
-  full by any new process that links against it, `GDAL_SKIP` or no. The only way to avoid it
-  entirely is not starting a new process per tile — which this codebase deliberately moved away from
-  once already (`8d289341`, removing the `gdal-async` native addon), specifically because a native
-  addon's GDAL errors could segfault the whole Node process rather than fail one subprocess call.
-  Given that history, reviving an in-process GDAL binding to chase this cost was ruled out as a
-  throughput-vs-stability tradeoff not worth making unilaterally for one job's speed.
-- What was implemented instead: **halve the number of GDAL processes per tile**, from two
-  (`gdal_translate -of VRT` then `gdal_footprint`) to one, by generating each tile's VRT in JS rather
-  than via a subprocess. `buildTileVrt` takes a single whole-file reference VRT — generated once per
-  band via one real `gdal_translate -of VRT` call with no `-srcwin` — and substitutes only the four
-  fields that vary per tile (dataset size, the `GeoTransform`'s origin, `SrcRect`/`DstRect`) into a
-  text copy of it. Everything else is carried over byte-for-byte from GDAL's own output, deliberately
-  including the `<SRS>` block: GDAL derives its `dataAxisToSRSAxisMapping` attribute from the WKT's
-  own axis convention, and that value genuinely differs by CRS (confirmed directly — `"2,1"`, a swap,
-  for a geographic WGS84 raster; `"1,2"`, no swap, for a projected Lambert Azimuthal Equal Area one)
-  — not something to recompute by hand for arbitrary input CRS without real risk of silently
-  producing a wrong (not merely failing) footprint. Verified before relying on it, not after: for
-  both of those CRS cases, and a near-edge window likely to hit a fragmented boundary, the resulting
-  `gdal_footprint` GeoJSON output was byte-identical to running a real `gdal_translate -srcwin` for
-  the same window. Measured afterward against three real files (255, 5,451 and — partially — 54,300
-  tiles): VRT generation dropped to ~1.5-1.9ms/tile across all three (versus ~450-480ms/call
-  contended, ~100-150ms uncontended, for the subprocess it replaced), and cumulative-time-vs-wall-
-  clock continued to show ~9.83-9.88x achieved concurrency on all three — consistent with the earlier
-  finding that the rolling window itself was never the problem. Net effect on the near-global raster:
-  an extrapolated ~16.5min full run, down from the ~1h40min fixed-chunking measurement — roughly 6x,
-  and within about 2x of the original JS implementation's 9 minutes, while keeping all tracing and
-  reprojection work out of the Node process's event loop and heap.
+- A once-per-band local overview extract is windowed per tile via a VRT, then traced and reprojected
+  in one `gdal_footprint` call. Full-fidelity tracing (no simplification) costs nothing extra over
+  GDAL's own default-simplified output — fixed process-spawn overhead dominates either way.
+- `buildTileVrt` builds each tile's VRT in JS instead of via a second `gdal_translate` call, halving
+  GDAL processes per tile. It substitutes only the four fields that vary per tile into a real,
+  once-per-band GDAL-generated template — deliberately keeping the `<SRS>` block (including
+  `dataAxisToSRSAxisMapping`, which genuinely differs by CRS) byte-for-byte from GDAL's own output
+  rather than recomputed by hand, since getting that wrong would silently produce a wrong, not merely
+  failing, footprint. Verified byte-identical to real GDAL output across CRS types and an edge-case
+  window before relying on it. Net effect: ~16.5min for a near-global raster, down from ~1h40min,
+  within ~2x of the original JS baseline (9min) — while keeping all tracing off the Node event loop
+  and heap.
+- For the OOM: `MAX_TILES` is divided by 16 (`MIN_TILES` untouched — small rasters were never the
+  problem), directly cutting subprocess and temp-file volume per band for the large/global rasters
+  that actually hit this.
+- `insertFootprintBatch` runs `ST_Subdivide()` on each footprint before insert, recovering the
+  small-geometry granularity `raster_footprints`' arbitrary-polygon `ST_Intersects` queries need. The
+  vertex budget (`SUBDIVIDE_MAX_VERTICES`) comes from real
+  per-footprint vertex figures (~10% of the total database to be migrated) — most footprints go unsplit
+  either way; 1000 bounds the pathological tail to far fewer rows than 256 would, for comparable
+  index-selectivity benefit.
 
-Two more changes predate the `gdal_footprint` switch and are unaffected by it — both from an earlier
-effort to bound memory during large raster loads, before the GC-pause diagnosis above pointed at the
-tracer itself as the probe-failure cause:
-
-- `insertFootprintBatch` (`RasterIngestService.ts`) encodes each footprint as WKB (`multiPolygonToWkb`,
-  `backend/src/utils/wkb.ts`) rather than `JSON.stringify`, and inserts via `ST_GeomFromWKB` rather
-  than `ST_GeomFromGeoJSON`. It was already in place to keep the per-batch insert cheap regardless of
-  which stage produced the footprints, and `gdal_footprint`'s GeoJSON output feeds the same
-  WKB-encode-then-insert path `traceMaskToPolygons`'s output did. The reasoning holds either way:
-  `ST_GeomFromGeoJSON` has to parse a JSON text tree and re-parse every coordinate from decimal text,
-  while `ST_GeomFromWKB` reads pre-encoded IEEE-754 doubles off a binary buffer directly, and the WKB
-  payload itself is smaller (no repeated JSON keys, no decimal-text overhead per coordinate).
-- Batches are flushed once accumulated vertex count crosses `MAX_BATCH_VERTICES` (200,000), rather
-  than once a fixed footprint count is reached. A footprint's vertex count depends on how fragmented
-  the valid-data mask is within its tile, not on raster shape or a fixed per-batch quota, so a fixed
-  footprint-count threshold (the original `INSERT_BATCH_SIZE = 100`) bounds nothing about a batch's
-  actual memory cost — 100 simple footprints and 100 highly fragmented ones (~12,500 average vertices
-  each, on the real high-resolution raster measured above) differ in payload size by orders of
-  magnitude. 200,000 keeps one batch's WKB payload in the low tens of MB (16 bytes per vertex: two
-  float64s), comfortable even under a constrained heap. `MAX_BATCH_FOOTPRINTS` (500) is a backstop
-  for the opposite degenerate case: many simple, low-vertex footprints trickling through the vertex
-  budget almost one at a time, which would otherwise let footprint count — and the per-footprint
-  overhead that comes with it — grow unbounded while staying comfortably under the vertex ceiling.
-
-Unchanged: the tiled grid itself.
+Two predating, unaffected changes: `insertFootprintBatch` encodes footprints as WKB rather than
+GeoJSON (`ST_GeomFromWKB` reads pre-encoded doubles directly, no JSON/decimal-text parsing), and
+batches flush by accumulated vertex count (`MAX_BATCH_VERTICES = 200,000`) rather than a fixed
+footprint count, since vertex count — not footprint count — is what determines a batch's actual
+memory cost.
 
 ## Consequences
 
-- All tracing, simplification and reprojection now happens in a GDAL subprocess, sharing this
-  process's memory limit but none of its event loop or V8 heap. The `Map`/`Set`-based tracer, the
-  collinear-collapse pass and the per-batch `gdaltransform` reprojection are gone from this file
-  along with the churn they produced. This is expected to remove the GC-pause mechanism suspected of
-  causing the probe failures — inferred, not directly proven, since nothing before this change
-  isolated GC pauses specifically; confirming this against the real failing workload is the natural
-  next check.
-- Per-tile latency is now dominated by `libgdal`'s dynamic-linking cost (~100-150ms uncontended,
-  ~450-480ms under real 10-way contention) rather than by the JS tracer's cost, which scaled with
-  vertex count. Scheduling strategy alone couldn't fix this — fixed-size chunking measured ~2.4x at
-  `FOOTPRINT_CONCURRENCY = 10` (1h40min against an estimated ~4hr sequential), and switching to a
-  rolling window produced no further improvement, because both were already extracting ~9.8-9.9x of
-  the theoretical 10x scheduling benefit; the shortfall was always the per-call cost, not how the
-  calls were scheduled. Halving GDAL processes per tile (VRT generation moved into JS) is what
-  actually closed most of the gap: an extrapolated ~16.5min for the same near-global raster, ~6x
-  better than the fixed-chunking measurement and within ~2x of the original JS implementation's 9
-  minutes. Raising `FOOTPRINT_CONCURRENCY` further is bounded by the raster-load pod's actual CPU
-  headroom, not by anything left in the batching, scheduling, or per-tile-process design.
-- The overview extraction step now always runs, including for local-storage-mode rasters that
-  previously read the original file's embedded overview IFD directly via `geotiff`. That trades a
-  one-time extraction cost (already paid for S3-hosted rasters) for not needing per-resolution-level
-  addressing on the JS side at all.
-- The `nodataF32` workaround (rounding `gdalinfo`'s reported NoData value through `Math.fround`
-  before comparing against Float32 pixel data, because the JSON round-trip lost precision the raw
-  pixel data never did) no longer applies: GDAL's own NoData handling is internally consistent by
-  construction, since the same process reads back what it wrote.
+- All tracing/reprojection now runs in a GDAL subprocess, off the Node event loop and heap — expected
+  to remove the GC-pause mechanism behind the original probe failures, though this is inferred, not
+  confirmed against a real recurrence of that specific workload.
+- Per-tile latency is now dominated by `libgdal`'s load cost, not the JS tracer's vertex-count-scaled
+  cost; raising `FOOTPRINT_CONCURRENCY` further is bounded by the pod's actual CPU headroom, not by
+  anything left in the design.
+- The OOM fix is confirmed against the real workload: the same 16-layer job that produced +1GiB
+  before now grows only ~200MiB (12h → 3h10min), with no runaway trend within the run; a separate
+  4-layer, 30m-resolution, continental job — closer to the profile that first surfaced this issue —
+  grew only ~10MiB in 10 minutes. Both fall short of the naive 16x `MAX_TILES` implies, which is
+  expected (fixed per-band overhead doesn't shrink, and not every layer sat at the old ceiling).
+- That residual (~200MiB, or ~10MiB) is real, not zero — it would still compound over enough
+  consecutive jobs on a pod that never restarts (~9-10 jobs at the higher rate). A materially smaller
+  risk than before, not a fully closed one.
+- Overview extraction now always runs (previously conditional for local-storage rasters), and the
+  `nodataF32` `Math.fround` workaround no longer applies, since GDAL's NoData handling is internally
+  consistent by construction.
