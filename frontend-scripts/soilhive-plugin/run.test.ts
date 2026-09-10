@@ -50,6 +50,8 @@ describe('runSoilhivePlugin end-to-end', () => {
       'src/components/ProviderComponent.tsx',
       'src/components/ProviderComponent.css',
       'src/mockContext.ts',
+      'src/i18n.dev.ts',
+      'src/utilities/registerResourceBundle.ts',
       'package.json',
     ];
     const uiFiles = listFilesRecursive(UI_SRC).map(relativeFile => join('UI', relativeFile));
