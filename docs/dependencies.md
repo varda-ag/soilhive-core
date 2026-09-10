@@ -29,6 +29,7 @@
 | express | MIT | 5.2.1 |
 | express-openapi-validator | MIT | 5.6.2 |
 | extract-zip | BSD-2-Clause | 2.0.1 |
+| fast-xml-validator | MIT | 1.4.2 |
 | geojson-validation | LGPL-3 | 1.0.2 |
 | geotiff | MIT | 3.0.5 |
 | h3-js | Apache-2.0 | 4.4.0 |

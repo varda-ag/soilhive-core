@@ -15,6 +15,8 @@ import { StorageModes } from '../types/enums';
 import { GdalCLI, type GdalProgressCallback } from '../utils/GdalCLI';
 import { JobError } from '../errors/JobError';
 
+const SUBDIVIDE_MAX_VERTICES = 1000;
+
 /**
  * Input for one Raster Ingest: one band of one already-uploaded COG.
  *
@@ -246,14 +248,15 @@ async function insertFootprintBatch(
   const geomWkb = batch.map(fp => multiPolygonToWkb(fp));
   await em.query(
     `WITH fp_ins AS (INSERT INTO raster_footprints (geom)
-     SELECT ST_SetSRID(ST_GeomFromWKB(v), 4326)
+     SELECT ST_Multi(piece.geom)
      FROM unnest($1::bytea[]) AS v
+     CROSS JOIN LATERAL ST_Subdivide(ST_SetSRID(ST_GeomFromWKB(v), 4326), $3) AS piece(geom)
      ON CONFLICT (geom_hash) DO UPDATE SET id = raster_footprints.id
      RETURNING id)
      INSERT INTO raster_layer_footprints (raster_layer_id, raster_footprint_id)
      SELECT $2, id FROM fp_ins
      ON CONFLICT (raster_layer_id, raster_footprint_id) DO NOTHING;`,
-    [geomWkb, rasterLayerId],
+    [geomWkb, rasterLayerId, SUBDIVIDE_MAX_VERTICES],
   );
 }
 

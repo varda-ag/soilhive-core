@@ -1,4 +1,5 @@
 import type { MultiPolygon } from 'geojson';
+import { SyntaxValidator } from 'fast-xml-validator';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
@@ -7,7 +8,7 @@ import { GdalCLI } from '../utils/GdalCLI';
 import { log, timed } from '../utils/logger';
 import { isGeographicCrs } from '../utils/raster';
 
-const MAX_TILES = 256 * 256;
+const MAX_TILES = (256 * 256) / 16;
 // Exported so tests can override it directly.
 export const MIN_TILES = 256;
 const PIXELS_PER_TILE_MIN_DIM = 512;
@@ -31,7 +32,7 @@ export type FootprintProgressCallback = (tilesProcessed: number, totalTiles: num
  * dataset size, the GeoTransform's origin (its pixel size/rotation stay the overview's own), and
  * the source/destination windows.
  */
-function buildTileVrt(
+export function buildTileVrt(
   referenceVrtXml: string,
   tilePixW: number,
   tilePixH: number,
@@ -64,6 +65,12 @@ function buildTileVrt(
     /<DstRect xOff="\d+" yOff="\d+" xSize="\d+" ySize="\d+" \/>/,
     `<DstRect xOff="0" yOff="0" xSize="${tilePixW}" ySize="${tilePixH}" />`,
   );
+
+  try {
+    SyntaxValidator.validate(xml);
+  } catch (error) {
+    throw new Error(`buildTileVrt: generated tile VRT is not well-formed XML: ${error instanceof Error ? error.message : String(error)}`);
+  }
 
   return xml;
 }
