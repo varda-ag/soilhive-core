@@ -50,7 +50,7 @@ The CLI does not treat every file the same way. Each file falls into one of five
 | Category | Rule on each run | What is in it |
 |---|---|---|
 | **Always overwritten** — host is authoritative | The CLI replaces the destination file completely on every run. Any hand-edit is lost on the next run. | The whole `UI/` folder ([`syncUi.ts`](../../frontend-scripts/soilhive-plugin/syncUi.ts)); `frontend-plugin-types` ([`syncPluginTypes.ts`](../../frontend-scripts/soilhive-plugin/syncPluginTypes.ts)); the design-token files `styles/variables/_colors.scss` and `_typography.scss`; and, with `--with-map`, the whole `Map/` folder plus its supporting files under `Map/_shared/` (see [Using the map](#using-the-map---with-map)) |
-| **Copied once, then yours** | The CLI writes the file only if it is missing. After that, it is yours to edit. The CLI never writes to it again. | Every scaffold file: `rsbuild.config.ts`, `module-federation.config.ts`, `tsconfig.json`, `pnpm-workspace.yaml`, `src/App.tsx`, `src/App.css`, `src/bootstrap.tsx`, `src/index.tsx`, `src/env.d.ts`, `src/components/ProviderComponent.tsx`, `src/components/ProviderComponent.css`, `src/mockContext.ts` ([`scaffold.ts`](../../frontend-scripts/soilhive-plugin/scaffold.ts)); also `styles/base.scss`, `styles/fonts.scss`, `styles/variables/_breakpoints.scss`, and the plugin's own `styles/index.scss` |
+| **Copied once, then yours** | The CLI writes the file only if it is missing. After that, it is yours to edit. The CLI never writes to it again. | Every scaffold file: `rsbuild.config.ts`, `module-federation.config.ts`, `tsconfig.json`, `pnpm-workspace.yaml`, `src/App.tsx`, `src/App.css`, `src/bootstrap.tsx`, `src/index.tsx`, `src/env.d.ts`, `src/components/ProviderComponent.tsx`, `src/components/ProviderComponent.css`, `src/mockContext.ts`, `src/i18n.dev.ts`, `src/utilities/registerResourceBundle.ts` ([`scaffold.ts`](../../frontend-scripts/soilhive-plugin/scaffold.ts)); also `styles/base.scss`, `styles/fonts.scss`, `styles/variables/_breakpoints.scss`, and the plugin's own `styles/index.scss` |
 | **Generated once, then yours** | The CLI writes this file once, from a filtered copy of the host's file. It is not a byte-for-byte copy. | `styles/index.scss`. It mirrors the host's `frontend/src/styles/index.scss`, but drops the `prime.react.override` import and the `primereact`/`react-loading-skeleton` package CSS. `UI/` does not depend on either package ([`syncUi.ts`](../../frontend-scripts/soilhive-plugin/syncUi.ts)) |
 | **Merged, never overwritten wholesale** | The CLI updates only the keys it manages in `package.json`. Every key you added yourself stays untouched. | See [Managed `package.json` dependencies](#managed-packagejson-dependencies) below ([`packageJson.ts`](../../frontend-scripts/soilhive-plugin/packageJson.ts)) |
 | **Never copied** | The copy engine refuses to write this file, even if a caller passes its path by mistake. | `prime.react.override.scss`, always. `SoilhiveMap.scss` is blocked unless `--with-map` is active; see [Using the map](#using-the-map---with-map) |
@@ -69,9 +69,9 @@ Every sync updates these keys in `dependencies` and `devDependencies`. It does n
 | `dependencies['frontend-plugin-types']` | `link:../frontend-plugin-types` |
 | `devDependencies.typescript` | Pinned to the host's exact TypeScript version, for every plugin, even one without `--with-map`. Vendored host code is only ever type-checked against the host's own compiler version. Without this pin, the scaffold's own `typescript` version — copied once, then yours — can drift behind the host's and reject valid vendored code |
 | `devDependencies['@types/react']`, `devDependencies['@types/react-dom']` | Pinned alongside `react`/`react-dom`, when the host declares them |
-| One `dependencies` entry per external package that `UI/` imports (and, with `--with-map`, that the vendored `Map/` folder imports too) | Each pinned to the exact version in the host's `frontend/package.json`. The CLI finds these packages by scanning the actual import statements in the vendored files, not from a fixed list, so this list grows as `UI/` or `Map/` grows |
+| One `dependencies` entry per external package that `UI/` imports, that the scaffolded `src/i18n.dev.ts`/`src/utilities/registerResourceBundle.ts` import (unconditionally, not just with `--with-map`), and, with `--with-map`, that the vendored `Map/` folder imports too | Each pinned to the exact version in the host's `frontend/package.json`. The CLI finds these packages by scanning the actual import statements in the vendored/scaffolded files, not from a fixed list, so this list grows as `UI/` or `Map/` grows. The rest of the plugin's own `src/` is never scanned — only these two specific scaffolded files, so a plugin author's own hand-added dependencies elsewhere are never silently repinned on sync |
 | A matching `devDependencies['@types/<package>']` for each scanned package above | Added automatically whenever the host declares a matching `@types/<package>` version |
-| `dependencies.i18next`, whenever `dependencies['react-i18next']` is pinned | `react-i18next` needs a matching `i18next` version to work. Nothing in `UI/` or `Map/` imports `i18next` directly, so the CLI pins it as a companion package. Module federation must resolve both packages to the exact same version, or it cannot share `i18next` as a singleton between the host and the plugin |
+| `dependencies.i18next`, whenever `dependencies['react-i18next']` is pinned | `react-i18next` needs a matching `i18next` version to work. `src/i18n.dev.ts` and `src/utilities/registerResourceBundle.ts` both import `i18next` directly, so this normally pins it through the scan above; the companion mapping is a fallback for a vendored file (`UI/` or `Map/`) that reaches `i18next` only indirectly, through `useTranslation`. Module federation must resolve both packages to the exact same version, or it cannot share `i18next` as a singleton between the host and the plugin |
 
 The CLI looks up each version in the host's `frontend/package.json` first. If a package is not declared there, it falls back to the monorepo root `package.json`. This fallback exists because some packages — for example `@types/geojson` — are declared only at the workspace root and reach `frontend/` through pnpm's workspace resolution. A standalone plugin folder is not part of that workspace, so it needs the version spelled out explicitly.
 
@@ -95,6 +95,17 @@ import { Button } from '../../UI';
 The barrel file re-exports every component in `UI/`. Importing through it pulls in the whole re-exported module graph, including dependencies you do not need — for example, another component's `react-tooltip` import, or an unrelated `.svg?react` icon import. A direct import pulls in only what that one component needs.
 
 `frontend-plugin-example/src/components/ProviderComponent.tsx` has a commented-out example of both the import and its usage. Uncomment it once `UI/` is synced into your plugin.
+
+## Your plugin's own translations
+
+Every plugin gets scaffolded support for its own `i18next` namespace, unconditionally — not just `--with-map` plugins. This is a separate concern from `Map/`'s translations above: it is for text your own plugin code renders, under a namespace you choose.
+
+The pattern has two parts, both copy-once-then-yours ([`registerResourceBundle.ts`](../../frontend-plugin-example/src/utilities/registerResourceBundle.ts), [`i18n.dev.ts`](../../frontend-plugin-example/src/i18n.dev.ts)):
+
+- **`src/utilities/registerResourceBundle.ts`** — a `registerResourceBundle(namespace, resources)` helper. It adds your resources to the shared `i18next` instance with `addResourceBundle()`, guarded so it never registers the same namespace twice and never throws if `i18next.init()` has not run yet (the host has not finished starting, or, in standalone preview, `i18n.dev.ts` has not run yet). Call it once, from your plugin's exposed entry point (`src/components/ProviderComponent.tsx`), before rendering anything that calls `t()`. A commented example call is already there.
+- **`src/i18n.dev.ts`** — a dev-only `i18next.init()` call, for standalone preview only. `App.tsx` imports it, one level above the exposed entry point, so it never reaches the federated entry point's import graph.
+
+Your plugin must never call `i18next.init()` itself inside its exposed entry point. `i18next` is a module-federation singleton — only the host may call `init()` there. In production, the host owns `init()`; your plugin only adds its own namespace to the already-initialized shared instance. See [ADR 0031](../adr/0031-plugin-i18n-resource-registration-is-a-reusable-helper-not-a-fixed-file.md) for why this is a reusable helper rather than logic inlined into a fixed-name file, and why the helper itself has no assumption about which file calls it — if you rename or move your exposed entry point, only the relative import to `registerResourceBundle` needs to keep working.
 
 ## Using the map (`--with-map`)
 
@@ -146,22 +157,9 @@ Treat `Map/_shared/` the same way you treat `Map/` itself: host-authoritative, n
 
 Instead, `i18next` and `react-i18next` are shared as module-federation singletons. The plugin scaffold declares this sharing unconditionally, in every plugin's `module-federation.config.ts`, whether or not the plugin uses `--with-map` (see [`frontend/src/utilities/moduleFederation.ts`](../../frontend/src/utilities/moduleFederation.ts) for the host side). `module-federation.config.ts` is copied once, then yours to edit, so declaring the sharing upfront means adding `--with-map` later never requires you to edit this file.
 
-Once the host loads your plugin, `Map/`'s translations resolve against the host's own, already-initialized `i18next` instance. You get the full translation namespace and live language switching, with nothing to maintain on your side.
+Once the host loads your plugin, `Map/`'s translations resolve against the host's own, already-initialized `i18next` instance. You get the full translation namespace and live language switching, with nothing to maintain on your side. This is fully automatic — there is nothing to set up on your side, in production.
 
-This sharing only works once the host loads your plugin. Running your plugin standalone with `pnpm dev` has no host to share with, so nothing initializes `react-i18next`'s default instance. In that case, `Map/`'s text renders as raw keys, for example `dai_widget.title`.
-
-To fix this for standalone preview, initialize your own `i18next` instance in `bootstrap.tsx`. A commented pointer to this is already there. Initialize it the same way the host does, in `frontend/src/utilities/i18n.ts`:
-
-```tsx
-import i18n from 'i18next';
-import { initReactI18next } from 'react-i18next';
-
-i18n.use(initReactI18next).init({
-  lng: 'en',
-  fallbackLng: 'en',
-  resources: { en: { availability: { /* whatever subset of frontend/public/locales/en/availability.json you need for preview */ } } },
-});
-```
+Running your plugin standalone with `pnpm dev` has no host to share with, so nothing initializes `react-i18next`'s default instance for the `availability` namespace. In that case, `Map/`'s text renders as raw keys, for example `dai_widget.title`. This is expected and cosmetic, not a bug — it only affects standalone preview with `--with-map`, never the plugin embedded in the host. The scaffold does not seed the `availability` namespace for standalone preview; see [Your plugin's own translations](#your-plugins-own-translations) if you want your own namespace to render real text in that same preview.
 
 ### Three host features you do not get
 
