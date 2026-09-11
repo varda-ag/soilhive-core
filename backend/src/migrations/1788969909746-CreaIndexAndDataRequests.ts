@@ -27,6 +27,8 @@ export class CreaIndexAndDataRequests1788969909746 implements MigrationInterface
     //
     // One answered data request and the payload that answered it.
     // Append-only: an identical `request` inserts a new row rather than reusing one.
+    // Not deduplicated because the row has no owner and data changes in time.
+    // Filters can dedupe (docs/adr/0007) only because they dedupe per owner.
     // `gen_random_uuid()` and not the `uuidv7()` used everywhere else in this schema, on purpose.
     // The row carries no owner, so the id is the only thing gating the payload: v4 contains more randomness with respect to v7.
     await queryRunner.query(

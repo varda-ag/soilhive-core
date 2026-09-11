@@ -48,6 +48,11 @@ export async function writeCreaIndexRun(entityManager: EntityManager, run: strin
     );
 
     await transactionalEntityManager.query(`CREATE INDEX ON ${partition} USING GIST ("geometry")`);
+
+    // Add statistics to the partition.
+    // ANALYZE is allowed inside a transaction block, unlike VACUUM.
+    await transactionalEntityManager.query(`ANALYZE ${partition}`);
+
     await transactionalEntityManager.query(`ALTER TABLE ${parent} ATTACH PARTITION ${partition} FOR VALUES IN ('${run}'::uuid)`);
   });
 
