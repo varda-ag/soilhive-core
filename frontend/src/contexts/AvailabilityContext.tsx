@@ -4,6 +4,7 @@ import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeF
 import { mapFilteredDatasetSummaryToAvailabilityDataset, mapFilteredDatasetToAvailabilityDataset } from '../adapters';
 import {
   Capability,
+  EntitlementScope,
   type SoilProperty,
   type FilterCriteria,
   type SoilPropertyCategory,
@@ -98,7 +99,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>({});
 
-  const { can } = useEntitlements();
+  const { can } = useEntitlements(EntitlementScope.DATASETS);
   const isAvailableDataset = useCallback(
     (dataset: { id: string; visibility: string }) =>
       dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id),
