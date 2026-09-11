@@ -153,7 +153,7 @@ export default class DatasetService {
     dataset.capabilities =
       dataset.visibility === 'public' || isBypassed
         ? [Capability.PREVIEW, Capability.DOWNLOAD]
-        : requestData.entitlements[dataset.slug] || [];
+        : requestData.entitlements.datasets?.[dataset.slug] || [];
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {
