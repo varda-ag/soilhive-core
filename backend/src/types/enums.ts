@@ -52,9 +52,14 @@ export enum StatisticsType {
   CREA_INDEX = 'crea-index',
 }
 
-export enum Capability {
+export enum ActionCapability {
   PREVIEW = 'preview',
   DOWNLOAD = 'download',
   OBFUSCATE_AS_POINTS = 'obfuscate_as_points',
   OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
+}
+
+export enum ACLCapability {
+  READ = 'read',
+  WRITE = 'write',
 }

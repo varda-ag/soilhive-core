@@ -165,7 +165,7 @@ export async function fetchRasterLayers(
 /**
  * Batch-fetches the Raster Layer Assets for a set of exported raster layers, grouped by
  * raster_layer_id. No entitlement check here — the caller has already fetched these layers
- * via fetchRasterLayers, which enforces Capability.DOWNLOAD on the parent dataset.
+ * via fetchRasterLayers, which enforces ActionCapability.DOWNLOAD on the parent dataset.
  */
 export async function fetchRasterLayerAssets(
   requestData: RequestData,

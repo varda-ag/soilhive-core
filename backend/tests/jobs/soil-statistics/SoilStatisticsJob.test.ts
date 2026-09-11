@@ -9,7 +9,7 @@ import { SoilStatisticsJob } from '../../../src/interfaces/Job';
 import { processSoilStatistics } from '../../../src/jobs/soil-statistics/SoilStatisticsJob';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../../src/services/PgBoss';
-import { Capability, JobQueues, StatisticsType } from '../../../src/types/enums';
+import { ActionCapability, JobQueues, StatisticsType } from '../../../src/types/enums';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
@@ -403,7 +403,7 @@ describe('processSoilStatistics', () => {
         await request(app)
           .put(`/datasets/${dataset.slug}/entitlements`)
           .set('Authorization', `Bearer ${adminToken}`)
-          .send({ [CALLER_EMAIL]: [Capability.PREVIEW] })
+          .send({ [CALLER_EMAIL]: [ActionCapability.PREVIEW] })
           .expect(200);
       }
       return dataset;

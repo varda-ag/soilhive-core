@@ -2,7 +2,7 @@ import { SoilStatisticsJob } from '../../interfaces/Job';
 import { updateJobState } from '../../services/PgBoss';
 import EntitlementService from '../../services/EntitlementService';
 import FilterService from '../../services/FilterService';
-import { Capability, JobQueues } from '../../types/enums';
+import { ActionCapability, JobQueues } from '../../types/enums';
 import { GISDataType } from '../../types/data';
 import { computeSoilStatistics } from '../../data-layer/SoilStatistics';
 import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
@@ -80,7 +80,7 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
   const permitted: string[] = [];
   for (const dataset of vectorDatasets) {
     try {
-      await entitlementService.enforceEntitlements(requestData, [dataset.id], Capability.PREVIEW);
+      await entitlementService.enforceEntitlements(requestData, [dataset.id], ActionCapability.PREVIEW);
       permitted.push(dataset.id);
     } catch {
       // Named datasets are rejected at enqueue time, so anything unentitled here came

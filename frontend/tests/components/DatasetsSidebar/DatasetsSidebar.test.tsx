@@ -5,7 +5,7 @@ import useDevice from 'hooks/useDevice';
 import { useNavigate } from 'react-router';
 import { AvailabilityContext } from '../../../src/contexts/AvailabilityContext';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
-import { Capability, GISDataType } from 'types/backend';
+import { ActionCapability, GISDataType } from 'types/backend';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
@@ -61,9 +61,9 @@ jest.mock('../../../src/contexts/AvailabilityMapContext', () => {
   };
 });
 
-function mockCan(capabilitiesById: Record<string, Capability[]>) {
+function mockCan(capabilitiesById: Record<string, ActionCapability[]>) {
   (useEntitlements as jest.Mock).mockReturnValue({
-    can: (capability: Capability, id?: string) => (id ? (capabilitiesById[id] ?? []).includes(capability) : false),
+    can: (capability: ActionCapability, id?: string) => (id ? (capabilitiesById[id] ?? []).includes(capability) : false),
     isLoading: false,
   });
 }
@@ -129,7 +129,7 @@ describe('DatasetsSidebar', () => {
 
   it('enables explore button when only raster datasets are available', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
-    mockCan({ 'raster-dataset': [Capability.PREVIEW] });
+    mockCan({ 'raster-dataset': [ActionCapability.PREVIEW] });
 
     renderWithDatasets([{ id: 'raster-dataset', data_type: GISDataType.RASTER, visibility: 'private' }]);
 
@@ -138,7 +138,7 @@ describe('DatasetsSidebar', () => {
 
   it('enables only explore for a dataset with PREVIEW but not DOWNLOAD', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
-    mockCan({ 'preview-only-dataset': [Capability.PREVIEW] });
+    mockCan({ 'preview-only-dataset': [ActionCapability.PREVIEW] });
 
     renderWithDatasets([{ id: 'preview-only-dataset', visibility: 'private' }]);
 
@@ -148,7 +148,7 @@ describe('DatasetsSidebar', () => {
 
   it('enables only download for a dataset with DOWNLOAD but not PREVIEW', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
-    mockCan({ 'download-only-dataset': [Capability.DOWNLOAD] });
+    mockCan({ 'download-only-dataset': [ActionCapability.DOWNLOAD] });
 
     renderWithDatasets([{ id: 'download-only-dataset', visibility: 'private' }]);
 

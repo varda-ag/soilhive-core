@@ -10,7 +10,7 @@ import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
-import { Capability, GISDataType, type FilteredDatasetSummary } from 'types/backend';
+import { ActionCapability, GISDataType, type FilteredDatasetSummary } from 'types/backend';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
@@ -65,10 +65,10 @@ const privatePreviewOnlyDataset: FilteredDatasetSummary = {
 
 // Entitlements map backing the mocked `can()`, keyed by dataset id. `publicDataset` has no
 // entry: public access comes from `visibility`, not from an entitlements row.
-const capabilitiesById: Record<string, Capability[]> = {
-  [privateDownloadableDataset.id]: [Capability.DOWNLOAD],
+const capabilitiesById: Record<string, ActionCapability[]> = {
+  [privateDownloadableDataset.id]: [ActionCapability.DOWNLOAD],
   [privateNonDownloadableDataset.id]: [],
-  [privatePreviewOnlyDataset.id]: [Capability.PREVIEW],
+  [privatePreviewOnlyDataset.id]: [ActionCapability.PREVIEW],
 };
 
 describe('AvailabilityContext', () => {
@@ -89,7 +89,7 @@ describe('AvailabilityContext', () => {
     (usePropertiesCategories as jest.Mock).mockReturnValue({ data: [], isLoading: false });
     (useRaster as jest.Mock).mockReturnValue({ allCategories: [], isLoading: false, setCategoryActive: jest.fn() });
     (useEntitlements as jest.Mock).mockReturnValue({
-      can: (capability: Capability, id?: string) => (id ? (capabilitiesById[id] ?? []).includes(capability) : false),
+      can: (capability: ActionCapability, id?: string) => (id ? (capabilitiesById[id] ?? []).includes(capability) : false),
       isLoading: false,
     });
   });

@@ -7,7 +7,7 @@ import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useTranslation } from 'react-i18next';
-import { Capability } from 'types/backend';
+import { ActionCapability } from 'types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 import styles from './DatasetsSidebar.module.scss';
@@ -32,14 +32,14 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const previewDatasetIds = useMemo(
     () =>
       availableDatasets
-        .filter(dataset => dataset.visibility === 'public' || can(Capability.PREVIEW, dataset.id))
+        .filter(dataset => dataset.visibility === 'public' || can(ActionCapability.PREVIEW, dataset.id))
         .map(dataset => dataset.id),
     [availableDatasets, can],
   );
   const downloadDatasetIds = useMemo(
     () =>
       availableDatasets
-        .filter(dataset => dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id))
+        .filter(dataset => dataset.visibility === 'public' || can(ActionCapability.DOWNLOAD, dataset.id))
         .map(dataset => dataset.id),
     [availableDatasets, can],
   );

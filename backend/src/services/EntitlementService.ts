@@ -6,18 +6,18 @@ import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
 import { Token } from '../interfaces/Token';
 import { type Entitlements } from '../types/Entitlements';
-import { Capability } from '../types/enums';
+import { ActionCapability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
-const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
+const mergeCapabilities = (existing: ActionCapability[] | undefined, incoming: ActionCapability[]): ActionCapability[] =>
   Array.from(new Set([...(existing ?? []), ...(Array.isArray(incoming) ? incoming : [])])).sort();
 
 /** One entry of the external provider's reply: a plain object whose own values are all capability lists. */
-const isEntitlementsEntry = (entry: unknown): entry is Record<string, Capability[]> =>
+const isEntitlementsEntry = (entry: unknown): entry is Record<string, ActionCapability[]> =>
   typeof entry === 'object' &&
   entry !== null &&
   !Array.isArray(entry) &&
@@ -210,7 +210,7 @@ export default class EntitlementService {
     // For each entity, merge the capabilities held under any of its matched input slugs, then
     // write that merged list under every slug the entity has ever had.
     for (const [entityId, matchedSlugsForEntity] of inputSlugsByEntity) {
-      let merged: Capability[] = [];
+      let merged: ActionCapability[] = [];
       for (const inputSlug of matchedSlugsForEntity) {
         merged = mergeCapabilities(merged, entitlements[inputSlug]!);
       }
@@ -256,7 +256,7 @@ export default class EntitlementService {
     return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
   };
 
-  async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
+  async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: ActionCapability): Promise<void> {
     if (this.isEntitlementsBypassed(requestData.token)) {
       // Internal requests and admins bypass entitlements checks
       return;

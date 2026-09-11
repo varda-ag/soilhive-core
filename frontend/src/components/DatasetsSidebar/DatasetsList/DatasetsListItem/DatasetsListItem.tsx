@@ -14,7 +14,7 @@ import styles from './DatasetsListItem.module.scss';
 import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
-import { Capability, GISDataType } from '../../../../types/backend';
+import { ActionCapability, GISDataType } from '../../../../types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 type Props = {
@@ -25,7 +25,8 @@ export function DatasetsListItem({ dataset }: Props) {
   const { can } = useEntitlements();
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
-  const isSelectable = dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id);
+  const isSelectable =
+    dataset.visibility === 'public' || can(ActionCapability.DOWNLOAD, dataset.id) || can(ActionCapability.PREVIEW, dataset.id);
 
   return (
     <div data-testid="sh-datasets-list-item" className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened })}>

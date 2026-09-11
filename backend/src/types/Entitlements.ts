@@ -1,3 +1,3 @@
-import { Capability } from './enums';
+import { ActionCapability } from './enums';
 
-export type Entitlements = Record<string, Capability[]>; // key is slug, value is list of capabilities
+export type Entitlements = Record<string, ActionCapability[]>; // key is slug, value is list of capabilities

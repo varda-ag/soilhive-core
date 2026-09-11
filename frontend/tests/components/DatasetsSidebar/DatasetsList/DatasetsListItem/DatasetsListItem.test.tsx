@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { DatasetsListItem } from 'components/DatasetsSidebar/DatasetsList/DatasetsListItem/DatasetsListItem';
 import useAvailability from 'hooks/useAvailability';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
-import { Capability } from 'types/backend';
+import { ActionCapability } from 'types/backend';
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
@@ -49,9 +49,9 @@ const mockDataset = {
   },
 };
 
-function mockCapabilities(capabilities: Capability[]) {
+function mockCapabilities(capabilities: ActionCapability[]) {
   (useEntitlements as jest.Mock).mockReturnValue({
-    can: (capability: Capability) => capabilities.includes(capability),
+    can: (capability: ActionCapability) => capabilities.includes(capability),
     isLoading: false,
   });
 }
@@ -65,7 +65,7 @@ describe('DatasetsListItem', () => {
       selectedDatasets: ['dataset-1'],
       selectDataset: mockSelectDataset,
     });
-    mockCapabilities([Capability.DOWNLOAD]);
+    mockCapabilities([ActionCapability.DOWNLOAD]);
   });
 
   it('renders main dataset info', () => {
@@ -137,7 +137,7 @@ describe('DatasetsListItem', () => {
   });
 
   it('renders a selectable checkbox for a private dataset with the download capability', () => {
-    mockCapabilities([Capability.DOWNLOAD]);
+    mockCapabilities([ActionCapability.DOWNLOAD]);
     render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private' }} />);
 
     expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
@@ -145,7 +145,7 @@ describe('DatasetsListItem', () => {
   });
 
   it('renders a selectable checkbox for a private dataset with only the preview capability', () => {
-    mockCapabilities([Capability.PREVIEW]);
+    mockCapabilities([ActionCapability.PREVIEW]);
     render(<DatasetsListItem dataset={{ ...mockDataset, visibility: 'private' }} />);
 
     expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();

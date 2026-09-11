@@ -3,7 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import request from 'supertest';
 import { app } from '../../src/app';
 import EntitlementService from '../../src/services/EntitlementService';
-import { Capability } from '../../src/types/enums';
+import { ActionCapability } from '../../src/types/enums';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken, getUserToken } from '../helper';
@@ -79,16 +79,16 @@ describe('Testing entitlements routes', () => {
 
       const initialRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${subjectToken}`);
       expect(initialRes.statusCode).toBe(StatusCodes.OK);
-      expect(initialRes.body.capabilities).toEqual([Capability.DOWNLOAD]); // "everyone" entitlement only, seeded in beforeEach
+      expect(initialRes.body.capabilities).toEqual([ActionCapability.DOWNLOAD]); // "everyone" entitlement only, seeded in beforeEach
 
-      const newEntitlements = { everyone: [Capability.DOWNLOAD], [subjectEmail]: [Capability.OBFUSCATE_AS_POINTS] };
+      const newEntitlements = { everyone: [ActionCapability.DOWNLOAD], [subjectEmail]: [ActionCapability.OBFUSCATE_AS_POINTS] };
       const putRes = await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(newEntitlements);
       expect(putRes.statusCode).toBe(StatusCodes.OK);
 
       const updatedRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${subjectToken}`);
       expect(updatedRes.statusCode).toBe(StatusCodes.OK);
       // Updated entitlements should be reflected in dataset capabilities: "everyone" + this subject's own grant
-      expect(updatedRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS]);
+      expect(updatedRes.body.capabilities).toEqual([ActionCapability.DOWNLOAD, ActionCapability.OBFUSCATE_AS_POINTS]);
     });
   });
 
@@ -97,16 +97,16 @@ describe('Testing entitlements routes', () => {
       process.env.ENTITLEMENTS_ENDPOINT = 'http://mock-entitlements';
 
       const expectedEntitlements = {
-        'dataset-1': [Capability.DOWNLOAD],
-        'dataset-2': [Capability.PREVIEW],
-        test_dataset_1: [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW],
+        'dataset-1': [ActionCapability.DOWNLOAD],
+        'dataset-2': [ActionCapability.PREVIEW],
+        test_dataset_1: [ActionCapability.DOWNLOAD, ActionCapability.OBFUSCATE_AS_POINTS, ActionCapability.PREVIEW],
       };
 
       // Mock callEntitlementsEndpoint function
       const remoteEntitlements = {
-        'dataset-1': [Capability.DOWNLOAD],
-        'dataset-2': [Capability.PREVIEW],
-        test_dataset_1: [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW],
+        'dataset-1': [ActionCapability.DOWNLOAD],
+        'dataset-2': [ActionCapability.PREVIEW],
+        test_dataset_1: [ActionCapability.OBFUSCATE_AS_POINTS, ActionCapability.PREVIEW],
       };
 
       const callEntitlementsEndpointSpy = jest

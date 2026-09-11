@@ -3,7 +3,7 @@ import { decodeTokenFromString, type Role } from '../auth/tokenScopes';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { FEATURE_FLAGS } from '../utilities/environmentVariables';
 import { useApiQuery } from './useApiQuery';
-import { Capability, type Entitlements } from 'types/backend';
+import { ActionCapability, type Entitlements } from 'types/backend';
 
 // Special roles — not in token, resolved at runtime
 export const ANYONE = 'anyone' as const;
@@ -39,7 +39,7 @@ type Action =
 
 // Checked against the fetched entitlements map (by entityId), not the role matrix — the action
 // itself is the capability to look up, so no separate action-to-capability mapping is needed.
-type EntityScopedAction = Capability.DOWNLOAD | Capability.PREVIEW;
+type EntityScopedAction = ActionCapability.DOWNLOAD | ActionCapability.PREVIEW;
 
 const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [TERMS_AND_CONDITIONS]: [],
@@ -81,7 +81,7 @@ export function useEntitlements() {
 
   const can = useCallback(
     (action: Action | EntityScopedAction, entityId?: string): boolean => {
-      if (action === Capability.DOWNLOAD || action === Capability.PREVIEW) {
+      if (action === ActionCapability.DOWNLOAD || action === ActionCapability.PREVIEW) {
         if (!entityId) {
           throw new Error(`Action ${action} requires an entityId.`);
         }

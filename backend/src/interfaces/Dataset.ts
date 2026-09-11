@@ -1,6 +1,6 @@
 import type { Polygon } from 'geojson';
 import { GISDataType, IngestionStatus } from '../types/data';
-import { Capability } from '../types/enums';
+import { ActionCapability } from '../types/enums';
 import { CleaningReport } from './CleaningReport';
 
 export interface MeasuredProperty {
@@ -41,7 +41,7 @@ export interface Dataset {
   created_by: string;
   updated_by?: string | null;
   service_location?: string | null;
-  capabilities?: Capability[];
+  capabilities?: ActionCapability[];
   visibility: 'public' | 'private';
   inferred_properties?: string[] | null;
   preprocessing_steps?: string | null;

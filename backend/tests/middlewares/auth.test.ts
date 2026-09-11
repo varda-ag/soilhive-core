@@ -7,7 +7,7 @@ import { getDataAdminToken, getSuperAdminToken } from '../helper';
 import JobService from '../../src/services/JobService';
 import EntitlementService from '../../src/services/EntitlementService';
 import { EntityManager } from 'typeorm';
-import { Capability } from '../../src/types/enums';
+import { ActionCapability } from '../../src/types/enums';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 
 describe('authMiddleware', () => {
@@ -15,9 +15,9 @@ describe('authMiddleware', () => {
   let superAdminToken: string;
   let entityManager: EntityManager;
   let getUserEntitlementsSpy: jest.SpiedFunction<typeof EntitlementService.prototype.getUserEntitlements>;
-  const everyoneEntitlements = { 'dataset-1': [Capability.DOWNLOAD] };
-  const dataAdminEntitlements = { 'dataset-1': [Capability.DOWNLOAD, 'obfuscate_as_points', 'preview'] };
-  const superAdminEntitlements = { 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.DOWNLOAD] };
+  const everyoneEntitlements = { 'dataset-1': [ActionCapability.DOWNLOAD] };
+  const dataAdminEntitlements = { 'dataset-1': [ActionCapability.DOWNLOAD, 'obfuscate_as_points', 'preview'] };
+  const superAdminEntitlements = { 'dataset-1': [ActionCapability.DOWNLOAD], 'dataset-2': [ActionCapability.DOWNLOAD] };
 
   beforeAll(async () => {
     dataAdminToken = await getDataAdminToken();

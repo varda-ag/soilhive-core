@@ -4,7 +4,7 @@ import { EntityManager, SelectQueryBuilder } from 'typeorm';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { ErrorResponse } from '../utils/error';
 import { selectOverviewTable } from '../utils/raster';
-import { Capability, OverlapType } from '../types/enums';
+import { ActionCapability, OverlapType } from '../types/enums';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, FilteredRasterLayer, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
@@ -439,7 +439,7 @@ export default class SoilDataStorage {
     includeProcedureInfo: boolean = false,
   ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> => {
     const { geometryIds, parameters: filters } = filter;
-    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
+    await entitlementService.enforceEntitlements(requestData, datasetSlugs, ActionCapability.DOWNLOAD);
 
     const schema = process.env.POSTGRES_SCHEMA;
     // Unlike the filtering paths, this aoi is returned to the caller as a GeoJSON
@@ -533,7 +533,7 @@ export default class SoilDataStorage {
   // yields 0 via the `rl.bbox && (SELECT geom FROM aoi)` predicate.
   getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
     const { geometryIds, parameters: filters } = filter;
-    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
+    await entitlementService.enforceEntitlements(requestData, datasetSlugs, ActionCapability.DOWNLOAD);
 
     const schema = process.env.POSTGRES_SCHEMA;
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
@@ -574,7 +574,7 @@ export default class SoilDataStorage {
 
   // Sibling of getRasterLayers: batch-fetches Raster Layer Assets for a set of already-filtered
   // raster_layers.id values, joined with their File. No entitlement check here — the caller has
-  // already run getRasterLayers, which enforces Capability.DOWNLOAD on the parent dataset.
+  // already run getRasterLayers, which enforces ActionCapability.DOWNLOAD on the parent dataset.
   getRasterLayerAssets = async (requestData: RequestData, rasterLayerIds: string[]): Promise<Map<string, RasterLayerAssetFile[]>> => {
     const grouped = new Map<string, RasterLayerAssetFile[]>();
     if (rasterLayerIds.length === 0) return grouped;
@@ -606,7 +606,7 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.PREVIEW);
+    await entitlementService.enforceEntitlements(requestData, datasetSlugs, ActionCapability.PREVIEW);
 
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);

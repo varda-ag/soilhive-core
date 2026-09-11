@@ -7,7 +7,7 @@ import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgMap } from '../assets/epsgMap';
-import { Capability, JobQueues } from '../types/enums';
+import { ActionCapability, JobQueues } from '../types/enums';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
@@ -152,7 +152,7 @@ export default class DatasetService {
     const isBypassed = Boolean(requestData.token?.isInternalRequest || requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin);
     dataset.capabilities =
       dataset.visibility === 'public' || isBypassed
-        ? [Capability.PREVIEW, Capability.DOWNLOAD]
+        ? [ActionCapability.PREVIEW, ActionCapability.DOWNLOAD]
         : requestData.entitlements[dataset.slug] || [];
   };
 

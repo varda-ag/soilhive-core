@@ -8,7 +8,7 @@ import {
   MAP_BASED_FILTERS,
 } from 'hooks/useEntitlementsHook';
 import type { User } from '../../src/auth/Token';
-import { Capability } from 'types/backend';
+import { ActionCapability } from 'types/backend';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
@@ -125,7 +125,7 @@ describe('useEntitlements', () => {
     });
   });
 
-  describe('Capability.DOWNLOAD/Capability.PREVIEW (entity-scoped actions)', () => {
+  describe('ActionCapability.DOWNLOAD/ActionCapability.PREVIEW (entity-scoped actions)', () => {
     beforeEach(() => {
       mockUseAuthContext.mockReturnValue({ ...baseAuthContext, user: makeUser('openid email profile') });
     });
@@ -133,8 +133,8 @@ describe('useEntitlements', () => {
     it('throws when entityId is missing', () => {
       const { result } = renderHook(() => useEntitlements());
 
-      expect(() => result.current.can(Capability.DOWNLOAD)).toThrow('Action download requires an entityId.');
-      expect(() => result.current.can(Capability.PREVIEW)).toThrow('Action preview requires an entityId.');
+      expect(() => result.current.can(ActionCapability.DOWNLOAD)).toThrow('Action download requires an entityId.');
+      expect(() => result.current.can(ActionCapability.PREVIEW)).toThrow('Action preview requires an entityId.');
     });
 
     it('returns false while entitlements are loading, even with an entityId', () => {
@@ -142,7 +142,7 @@ describe('useEntitlements', () => {
 
       const { result } = renderHook(() => useEntitlements());
 
-      expect(result.current.can(Capability.DOWNLOAD, 'dataset-1')).toBe(false);
+      expect(result.current.can(ActionCapability.DOWNLOAD, 'dataset-1')).toBe(false);
       expect(result.current.isLoading).toBe(true);
     });
 
@@ -151,23 +151,23 @@ describe('useEntitlements', () => {
 
       const { result } = renderHook(() => useEntitlements());
 
-      expect(result.current.can(Capability.DOWNLOAD, 'dataset-1')).toBe(false);
-      expect(result.current.can(Capability.PREVIEW, 'dataset-1')).toBe(false);
+      expect(result.current.can(ActionCapability.DOWNLOAD, 'dataset-1')).toBe(false);
+      expect(result.current.can(ActionCapability.PREVIEW, 'dataset-1')).toBe(false);
     });
 
     it('checks the fetched entitlements map for the given entityId and capability', () => {
       mockUseApiQuery.mockReturnValue({
-        data: { 'dataset-1': [Capability.PREVIEW], 'dataset-2': [Capability.DOWNLOAD, Capability.PREVIEW] },
+        data: { 'dataset-1': [ActionCapability.PREVIEW], 'dataset-2': [ActionCapability.DOWNLOAD, ActionCapability.PREVIEW] },
         isLoading: false,
       } as any);
 
       const { result } = renderHook(() => useEntitlements());
 
-      expect(result.current.can(Capability.PREVIEW, 'dataset-1')).toBe(true);
-      expect(result.current.can(Capability.DOWNLOAD, 'dataset-1')).toBe(false);
-      expect(result.current.can(Capability.DOWNLOAD, 'dataset-2')).toBe(true);
-      expect(result.current.can(Capability.PREVIEW, 'dataset-2')).toBe(true);
-      expect(result.current.can(Capability.DOWNLOAD, 'not-existing')).toBe(false);
+      expect(result.current.can(ActionCapability.PREVIEW, 'dataset-1')).toBe(true);
+      expect(result.current.can(ActionCapability.DOWNLOAD, 'dataset-1')).toBe(false);
+      expect(result.current.can(ActionCapability.DOWNLOAD, 'dataset-2')).toBe(true);
+      expect(result.current.can(ActionCapability.PREVIEW, 'dataset-2')).toBe(true);
+      expect(result.current.can(ActionCapability.DOWNLOAD, 'not-existing')).toBe(false);
     });
 
     it.each([['data-admin'], ['super-admin']])('bypasses the entitlements map for a %s, even with an empty map or while loading', role => {
@@ -176,8 +176,8 @@ describe('useEntitlements', () => {
 
       const { result } = renderHook(() => useEntitlements());
 
-      expect(result.current.can(Capability.DOWNLOAD, 'not-existing')).toBe(true);
-      expect(result.current.can(Capability.PREVIEW, 'not-existing')).toBe(true);
+      expect(result.current.can(ActionCapability.DOWNLOAD, 'not-existing')).toBe(true);
+      expect(result.current.can(ActionCapability.PREVIEW, 'not-existing')).toBe(true);
     });
 
     it('still throws for an admin when entityId is missing', () => {
@@ -185,7 +185,7 @@ describe('useEntitlements', () => {
 
       const { result } = renderHook(() => useEntitlements());
 
-      expect(() => result.current.can(Capability.DOWNLOAD)).toThrow('Action download requires an entityId.');
+      expect(() => result.current.can(ActionCapability.DOWNLOAD)).toThrow('Action download requires an entityId.');
     });
   });
 });

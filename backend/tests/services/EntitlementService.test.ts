@@ -7,7 +7,7 @@ import { addDataset, addLicense } from '../../src/utils/mock';
 import EntitlementService from '../../src/services/EntitlementService';
 import DatasetService from '../../src/services/DatasetService';
 import { Entitlements } from '../../src/types/Entitlements';
-import { Capability } from '../../src/types/enums';
+import { ActionCapability } from '../../src/types/enums';
 import DatasetEntity from '../../src/entities/Dataset';
 import LicenseEntity from '../../src/entities/License';
 import { log } from '../../src/utils/logger';
@@ -63,29 +63,29 @@ describe('EntitlementService', () => {
   // beforeEach — getUserEntitlements is expected to expand them across the entity's whole slug
   // history, so a grant made before a rename is visible under both the old and the new slug.
   it.each([
-    [undefined, { 'dataset-1': [Capability.DOWNLOAD], 'dataset-1-renamed': [Capability.DOWNLOAD] }],
-    ['not-existing', { 'dataset-1': [Capability.DOWNLOAD], 'dataset-1-renamed': [Capability.DOWNLOAD] }],
+    [undefined, { 'dataset-1': [ActionCapability.DOWNLOAD], 'dataset-1-renamed': [ActionCapability.DOWNLOAD] }],
+    ['not-existing', { 'dataset-1': [ActionCapability.DOWNLOAD], 'dataset-1-renamed': [ActionCapability.DOWNLOAD] }],
     [
       'user1@example.com',
       {
-        'dataset-1': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW],
-        'dataset-1-renamed': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW],
+        'dataset-1': [ActionCapability.DOWNLOAD, ActionCapability.OBFUSCATE_AS_POINTS, ActionCapability.PREVIEW],
+        'dataset-1-renamed': [ActionCapability.DOWNLOAD, ActionCapability.OBFUSCATE_AS_POINTS, ActionCapability.PREVIEW],
       },
     ],
     [
       'user2@example.com',
       {
-        'dataset-1': [Capability.DOWNLOAD],
-        'dataset-1-renamed': [Capability.DOWNLOAD],
-        'dataset-2': [Capability.OBFUSCATE_AS_POINTS],
+        'dataset-1': [ActionCapability.DOWNLOAD],
+        'dataset-1-renamed': [ActionCapability.DOWNLOAD],
+        'dataset-2': [ActionCapability.OBFUSCATE_AS_POINTS],
       },
     ],
     [
       'user3@example.com',
       {
-        'dataset-1': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS],
-        'dataset-1-renamed': [Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS],
-        'dataset-3': [Capability.OBFUSCATE_AS_POINTS],
+        'dataset-1': [ActionCapability.DOWNLOAD, ActionCapability.OBFUSCATE_AS_POINTS],
+        'dataset-1-renamed': [ActionCapability.DOWNLOAD, ActionCapability.OBFUSCATE_AS_POINTS],
+        'dataset-3': [ActionCapability.OBFUSCATE_AS_POINTS],
       },
     ],
   ])('should retrieve user entitlements by ID, expanded across the entity slug history', async (id, expectedEntitlements) => {
@@ -101,9 +101,9 @@ describe('EntitlementService', () => {
     const entitlements = await service.getUserEntitlements(requestData, 'user5@example.com');
     // 'dataset-1' (EVERYONE's grant) is expanded to every slug the dataset has had; the unrelated key is passed through as-is.
     expect(entitlements).toEqual({
-      'dataset-1': [Capability.DOWNLOAD],
-      'dataset-1-renamed': [Capability.DOWNLOAD],
-      'totally-unrelated-key': [Capability.PREVIEW],
+      'dataset-1': [ActionCapability.DOWNLOAD],
+      'dataset-1-renamed': [ActionCapability.DOWNLOAD],
+      'totally-unrelated-key': [ActionCapability.PREVIEW],
     });
   });
 
@@ -115,8 +115,8 @@ describe('EntitlementService', () => {
 
     const entitlements = await service.getUserEntitlements(requestData, 'user6@example.com');
     expect(entitlements).toEqual({
-      'dataset-1': [Capability.DOWNLOAD, Capability.PREVIEW],
-      'dataset-1-renamed': [Capability.DOWNLOAD, Capability.PREVIEW],
+      'dataset-1': [ActionCapability.DOWNLOAD, ActionCapability.PREVIEW],
+      'dataset-1-renamed': [ActionCapability.DOWNLOAD, ActionCapability.PREVIEW],
     });
   });
 
@@ -134,10 +134,10 @@ describe('EntitlementService', () => {
 
     const entitlements = await service.getUserEntitlements(requestData, 'user7@example.com');
     expect(entitlements).toEqual({
-      'dataset-1': [Capability.DOWNLOAD], // EVERYONE's grant, always merged in
-      'dataset-1-renamed': [Capability.DOWNLOAD],
-      [license.slug]: [Capability.PREVIEW],
-      [renamed.slug]: [Capability.PREVIEW],
+      'dataset-1': [ActionCapability.DOWNLOAD], // EVERYONE's grant, always merged in
+      'dataset-1-renamed': [ActionCapability.DOWNLOAD],
+      [license.slug]: [ActionCapability.PREVIEW],
+      [renamed.slug]: [ActionCapability.PREVIEW],
     });
   });
 
@@ -158,12 +158,12 @@ describe('EntitlementService', () => {
 
     const entitlements = await service.getUserEntitlements(requestData, 'user8@example.com');
     expect(entitlements).toEqual({
-      'dataset-1': [Capability.DOWNLOAD], // EVERYONE's grant, always merged in
-      'dataset-1-renamed': [Capability.DOWNLOAD],
-      [originalSlug]: [Capability.PREVIEW],
-      [afterFirstRename.slug]: [Capability.PREVIEW],
-      [afterSecondRename.slug]: [Capability.PREVIEW],
-      [afterThirdRename.slug]: [Capability.PREVIEW],
+      'dataset-1': [ActionCapability.DOWNLOAD], // EVERYONE's grant, always merged in
+      'dataset-1-renamed': [ActionCapability.DOWNLOAD],
+      [originalSlug]: [ActionCapability.PREVIEW],
+      [afterFirstRename.slug]: [ActionCapability.PREVIEW],
+      [afterSecondRename.slug]: [ActionCapability.PREVIEW],
+      [afterThirdRename.slug]: [ActionCapability.PREVIEW],
     });
   });
 
@@ -172,12 +172,12 @@ describe('EntitlementService', () => {
     [
       'dataset-1',
       {
-        everyone: [Capability.DOWNLOAD],
-        'user1@example.com': [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW, Capability.DOWNLOAD],
-        'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
+        everyone: [ActionCapability.DOWNLOAD],
+        'user1@example.com': [ActionCapability.OBFUSCATE_AS_POINTS, ActionCapability.PREVIEW, ActionCapability.DOWNLOAD],
+        'user3@example.com': [ActionCapability.OBFUSCATE_AS_POINTS],
       },
     ],
-    ['dataset-2', { 'user2@example.com': [Capability.OBFUSCATE_AS_POINTS] }],
+    ['dataset-2', { 'user2@example.com': [ActionCapability.OBFUSCATE_AS_POINTS] }],
     ['spatial_filter', { 'user4@example.com': 'world' }],
   ])('should retrieve entity entitlements', async (slug, expectedEntitlements) => {
     const entitlements = await service.getEntityEntitlements(requestData, slug);
@@ -185,18 +185,18 @@ describe('EntitlementService', () => {
   });
 
   it.each([
-    ['not-existing-entity', { 'user@example.com': [Capability.OBFUSCATE_AS_POINTS] } as Entitlements],
+    ['not-existing-entity', { 'user@example.com': [ActionCapability.OBFUSCATE_AS_POINTS] } as Entitlements],
     ['another-not-existing-entity', {}],
     ['dataset-1', {}],
     [
       'dataset-1',
       {
-        everyone: [Capability.DOWNLOAD],
-        'user1@example.com': [Capability.OBFUSCATE_AS_POINTS],
-        'another@example.com': [Capability.OBFUSCATE_AS_POINTS],
+        everyone: [ActionCapability.DOWNLOAD],
+        'user1@example.com': [ActionCapability.OBFUSCATE_AS_POINTS],
+        'another@example.com': [ActionCapability.OBFUSCATE_AS_POINTS],
       } as Entitlements,
     ],
-    ['dataset-2', { 'another@example.com': [Capability.OBFUSCATE_AS_POINTS] } as Entitlements],
+    ['dataset-2', { 'another@example.com': [ActionCapability.OBFUSCATE_AS_POINTS] } as Entitlements],
   ])('should set entitlements to entity and return the updated entitlements', async (slug: string, payload: Entitlements) => {
     const result = await service.setEntityEntitlements(requestData, slug, payload);
     expect(result).toEqual(payload);
@@ -228,10 +228,10 @@ describe('EntitlementService', () => {
 
       // user3 held both dataset-1 and dataset-3; only the dataset-1 key should be gone
       expect(await service.getEntityEntitlements(requestData, 'dataset-2')).toEqual({
-        'user2@example.com': [Capability.OBFUSCATE_AS_POINTS],
+        'user2@example.com': [ActionCapability.OBFUSCATE_AS_POINTS],
       });
       expect(await service.getEntityEntitlements(requestData, 'dataset-3')).toEqual({
-        'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
+        'user3@example.com': [ActionCapability.OBFUSCATE_AS_POINTS],
       });
       // A key with no slug_history row at all must survive
       expect(await service.getEntityEntitlements(requestData, 'spatial_filter')).toEqual({ 'user4@example.com': 'world' });
@@ -259,7 +259,7 @@ describe('EntitlementService', () => {
       await service.deleteEntityEntitlements(requestData, 'never-existed');
 
       expect(await service.getEntityEntitlements(requestData, 'dataset-2')).toEqual({
-        'user2@example.com': [Capability.OBFUSCATE_AS_POINTS],
+        'user2@example.com': [ActionCapability.OBFUSCATE_AS_POINTS],
       });
     });
 
@@ -294,11 +294,11 @@ describe('EntitlementService', () => {
     // Agreed contract: an array of {slug: capabilities} entries, one per grant — not one flat
     // object. This is what the real external provider replies with.
     it('adapts the array-of-entries reply into a flat entitlements map', async () => {
-      const remoteReply = [{ 'dataset-1': [Capability.DOWNLOAD] }, { 'dataset-2': [Capability.PREVIEW] }];
+      const remoteReply = [{ 'dataset-1': [ActionCapability.DOWNLOAD] }, { 'dataset-2': [ActionCapability.PREVIEW] }];
       fetchSpy.mockResolvedValue({ ok: true, json: async () => remoteReply } as Response);
 
       const entitlements = await service.callEntitlementsEndpoint(requestData);
-      expect(entitlements).toEqual({ 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.PREVIEW] });
+      expect(entitlements).toEqual({ 'dataset-1': [ActionCapability.DOWNLOAD], 'dataset-2': [ActionCapability.PREVIEW] });
     });
 
     it('degrades to local entitlements (empty object) when the endpoint responds with an error status', async () => {
@@ -327,9 +327,9 @@ describe('EntitlementService', () => {
       });
 
       it.each([
-        ['a flat object instead of an array', { 'dataset-1': [Capability.DOWNLOAD] }],
+        ['a flat object instead of an array', { 'dataset-1': [ActionCapability.DOWNLOAD] }],
         ['an array with a non-object entry', ['dataset-1']],
-        ['an array with an entry whose value is not an array', [{ 'dataset-1': Capability.DOWNLOAD }]],
+        ['an array with an entry whose value is not an array', [{ 'dataset-1': ActionCapability.DOWNLOAD }]],
         ['a plain string', 'download'],
         ['null', null],
       ])('discards the reply and logs an error for %s', async (_description, malformedReply) => {
@@ -353,39 +353,39 @@ describe('EntitlementService', () => {
     });
 
     it('should not throw when all requested slugs do not exist', async () => {
-      await expect(service.enforceEntitlements(requestData, ['non-existent'], Capability.DOWNLOAD)).resolves.toBeUndefined();
+      await expect(service.enforceEntitlements(requestData, ['non-existent'], ActionCapability.DOWNLOAD)).resolves.toBeUndefined();
     });
 
     it('should not throw when all matching datasets are public', async () => {
-      await expect(service.enforceEntitlements(requestData, ['dataset-1'], Capability.DOWNLOAD)).resolves.toBeUndefined();
+      await expect(service.enforceEntitlements(requestData, ['dataset-1'], ActionCapability.DOWNLOAD)).resolves.toBeUndefined();
     });
 
     it('should not throw for a mix of public and private when user has capability for private ones', async () => {
-      const rd = { ...requestData, entitlements: { 'dataset-2': [Capability.DOWNLOAD] } };
-      await expect(service.enforceEntitlements(rd, ['dataset-1', 'dataset-2'], Capability.DOWNLOAD)).resolves.toBeUndefined();
+      const rd = { ...requestData, entitlements: { 'dataset-2': [ActionCapability.DOWNLOAD] } };
+      await expect(service.enforceEntitlements(rd, ['dataset-1', 'dataset-2'], ActionCapability.DOWNLOAD)).resolves.toBeUndefined();
     });
 
     it('should not throw when user has the required capability for a private dataset', async () => {
-      const rd = { ...requestData, entitlements: { 'dataset-2': [Capability.PREVIEW] } };
-      await expect(service.enforceEntitlements(rd, ['dataset-2'], Capability.PREVIEW)).resolves.toBeUndefined();
+      const rd = { ...requestData, entitlements: { 'dataset-2': [ActionCapability.PREVIEW] } };
+      await expect(service.enforceEntitlements(rd, ['dataset-2'], ActionCapability.PREVIEW)).resolves.toBeUndefined();
     });
 
     it('should throw 403 when user has no entitlements for a private dataset', async () => {
-      await expect(service.enforceEntitlements(requestData, ['dataset-2'], Capability.DOWNLOAD)).rejects.toMatchObject({
+      await expect(service.enforceEntitlements(requestData, ['dataset-2'], ActionCapability.DOWNLOAD)).rejects.toMatchObject({
         status: 403,
       });
     });
 
     it('should throw 403 when user has entitlements for a private dataset but not the required capability', async () => {
-      const rd = { ...requestData, entitlements: { 'dataset-2': [Capability.PREVIEW] } };
-      await expect(service.enforceEntitlements(rd, ['dataset-2'], Capability.DOWNLOAD)).rejects.toMatchObject({
+      const rd = { ...requestData, entitlements: { 'dataset-2': [ActionCapability.PREVIEW] } };
+      await expect(service.enforceEntitlements(rd, ['dataset-2'], ActionCapability.DOWNLOAD)).rejects.toMatchObject({
         status: 403,
       });
     });
 
     it('should throw 403 on the first private dataset the user lacks access to', async () => {
-      const rd = { ...requestData, entitlements: { 'dataset-2': [Capability.DOWNLOAD] } };
-      await expect(service.enforceEntitlements(rd, ['dataset-2', 'dataset-3'], Capability.DOWNLOAD)).rejects.toMatchObject({
+      const rd = { ...requestData, entitlements: { 'dataset-2': [ActionCapability.DOWNLOAD] } };
+      await expect(service.enforceEntitlements(rd, ['dataset-2', 'dataset-3'], ActionCapability.DOWNLOAD)).rejects.toMatchObject({
         status: 403,
       });
     });
@@ -396,7 +396,7 @@ describe('EntitlementService', () => {
       { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
     ])('should not throw for internal requests or admins', async additionalData => {
       const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
-      await expect(service.enforceEntitlements(rd, ['dataset-2', 'dataset-3'], Capability.DOWNLOAD)).resolves.toBeUndefined();
+      await expect(service.enforceEntitlements(rd, ['dataset-2', 'dataset-3'], ActionCapability.DOWNLOAD)).resolves.toBeUndefined();
     });
   });
 });

@@ -118,11 +118,16 @@ export const enum IngestionStatus {
   PUBLISHED = 'PUBLISHED',
 }
 
-export enum Capability {
+export enum ActionCapability {
   PREVIEW = 'preview',
   DOWNLOAD = 'download',
   OBFUSCATE_AS_POINTS = 'obfuscate_as_points',
   OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
+}
+
+export enum ACLCapability {
+  READ = 'read',
+  WRITE = 'write',
 }
 
 export type InferredProperty =
@@ -163,7 +168,7 @@ export interface Dataset {
   created_by: string;
   updated_by?: string | null;
   service_location?: string | null;
-  capabilities?: Capability[];
+  capabilities?: ActionCapability[];
   visibility: 'public' | 'private';
   inferred_properties?: InferredProperty[] | null;
   preprocessing_steps?: string | null;
@@ -300,7 +305,7 @@ export type EntitlementCapability = 'preview' | 'download' | 'obfuscate_as_point
 export type DatasetEntitlements = Record<string, EntitlementCapability[]>;
 
 /** Response shape of `GET /entitlements`: the current user's capabilities, keyed by entity slug. */
-export type Entitlements = Record<string, Capability[]>;
+export type Entitlements = Record<string, ActionCapability[]>;
 
 export interface FileRasterBandDescriptor {
   band_number: number;

@@ -4,7 +4,7 @@ import { Dataset, MeasuredProperty, ProcessingSteps } from '../interfaces/Datase
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import { GISDataType, IngestionStatus } from '../types/data';
-import { Capability } from '../types/enums';
+import { ActionCapability } from '../types/enums';
 
 @Entity('datasets')
 @Unique(['name'])
@@ -110,7 +110,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   related_resources?: string[] | null;
 
   // Not a column, populated at runtime based on entitlements
-  capabilities?: Capability[];
+  capabilities?: ActionCapability[];
 
   // Not a column, populated at runtime from processing_steps.description
   preprocessing_steps?: string | null;

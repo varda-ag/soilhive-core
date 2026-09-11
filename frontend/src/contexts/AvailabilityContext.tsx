@@ -3,7 +3,7 @@ import React, { createContext, useState, type ReactNode, useCallback, useMemo } 
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetSummaryToAvailabilityDataset, mapFilteredDatasetToAvailabilityDataset } from '../adapters';
 import {
-  Capability,
+  ActionCapability,
   type SoilProperty,
   type FilterCriteria,
   type SoilPropertyCategory,
@@ -101,7 +101,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const { can } = useEntitlements();
   const isAvailableDataset = useCallback(
     (dataset: { id: string; visibility: string }) =>
-      dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id),
+      dataset.visibility === 'public' || can(ActionCapability.DOWNLOAD, dataset.id) || can(ActionCapability.PREVIEW, dataset.id),
     [can],
   );
 

@@ -4,7 +4,7 @@ import { app } from '../../src/app';
 import { addSyntheticData, addSyntheticIngestionData, syntheticDataOptions, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import { getDataAdminToken } from '../helper';
 import StatusCodes from 'http-status-codes';
-import { Capability } from '../../src/types/enums';
+import { ActionCapability } from '../../src/types/enums';
 import JobService from '../../src/services/JobService';
 
 describe('Testing /datasets routes', () => {
@@ -39,7 +39,7 @@ describe('Testing /datasets routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveProperty('id', s1.dataset.slug);
       expect(res.body).toHaveProperty('visibility', s1.dataset.visibility);
-      expect(res.body).toHaveProperty('capabilities', [Capability.PREVIEW, Capability.DOWNLOAD]);
+      expect(res.body).toHaveProperty('capabilities', [ActionCapability.PREVIEW, ActionCapability.DOWNLOAD]);
       expect(res.body).toHaveProperty('inferred_properties');
       expect(res.body).toHaveProperty('preprocessing_steps');
       expect(res.body).toHaveProperty('related_resources');
