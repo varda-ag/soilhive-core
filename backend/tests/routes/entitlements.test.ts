@@ -93,7 +93,7 @@ describe('Testing entitlements routes', () => {
   });
 
   describe('Getting entitlements from external provider successfully', () => {
-    it('merges local and remote entitlements', async () => {
+    it('merges local and remote entitlements, sliced to the requested scope', async () => {
       process.env.ENTITLEMENTS_ENDPOINT = 'http://mock-entitlements';
 
       const expectedEntitlements = {
@@ -113,15 +113,42 @@ describe('Testing entitlements routes', () => {
         .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
         .mockResolvedValue({ datasets: remoteEntitlements, configs: {} });
 
-      // NOTE: `scope` becomes a mandatory query param on this endpoint in Subtask 4 — this test
-      // is finished there (it will need `?scope=datasets` and a flat, scope-sliced body).
-      const res = await request(app).get('/entitlements').set('Authorization', `Bearer ${token}`);
+      const res = await request(app).get('/entitlements').query({ scope: 'datasets' }).set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
-      expect(res.body).toEqual({ datasets: expectedEntitlements, configs: {} });
+      expect(res.body).toEqual(expectedEntitlements);
 
       // Clean up
       delete process.env.ENTITLEMENTS_ENDPOINT;
       callEntitlementsEndpointSpy.mockRestore();
+    });
+  });
+
+  describe('GET /entitlements?scope=', () => {
+    it('returns the configs sub-map (empty when the subject has no configs grants)', async () => {
+      const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({});
+    });
+
+    it('returns the configs sub-map populated when the subject has configs grants', async () => {
+      const entityManager = await getEntityManager();
+      await entityManager.query(`
+        UPDATE entitlements SET data = data || '{"configs": {"dashboard_1": ["read", "write"]}}'::jsonb WHERE id = 'everyone'
+      `);
+
+      const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ dashboard_1: ['read', 'write'] });
+    });
+
+    it('returns 400 when scope is missing', async () => {
+      const res = await request(app).get('/entitlements').set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
+
+    it('returns 400 when scope is invalid', async () => {
+      const res = await request(app).get('/entitlements').query({ scope: 'not-a-real-scope' }).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
   });
 
@@ -133,7 +160,7 @@ describe('Testing entitlements routes', () => {
       .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
       .mockRejectedValue(new Error(detail));
 
-    const res = await request(app).get(`/entitlements`).set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get(`/entitlements`).query({ scope: 'datasets' }).set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
     expect(res.body).toHaveProperty('detail', detail);
 

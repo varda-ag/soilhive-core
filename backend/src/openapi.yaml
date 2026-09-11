@@ -16,13 +16,23 @@ paths:
         - bearerAuth: []
       tags:
         - auth
+      parameters:
+        - name: scope
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [datasets, configs]
+          description: Which namespace to return entitlements for. There is no "all scopes" response.
       responses:
         '200':
-          description: List of user entitlements
+          description: List of user entitlements for the requested scope
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Entitlements'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
   /auth/config:
     get:
@@ -3164,6 +3174,10 @@ components:
 
     Entitlements:
       type: object
+      description: >-
+        Flat map of key (a dataset slug, or a freeform config key under the `configs` scope) to
+        the list of capabilities granted for it. Used both by `GET /entitlements` (one scope's
+        slice) and by `GET`/`PUT /datasets/{datasetId}/entitlements` (always the `datasets` scope).
 
     DataAvailabilityIndex:
       type: object

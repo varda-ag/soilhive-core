@@ -17,6 +17,8 @@ export const setDatasetEntitlement = async (req: Request, res: Response) => {
 };
 
 export const getUserEntitlements = async (req: Request, res: Response) => {
+  // Required and enum-validated by the OpenAPI spec — invalid or missing values never reach here.
+  const scope = req.query['scope'] as EntitlementScope;
   const data = await entitlementService.getUserEntitlements(req.customData, req.customData.token?.email);
-  res.json(data);
+  res.json(data[scope] ?? {});
 };
