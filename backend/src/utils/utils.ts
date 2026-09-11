@@ -215,15 +215,9 @@ export const getJobGroupConcurrency = (): number => {
 
 /**
  * Maximum Aggregation Units a soil-statistics job will report on.
- *
- * This is what bounds the output, not the query: the result is a cross product of units ×
- * datasets × soil properties × years × depth intervals stored in a jsonb job-data column
- * (docs/adr/0021). At the default, a run spanning 5 datasets and 15 soil properties is
- * already ~15 000 headline cells, so raising it materially needs the output to move out
- * of job data first.
  */
 export const getSoilStatisticsMaxUnits = (): number => {
-  return Number(process.env['SOIL_STATISTICS_MAX_UNITS']) || 200;
+  return Number(process.env['SOIL_STATISTICS_MAX_UNITS']) || 2000;
 };
 
 /** Upper bound on breakdown (per year and depth interval) cells before groups are dropped. */

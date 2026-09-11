@@ -1,12 +1,5 @@
 import type { StatisticsType } from '../types/enums';
-import type {
-  AggregationUnit,
-  CreaIndexCollection,
-  DatasetExcludeReason,
-  DatasetNote,
-  DatasetSkipReason,
-  SoilStatisticsResult,
-} from '../jobs/soil-statistics/types';
+import type { AggregationUnit } from '../jobs/soil-statistics/types';
 
 export type AnyJob = BulkLoadJob | RasterLoadJob | ExportJob | FileToDbJob | BulkDeleteJob | RefreshDaiStatsJob | SoilStatisticsJob;
 
@@ -99,28 +92,9 @@ export interface SoilStatisticsJobParameters {
   label_field?: string;
 }
 
-/**
- * Every field below the Unit block is written by exactly one Statistics Type, because each
- * producer owns its own output keys — so a field belonging to another type is *absent*,
- * not null. The type system cannot express that here: updateJobState is typed
- * Partial<ExportJob> and every call site casts past it, so this contract is upheld by the
- * producers and documented here rather than enforced.
- */
 export interface SoilStatisticsJob extends SoilStatisticsJobParameters, CommonJobData {
-  // ── written by every Statistics Type ───────────────────────────────────────────────
   /** Filter holding the Aggregation Units; null when they are filter_id's own geometries. */
   derived_filter_id: string | null;
   unit_count: number;
   units: AggregationUnit[];
-
-  // ── `descriptive` only ─────────────────────────────────────────────────────────────
-  /** True when at least one group's per-(year, depth) breakdown was dropped. */
-  truncated: boolean;
-  results: SoilStatisticsResult[];
-  skipped_datasets: DatasetNote<DatasetSkipReason>[];
-  excluded_datasets: DatasetNote<DatasetExcludeReason>[];
-
-  // ── `crea-index` only ──────────────────────────────────────────────────────────────
-  /** One Point per Aggregation Unit, its `id` being the `unit_id`. */
-  crea_index: CreaIndexCollection;
 }
