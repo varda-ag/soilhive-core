@@ -29,6 +29,11 @@ import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMask
 import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { GdalCLI } from '../../src/utils/GdalCLI';
 import path from 'path';
+import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
+
+// addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
+// these tiny fixtures.
+(computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
