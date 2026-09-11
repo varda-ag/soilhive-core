@@ -40,11 +40,11 @@ describe('Testing entitlements routes', () => {
       entitlements: {},
     };
     await datasetService.updateDataset(requestData, dataset.slug, { visibility: 'private' });
-    // Setup test entitlements
+    // Setup test entitlements, nested under "datasets" (see ADR-0032)
     await entityManager.query(`
         INSERT INTO entitlements (id, data) VALUES
-        ('everyone', '{"${slug}": ["download"]}'),
-        ('${email}', '{"${slug}": ["preview"]}')
+        ('everyone', '{"datasets": {"${slug}": ["download"]}}'),
+        ('${email}', '{"datasets": {"${slug}": ["preview"]}}')
         `);
   });
 
@@ -93,7 +93,7 @@ describe('Testing entitlements routes', () => {
   });
 
   describe('Getting entitlements from external provider successfully', () => {
-    it('merges local and remote entitlements', async () => {
+    it('merges local and remote entitlements, sliced to the requested scope', async () => {
       process.env.ENTITLEMENTS_ENDPOINT = 'http://mock-entitlements';
 
       const expectedEntitlements = {
@@ -111,15 +111,44 @@ describe('Testing entitlements routes', () => {
 
       const callEntitlementsEndpointSpy = jest
         .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
-        .mockResolvedValue(remoteEntitlements);
+        .mockResolvedValue({ datasets: remoteEntitlements, configs: {} });
 
-      const res = await request(app).get('/entitlements').set('Authorization', `Bearer ${token}`);
+      const res = await request(app).get('/entitlements').query({ scope: 'datasets' }).set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual(expectedEntitlements);
 
       // Clean up
       delete process.env.ENTITLEMENTS_ENDPOINT;
       callEntitlementsEndpointSpy.mockRestore();
+    });
+  });
+
+  describe('GET /entitlements?scope=', () => {
+    it('returns the configs sub-map (empty when the subject has no configs grants)', async () => {
+      const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({});
+    });
+
+    it('returns the configs sub-map populated when the subject has configs grants', async () => {
+      const entityManager = await getEntityManager();
+      await entityManager.query(`
+        UPDATE entitlements SET data = data || '{"configs": {"dashboard_1": ["read", "write"]}}'::jsonb WHERE id = 'everyone'
+      `);
+
+      const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ dashboard_1: ['read', 'write'] });
+    });
+
+    it('returns 400 when scope is missing', async () => {
+      const res = await request(app).get('/entitlements').set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
+
+    it('returns 400 when scope is invalid', async () => {
+      const res = await request(app).get('/entitlements').query({ scope: 'not-a-real-scope' }).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
   });
 
@@ -131,7 +160,7 @@ describe('Testing entitlements routes', () => {
       .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
       .mockRejectedValue(new Error(detail));
 
-    const res = await request(app).get(`/entitlements`).set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get(`/entitlements`).query({ scope: 'datasets' }).set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR);
     expect(res.body).toHaveProperty('detail', detail);
 

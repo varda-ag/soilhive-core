@@ -7,7 +7,7 @@ import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useTranslation } from 'react-i18next';
-import { Capability } from 'types/backend';
+import { Capability, EntitlementScope } from 'types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 import styles from './DatasetsSidebar.module.scss';
@@ -25,7 +25,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { isDesktopLayout, isMobileLayout } = useDevice();
   const { availableDatasets, filterId, datasetFrontendFilters, datasetsSummary, isCoverageLoading, isDatasetsLoading } = useAvailability();
   const { selectionType, locationName } = useAvailabilityMap();
-  const { can } = useEntitlements();
+  const { can } = useEntitlements(EntitlementScope.DATASETS);
 
   const navigate = useNavigate();
 

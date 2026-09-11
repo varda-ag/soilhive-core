@@ -14,7 +14,7 @@ import styles from './DatasetsListItem.module.scss';
 import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
-import { Capability, GISDataType } from '../../../../types/backend';
+import { Capability, EntitlementScope, GISDataType } from '../../../../types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 
 type Props = {
@@ -22,7 +22,7 @@ type Props = {
 };
 export function DatasetsListItem({ dataset }: Props) {
   const { selectedDatasets, selectDataset, isCoverageLoading } = useAvailability();
-  const { can } = useEntitlements();
+  const { can } = useEntitlements(EntitlementScope.DATASETS);
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
   const isSelectable = dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id);

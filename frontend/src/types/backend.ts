@@ -123,6 +123,8 @@ export enum Capability {
   DOWNLOAD = 'download',
   OBFUSCATE_AS_POINTS = 'obfuscate_as_points',
   OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
+  READ = 'read',
+  WRITE = 'write',
 }
 
 export type InferredProperty =
@@ -299,7 +301,16 @@ export interface VocabularyItem {
 export type EntitlementCapability = 'preview' | 'download' | 'obfuscate_as_points' | 'obfuscate_as_polygons';
 export type DatasetEntitlements = Record<string, EntitlementCapability[]>;
 
-/** Response shape of `GET /entitlements`: the current user's capabilities, keyed by entity slug. */
+/** Namespace `GET /entitlements`'s mandatory `scope` query param selects (see backend ADR-0032). */
+export enum EntitlementScope {
+  DATASETS = 'datasets',
+  CONFIGS = 'configs',
+}
+
+/**
+ * Response shape of `GET /entitlements?scope=`: the current user's capabilities for that one
+ * scope, keyed by entity slug (`datasets`) or freeform config key (`configs`).
+ */
 export type Entitlements = Record<string, Capability[]>;
 
 export interface FileRasterBandDescriptor {
