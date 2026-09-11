@@ -40,11 +40,11 @@ describe('Testing entitlements routes', () => {
       entitlements: {},
     };
     await datasetService.updateDataset(requestData, dataset.slug, { visibility: 'private' });
-    // Setup test entitlements
+    // Setup test entitlements, nested under "datasets" (see ADR-0032)
     await entityManager.query(`
         INSERT INTO entitlements (id, data) VALUES
-        ('everyone', '{"${slug}": ["download"]}'),
-        ('${email}', '{"${slug}": ["preview"]}')
+        ('everyone', '{"datasets": {"${slug}": ["download"]}}'),
+        ('${email}', '{"datasets": {"${slug}": ["preview"]}}')
         `);
   });
 
@@ -111,11 +111,13 @@ describe('Testing entitlements routes', () => {
 
       const callEntitlementsEndpointSpy = jest
         .spyOn(EntitlementService.prototype, 'callEntitlementsEndpoint')
-        .mockResolvedValue(remoteEntitlements);
+        .mockResolvedValue({ datasets: remoteEntitlements, configs: {} });
 
+      // NOTE: `scope` becomes a mandatory query param on this endpoint in Subtask 4 — this test
+      // is finished there (it will need `?scope=datasets` and a flat, scope-sliced body).
       const res = await request(app).get('/entitlements').set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
-      expect(res.body).toEqual(expectedEntitlements);
+      expect(res.body).toEqual({ datasets: expectedEntitlements, configs: {} });
 
       // Clean up
       delete process.env.ENTITLEMENTS_ENDPOINT;

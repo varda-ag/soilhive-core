@@ -1,17 +1,18 @@
 import { Request, Response } from 'express';
 import EntitlementService from '../services/EntitlementService';
+import { EntitlementScope } from '../types/Entitlements';
 
 const entitlementService = new EntitlementService();
 
 export const getDatasetEntitlements = async (req: Request, res: Response) => {
   const slug = req.params['datasetId']! as string;
-  const data = await entitlementService.getEntityEntitlements(req.customData, slug);
+  const data = await entitlementService.getEntityEntitlements(req.customData, EntitlementScope.DATASETS, slug);
   res.json(data);
 };
 
 export const setDatasetEntitlement = async (req: Request, res: Response) => {
   const slug = req.params['datasetId']! as string;
-  const data = await entitlementService.setEntityEntitlements(req.customData, slug, req.body);
+  const data = await entitlementService.setEntityEntitlements(req.customData, EntitlementScope.DATASETS, slug, req.body);
   res.json(data);
 };
 

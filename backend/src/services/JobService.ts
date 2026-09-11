@@ -3,6 +3,7 @@ import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { AnyJob, ExportJob, Job, SoilStatisticsJob } from '../interfaces/Job';
 import { Capability, JobQueues, StatisticsType } from '../types/enums';
+import { EntitlementScope } from '../types/Entitlements';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
@@ -47,7 +48,12 @@ export default class JobService {
 
     // Checking entitlements
     if (data.type === JobQueues.EXPORT) {
-      await entitlementService.enforceEntitlements(requestData, (data as ExportJob).dataset_ids, Capability.DOWNLOAD);
+      await entitlementService.enforceEntitlements(
+        requestData,
+        EntitlementScope.DATASETS,
+        (data as ExportJob).dataset_ids,
+        Capability.DOWNLOAD,
+      );
     }
 
     if (data.type === JobQueues.SOIL_STATISTICS) {
@@ -132,7 +138,7 @@ export default class JobService {
     }
 
     if (data.dataset_ids && data.dataset_ids.length > 0) {
-      await entitlementService.enforceEntitlements(requestData, data.dataset_ids, Capability.PREVIEW);
+      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, data.dataset_ids, Capability.PREVIEW);
     }
   };
 

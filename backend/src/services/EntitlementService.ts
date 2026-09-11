@@ -5,19 +5,21 @@ import { EVERYONE } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
 import { Token } from '../interfaces/Token';
-import { type Entitlements } from '../types/Entitlements';
+import { EntitlementScope, type Entitlements, type EntityScope, type CapabilityGrants } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 
+const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
+
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
   Array.from(new Set([...(existing ?? []), ...(Array.isArray(incoming) ? incoming : [])])).sort();
 
 /** One entry of the external provider's reply: a plain object whose own values are all capability lists. */
-const isEntitlementsEntry = (entry: unknown): entry is Record<string, Capability[]> =>
+const isEntitlementsEntry = (entry: unknown): entry is CapabilityGrants =>
   typeof entry === 'object' &&
   entry !== null &&
   !Array.isArray(entry) &&
@@ -34,13 +36,12 @@ const isEntitlementsEntry = (entry: unknown): entry is Record<string, Capability
  * ]
  * ```
  *
- * Adapts that agreed shape into the flat `Entitlements` map used everywhere else (in the
- * example above: `{ "dataset-1": ["preview", "download"], "dataset-2": ["preview"] }`).
- * Anything that doesn't match it is untrusted: log it and discard the whole reply, the same
- * "degrade to local-only" behavior already used for a failed fetch, rather than guessing at a
- * shape nobody has agreed to.
+ * Adapts that agreed shape into the flat, scoped map used everywhere else (in the example above:
+ * `{ "dataset-1": ["preview", "download"], "dataset-2": ["preview"] }`). Anything that doesn't
+ * match it is untrusted: log it and discard the whole reply, the same "degrade to local-only"
+ * behavior already used for a failed fetch, rather than guessing at a shape nobody has agreed to.
  */
-const parseExternalEntitlements = (body: unknown): Entitlements => {
+const parseExternalEntitlements = (body: unknown): CapabilityGrants => {
   if (!Array.isArray(body) || !body.every(isEntitlementsEntry)) {
     log.error('External entitlements endpoint replied in an unexpected shape, discarding its response', { body: JSON.stringify(body) });
     return {};
@@ -49,13 +50,14 @@ const parseExternalEntitlements = (body: unknown): Entitlements => {
 };
 
 export default class EntitlementService {
-  private entitiesToEntitlements = (entities: EntitlementsEntity[], slugs: string[]): Entitlements => {
+  private entitiesToEntitlements = (entities: EntitlementsEntity[], scope: EntityScope, slugs: string[]): CapabilityGrants => {
     return entities.reduce((acc, { id, data }) => {
-      const key = slugs.find(k => k in data);
+      const scopedData = data[scope] ?? {};
+      const key = slugs.find(k => k in scopedData);
       assert(key, 'Key should be found in data');
-      acc[id] = data[key!]!;
+      acc[id] = scopedData[key!]!;
       return acc;
-    }, {} as Entitlements);
+    }, {} as CapabilityGrants);
   };
 
   /**
@@ -74,18 +76,23 @@ export default class EntitlementService {
     return slugs;
   };
 
-  getEntityEntitlements = async (requestData: RequestData, slug: string): Promise<Entitlements> => {
+  getEntityEntitlements = async (requestData: RequestData, scope: EntityScope, slug: string): Promise<CapabilityGrants> => {
     // 1. Get all slugs related to the same entity (this handles slug history)
     const slugs = await this.resolveSlugs(requestData, slug);
-    // 2. Get all entitlements that match any of the slugs
+    // 2. Get all entitlements that match any of the slugs, within this scope's own sub-object
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
-    const entities = await repo.createQueryBuilder('ent').where('ent.data ?| array[:...slugs]', { slugs }).getMany();
-    return this.entitiesToEntitlements(entities, slugs);
+    const entities = await repo.createQueryBuilder('ent').where('ent.data->:scope ?| array[:...slugs]', { scope, slugs }).getMany();
+    return this.entitiesToEntitlements(entities, scope, slugs);
   };
 
-  setEntityEntitlements = async (requestData: RequestData, slug: string, entitlements: Entitlements): Promise<Entitlements> => {
+  setEntityEntitlements = async (
+    requestData: RequestData,
+    scope: EntityScope,
+    slug: string,
+    entitlements: CapabilityGrants,
+  ): Promise<CapabilityGrants> => {
     // 1. Remove all entitlements
-    await this.deleteEntityEntitlements(requestData, slug);
+    await this.deleteEntityEntitlements(requestData, scope, slug);
     // 2. Group user IDs
     const ids = Object.keys(entitlements);
     if (ids.length === 0) {
@@ -96,40 +103,43 @@ export default class EntitlementService {
     const entities = await repo.findBy({ id: In(ids) });
     // 4. Update existing entities
     for (const entity of entities) {
-      entity.data[slug] = entitlements[entity.id]!;
+      entity.data[scope] = { ...entity.data[scope], [slug]: entitlements[entity.id]! };
     }
     // 5. Create entities for missing user IDs
     const missingIds = ids.filter(id => !entities.some(e => e.id === id));
     for (const id of missingIds) {
-      const newEntity = repo.create({ id, data: { [slug]: entitlements[id] } });
+      const newEntity = repo.create({ id, data: { ...emptyEntitlements(), [scope]: { [slug]: entitlements[id] } } });
       entities.push(newEntity);
     }
     // 6. Persist the changes
     await repo.save(entities);
-    return this.entitiesToEntitlements(entities, [slug]);
+    return this.entitiesToEntitlements(entities, scope, [slug]);
   };
 
   /**
-   * Strips every key this entity's entitlements may be stored under, across all subjects.
-   * Rows left with an empty `data` are kept: the row is a subject record rather than an
-   * entitlement, and the subject is retained throughout the schema anyway (`created_by`).
+   * Strips every key this entity's entitlements may be stored under, across all subjects, within
+   * this scope's own sub-object only. Rows left with an empty scope (or an empty `data` overall)
+   * are kept: the row is a subject record rather than an entitlement, and the subject is retained
+   * throughout the schema anyway (`created_by`).
    */
-  deleteEntityEntitlements = async (requestData: RequestData, slug: string): Promise<void> => {
+  deleteEntityEntitlements = async (requestData: RequestData, scope: EntityScope, slug: string): Promise<void> => {
     const slugs = await this.resolveSlugs(requestData, slug);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     await repo
       .createQueryBuilder('ent')
       .update(EntitlementsEntity)
       .set({
-        // `jsonb - text[]` drops every listed key in one pass
-        data: () => 'data - array[:...slugs]::text[]',
+        // Rewrite only the scope's own sub-object, with the listed slugs stripped from it —
+        // `jsonb - text[]` drops every listed key in one pass.
+        data: () => `jsonb_set(data, array[:scope]::text[], COALESCE(data->:scope, '{}'::jsonb) - array[:...slugs]::text[])`,
       })
       // Without this predicate the update rewrites and row-locks the whole table, which a
       // caller running inside a long transaction (the purge) would hold for its duration.
-      // Matches the GIN index on `data` (idx_entitlements_data_gin). Unaliased: an UPDATE
-      // emits no table alias, so `ent.` would not resolve here.
-      .where('data ?| array[:...slugs]')
-      .setParameter('slugs', slugs)
+      // Matches the scope's own GIN index (idx_entitlements_data_datasets_gin /
+      // idx_entitlements_data_configs_gin). Unaliased: an UPDATE emits no table alias, so
+      // `ent.` would not resolve here.
+      .where('data->:scope ?| array[:...slugs]')
+      .setParameters({ scope, slugs })
       .execute();
   };
 
@@ -137,18 +147,29 @@ export default class EntitlementService {
     // Local DB entitlements are added on top of external entitlements
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
-    const entitlements = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
-    const merged = entitlements.reduce((acc, { data }) => {
-      for (const key in data) {
-        if (!acc[key]) {
-          acc[key] = [];
+    const rows = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
+    const merged = rows.reduce((acc, { data }) => {
+      for (const scope of Object.values(EntitlementScope)) {
+        const target = (acc[scope] ??= {});
+        const scopedData = data[scope] ?? {};
+        for (const key in scopedData) {
+          if (!target[key]) {
+            target[key] = [];
+          }
+          const capabilities = scopedData[key]!;
+          target[key] = Array.from(new Set([...target[key], ...capabilities]));
         }
-        const capabilities = data[key]!;
-        acc[key] = Array.from(new Set([...acc[key], ...capabilities]));
       }
       return acc;
     }, externalEntitlements); // Using external entitlements as the accumulator base
-    return this.expandAcrossSlugHistory(requestData, merged);
+
+    // Only entity-backed scopes need slug-history expansion (today: datasets). `configs` keys
+    // are freeform, with no entity behind them, so they pass through untouched — this is the
+    // seam a future entity-backed scope would join.
+    return {
+      datasets: await this.expandAcrossSlugHistory(requestData, merged.datasets ?? {}),
+      configs: merged.configs ?? {},
+    };
   }
 
   /**
@@ -164,7 +185,7 @@ export default class EntitlementService {
    *
    * A key matching no entity at all (e.g. `spatial_filter`) is left exactly as given.
    */
-  private expandAcrossSlugHistory = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
+  private expandAcrossSlugHistory = async (requestData: RequestData, entitlements: CapabilityGrants): Promise<CapabilityGrants> => {
     const slugs = Object.keys(entitlements);
     if (slugs.length === 0) {
       return entitlements;
@@ -198,7 +219,7 @@ export default class EntitlementService {
     }
 
     const matchedInputSlugs = new Set(rows.map(row => row.input_slug));
-    const expanded: Entitlements = {};
+    const expanded: CapabilityGrants = {};
 
     // Unmatched keys (e.g. spatial_filter) pass through unchanged.
     for (const slug of slugs) {
@@ -224,7 +245,7 @@ export default class EntitlementService {
 
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     if (!process.env.ENTITLEMENTS_ENDPOINT || !requestData.token?.raw) {
-      return {};
+      return emptyEntitlements();
     }
     try {
       const response = await fetch(process.env.ENTITLEMENTS_ENDPOINT!, {
@@ -237,12 +258,14 @@ export default class EntitlementService {
         const message = await response.text();
         throw new Error(`status ${response.status}: ${message}`);
       }
-      return parseExternalEntitlements(await response.json());
+      // The external contract stays a flat map, unaffected by this app's own scoping — wrap it
+      // under "datasets", the only scope it's ever spoken for (see ADR-0032).
+      return { datasets: parseExternalEntitlements(await response.json()), configs: {} };
     } catch (error) {
       log.error('Failed to fetch entitlements from external endpoint, degrading to local entitlements only', {
         error: getErrorMessage(error),
       });
-      return {};
+      return emptyEntitlements();
     }
   }
 
@@ -256,24 +279,28 @@ export default class EntitlementService {
     return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
   };
 
-  async enforceEntitlements(requestData: RequestData, datasetSlugs: string[], capability: Capability): Promise<void> {
+  async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {
     if (this.isEntitlementsBypassed(requestData.token)) {
       // Internal requests and admins bypass entitlements checks
       return;
     }
-    const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const results = await repo.find({
-      select: { slug: true, visibility: true },
-      where: { slug: In(datasetSlugs) },
-    });
-    const privateSlugs = results.filter(r => r.visibility === 'private').map(r => r.slug);
-    if (privateSlugs.length === 0) {
-      // All datasets are public, no need to enforce entitlements
-      return;
+
+    // The "public bypasses entitlements" rule only exists for datasets (a Dataset property);
+    // there is no analogous concept — and so no analogous bypass — for `configs`.
+    let keysToCheck = keys;
+    if (scope === EntitlementScope.DATASETS) {
+      const repo = requestData.entityManager.getRepository(DatasetEntity);
+      const results = await repo.find({
+        select: { slug: true, visibility: true },
+        where: { slug: In(keys) },
+      });
+      keysToCheck = results.filter(r => r.visibility === 'private').map(r => r.slug);
     }
-    for (const slug of privateSlugs) {
-      if (!requestData.entitlements[slug] || !requestData.entitlements[slug]!.includes(capability)) {
-        throw new ErrorResponse(`User does not have ${capability} entitlement for dataset ${slug}`, StatusCodes.FORBIDDEN);
+
+    const scopedEntitlements = requestData.entitlements[scope] ?? {};
+    for (const key of keysToCheck) {
+      if (!scopedEntitlements[key] || !scopedEntitlements[key]!.includes(capability)) {
+        throw new ErrorResponse(`User does not have ${capability} entitlement for ${scope} ${key}`, StatusCodes.FORBIDDEN);
       }
     }
   }
