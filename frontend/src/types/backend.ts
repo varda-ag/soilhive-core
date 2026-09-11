@@ -123,6 +123,8 @@ export enum Capability {
   DOWNLOAD = 'download',
   OBFUSCATE_AS_POINTS = 'obfuscate_as_points',
   OBFUSCATE_AS_POLYGONS = 'obfuscate_as_polygons',
+  READ = 'read',
+  WRITE = 'write',
 }
 
 export type InferredProperty =
