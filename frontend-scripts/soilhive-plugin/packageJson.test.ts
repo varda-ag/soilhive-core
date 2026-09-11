@@ -274,6 +274,53 @@ describe('mergeManagedDependencies', () => {
     expect(pkg.dependencies.i18next).toBe('25.8.13');
   });
 
+  it('pins react-i18next + i18next found in the scaffolded i18n.dev.ts/registerResourceBundle.ts, even without --with-map', () => {
+    const uiDir = join(tempDir, 'fixture-ui-empty-6');
+    const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-6.json');
+    mkdirSync(uiDir, { recursive: true });
+    mkdirSync(join(pluginPath, 'src', 'utilities'), { recursive: true });
+    writeFileSync(
+      join(pluginPath, 'src', 'i18n.dev.ts'),
+      "import i18next from 'i18next';\nimport { initReactI18next } from 'react-i18next';\n",
+    );
+    writeFileSync(join(pluginPath, 'src', 'utilities', 'registerResourceBundle.ts'), "import i18next from 'i18next';\n");
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0', 'react-i18next': '16.5.4', i18next: '25.8.13' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
+    );
+    writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
+
+    mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['react-i18next']).toBe('16.5.4');
+    expect(pkg.dependencies.i18next).toBe('25.8.13');
+  });
+
+  it("does not auto-pin a hand-added import elsewhere in the plugin's own src/ on sync", () => {
+    const uiDir = join(tempDir, 'fixture-ui-empty-7');
+    const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-7.json');
+    mkdirSync(uiDir, { recursive: true });
+    mkdirSync(join(pluginPath, 'src'), { recursive: true });
+    writeFileSync(join(pluginPath, 'src', 'SomeOtherFile.tsx'), "import { thing } from 'hand-added-package';\n");
+    writeFileSync(
+      frontendPackageJsonPath,
+      JSON.stringify({
+        dependencies: { react: '19.2.0', 'react-dom': '19.2.0' },
+        devDependencies: { typescript: '5.9.3' },
+      }),
+    );
+    writeFileSync(join(pluginPath, 'package.json'), JSON.stringify({ name: 'demo-plugin', dependencies: {} }));
+
+    mergeManagedDependencies(pluginPath, { uiDir, frontendPackageJsonPath });
+
+    const pkg = JSON.parse(readFileSync(join(pluginPath, 'package.json'), 'utf-8'));
+    expect(pkg.dependencies['hand-added-package']).toBeUndefined();
+  });
+
   it('does not scan extraScanPaths when omitted (the no-map-plugin default)', () => {
     const uiDir = join(tempDir, 'fixture-ui-empty-2');
     const frontendPackageJsonPath = join(tempDir, 'fixture-frontend-package-2.json');

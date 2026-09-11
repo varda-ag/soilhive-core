@@ -32,6 +32,8 @@ describe('scaffoldPlugin', () => {
       'src/components/ProviderComponent.tsx',
       'src/components/ProviderComponent.css',
       'src/mockContext.ts',
+      'src/i18n.dev.ts',
+      'src/utilities/registerResourceBundle.ts',
       'package.json',
     ];
     for (const relativeFile of expectedFiles) {
@@ -51,9 +53,13 @@ describe('scaffoldPlugin', () => {
     const rsbuildConfigPath = join(pluginPath, 'rsbuild.config.ts');
     const customConfig = '// dev customized this\nexport default { server: { port: 4444 } };\n';
     writeFileSync(rsbuildConfigPath, customConfig);
+    const i18nDevPath = join(pluginPath, 'src/i18n.dev.ts');
+    const customI18nDev = '// dev customized this\nexport {};\n';
+    writeFileSync(i18nDevPath, customI18nDev);
 
     scaffoldPlugin(pluginPath, 'demo-plugin');
 
     expect(readFileSync(rsbuildConfigPath, 'utf-8')).toBe(customConfig);
+    expect(readFileSync(i18nDevPath, 'utf-8')).toBe(customI18nDev);
   });
 });
