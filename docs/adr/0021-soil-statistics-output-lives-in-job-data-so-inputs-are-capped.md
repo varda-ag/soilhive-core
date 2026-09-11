@@ -1,5 +1,35 @@
 # Soil Statistics output lives in job data, so the input is capped and the breakdown is truncatable
 
+> **Amended — superseded in direction, not yet in full.** Every Statistics Type's output is moving
+> out of `job.data` and into purpose-built tables. `crea-index` has already gone (docs/adr/0030);
+> `descriptive` has not, and everything below still describes it exactly. Read this ADR as the
+> record of why the cap and the truncation exist, not as a statement of where output will live.
+>
+> Note that the escape hatch named in the last consequence below — spill to storage, return a
+> presigned `download_path`, as the export job does — is **not** the route taken. Purpose-built
+> tables keep the output queryable and let a Run be retired by dropping it, neither of which an
+> opaque object in a bucket gives you.
+>
+> **What the move removes.** The premise of this ADR is that the result has to be a column value
+> and a single HTTP response. A table is neither, so the reasoning that rests on that premise
+> lapses with it: the Aggregation Unit cap, the L4 all-or-nothing truncation and its cell budget,
+> and the per-cell byte-paring rules (3-decimal rounding, absent-rather-than-null, omitting
+> derivable figures) were all answers to a size ceiling that a table does not impose. When
+> `descriptive` moves, they come out together rather than one at a time — the cap is what keeps
+> `user_geometries` growth bounded (docs/adr/0020), so removing it is a decision about that table
+> too, not only about this output.
+>
+> **What survives the move**, because it was never about storage:
+> - `overall` per (Dataset, Soil Property) is computed before units are fanned out, so it does
+>   **not** equal the sum of the per-unit counts when units overlap. That is a semantic fact.
+> - Single-dimension marginals are not recoverable from `L4` — median and the histogram cannot be
+>   recombined from sub-groups — so they remain more computation, not more formatting.
+> - The 100-Observation histogram threshold has a statistical justification as well as a byte one:
+>   below it the bins describe the sample rather than the distribution. It should be re-argued on
+>   that ground, not dropped as a size measure.
+> - The asymmetry itself — never silently drop user-supplied input, but derived detail may degrade
+>   — is a principle worth keeping even once nothing forces the trade-off.
+
 Soil Statistics are returned inside the pg-boss `job.data` jsonb and read back through `GET /jobs/{jobId}`, so the whole result has to stay small enough to be a column value and a single HTTP response. The output is a cross product — Aggregation Units × Datasets × Soil Properties × sampling years × depth intervals — so nothing about the *query* bounds it; only the inputs do. We therefore cap the number of Aggregation Units (env-configurable, default 200) and fail the job above it, and we truncate the finest output level rather than the headline one.
 
 ## Consequences

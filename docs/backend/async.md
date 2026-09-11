@@ -133,12 +133,12 @@ When the job is retrieved via `GET /jobs/{jobId}`, the `download_path` is return
 
 ## `soil-statistics`
 
-Computes an analytical product over the spatial areas matching a filter. `statistics_type` chooses which product; the areas are resolved identically for every type, and only what is computed over them differs. The result is written into the job's own data and read back through `GET /jobs/{jobId}`.
+Computes an analytical product over the spatial areas matching a filter. `statistics_type` chooses which product; the areas are resolved identically for every type, and only what is computed over them differs. The result is written into the job's own data and read back through `GET /jobs/{jobId}` — except for `crea-index`, which writes no output to the job data at all and puts its scores in the `crea_index` table instead.
 
 | `statistics_type` | Product | Output key |
 |---|---|---|
-| `descriptive` (default) | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | `results`, `truncated` |
-| `crea-index` | One scored GeoJSON Point per area | `crea_index` |
+| `descriptive` (default) | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | none — removed, pending tables of its own |
+| `crea-index` | One scored GeoJSON Point per area | none — the scores are rows in the `crea_index` table |
 
 **One queue, several products.** A client must read `statistics_type` back from the job data to know which output key to expect — the key is not implied by the queue. Fields belonging to another type are *absent*, not `null`.
 
@@ -169,7 +169,7 @@ Statistics are grouped by **aggregation unit**, and each unit is one stored filt
 
 Either way the geometries are read back from `GET /data-filters/{filterId}/geometries`, which returns one GeoJSON Feature per unit whose `id` is the `unit_id` used throughout the output. A derived filter stores no geometries inline, so that endpoint is the only way to read them. It pages with an opaque `cursor`: pass the previous response's `next_cursor` until it comes back `null`.
 
-A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `SOIL_STATISTICS_MAX_UNITS` (default 200) and the job fails above it rather than dropping areas silently.
+A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `SOIL_STATISTICS_MAX_UNITS` (default 2000) and the job fails above it rather than dropping areas silently.
 
 All of the above holds for **every** `statistics_type`, cap included: the output of each type grows with the number of units, so the same ceiling applies. `derived_filter_id`, `unit_count` and `units[]` are likewise written by every type.
 
@@ -177,9 +177,9 @@ All of the above holds for **every** `statistics_type`, cap included: the output
 
 ### Filtering
 
-Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, dataset status and visibility. Raster datasets never contribute — their measurements are pixels, not observations — and are reported in `excluded_datasets`.
+Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, dataset status and visibility. Raster datasets never contribute — their measurements are pixels, not observations — and are excluded. Which ones were excluded is written to the server log only.
 
-`PREVIEW` is enforced per dataset. Naming a dataset you cannot preview is rejected on submission with `403`; when `dataset_ids` is omitted, datasets you cannot preview are skipped and listed in `skipped_datasets`.
+`PREVIEW` is enforced per dataset. Naming a dataset you cannot preview is rejected on submission with `403`; when `dataset_ids` is omitted, datasets you cannot preview are skipped. Which ones were skipped is written to the server log only — a caller cannot tell from the job that anything was left out.
 
 **Sequence of operations**
 
@@ -188,9 +188,16 @@ Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, 
 3. Resolve the units to sampling locations (features) intersecting them.
 4. Collect the matching observations into a staging table, one row per observation.
 5. Aggregate: `overall` per (dataset, soil property), then per unit, then per (unit, year, depth interval).
-6. Write results, `truncated` and progress into the job data.
+6. Write progress into the job data. The results themselves are computed and then discarded.
 
 ### Output
+
+> **Nothing is returned.** This type's output keys were removed from the job data pending
+> tables of its own, the way `crea-index` moved into `crea_index` (docs/adr/0030, and the
+> amendment on docs/adr/0021). The statistics below are still computed on every run and then
+> dropped — no endpoint, no table, no job key. What follows describes the shape
+> `computeSoilStatistics` produces, and therefore the shape those tables will have to carry;
+> it is not something a client can read today.
 
 `results` is grouped by dataset and soil property. Each group carries:
 
@@ -200,7 +207,7 @@ Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, 
 
 Every cell reports `count`, `n_features`, `n_layers`, `min`, `max`, `mean`, `median`, `stddev`, `p05`, `p25`, `p75`, `p95`, sampling-date and depth ranges, the distinct `horizons` and `laboratory_methods` mixed into it, and a `histogram` of `histogram_bins` (default 10) equal-width bins spanning `min`–`max`. Values are in the soil property's `standard_unit`, applied at ingestion.
 
-The whole result has to fit inside the job's data, so a cell spends bytes only on what cannot be recovered from it. Four rules follow, and a client should be written to expect all four:
+A cell spends bytes only on what cannot be recovered from it. Four rules follow, and they are worth keeping in mind even though the reason for them — the whole result having to fit inside the job's data — no longer holds:
 
 - **Numbers are rounded to 3 decimals** — every statistic, plus `bin_width` and `area_m2`.
 - **A field with nothing to report is absent, not `null` or `[]`.** `stddev`, `sampling_date_min`/`_max`, `depth_min`/`_max`, `horizons` and `laboratory_methods` simply do not appear when they have no value. The one exception is a breakdown cell's `year`, `min_depth` and `max_depth`: there `null` identifies the bucket, so it is always spelled out.
@@ -219,40 +226,46 @@ If the breakdown would exceed `SOIL_STATISTICS_MAX_CELLS` (default 200 000), who
 
 > **The values are currently mock data.** They are deterministic in `unit_id` — the same area always scores the same, and re-running a job returns identical numbers — so they look exactly like real output while meaning nothing. Do not build anything on the values; the shape is stable, the numbers are not real.
 
-One GeoJSON Point per aggregation area, in `crea_index`:
+> **This type's output is not in the job data, and nothing serves it yet.** The scores are rows
+> in the `crea_index` table (see docs/adr/0030); there is no endpoint over that table. Until one
+> exists, the only way to read a run's scores is to query the database directly.
+
+The job data carries the shared unit block and no output key of its own:
 
 ```json
 {
   "statistics_type": "crea-index",
   "unit_count": 2,
   "units": [{ "unit_id": "3f2b…", "label": "Field 7", "area_m2": 41230.5, "record_ids": [1], "raster_filtered": false }],
-  "crea_index": {
-    "type": "FeatureCollection",
-    "features": [
-      {
-        "type": "Feature",
-        "id": "3f2b…",
-        "geometry": { "type": "Point", "coordinates": [11.35, 44.49] },
-        "properties": { "value": 0.417 }
-      }
-    ]
-  }
+  "progress_percentage": 100,
+  "progress_description": "Completed: 2 scored area(s)"
 }
 ```
 
-- **`id` is the `unit_id`** — the only way back to the area. Position in `features` does **not** correspond to a row of the source file, because equivalent geometries collapse into one area. Join on `id` against `units[]` for the label, `record_ids` and area.
-- **`properties` carries `value` and nothing else**, in `[0, 1]`, rounded to 3 decimals like everything else in this job's output.
+The scores live in `crea_index`, one row per scored area, in the partition for this run:
+
+| column | value |
+|---|---|
+| `run` | the job id — a run *is* one job execution, so a caller polling `GET /jobs/{jobId}` already holds the key to its rows |
+| `geometry` | the scored Point, EPSG:4326. Typed `geometry(Geometry,4326)`, so the column itself does not promise a Point |
+| `value` | the index, in `[0, 1]`, rounded to 3 decimals |
+| `metadata` | `{"unit_id": "3f2b…"}` |
+
+- **`metadata->>'unit_id'` is the only way back to the area.** The table has no primary key and no unit column, so this is the join against `units[]` for the label, `record_ids` and area. Row order means nothing, and does **not** correspond to rows of the source file, because equivalent geometries collapse into one area.
 - **The Point is inside its area.** It is the centroid where the centroid falls within the geometry, and a guaranteed-interior point otherwise — a multipolygon of three disjoint parcels is *one* area, and its centroid can land in the gap between them.
-- **No datasets, no observations, no entitlement filtering.** The index is per area, not per (dataset, soil property), so `dataset_ids` and `histogram_bins` are rejected on submission, and `skipped_datasets`, `excluded_datasets`, `results` and `truncated` are never written.
+- **No datasets, no observations, no entitlement filtering.** The index is per area, not per (dataset, soil property), so `dataset_ids` and `histogram_bins` are rejected on submission, and none of the dataset selection the `descriptive` type performs happens at all.
 - `raster_filtered` is always `false`: this type applies no raster mask, so the area caveat that `descriptive` carries does not arise.
-- An area whose geometry yields no point is **omitted** from `features` (and logged) rather than emitted with a null geometry, so `features.length` can be smaller than `unit_count`.
+- An area whose geometry yields no point is **omitted** (and logged) rather than stored with a null geometry, so a run can have fewer rows than `unit_count`.
+- **A run with no rows scored nothing; it did not fail.** The partition is created either way, so "no rows" and "never ran" are indistinguishable from the table alone — the job's own state is what says which.
+- **A retry reuses the job id**, so re-processing a job replaces that run's rows rather than doubling them.
 
 **Sequence of operations**
 
 1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given.
 2. Write `derived_filter_id`, `unit_count` and `units[]`.
 3. Resolve one representative point per unit.
-4. Score each point and write `crea_index`.
+4. Score each point, write the rows into a fresh partition for the run, and attach it.
+5. Mark the job complete. No output key is written.
 
 ---
 

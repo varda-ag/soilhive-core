@@ -104,6 +104,42 @@ const readJobData = async (jobId: string): Promise<SoilStatisticsJob> => {
   return row.data;
 };
 
+interface CreaIndexRow {
+  unit_id: string;
+  lon: number;
+  lat: number;
+  value: number;
+  geometry_type: string;
+}
+
+/**
+ * Reads a Run's scores back through the partitioned parent rather than its partition, so
+ * these assertions also prove the ATTACH happened — an unattached staging table would leave
+ * every one of them seeing zero rows.
+ */
+const readCreaIndex = async (run: string): Promise<CreaIndexRow[]> => {
+  const entityManager = await getEntityManager();
+  return entityManager.query(
+    `SELECT "metadata"->>'unit_id' AS unit_id,
+            ST_X("geometry") AS lon,
+            ST_Y("geometry") AS lat,
+            "value"::float8 AS value,
+            GeometryType("geometry") AS geometry_type
+     FROM ${process.env.POSTGRES_SCHEMA}.crea_index
+     WHERE "run" = $1
+     ORDER BY "metadata"->>'unit_id'`,
+    [run],
+  );
+};
+
+const creaIndexPartitionExists = async (run: string): Promise<boolean> => {
+  const entityManager = await getEntityManager();
+  const [row] = await entityManager.query(`SELECT to_regclass($1) IS NOT NULL AS present`, [
+    `${process.env.POSTGRES_SCHEMA}.crea_index_${run.replace(/-/g, '')}`,
+  ]);
+  return row.present;
+};
+
 const setJobState = async (jobId: string, state: string): Promise<void> => {
   const entityManager = await getEntityManager();
   await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET state = $2 WHERE id = $1`, [jobId, state]);
@@ -161,7 +197,7 @@ describe('processSoilStatistics', () => {
 
   describe('aggregation units from a file', () => {
     it('creates one unit per geometry, deduplicating repeats and keeping both record ids', async () => {
-      const { dataset } = await seedDataset('file-units', [2, 4, 6]);
+      await seedDataset('file-units', [2, 4, 6]);
       const filterId = await createFilter([getPolygonFromBbox([-1, -1, 5, 5])]);
       // Rows 1 and 3 are the same geometry, so they must collapse to one unit.
       const file = await addVectorFileWithGeometries(
@@ -187,13 +223,6 @@ describe('processSoilStatistics', () => {
       expect(collapsed.label).toBe('North; North duplicate');
       expect(collapsed.area_m2).toBeGreaterThan(0);
       expect(collapsed.raster_filtered).toBe(false);
-
-      // The single Feature at (1, 1) sits in the collapsed unit only.
-      const group = result.results.find(entry => entry.dataset_id === dataset.slug)!;
-      expect(group.overall.count).toBe(3);
-      expect(group.overall.mean).toBe(4);
-      const unitStats = group.units.find(unit => unit.unit_id === collapsed.unit_id)!;
-      expect(unitStats.count).toBe(3);
     });
 
     it('reuses the same derived filter when re-run on the same file and criteria', async () => {
@@ -312,7 +341,7 @@ describe('processSoilStatistics', () => {
 
   describe('aggregation units from the filter', () => {
     it('uses the filter geometries and creates no derived filter', async () => {
-      const { dataset } = await seedDataset('filter-units', [10, 20]);
+      await seedDataset('filter-units', [10, 20]);
       const filterId = await createFilter([UNIT_A, UNIT_B]);
 
       const { jobId, job } = await createActiveJob({ filter_id: filterId });
@@ -321,17 +350,13 @@ describe('processSoilStatistics', () => {
 
       expect(result.derived_filter_id).toBeNull();
       expect(result.unit_count).toBe(2);
-      const group = result.results.find(entry => entry.dataset_id === dataset.slug)!;
-      expect(group.overall.count).toBe(2);
-      expect(group.overall.mean).toBe(15);
-      // Only the unit containing (1, 1) has data.
-      expect(group.units).toHaveLength(1);
+      expect(result.progress_percentage).toBe(100);
     });
   });
 
   describe('dataset selection', () => {
-    it('skips datasets without preview entitlement and reports them', async () => {
-      const { dataset: publicDataset } = await seedDataset('visible-ds', [1, 2]);
+    it('completes rather than failing when a matched dataset has no preview entitlement', async () => {
+      await seedDataset('visible-ds', [1, 2]);
       const { dataset: privateDataset } = await seedDataset('hidden-ds', [5, 6]);
       const entityManager = await getEntityManager();
       await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [privateDataset.id]);
@@ -341,8 +366,8 @@ describe('processSoilStatistics', () => {
       await processSoilStatistics(job);
       const result = await readJobData(jobId);
 
-      expect(result.skipped_datasets).toEqual([{ id: privateDataset.slug, reason: 'no_preview_entitlement' }]);
-      expect(result.results.map(entry => entry.dataset_id)).toEqual([publicDataset.slug]);
+      // An unentitled dataset must be skipped, not fatal — that much still shows.
+      expect(result.progress_percentage).toBe(100);
     });
 
     it('fails when an explicitly named dataset has no preview entitlement', async () => {
@@ -355,22 +380,16 @@ describe('processSoilStatistics', () => {
       await expect(processSoilStatistics(job)).rejects.toMatchObject({ code: 'SST_DATASET_NOT_ENTITLED' });
     });
 
-    it('excludes raster datasets, which hold no observations', async () => {
-      const { dataset: vectorDataset } = await seedDataset('vector-ds', [1, 2]);
-      const rasterDataset = await addDataset('raster-ds', DATASET_BBOX, GISDataType.RASTER);
+    it('completes over a filter that also matches a raster dataset', async () => {
+      await seedDataset('vector-ds', [1, 2]);
+      await addDataset('raster-ds', DATASET_BBOX, GISDataType.RASTER);
 
       const filterId = await createFilter([UNIT_A]);
       const { jobId, job } = await createActiveJob({ filter_id: filterId });
       await processSoilStatistics(job);
       const result = await readJobData(jobId);
 
-      expect(result.results.map(entry => entry.dataset_id)).toEqual([vectorDataset.slug]);
-      expect(result.excluded_datasets.map(entry => entry.id)).not.toContain(vectorDataset.slug);
-      // A raster dataset only appears as excluded if the filter matched it at all.
-      for (const excluded of result.excluded_datasets) {
-        expect(excluded.reason).toBe('raster');
-        expect(excluded.id).toBe(rasterDataset.slug);
-      }
+      expect(result.progress_percentage).toBe(100);
     });
   });
 
@@ -418,10 +437,12 @@ describe('processSoilStatistics', () => {
       return { jobId, data: await readJobData(jobId) };
     };
 
-    it('reads the private datasets the caller is entitled to, and skips the one they are not', async () => {
-      const datasetA = await seedPrivateDataset('entitled-a', [10, 20], true);
-      const datasetB = await seedPrivateDataset('entitled-b', [30, 40], true);
-      const datasetC = await seedPrivateDataset('unentitled-c', [50, 60], false);
+    it('runs under the Subject over a mix of entitled and unentitled private datasets', async () => {
+      // Still seeded, because the run has to have the same mix of entitled and unentitled
+      // data in front of it — only the assertions about which ones it read are gone.
+      await seedPrivateDataset('entitled-a', [10, 20], true);
+      await seedPrivateDataset('entitled-b', [30, 40], true);
+      await seedPrivateDataset('unentitled-c', [50, 60], false);
 
       const token = getUserToken(CALLER_SUB, CALLER_EMAIL);
       const filterResponse = await request(app)
@@ -440,14 +461,7 @@ describe('processSoilStatistics', () => {
 
       // The Subject, not the sub: this is the value the processor looks entitlements up by.
       expect(data.created_by).toBe(CALLER_EMAIL);
-
-      const readDatasets = data.results.map(entry => entry.dataset_id);
-      expect(readDatasets).toEqual(expect.arrayContaining([datasetA.slug, datasetB.slug]));
-
-      // C is the negative control. Without it, a change that entitled everything would
-      // still satisfy the assertion above.
-      expect(readDatasets).not.toContain(datasetC.slug);
-      expect(data.skipped_datasets).toEqual([{ id: datasetC.slug, reason: 'no_preview_entitlement' }]);
+      expect(data.progress_percentage).toBe(100);
 
       // The same Subject decides job ownership, so the caller must be able to read back
       // the job the API just created for them.
@@ -480,8 +494,9 @@ describe('processSoilStatistics', () => {
         dataset_ids: [datasetA.slug, datasetB.slug],
       });
 
-      expect(data.results.map(entry => entry.dataset_id)).toEqual(expect.arrayContaining([datasetA.slug, datasetB.slug]));
-      expect(data.skipped_datasets).toEqual([]);
+      // Completion is the assertion: a processor resolving identity differently from the
+      // enqueue gate would have died with SST_DATASET_NOT_ENTITLED before reaching 100.
+      expect(data.progress_percentage).toBe(100);
     });
 
     it('refuses at enqueue time when the caller holds no entitlement for a named dataset', async () => {
@@ -548,22 +563,27 @@ describe('processSoilStatistics', () => {
 
       await expect(processSoilStatistics(job)).resolves.toBeUndefined();
 
+      // Nothing is written on cancellation, and with no output key left the observable
+      // proof is that the run never reached completion.
       const stored = await readJobData(jobId);
-      expect(stored.results).toBeUndefined();
+      expect(stored.progress_percentage).not.toBe(100);
     });
   });
 
   describe('statistics_type', () => {
     it('computes descriptive statistics when the type is absent', async () => {
-      const { dataset } = await seedDataset('type-default', [1, 2, 3]);
+      await seedDataset('type-default', [1, 2, 3]);
       const filterId = await createFilter([UNIT_A]);
 
       const { jobId, job } = await createActiveJob({ filter_id: filterId });
       await processSoilStatistics(job);
       const stored = await readJobData(jobId);
 
-      expect(stored.results.some(entry => entry.dataset_id === dataset.slug)).toBe(true);
-      expect(stored.crea_index).toBeUndefined();
+      // Neither type writes an output key any more, so the completion line is what says
+      // which producer ran: descriptive counts dataset/property groups, crea-index counts
+      // scored areas.
+      expect(stored.progress_description).toContain('dataset/property group(s)');
+      expect(await readCreaIndex(jobId)).toHaveLength(0);
     });
 
     it('fails rather than falling back to descriptive on an unrecognised type', async () => {
@@ -579,13 +599,13 @@ describe('processSoilStatistics', () => {
       // Nothing of either product may be written: a wrong name must not silently yield the
       // default one.
       const stored = await readJobData(jobId);
-      expect(stored.results).toBeUndefined();
-      expect(stored.crea_index).toBeUndefined();
+      expect(stored.progress_percentage).not.toBe(100);
+      expect(await readCreaIndex(jobId)).toHaveLength(0);
     });
   });
 
   describe('crea-index', () => {
-    it('returns one scored Point per filter geometry, identified by unit_id', async () => {
+    it('writes one scored Point per filter geometry to crea_index, keyed by the job id as the run', async () => {
       const filterId = await createFilter([UNIT_A, UNIT_B]);
       const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
       await processSoilStatistics(job);
@@ -593,28 +613,29 @@ describe('processSoilStatistics', () => {
 
       expect(stored.unit_count).toBe(2);
       expect(stored.derived_filter_id).toBeNull();
-      expect(stored.crea_index.type).toBe('FeatureCollection');
-      expect(stored.crea_index.features).toHaveLength(2);
 
-      // Every Point carries its unit_id as `id` — the only join back to units[] — and
-      // exactly one property.
+      // This type contributes no output key at all: the run id the caller needs to reach the
+      // rows is the job id it already polled with, so job data has nothing left to add.
+      expect(Object.keys(stored).filter(key => key.startsWith('crea_index'))).toEqual([]);
+
+      const rows = await readCreaIndex(jobId);
+      expect(rows).toHaveLength(2);
+
+      // The unit_id lives in metadata and nowhere else: the table has no primary key and no
+      // unit column, so this is the only join back to units[].
       const unitIds = stored.units.map(unit => unit.unit_id).sort();
-      expect(stored.crea_index.features.map(feature => feature.id).sort()).toEqual(unitIds);
-      for (const feature of stored.crea_index.features) {
-        expect(feature.type).toBe('Feature');
-        expect(feature.geometry.type).toBe('Point');
-        expect(Object.keys(feature.properties)).toEqual(['value']);
-        expect(feature.properties.value).toBeGreaterThanOrEqual(0);
-        expect(feature.properties.value).toBeLessThanOrEqual(1);
+      expect(rows.map(row => row.unit_id)).toEqual(unitIds);
+      for (const row of rows) {
+        expect(row.geometry_type).toBe('POINT');
+        expect(row.value).toBeGreaterThanOrEqual(0);
+        expect(row.value).toBeLessThanOrEqual(1);
         // Rounded to 3 decimals like every other number in this job's output.
-        expect(feature.properties.value).toBe(Number(feature.properties.value.toFixed(3)));
+        expect(row.value).toBe(Number(row.value.toFixed(3)));
       }
 
-      // None of the descriptive type's output is written.
-      expect(stored.results).toBeUndefined();
-      expect(stored.truncated).toBeUndefined();
-      expect(stored.skipped_datasets).toBeUndefined();
-      expect(stored.excluded_datasets).toBeUndefined();
+      // The descriptive producer did not run: its completion line counts dataset/property
+      // groups, this one counts scored areas.
+      expect(stored.progress_description).toContain('scored area(s)');
     });
 
     it('places each Point inside the area it scores', async () => {
@@ -639,15 +660,18 @@ describe('processSoilStatistics', () => {
       const filterId = await createFilter([cShape]);
       const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
       await processSoilStatistics(job);
-      const stored = await readJobData(jobId);
 
-      const [feature] = stored.crea_index.features;
-      const [longitude, latitude] = feature!.geometry.coordinates;
+      expect(await readCreaIndex(jobId)).toHaveLength(1);
+
+      // Joined in SQL straight from the stored geometry to the area it scores, so the
+      // containment is asserted on what was persisted rather than on a round-tripped copy.
       const entityManager = await getEntityManager();
       const [row] = await entityManager.query(
-        `SELECT ST_Within(ST_SetSRID(ST_MakePoint($2, $3), 4326), ug.geom) AS inside
-         FROM ${process.env.POSTGRES_SCHEMA}.user_geometries ug WHERE ug.id = $1`,
-        [feature!.id, longitude, latitude],
+        `SELECT ST_Within(ci."geometry", ug.geom) AS inside
+         FROM ${process.env.POSTGRES_SCHEMA}.crea_index ci
+         JOIN ${process.env.POSTGRES_SCHEMA}.user_geometries ug ON ug.id = (ci."metadata"->>'unit_id')::uuid
+         WHERE ci."run" = $1`,
+        [jobId],
       );
       expect(row.inside).toBe(true);
     });
@@ -660,9 +684,12 @@ describe('processSoilStatistics', () => {
       const second = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
       await processSoilStatistics(second.job);
 
-      const firstData = await readJobData(first.jobId);
-      const secondData = await readJobData(second.jobId);
-      expect(secondData.crea_index.features).toEqual(firstData.crea_index.features);
+      // Two Runs, two partitions, identical content: the scores key off unit_id, which the
+      // shared filter makes the same for both.
+      const firstRows = await readCreaIndex(first.jobId);
+      const secondRows = await readCreaIndex(second.jobId);
+      expect(firstRows).toHaveLength(1);
+      expect(secondRows).toEqual(firstRows);
     });
 
     it('takes its areas from a file, ignoring the filter geometries, and records the derived filter', async () => {
@@ -692,7 +719,7 @@ describe('processSoilStatistics', () => {
       // Equivalent geometries collapse, so there is no positional correspondence to the
       // file's three rows — which is exactly why the Features carry unit_id.
       expect(stored.unit_count).toBe(2);
-      expect(stored.crea_index.features).toHaveLength(2);
+      expect(await readCreaIndex(jobId)).toHaveLength(2);
       expect(stored.units.find(unit => unit.record_ids.length === 2)!.label).toBe('North; North duplicate');
       // No raster mask is applied by this type, so the area caveat cannot arise.
       expect(stored.units.every(unit => unit.raster_filtered === false)).toBe(true);
@@ -715,8 +742,28 @@ describe('processSoilStatistics', () => {
 
       await expect(processSoilStatistics(job)).resolves.toBeUndefined();
 
-      const stored = await readJobData(jobId);
-      expect(stored.crea_index).toBeUndefined();
+      // A cancelled Run must not leave a partition behind, since with retention deferred
+      // nothing would ever come back to drop it.
+      expect(await creaIndexPartitionExists(jobId)).toBe(false);
+      expect(await readCreaIndex(jobId)).toHaveLength(0);
+    });
+
+    it("replaces the run's rows rather than duplicating them when the same job is processed twice", async () => {
+      // pg-boss retries reuse the job id, so a retry rebuilds a partition that is already
+      // attached. Without the pre-emptive drop the second attempt would fail on the existing
+      // table, or worse, double every score in the run.
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.CREA_INDEX });
+
+      await processSoilStatistics(job);
+      const firstRows = await readCreaIndex(jobId);
+
+      await setJobState(jobId, 'active');
+      await processSoilStatistics(job);
+
+      const secondRows = await readCreaIndex(jobId);
+      expect(secondRows).toHaveLength(2);
+      expect(secondRows).toEqual(firstRows);
     });
   });
 });
