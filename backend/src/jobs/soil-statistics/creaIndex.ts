@@ -96,9 +96,7 @@ export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob
     ];
   });
 
-  // Checked once more before anything is persisted: a Run that is cancelled here would
-  // otherwise leave an attached partition that no completed job accounts for, and with
-  // retention deferred (docs/adr/0030) nothing would ever come back for it.
+  // Checked once more before anything is persisted
   await assertNotCancelled();
 
   await report('Storing scored areas...', 80);

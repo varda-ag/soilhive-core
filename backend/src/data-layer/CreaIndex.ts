@@ -12,12 +12,7 @@ export const creaIndexPartition = (run: string): string => `crea_index_${run.toL
 /**
  * Writes one Run's scored geometries into `crea_index` as its own LIST partition.
  *
- * The partition is built standalone, filled, indexed, and only then ATTACHed (docs/adr/0030).
- * Going straight to `CREATE TABLE ... PARTITION OF` would take ACCESS EXCLUSIVE on the parent
- * for the whole load and serialise concurrent Runs against each other; ATTACH takes only
- * SHARE UPDATE EXCLUSIVE, and holds it for the attach alone. Building the GiST index before
- * the ATTACH matters for the same reason — an ATTACH that finds no matching index builds one
- * itself, under that lock, instead of adopting the one already there.
+ * The partition is built standalone, filled, indexed, and only then ATTACHed.
  * Create, load and attach run in one transaction, so a Run is either fully attached or absent.
  * An empty Run still gets an empty partition.
  */
