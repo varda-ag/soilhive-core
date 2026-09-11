@@ -11,6 +11,7 @@ import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../../src/services/PgBoss';
 import { Capability, JobQueues, StatisticsType } from '../../../src/types/enums';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
+import { creaIndexPartition } from '../../../src/data-layer/CreaIndex';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
 import { sleep } from '../../../src/utils/utils';
@@ -135,7 +136,7 @@ const readCreaIndex = async (run: string): Promise<CreaIndexRow[]> => {
 const creaIndexPartitionExists = async (run: string): Promise<boolean> => {
   const entityManager = await getEntityManager();
   const [row] = await entityManager.query(`SELECT to_regclass($1) IS NOT NULL AS present`, [
-    `${process.env.POSTGRES_SCHEMA}.crea_index_${run.replace(/-/g, '')}`,
+    `${process.env.POSTGRES_SCHEMA}.${creaIndexPartition(run)}`,
   ]);
   return row.present;
 };
