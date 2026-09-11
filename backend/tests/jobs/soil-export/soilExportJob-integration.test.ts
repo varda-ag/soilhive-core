@@ -35,6 +35,11 @@ import * as FilteringMasksModule from '../../../src/data-layer/FilteringMasks';
 import { addRasterFilterData, addRasterFilterMappings } from '../../helper';
 import * as RasterUtilsModule from '../../../src/utils/raster';
 import { fromFile } from 'geotiff';
+import * as computeRasterFootprints from '../../../src/scripts/computeRasterFootprints';
+
+// addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
+// these tiny fixtures.
+(computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
 const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
 

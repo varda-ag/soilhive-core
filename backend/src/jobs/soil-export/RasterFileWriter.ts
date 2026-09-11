@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import { SyntaxValidator } from 'fast-xml-validator';
 import * as turf from '@turf/turf';
 import { fromFile, writeArrayBuffer, GeoTIFFImage } from 'geotiff';
 import { Polygon, MultiPolygon } from 'geojson';
@@ -379,7 +380,7 @@ export class RasterFileWriter {
     </SimpleSource>`,
       )
       .join('\n');
-    return `<VRTDataset rasterXSize="${outW}" rasterYSize="${outH}">
+    const xml = `<VRTDataset rasterXSize="${outW}" rasterYSize="${outH}">
   <SRS dataAxisToSRSAxisMapping="2,1">${srs}</SRS>
   <GeoTransform>${xMin}, ${pixW}, 0.0, ${yMax}, 0.0, ${-pixH}</GeoTransform>
   <VRTRasterBand dataType="Float32" band="1">
@@ -387,6 +388,13 @@ export class RasterFileWriter {
 ${sources}
   </VRTRasterBand>
 </VRTDataset>`;
+
+    try {
+      SyntaxValidator.validate(xml);
+    } catch (error) {
+      throw new Error(`buildVrt: generated VRT is not well-formed XML: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    return xml;
   }
 
   /**

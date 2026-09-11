@@ -5,6 +5,10 @@ import { updateRasterDatasetMetadata } from '../../src/jobs/raster-load/UpdateDa
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { addCategory, addDataset, addFile, addSoilProperty } from '../../src/utils/mock';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
+import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
+
+// ingestRaster runs the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for these tiny fixtures.
+(computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
 const rasterAssetsPath = path.join(__dirname, '../assets/raster');
 const TEST_FILE = 'bdod_5-15cm_mean.tif';
