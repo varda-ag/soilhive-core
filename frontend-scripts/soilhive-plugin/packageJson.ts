@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
 
 const REPO_ROOT = join(__dirname, '..', '..');
@@ -21,6 +21,14 @@ const HANDLED_SEPARATELY = new Set(['react', 'react-dom', 'frontend-plugin-types
 const RUNTIME_COMPANIONS: Record<string, string[]> = {
   'react-i18next': ['i18next'],
 };
+
+/**
+ * The two i18n files the scaffold adds to every plugin (see scaffold.ts's SCAFFOLD_FILES). Scanned
+ * unconditionally, not gated on --with-map — unlike extraScanPaths, this is not the whole of the
+ * plugin's own src/: only these two specific files, so a plugin author's own hand-added
+ * dependencies elsewhere in src/ are never silently repinned on sync.
+ */
+const I18N_SCAFFOLD_FILES = ['src/i18n.dev.ts', 'src/utilities/registerResourceBundle.ts'];
 
 /**
  * frontend/tsconfig.json's own path aliases (mirrored by jest's moduleNameMapper). UI/ never uses
@@ -162,7 +170,12 @@ export function mergeManagedDependencies(pluginPath: string, options: MergeManag
   pkg.devDependencies = pkg.devDependencies ?? {};
   pkg.devDependencies.typescript = pinnedVersion('typescript', packageJsonPaths);
 
-  const scanPaths = [uiDir, ...(options.extraScanPaths ?? [])];
+  // Filtered to existing paths: mergeManagedDependencies can run against a pluginPath fixture
+  // that never went through scaffoldPlugin (as in this module's own tests), and scanDependencies
+  // itself has no notion of a missing file. In real usage (run.ts), scaffoldPlugin always runs
+  // first, so these two files are guaranteed to exist by the time this scan happens.
+  const i18nScaffoldPaths = I18N_SCAFFOLD_FILES.map(file => join(pluginPath, file)).filter(existsSync);
+  const scanPaths = [uiDir, ...i18nScaffoldPaths, ...(options.extraScanPaths ?? [])];
   for (const packageName of scanDependencies(scanPaths)) {
     pkg.dependencies[packageName] = pinnedVersion(packageName, packageJsonPaths);
 

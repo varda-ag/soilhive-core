@@ -23,6 +23,8 @@ const SCAFFOLD_FILES = [
   'src/components/ProviderComponent.tsx',
   'src/components/ProviderComponent.css',
   'src/mockContext.ts',
+  'src/i18n.dev.ts',
+  'src/utilities/registerResourceBundle.ts',
 ];
 
 export function scaffoldPlugin(pluginPath: string, pluginName: string): void {
