@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router';
 import PageTitle from './components/PageTitle';
 import { ADMIN_ROOT } from './configuration/admin';
+import { METADATA_ROUTE, TERMS_OF_USE_ROUTE } from './configuration/routes';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
 import useRemotes from './hooks/useRemotes';
 import { usePluginContext } from './hooks/usePluginContext';
@@ -37,7 +38,7 @@ function AppRoutes() {
             <Route path="/*" element={<AvailabilityModule />} />
             {!!themeConfig.termsAndConditionsHtml && (
               <Route
-                path="/terms-of-use"
+                path={TERMS_OF_USE_ROUTE}
                 element={
                   <>
                     <PageTitle title={t('page_titles.terms_of_use')} />
@@ -58,7 +59,7 @@ function AppRoutes() {
               />
             )}
             <Route
-              path="/datasets/:id"
+              path={METADATA_ROUTE}
               element={
                 <>
                   <PageTitle title="SoilHive - Metadata" />

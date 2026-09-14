@@ -26,6 +26,7 @@ Create the file before starting the dev server:
 // frontend/public/env-config.js
 window._env_ = {
   BACKEND_BASE_URL: 'http://localhost:4001',
+  APP_BASE_URL: 'http://localhost:3000',
   MAPBOX_ACCESS_TOKEN: '<your Mapbox token, or empty string to disable the map>',
   GTM_CONTAINER_ID: '',    // optional — Google Tag Manager container ID
   COOKIE_DOMAIN: '',       // optional — overrides cookie domain for consent banner
@@ -33,7 +34,7 @@ window._env_ = {
 };
 ```
 
-`BACKEND_BASE_URL` must point to a running backend. `MAPBOX_ACCESS_TOKEN` is required to render the map; the app will load without it but map tiles won't appear.
+`BACKEND_BASE_URL` must point to a running backend. `APP_BASE_URL` is the public origin serving the app itself; it is used to build absolute links to the app — `og:url` on the server-rendered metadata page, the metadata URLs sent with an export, and the URLs handed to plugins. In the browser it falls back to `window.location.origin` when unset, but server-side rendering has no such fallback. `MAPBOX_ACCESS_TOKEN` is required to render the map; the app will load without it but map tiles won't appear.
 
 In production the Express server generates `env-config.js` at startup from OS environment variables, so the file in `public/` is only used during local development.
 
@@ -80,6 +81,7 @@ Environment variables can be set as OS env vars before starting:
 
 ```sh
 BACKEND_BASE_URL=https://api.example.com \
+APP_BASE_URL=https://app.example.com \
 MAPBOX_ACCESS_TOKEN=pk.xxx \
 PORT=8080 \
 node dist/server/index.cjs
@@ -127,7 +129,7 @@ import { Button } from '../../../components/UI/Button';
 
 ## Docker
 
-A `Dockerfile` is provided for containerized deployments. It runs `pnpm build` and then `node dist/server/index.cjs`. All runtime env vars (`BACKEND_BASE_URL`, `MAPBOX_ACCESS_TOKEN`, `GTM_CONTAINER_ID`, `COOKIE_DOMAIN`, `FEATURE_FLAGS`) can be passed with `--env` or Docker Compose's `environment:` block.
+A `Dockerfile` is provided for containerized deployments. It runs `pnpm build` and then `node dist/server/index.cjs`. All runtime env vars (`BACKEND_BASE_URL`, `APP_BASE_URL`, `MAPBOX_ACCESS_TOKEN`, `GTM_CONTAINER_ID`, `COOKIE_DOMAIN`, `FEATURE_FLAGS`) can be passed with `--env` or Docker Compose's `environment:` block.
 
 ## Health checks
 

@@ -73,6 +73,7 @@ services:
     environment:
       PORT: 3000
       BACKEND_BASE_URL: http://localhost:4001/api/v1
+      APP_BASE_URL: http://localhost:3000
     ports:
       - "3000:3000"
     stdin_open: true

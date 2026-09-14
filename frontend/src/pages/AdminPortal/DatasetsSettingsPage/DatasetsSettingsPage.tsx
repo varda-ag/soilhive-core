@@ -17,6 +17,7 @@ import { Table } from 'components/Table/Table';
 import { Button, TextInput } from 'components/UI';
 import { DocumentationLink } from 'components/AdminPortal/DocumentationLink/DocumentationLink';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
+import { metadataPath } from 'configuration/routes';
 import { isValidEmail } from '../../../utilities/validation';
 import { useDatasetsSettings } from '../../../hooks/useDatasetsSettings';
 import type { AccessEmail } from '../../../hooks/useDatasetsSettings';
@@ -100,7 +101,7 @@ export function DatasetsSettingsPage() {
             <h3 className={styles.SectionTitle}>{t('datasets.settings.metadata_preview.title')}</h3>
           </div>
           <p className={styles.SectionDescription}>{t('datasets.settings.metadata_preview.description')}</p>
-          <Link to={`/datasets/${id}`} className={styles.MetadataLink} target="_blank">
+          <Link to={metadataPath(id!)} className={styles.MetadataLink} target="_blank">
             {t('datasets.settings.metadata_preview.link')}
           </Link>
           {!hasMandatoryMetadata && (

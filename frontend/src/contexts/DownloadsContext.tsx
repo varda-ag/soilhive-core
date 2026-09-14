@@ -3,6 +3,7 @@ import React, { createContext, useState, type ReactNode, useCallback, useMemo, u
 import type { AsyncJob } from 'types/jobs';
 import useNotifications from 'hooks/useNotifications';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
+import { appOrigin, appUrl, metadataUrl, TERMS_OF_USE_ROUTE } from '../configuration/routes';
 import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
 import { downloadFile } from '../utilities/download';
 import { useAuthContext } from '../auth/AuthContextProvider';
@@ -62,14 +63,14 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
     async (payload: { filter_id: string; dataset_ids: string[]; formats: string[] }) => {
       const public_metadata_urls: Record<string, string> = {};
       payload.dataset_ids.forEach(id => {
-        public_metadata_urls[id] = `${window.location.origin}/datasets/${id}`;
+        public_metadata_urls[id] = metadataUrl(id);
       });
       const res = await createJob.mutateAsync({
         ...payload,
         type: 'export',
         anonymous: true,
-        public_homepage_url: window.location.origin,
-        public_terms_url: `${window.location.origin}/terms-of-use`,
+        public_homepage_url: appOrigin(),
+        public_terms_url: appUrl(TERMS_OF_USE_ROUTE),
         public_metadata_urls,
       });
 

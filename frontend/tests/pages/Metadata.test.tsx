@@ -60,8 +60,7 @@ jest.mock('utilities/buildMetadataHead', () => ({
     title: 'Test Title',
     description: 'Test Description',
     siteName: 'Test Site',
-    url: 'https://test.example/',
-    image: 'https://test.example/img.png',
+    url: 'https://test.example/datasets/test-id',
   }),
 }));
 
@@ -186,7 +185,9 @@ describe('Metadata page', () => {
     expect(document.title).toBe('Test Title');
     expect(document.head.querySelector('meta[name="description"]')?.getAttribute('content')).toBe('Test Description');
     expect(document.head.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe('Test Title');
-    expect(document.head.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://test.example/img.png');
+    expect(document.head.querySelector('meta[property="og:url"]')?.getAttribute('content')).toBe('https://test.example/datasets/test-id');
+    expect(document.head.querySelector('meta[property="og:image"]')).toBeNull();
+    expect(document.head.querySelector('meta[name="twitter:image"]')).toBeNull();
     expect(document.head.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe('summary');
     expect(document.head.querySelector('meta[name="twitter:description"]')?.getAttribute('content')).toBe('Test Description');
   });

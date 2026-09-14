@@ -84,8 +84,8 @@ export default function Metadata() {
 
   const datasetName = dataset?.name;
   useEffect(() => {
-    if (!datasetName) return;
-    const v = getMetadataHeadValues(datasetName);
+    if (!datasetName || !id) return;
+    const v = getMetadataHeadValues(datasetName, id);
     document.title = v.title;
     upsertMeta('meta[name="description"]', 'name', 'description', v.description);
     upsertMeta('meta[property="og:title"]', 'property', 'og:title', v.title);
@@ -93,12 +93,10 @@ export default function Metadata() {
     upsertMeta('meta[property="og:url"]', 'property', 'og:url', v.url);
     upsertMeta('meta[property="og:description"]', 'property', 'og:description', v.description);
     upsertMeta('meta[property="og:type"]', 'property', 'og:type', 'website');
-    upsertMeta('meta[property="og:image"]', 'property', 'og:image', v.image);
     upsertMeta('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary');
     upsertMeta('meta[name="twitter:title"]', 'name', 'twitter:title', v.title);
     upsertMeta('meta[name="twitter:description"]', 'name', 'twitter:description', v.description);
-    upsertMeta('meta[name="twitter:image"]', 'name', 'twitter:image', v.image);
-  }, [datasetName]);
+  }, [datasetName, id]);
 
   const handleCopyLink = () => {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {

@@ -4,11 +4,12 @@ import styles from './MainLayout.module.scss';
 import { NotificationBanner } from 'components/NotificationBanner/NotificationBanner';
 import { useState } from 'react';
 import useTheme from 'hooks/useTheme';
+import { METADATA_ROUTE } from 'configuration/routes';
 
 export function MainLayout() {
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const [showNotificationBanner, setShowNotificationBanner] = useState(true);
-  const isMetadataPage = useMatch('/datasets/:id');
+  const isMetadataPage = useMatch(METADATA_ROUTE);
   const onNotificationBannerClose = () => {
     setShowNotificationBanner(false);
   };

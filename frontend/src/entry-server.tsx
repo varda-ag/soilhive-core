@@ -13,6 +13,7 @@ import MetadataPage from './pages/Metadata';
 import { ssrAuthStore } from './auth/ssrAuthStore';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { buildMetadataHeadHtml } from './utilities/buildMetadataHead';
+import { METADATA_ROUTE } from './configuration/routes';
 import type { Dataset } from 'types/backend';
 import { IngestionStatus } from 'types/backend';
 
@@ -51,7 +52,7 @@ function isAdminToken(token: string | null): boolean {
  * routes fall through to the standard SPA index.html.
  */
 const SSR_ROUTES: Record<string, React.ComponentType> = {
-  '/datasets/:id': MetadataPage,
+  [METADATA_ROUTE]: MetadataPage,
 };
 
 /**
@@ -110,7 +111,7 @@ export async function render(
   };
 
   // Prefetch route-specific queries so renderToString sees real data.
-  const datasetMatch = matchedPattern === '/datasets/:id' ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
+  const datasetMatch = matchedPattern === METADATA_ROUTE ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
   if (datasetMatch) {
     const datasetId = datasetMatch[1];
     await Promise.all([
@@ -168,7 +169,7 @@ export async function render(
     const datasetId = datasetMatch[1];
     const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetId]);
     if (cachedDataset?.name) {
-      head = buildMetadataHeadHtml(cachedDataset.name);
+      head = buildMetadataHeadHtml(cachedDataset.name, datasetId);
     }
   }
 

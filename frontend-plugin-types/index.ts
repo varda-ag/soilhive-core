@@ -29,4 +29,7 @@ export interface PluginContext {
   // pluginId is the plugin's own exported id (see plugin-development.md), passed
   // back in so the same config namespace is used no matter which plugin calls it.
   usePluginConfig: <T>(pluginId: string, id: string, defaultConfig?: T) => PluginConfigResult<T>;
+  // Absolute URL of a dataset's metadata page. Provided by the host because the
+  // origin comes from its runtime configuration, which a remote plugin cannot read.
+  metadataUrl: (datasetId: string) => string;
 }
