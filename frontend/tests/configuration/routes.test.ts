@@ -35,12 +35,17 @@ describe('appBaseUrl', () => {
     expect((await loadRoutes('https://soil.example.com/')).appBaseUrl()).toBe('https://soil.example.com');
   });
 
-  it('keeps a sub-path prefix', async () => {
-    expect((await loadRoutes('https://example.com/app/')).appBaseUrl()).toBe('https://example.com/app');
+  it('drops a sub-path, which the app cannot route, and says so once', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const routes = await loadRoutes('https://example.com/app/');
+
+    expect(routes.appBaseUrl()).toBe('https://example.com');
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain('must not contain a path');
   });
 
   it('drops query and fragment from the configured value', async () => {
-    expect((await loadRoutes('https://example.com/app?a=1#b')).appBaseUrl()).toBe('https://example.com/app');
+    expect((await loadRoutes('https://example.com?a=1#b')).appBaseUrl()).toBe('https://example.com');
   });
 
   it('warns once at module load and falls back when the configured value is not a URL', async () => {
@@ -61,8 +66,10 @@ describe('appUrl', () => {
     expect((await loadRoutes('https://soil.example.com')).appUrl('/terms-of-use')).toBe('https://soil.example.com/terms-of-use');
   });
 
-  it('preserves a sub-path prefix instead of resetting to the origin', async () => {
-    expect((await loadRoutes('https://example.com/app')).appUrl('/terms-of-use')).toBe('https://example.com/app/terms-of-use');
+  it('anchors at the origin even when a sub-path was configured', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect((await loadRoutes('https://example.com/app')).appUrl('/terms-of-use')).toBe('https://example.com/terms-of-use');
   });
 });
 
@@ -71,8 +78,10 @@ describe('metadataUrl', () => {
     expect((await loadRoutes('https://soil.example.com')).metadataUrl('my-dataset')).toBe('https://soil.example.com/datasets/my-dataset');
   });
 
-  it('keeps a sub-path prefix', async () => {
-    expect((await loadRoutes('https://example.com/app')).metadataUrl('my-dataset')).toBe('https://example.com/app/datasets/my-dataset');
+  it('anchors at the origin even when a sub-path was configured', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect((await loadRoutes('https://example.com/app')).metadataUrl('my-dataset')).toBe('https://example.com/datasets/my-dataset');
   });
 
   it('encodes the id exactly once', async () => {

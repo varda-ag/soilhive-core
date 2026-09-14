@@ -34,7 +34,7 @@ window._env_ = {
 };
 ```
 
-`BACKEND_BASE_URL` must point to a running backend. `APP_BASE_URL` is the public base serving the app itself; it is used to build absolute links to the app — `og:url` on the server-rendered metadata page, the metadata URLs sent with an export, and the URLs handed to plugins. Include the sub-path if the app is not served from the root of its host (`https://example.com/app`); a trailing slash, query or fragment is ignored. In the browser it falls back to `window.location.origin` when unset — which carries no sub-path — and server-side rendering has no fallback at all. `MAPBOX_ACCESS_TOKEN` is required to render the map; the app will load without it but map tiles won't appear.
+`BACKEND_BASE_URL` must point to a running backend. `APP_BASE_URL` is the public base serving the app itself; it is used to build absolute links to the app — `og:url` on the server-rendered metadata page, the metadata URLs sent with an export, and the URLs handed to plugins. It must be an origin with no path (`https://app.example.com`) — the app has to be served from the root of its host, because the router is built without a basename, the SSR route matcher anchors its patterns at `/`, and static assets are served from `/`. A path, trailing slash, query or fragment is dropped with a warning at startup. In the browser it falls back to `window.location.origin` when unset; server-side rendering has no fallback at all. `MAPBOX_ACCESS_TOKEN` is required to render the map; the app will load without it but map tiles won't appear.
 
 In production the Express server generates `env-config.js` at startup from OS environment variables, so the file in `public/` is only used during local development.
 

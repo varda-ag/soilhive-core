@@ -18,7 +18,7 @@ import { useAuthContext } from '../../auth/AuthContextProvider';
 import useTheme from 'hooks/useTheme';
 import useRemotes from 'hooks/useRemotes';
 import useDevice from 'hooks/useDevice';
-import { TERMS_OF_USE_ROUTE } from 'configuration/routes';
+import { PRIVACY_POLICY_ROUTE, TERMS_OF_USE_ROUTE } from 'configuration/routes';
 import { isNewTabModule, isSinglePageModule } from 'utilities/moduleFederation';
 import type { NavMenuEntry } from 'types/components';
 import DropdownMenuItem from './DropdownMenuItem/DropdownMenuItem';
@@ -66,7 +66,7 @@ export default function Header() {
       }
 
       if (themeConfig.privacyPolicyHtml) {
-        children.push({ name: 'nav_menu.privacy_policy', route: '/privacy-policy', type: 'internal', Icon: LockIcon });
+        children.push({ name: 'nav_menu.privacy_policy', route: PRIVACY_POLICY_ROUTE, type: 'internal', Icon: LockIcon });
       }
 
       output.push({

@@ -16,14 +16,17 @@ const loadRoutes = async (appBaseUrl?: string): Promise<RoutesModule> => {
 
 afterEach(() => {
   delete process.env['APP_BASE_URL'];
+  jest.restoreAllMocks();
 });
 
 it('uses APP_BASE_URL when there is no window', async () => {
   expect((await loadRoutes('https://soil.example.com')).metadataUrl('my-dataset')).toBe('https://soil.example.com/datasets/my-dataset');
 });
 
-it('keeps a sub-path prefix when there is no window', async () => {
-  expect((await loadRoutes('https://example.com/app')).metadataUrl('my-dataset')).toBe('https://example.com/app/datasets/my-dataset');
+it('drops a sub-path when there is no window', async () => {
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+  expect((await loadRoutes('https://example.com/app')).metadataUrl('my-dataset')).toBe('https://example.com/datasets/my-dataset');
 });
 
 describe('with no origin available at all', () => {
