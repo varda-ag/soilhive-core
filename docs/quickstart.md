@@ -106,7 +106,7 @@ Log out, log back in as `data-admin`, open the **Admin console**, and go to **Da
 3. **Field Mapping** — map `pH`, `SOC_g_kg`, `TN_g_kg`, `clay_pct`, `sand_pct`, and `CEC_cmolc_kg` to the matching SoilHive vocabulary properties and specify their original units; the `WKT` geometry column is detected automatically
 4. **Preview** — review the parsed rows, drop any bad ones, and confirm the load
 
-See [Data Management Portal](data-model/1-data-management-portal.md) for the full, detailed walkthrough of this flow, including supported file formats and mapping rules.
+See [Data Management Portal](data-model/1-data-management-portal.md) for the full, detailed walkthrough of this flow, and [Loading vector data](data-model/1a-vector-data-ingestion.md) for supported file formats and mapping rules. Raster datasets follow a shorter path, described in [Loading raster data](data-model/1b-raster-data-ingestion.md).
 
 ### 3. Choose visibility and publish
 
@@ -145,6 +145,6 @@ After `docker compose up -d`, a quick way to confirm everything is wired correct
 - [Authentication](authentication.md): authentication modes and configuration in more depth
 - [Keycloak setup](keycloak-setup.md): how the `soilhive` realm/client were built, or how to set up your own
 - [Frontend](frontend.md) / [Backend](backend.md): running and developing each service outside of Docker
-- [Data Management Portal](data-model/1-data-management-portal.md): the full data upload/harmonization/publication workflow
+- [Data Management Portal](data-model/1-data-management-portal.md): the full data upload/harmonization/publication workflow, with per-data-type guides for [vector](data-model/1a-vector-data-ingestion.md) and [raster](data-model/1b-raster-data-ingestion.md)
 - [Map based filters](map-based-filters.md): configuring the map's filter options
 - [Bare metal install](bare-metal-install.md): running the platform without containers

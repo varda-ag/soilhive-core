@@ -16,11 +16,11 @@ import { DeleteCheckboxCell } from './DeleteCheckboxCell';
 import { DataLoadingStartedPanel } from './DataLoadingStartedPanel';
 import { PreviewStepSummary } from './PreviewStepSummary/PreviewStepSummary';
 import { IngestionStepTitleRow } from 'components/AdminPortal/IngestionStepTitleRow/IngestionStepTitleRow';
-import { INGESTION_DOCS_URL } from 'configuration/ingestion';
+import { VECTOR_INGESTION_DOCS_URL } from 'configuration/ingestion';
 
 import styles from './DatasetsPreviewStep.module.scss';
 
-const DOCS_URL = `${INGESTION_DOCS_URL}#preview--review-data`;
+const DOCS_URL = `${VECTOR_INGESTION_DOCS_URL}#preview--review-data`;
 
 const initialVisibleColumns = ['min_depth', 'max_depth', 'sampling_date', 'horizon'];
 

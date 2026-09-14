@@ -24,18 +24,21 @@ This documentation is intended for:
 4. Open the **Data Publication** panel.
 5. Click **Add a Dataset** in the top-right corner to begin.
 
-The portal walks you through four steps:
+The first two steps are the same whatever you are loading:
 
 1. **General Info** – fill in essential metadata
 2. **File/s Upload** – upload your data file(s)
-3. **Field Mapping** – map your fields to the SoilHive vocabulary and specify units and analytical methods
-4. **Preview** – review, clean, and load your dataset
 
-> **Note:** Data cleaning should ideally be done before upload. The portal supports row-level deletion as a final check but does not yet provide a full cleaning environment.
+What follows depends on the kind of file you uploaded, because vector data and raster data are described in different ways:
 
-Once your data is loaded, you can publish it — either publicly or privately to selected users.
+| You uploaded | Remaining steps | Detailed guide |
+|---|---|---|
+| **Vector** — points or polygons, one row per sample (CSV, XLSX, GeoJSON, GPKG, SHP, GML, KML, GDB) | **Field Mapping**, then **Preview** | [Loading vector data](1a-vector-data-ingestion.md) |
+| **Raster** — a gridded surface, one value per pixel (GeoTIFF) | **Field Mapping**, then the load runs in the background | [Loading raster data](1b-raster-data-ingestion.md) |
 
-All steps are described in detail in the sections below.
+> **Note:** Data cleaning should ideally be done before upload. For vector data the portal supports row-level deletion as a final check but does not yet provide a full cleaning environment. Raster data is not cleaned at all — what you upload is what is loaded.
+
+Once your data is loaded, you can publish it — either publicly or privately to selected users. Publication works the same way for both kinds of data and is described [below](#publication).
 
 ---
 
@@ -54,133 +57,41 @@ The following fields are requested at this stage:
 
 ### Soil Data — Upload Your File(s)
 
-Upload one or more files to associate with your dataset. All files within the same dataset must share an identical field structure — the same fields and the same data types — and must be loaded together. The platform does not currently support incremental additions to an existing dataset.
+Upload one or more files to associate with your dataset.
 
 **Supported formats**
-GeoJSON, GPKG, SHP, CSV, XLSX, GML, KML, and GDB are all accepted, as well as ZIP archives containing any of these formats. Shapefiles must be zipped together with all their associated files (`.dbf`, `.shx`, `.prj`, etc.).
 
-**Specific requirements for each format**
+GeoJSON, GPKG, SHP, CSV, XLSX, GML, KML, and GDB are accepted as vector data, as well as ZIP archives containing any of these formats. Shapefiles must be zipped together with all their associated files (`.dbf`, `.shx`, `.prj`, etc.). GeoTIFF (`.tif`, `.tiff`) is accepted as raster data, and must not be zipped.
 
-| Format | Requirements |
-|---|---|
-| **CSV** | Plain-text, comma-separated. Must include either a `latitude`/`longitude` column pair (for point data) or a WKT geometry column (for point or polygon/multipolygon data). First row must be a header row with one column per field. |
-| **XLSX** | Same structural requirements as CSV. Only the first sheet is read; additional sheets are ignored. |
-| **GeoJSON** | Must be a valid `FeatureCollection`. Each `Feature` must have a `geometry` of type `Point`, `Polygon`, or `MultiPolygon`. Coordinates are assumed to be in WGS 84 (EPSG:4326) unless a `crs` member is specified. |
-| **GPKG** (GeoPackage) | Must contain at least one vector layer with point, polygon, or multipolygon geometries. If the file contains multiple layers, the first layer with valid geometries of a supported type is used. |
-| **SHP** (Shapefile) | Must be uploaded as a ZIP archive containing all associated files: `.shp`, `.shx`, `.dbf`, and `.prj` (the `.prj` file is required for automatic CRS detection). Geometry type must be Point, Polygon, or MultiPolygon. |
-| **GML** | Must validate against a standard GML schema and contain point or polygon geometries with associated feature attributes. |
-| **KML** | Point placemarks and polygon features are both supported; each placemark's or polygon's `ExtendedData` fields are mapped as soil property columns. Nested folders are flattened. |
-| **GDB** (File Geodatabase) | Must be uploaded as a ZIP archive of the `.gdb` folder. Must contain at least one feature class with point, polygon, or multipolygon geometries. |
-| **ZIP** | Used to bundle any of the above formats where multiple files are required (Shapefile, GDB) or simply to reduce upload size. A ZIP must contain exactly one dataset — do not bundle multiple unrelated files together. |
+The maximum size of a single upload is set by the platform administrator and is shown underneath the upload box. The same limit applies to every file the Admin console accepts, including the platform logo.
 
-> **Note:** The table above reflects general format requirements. Platform-specific limits (e.g. maximum file size, maximum row count, exact required column names) should be confirmed and added here before publishing.
+**One dataset holds one kind of data**
 
-**What your file should contain**
+A dataset is either vector or raster, never both. The first file you upload decides which, and any later file of the other kind is rejected with a message saying so. The decision comes from reading the file rather than from its extension: SoilHive asks GDAL to describe every upload, and a file that reports raster bands is treated as raster.
 
-A geometry field, or separate latitude and longitude columns, is required — the platform only supports geo-located data. Beyond that, the following are strongly recommended:
+**All files at once**
 
-- Sampling date, in `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` format
-- Depth, as upper and lower values in centimetres, either in separate columns or as a single depth range value with the upper and lower bounds separated by a dash (e.g. `10-15` or `10 cm - 15 cm`)
-- License at the record level, if individual observations carry different licenses (if the whole dataset shares a single license, it can instead be set as a fixed value in a later step — see the [list of supported licenses](../../backend/docs/data-model/6-license_options.csv))
-- Soil properties, each in its own column: one column per property, unit, and analytical procedure
-
-> **Note:** If sampling date, depth, or license are not present in the file, fixed values can be applied at the dataset level in a later step.
+All files in one dataset must be loaded together. The platform does not currently support adding files to an existing dataset afterwards. Vector files carry the additional requirement that they all share an identical field structure — the same fields and the same data types — which is described in more detail in the [vector guide](1a-vector-data-ingestion.md#uploading-multiple-files).
 
 **Coordinate Reference System**
 
-After upload, the system will ask you to specify the coordinate reference system of your file if it can't be detected automatically — this is typically only needed for formats like CSV and XLSX, where the CRS isn't always embedded.
+After upload, the portal shows the coordinate reference system it read from each file, and asks you to supply one where it could not read any. Where the CRS comes from, whether you can override it, and whether the data is reprojected all differ between the two kinds of data:
 
-SoilHive stores all spatial data in EPSG:4326 (WGS 84). If your file uses a different CRS, the platform will reproject it automatically. For most file formats the CRS is detected without any input; you only need to specify it manually if the system can't determine it from the file.
+- Vector data is always reprojected to EPSG:4326 (WGS 84) on load — see [Vector: coordinate reference system](1a-vector-data-ingestion.md#coordinate-reference-system).
+- Raster data is kept in whatever CRS it arrives in, and is only reprojected where a specific output needs it — see [Raster: coordinate reference system](1b-raster-data-ingestion.md#coordinate-reference-system).
 
-For raster files, what the upload step shows you depends on what the file itself declares:
+### The Remaining Steps
 
-| What the file declares | What you see |
-|---|---|
-| An EPSG code | The code is selected for you, the selector is disabled, and you can continue straight away. If the file declares the wrong code, correct it in the file rather than here. |
-| A coordinate system carrying no EPSG code | **Custom CRS detected**. The selector is disabled and you can continue — the projection is read from the file itself, and no entry in the EPSG list could describe it. |
-| No coordinate system at all | The selector is empty and you cannot continue until you pick one. Only codes in the list can be picked; if your raster's CRS isn't among them, write it into the file before uploading. |
+Continue in the guide for the kind of data you uploaded:
 
-**Setting a CRS on a raster file**
+- **[Loading vector data](1a-vector-data-ingestion.md)** — field mapping, the cleaning rules applied at load, and the preview.
+- **[Loading raster data](1b-raster-data-ingestion.md)** — band mapping, what the load does to your raster file, and what can make it fail.
 
-If a raster arrives with no coordinate system, or with the wrong one recorded, you can write one into the file with GDAL before uploading it:
+Both end with the data in the SoilHive database and the dataset marked **Loaded**, ready to publish.
 
-```sh
-gdal_edit.py -a_srs <SRS_DEF> file.tif
-```
+---
 
-`<SRS_DEF>` accepts any form GDAL understands — an authority code, a `.prj` file, or a WKT string:
-
-```sh
-gdal_edit.py -a_srs EPSG:3035 soil_ph.tif
-```
-
-This only labels the pixel coordinates already in the file; it does not move them. Use it when the CRS is missing or recorded incorrectly - including when the portal shows a detected code you know to be wrong, since the selector cannot be used to override what the file says. To actually reproject the data, use `gdalwarp -t_srs` instead - though you don't need to, since SoilHive reprojects on your behalf.
-
-### Field Mapping — Match Your Data
-
-This is the first harmonisation step. It's required to align the property names in your dataset with a common, shared vocabulary, and to determine which conversion formula should be applied to transform each value into its standard unit of measurement. The system reads all fields in your file and attempts to map them automatically using field-name matching.
-
-The following structural fields are recognised automatically when they follow commonly used naming conventions: latitude, longitude, geometry, minimum and maximum depth or depth range, sampling date, license, and horizon. If a field name doesn't match a recognised convention, you'll need to map it manually.
-
-For soil property fields, you complete the mapping manually by selecting the matching property from the SoilHive vocabulary (see [Soil Property Vocabulary](4b-soil-property-vocabulary.md)) and specifying the original unit. The platform then determines the standard unit and records the conversion rule automatically (see [Unit Conversion Reference](5a-unit-conversion-reference.md)).
-
-Any field left unmapped will not be loaded into the platform.
-
-**Analytical Methodology (optional)**
-
-For each mapped property, you can expand the methodology panel to record how the value was produced:
-
-- **Sample pre-treatment** — physical or chemical preparation applied before analysis
-- **Technique** — Lab procedure (physical or chemical analysis), Spectral (NIR or MIR), or Calculated (derived from formulas, statistical models, or process-based models)
-- **Laboratory method** — the named protocol used
-- **Extractant concentration** — concentration of the extraction solution
-- **Extraction ratio** — soil-to-solution ratio
-- **Extraction base** — mass/mass, volume/mass, or volume/volume
-- **Measurement procedure** — instrument or procedure used to determine the value
-- **Limit of detection** — the lowest concentration reliably distinguishable from zero
-
-See [Analytical Methodology Vocabulary](4d-analytical-methodology-vocabulary.md).
-
-### Preview — Review Data
-
-Your data may be subject to modification, and some data may be discarded if it doesn't comply with SoilHive's data quality rules. Before your data is loaded into the platform, an automatic cleaning step runs to standardise values and flag records that can't be safely loaded. A summary of everything the cleaning step did is shown above the preview table, broken down into three categories: **Modified values**, **Discarded rows**, and **Discarded cells**.
-
-**Modified values**
-
-| What happens | Shown in the summary as |
-|---|---|
-| Depth values are rounded to the nearest whole number (e.g. 10.4 cm becomes 10 cm) | *Depth rounded to integer* |
-| Soil property values are rounded to a maximum of 3 decimal places | *Value rounded to 3 decimal places* |
-| Soil property values are converted to SoilHive's standard unit, based on the original unit you specified in Field Mapping | *Converted to standard unit of measurement* |
-
-**Discarded rows** — an entire row is removed when:
-
-| What happens | Shown in the summary as |
-|---|---|
-| Geometry contains a different type with respect to the dominant data type (e.g. 18 Point rows and 2 Polygon rows: 2 are discarded) | *Mixed geometry type* |
-| Coordinates fall outside the valid range for latitude (−90 to 90) or longitude (−180 to 180) — for polygon or multipolygon geometries, this is raised if any vertex falls outside these ranges (see [criteria](https://postgis.net/docs/using_postgis_dbmanagement.html#Valid_Geometry))| *Invalid coordinates (out of range)* |
-| The upper depth is greater than or equal to the lower depth (e.g. 30–0 cm) or the depth range column is not properly formed (e.g. 0-20-30 cm) | *Invalid depth interval (upper ≥ lower or invalid range)* |
-| After all other cleaning steps, the row no longer has both a valid location and at least one valid soil property value | *Minimum data requirement not met (missing geometry or invalid soil property value)* |
-| The row exactly duplicates another row already in the dataset (same coordinates, date, depth, and value for every property) | *Duplicate row (same coordinates, date, depth, value across all properties)* |
-| You manually removed the row yourself during the preview step | *User discarded row* |
-
-**Discarded cells** — a single value within a row is removed (treated as missing) when:
-
-| What happens | Shown in the summary as |
-|---|---|
-| The value isn't numeric (e.g. text was entered in a numeric field) | *Invalid property value (non-numeric)* |
-| The value is negative | *Negative value* |
-| The value is exactly zero, which SoilHive treats as no measurement rather than a true zero reading | *Zero value (treated as null)* |
-| The value is a percentage above 100% | *Out-of-bounds value* |
-| The value is exactly −999, the recognised "below limit of detection" convention | *Below limit of detection* |
-
-You can review exactly which rows and cells were affected directly in the preview table, and you can delete additional individual rows yourself as a final quality check before confirming the upload.
-
-**Loading**
-
-Once you're satisfied with the preview, confirm to load the data into the SoilHive database. The system applies all field mappings, coordinate reprojection, and unit conversions defined in the previous steps.
-
-### Publication
+## Publication
 
 Loading your data and publishing it are two separate things. Once the load finishes, the dataset exists in the SoilHive database but no one outside the Admin console can see it: it does not appear in the search results, on the map, in downloads, or in any statistics. **Publishing is the step that makes a dataset live.**
 
@@ -219,6 +130,8 @@ Publishing is blocked until every mandatory metadata field is filled in — the 
 | Reference coverage start and end | The period the measurements refer to |
 | License | At least one |
 | Variables measured | At least one soil property |
+
+Several of these are filled in for you by the load. For raster datasets in particular, spatial resolution, spatial extent, depth range, reference period and variables measured are all derived from the layers that were loaded — see [what the load writes at dataset level](1b-raster-data-ingestion.md#what-the-load-writes-to-the-dataset).
 
 *2. Data visibility*
 

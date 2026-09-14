@@ -6,12 +6,12 @@ import { MappingsStep } from './MappingsStep';
 import { MappingsTable } from './MappingsTable';
 import { MappingRow } from './MappingRow';
 import { RasterMappingRowDetails } from './RasterMappingRowDetails';
-import { INGESTION_DOCS_URL } from 'configuration/ingestion';
+import { RASTER_INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { DataLoadingStartedPanel } from 'pages/AdminPortal/DatasetsPreviewStep/DataLoadingStartedPanel';
 import { ADMIN_PATHS } from 'configuration/admin';
 import styles from './MappingRow.module.scss';
 
-const DOCS_URL = `${INGESTION_DOCS_URL}#field-mapping--match-your-data`;
+const DOCS_URL = `${RASTER_INGESTION_DOCS_URL}#field-mapping--match-your-data`;
 
 interface Props {
   id?: string;

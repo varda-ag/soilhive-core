@@ -44,7 +44,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'Column mapped to depth did not contain a valid range.',
     actions: [
       'Review your mapping to ensure you have mapped the depth related columns to depth if range, or min depth and max depth if separate values.',
-      'Check your file is compliant with the guidelines in the documentation: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files.',
+      'Check your file is compliant with the guidelines in the documentation: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1a-vector-data-ingestion.md#what-your-file-should-contain.',
     ],
   },
   FTD_STALE_STAGING_TABLE: {
@@ -65,7 +65,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'An error occurred while writing soil records to the database.',
     actions: [
       'Try starting data loading again.',
-      'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files',
+      'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1a-vector-data-ingestion.md#what-your-file-should-contain',
     ],
   },
   RL_MAPPING_NOT_CONFIGURED: {
