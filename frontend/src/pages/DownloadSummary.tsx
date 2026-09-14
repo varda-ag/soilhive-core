@@ -21,6 +21,7 @@ import { useOnceDefined } from 'hooks/useOnceDefined';
 import Skeleton from 'react-loading-skeleton';
 import { GISDataType } from '../types/backend';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
+import { TERMS_OF_USE_ROUTE } from 'configuration/routes';
 
 // console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
@@ -248,7 +249,7 @@ function DownloadSummary() {
               />
               <label htmlFor="agree-to-terms-for-download">
                 {t('download_summary.terms_label_prefix')}{' '}
-                <a href="/terms-of-use" target="_blank" rel="noreferrer">
+                <a href={TERMS_OF_USE_ROUTE} target="_blank" rel="noreferrer">
                   {t('download_summary.terms_link')}
                 </a>
               </label>

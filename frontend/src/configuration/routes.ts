@@ -16,30 +16,44 @@ export function metadataPath(datasetId: string): string {
 }
 
 /**
- * Absolute origin the app is served from. APP_BASE_URL is the only source
- * available under SSR; window.location is the browser fallback so local dev
- * works with the variable unset. Normalised through URL.origin so a configured
- * value with a trailing slash or path still yields a bare origin. Empty when
- * neither source is available, which callers read as "stay relative".
+ * APP_BASE_URL reduced to origin + sub-path prefix with no trailing slash.
+ * Computed once at module load: the value cannot change during the process, so
+ * a misconfigured one warns once here instead of on every call. undefined when
+ * unset or unparseable.
  */
-export function appOrigin(): string {
-  if (APP_BASE_URL) {
-    try {
-      return new URL(APP_BASE_URL).origin;
-    } catch {
-      console.warn('APP_BASE_URL is not a valid absolute URL; falling back to relative app URLs');
-    }
+const configuredBase: string | undefined = (() => {
+  if (!APP_BASE_URL) return undefined;
+  try {
+    const { origin, pathname } = new URL(APP_BASE_URL);
+    return `${origin}${pathname}`.replace(/\/+$/, '');
+  } catch {
+    console.warn('APP_BASE_URL is not a valid absolute URL; falling back to relative app URLs');
+    return undefined;
   }
+})();
+
+/**
+ * Absolute base the app is served from: origin plus any sub-path prefix, no
+ * trailing slash. APP_BASE_URL is the only source under SSR; in the browser
+ * window.location.origin is the fallback — it carries no sub-path, so a
+ * deployment served under one must set APP_BASE_URL for absolute links to be
+ * correct. Empty when neither is available, which callers read as "stay
+ * relative".
+ */
+export function appBaseUrl(): string {
+  if (configuredBase) return configuredBase;
   return typeof window !== 'undefined' ? window.location.origin : '';
 }
 
 /**
  * Absolute URL for an in-app path — for anything that leaves the app: og:url,
- * export payloads, links handed to plugins.
+ * export payloads, links handed to plugins. Resolved relative to the base so a
+ * sub-path prefix survives; a leading slash would reset it to the bare origin.
  */
 export function appUrl(path: string): string {
-  const origin = appOrigin();
-  return origin ? new URL(path, origin).href : path;
+  const base = appBaseUrl();
+  if (!base) return path;
+  return new URL(path.replace(/^\/+/, ''), `${base}/`).href;
 }
 
 /** Absolute URL of a dataset's metadata page. */

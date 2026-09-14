@@ -3,7 +3,7 @@ import React, { createContext, useState, type ReactNode, useCallback, useMemo, u
 import type { AsyncJob } from 'types/jobs';
 import useNotifications from 'hooks/useNotifications';
 import { BACKEND_BASE_URL, REST_END_POINTS } from '../configuration/api';
-import { appOrigin, appUrl, metadataUrl, TERMS_OF_USE_ROUTE } from '../configuration/routes';
+import { appBaseUrl, appUrl, metadataUrl, TERMS_OF_USE_ROUTE } from '../configuration/routes';
 import { addStoredJobId, getStoredJobIds, removeStoredJobId } from '../utilities/downloadJobStorage';
 import { downloadFile } from '../utilities/download';
 import { useAuthContext } from '../auth/AuthContextProvider';
@@ -69,7 +69,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         ...payload,
         type: 'export',
         anonymous: true,
-        public_homepage_url: appOrigin(),
+        public_homepage_url: appBaseUrl(),
         public_terms_url: appUrl(TERMS_OF_USE_ROUTE),
         public_metadata_urls,
       });

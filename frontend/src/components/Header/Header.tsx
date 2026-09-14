@@ -18,6 +18,7 @@ import { useAuthContext } from '../../auth/AuthContextProvider';
 import useTheme from 'hooks/useTheme';
 import useRemotes from 'hooks/useRemotes';
 import useDevice from 'hooks/useDevice';
+import { TERMS_OF_USE_ROUTE } from 'configuration/routes';
 import { isNewTabModule, isSinglePageModule } from 'utilities/moduleFederation';
 import type { NavMenuEntry } from 'types/components';
 import DropdownMenuItem from './DropdownMenuItem/DropdownMenuItem';
@@ -61,7 +62,7 @@ export default function Header() {
       const children: NavMenuEntry[] = [];
 
       if (themeConfig.termsAndConditionsHtml) {
-        children.push({ name: 'nav_menu.terms', route: '/terms-of-use', type: 'internal', Icon: AwardIcon });
+        children.push({ name: 'nav_menu.terms', route: TERMS_OF_USE_ROUTE, type: 'internal', Icon: AwardIcon });
       }
 
       if (themeConfig.privacyPolicyHtml) {

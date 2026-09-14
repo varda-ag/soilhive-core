@@ -62,6 +62,15 @@ const SSR_ROUTES: Record<string, React.ComponentType> = {
  */
 export const SSR_ROUTE_PATHS: string[] = Object.keys(SSR_ROUTES);
 
+/** Percent-decodes one path segment, leaving a malformed one as-is. */
+function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 function pathMatchesPattern(pattern: string, pathname: string): boolean {
   const re = new RegExp('^' + pattern.replace(/:[^/]+/g, '[^/]+') + '$');
   return re.test(pathname);
@@ -112,8 +121,11 @@ export async function render(
 
   // Prefetch route-specific queries so renderToString sees real data.
   const datasetMatch = matchedPattern === METADATA_ROUTE ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
+  // react-router hands the client a decoded param, and metadataPath re-encodes when
+  // building URLs — so decode here too, or the id is encoded twice and the prefetched
+  // query key misses the one the client reads.
+  const datasetId = datasetMatch ? decodePathSegment(datasetMatch[1]) : undefined;
   if (datasetMatch) {
-    const datasetId = datasetMatch[1];
     await Promise.all([
       queryClient.prefetchQuery({
         queryKey: ['dataset', datasetId],
@@ -165,8 +177,7 @@ export async function render(
   const dehydratedState = dehydrate(queryClient);
 
   let head = '';
-  if (datasetMatch) {
-    const datasetId = datasetMatch[1];
+  if (datasetId) {
     const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetId]);
     if (cachedDataset?.name) {
       head = buildMetadataHeadHtml(cachedDataset.name, datasetId);

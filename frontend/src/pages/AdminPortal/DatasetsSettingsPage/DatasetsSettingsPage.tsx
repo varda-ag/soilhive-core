@@ -79,7 +79,7 @@ export function DatasetsSettingsPage() {
     },
   ];
 
-  if (isLoading) return null;
+  if (isLoading || !id) return null;
 
   return (
     <div className={styles.DatasetsSettingsPage}>
@@ -101,7 +101,7 @@ export function DatasetsSettingsPage() {
             <h3 className={styles.SectionTitle}>{t('datasets.settings.metadata_preview.title')}</h3>
           </div>
           <p className={styles.SectionDescription}>{t('datasets.settings.metadata_preview.description')}</p>
-          <Link to={metadataPath(id!)} className={styles.MetadataLink} target="_blank">
+          <Link to={metadataPath(id)} className={styles.MetadataLink} target="_blank">
             {t('datasets.settings.metadata_preview.link')}
           </Link>
           {!hasMandatoryMetadata && (
