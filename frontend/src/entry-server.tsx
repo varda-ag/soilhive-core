@@ -121,16 +121,18 @@ export async function render(
 
   // Prefetch route-specific queries so renderToString sees real data.
   const datasetMatch = matchedPattern === METADATA_ROUTE ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
-  // react-router hands the client a decoded param, and metadataPath re-encodes when
-  // building URLs — so decode here too, or the id is encoded twice and the prefetched
-  // query key misses the one the client reads.
+  // Decoded, because react-router hands the client a decoded param: the prefetched
+  // query key has to be the one the client reads, and metadataPath re-encodes when
+  // building URLs. Anything putting it back into a URL must re-encode it.
   const datasetId = datasetMatch ? decodePathSegment(datasetMatch[1]) : undefined;
-  if (datasetMatch) {
+  if (datasetId) {
     await Promise.all([
       queryClient.prefetchQuery({
         queryKey: ['dataset', datasetId],
         queryFn: async () => {
-          const res = await fetch(`${backendUrl}/datasets/${datasetId}`, { headers: buildHeaders() });
+          // Re-encoded: datasetId is decoded, so an id containing a slash would
+          // otherwise split into two path segments and hit the wrong endpoint.
+          const res = await fetch(`${backendUrl}/datasets/${encodeURIComponent(datasetId)}`, { headers: buildHeaders() });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
         },
@@ -153,7 +155,8 @@ export async function render(
       }),
     ]);
 
-    const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetMatch[1]]);
+    // datasetId, not the raw segment, because the query key is decoded
+    const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetId]);
     if (cachedDataset && cachedDataset.status !== IngestionStatus.PUBLISHED && !isAdminToken(context?.authToken ?? null)) {
       ssrAuthStore.set(null);
       return { redirect: '/' };
