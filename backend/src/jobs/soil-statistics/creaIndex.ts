@@ -5,18 +5,12 @@ import { getSoilStatisticsMaxUnits, round3 } from '../../utils/utils';
 import { JobError } from '../../errors/JobError';
 import { log } from '../../utils/logger';
 import { extractUnitsFromFile, unitsFromFilter, ExtractedUnits } from './extractUnits';
-import { CreaIndexCollection, CreaIndexFeature } from './types';
+import { CreaIndexFeature } from './types';
 import { ProducerContext } from './producer';
+import { writeCreaIndexRun } from '../../data-layer/CreaIndex';
 
 /**
  * MOCK — this is not the CREA index.
- *
- * Deterministic in `unit_id` so that the same area always scores the same: a run repeated
- * over the same fields returns identical numbers, which keeps tests exactly assertable and
- * stops a demo from looking like the index is drifting. That stability is also the hazard —
- * a reproducible value in [0, 1] is indistinguishable from a real one by inspection, so
- * this function is the single place to replace and nothing downstream should be trusted as
- * meaningful until it is.
  */
 const mockIndexValue = (unitId: string): number => {
   let hash = 0;
@@ -29,13 +23,6 @@ const mockIndexValue = (unitId: string): number => {
 /**
  * Representative Point for each Aggregation Unit: the centroid when it lies inside the
  * geometry, otherwise a guaranteed-interior point.
- *
- * The fallback is not defensive coding for a rare case. `extractUnits` deliberately omits
- * `-explodecollections` so that "a MultiPolygon farm of three disjoint parcels is ONE
- * Aggregation Unit" — and the centroid of three disjoint parcels lands in the gap between
- * them. A marker outside the field it scores is visibly wrong on a map, which is why this
- * departs from the plain `ST_Centroid` used elsewhere in the codebase: those centroids are
- * of Features (small, convex sampling locations), not of user-drawn reporting areas.
  */
 const representativePoints = async (ctx: ProducerContext, unitIds: string[]): Promise<Map<string, { lon: number; lat: number }>> => {
   const schema = process.env.POSTGRES_SCHEMA;
@@ -63,18 +50,10 @@ const representativePoints = async (ctx: ProducerContext, unitIds: string[]): Pr
 
 /**
  * The `crea-index` Statistics Type: one scored Point per Aggregation Unit.
- *
- * Shares the Unit resolution with the descriptive type and nothing else — no Dataset
- * selection, no Observations, no entitlement filtering, because the index is per area
- * rather than per (Dataset, Soil Property). Two consequences fall out of that and are
- * intended rather than tolerated:
- *  - the Unit cap applies here too, since it lives inside extractUnits and one Point per
- *    Unit makes this output linear in Unit count, exactly the ceiling docs/adr/0021 is about;
- *  - `raster_filtered` stays false on every Unit — this type applies no raster mask, so
- *    the area caveat the descriptive type sets does not arise.
+ * The scores are written to the `crea_index` table, one row per Point, under this job's id as the Run
  */
 export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob): Promise<void> {
-  const { jobId, requestData, filter, report, assertNotCancelled } = ctx;
+  const { jobId, entityManager, requestData, filter, report, assertNotCancelled } = ctx;
   const { file_id, label_field } = data;
 
   const maxUnits = getSoilStatisticsMaxUnits();
@@ -117,12 +96,18 @@ export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob
     ];
   });
 
-  const creaIndex: CreaIndexCollection = { type: 'FeatureCollection', features };
+  // Checked once more before anything is persisted
+  await assertNotCancelled();
 
+  await report('Storing scored areas...', 80);
+  const scored = await writeCreaIndexRun(entityManager, jobId, features);
+
+  // Nothing of the output goes into job data: the scores are rows in `crea_index` keyed by
+  // this job's id as the Run, and the caller is already holding that id to poll with. The
+  // count reaches it only as prose, in the progress description below.
   await updateJobState(jobId, {
-    crea_index: creaIndex,
     progress_percentage: 100,
-    progress_description: `Completed: ${features.length} scored area(s)`,
+    progress_description: `Completed: ${scored} scored area(s)`,
   } as Partial<SoilStatisticsJob>);
 
   log.info('Soil statistics job completed', {

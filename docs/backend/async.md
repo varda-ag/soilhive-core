@@ -133,14 +133,12 @@ When the job is retrieved via `GET /jobs/{jobId}`, the `download_path` is return
 
 ## `soil-statistics`
 
-Computes an analytical product over the spatial areas matching a filter. `statistics_type` chooses which product; the areas are resolved identically for every type, and only what is computed over them differs. The result is written into the job's own data and read back through `GET /jobs/{jobId}`.
+Computes an analytical product over the spatial areas matching a filter. `statistics_type` chooses which product; the areas are resolved identically for every type, and only what is computed over them differs.
 
 | `statistics_type` | Product | Output key |
 |---|---|---|
-| `descriptive` (default) | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | `results`, `truncated` |
-| `crea-index` | One scored GeoJSON Point per area | `crea_index` |
-
-**One queue, several products.** A client must read `statistics_type` back from the job data to know which output key to expect — the key is not implied by the queue. Fields belonging to another type are *absent*, not `null`.
+| `descriptive` (default) | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | none — removed, pending tables of its own |
+| `crea-index` | One scored GeoJSON Point per area | none — the scores are rows in the `crea_index` table |
 
 > Not to be confused with `GET /datasets/{datasetId}/dataset-file-mapping/{id}/soil-data/stats`, which returns an ingest **cleaning report** — how many raw cells and rows were rejected. The two are unrelated.
 
@@ -169,7 +167,7 @@ Statistics are grouped by **aggregation unit**, and each unit is one stored filt
 
 Either way the geometries are read back from `GET /data-filters/{filterId}/geometries`, which returns one GeoJSON Feature per unit whose `id` is the `unit_id` used throughout the output. A derived filter stores no geometries inline, so that endpoint is the only way to read them. It pages with an opaque `cursor`: pass the previous response's `next_cursor` until it comes back `null`.
 
-A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `SOIL_STATISTICS_MAX_UNITS` (default 200) and the job fails above it rather than dropping areas silently.
+A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `SOIL_STATISTICS_MAX_UNITS` (default 2000) and the job fails above it rather than dropping areas silently.
 
 All of the above holds for **every** `statistics_type`, cap included: the output of each type grows with the number of units, so the same ceiling applies. `derived_filter_id`, `unit_count` and `units[]` are likewise written by every type.
 
@@ -177,82 +175,34 @@ All of the above holds for **every** `statistics_type`, cap included: the output
 
 ### Filtering
 
-Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, dataset status and visibility. Raster datasets never contribute — their measurements are pixels, not observations — and are reported in `excluded_datasets`.
+Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, dataset status and visibility.
 
-`PREVIEW` is enforced per dataset. Naming a dataset you cannot preview is rejected on submission with `403`; when `dataset_ids` is omitted, datasets you cannot preview are skipped and listed in `skipped_datasets`.
+`PREVIEW` is enforced per dataset. Naming a dataset you cannot preview is rejected on submission with `403`; when `dataset_ids` is omitted, datasets you cannot preview are skipped. Which ones were skipped is written to the server log only — a caller cannot tell from the job that anything was left out.
 
 **Sequence of operations**
 
 1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given.
-2. Select the datasets the filter matches, dropping raster ones and applying `PREVIEW`.
+2. Select the datasets the filter matches, applying `PREVIEW`.
 3. Resolve the units to sampling locations (features) intersecting them.
 4. Collect the matching observations into a staging table, one row per observation.
 5. Aggregate: `overall` per (dataset, soil property), then per unit, then per (unit, year, depth interval).
-6. Write results, `truncated` and progress into the job data.
+6. Write progress into the job data.
 
 ### Output
 
-`results` is grouped by dataset and soil property. Each group carries:
-
-- `overall` — computed before areas are fanned out, so an observation inside two overlapping units is counted **once**. It therefore does *not* equal the sum of the per-unit counts.
-- `units[]` — the headline statistics per aggregation unit. Overlapping units each count a shared observation, so that "mean pH in this field" means exactly that.
-- `units[].breakdown[]` — the same statistics per sampling year and depth interval. Undated observations and those with no recorded depth form their own `null` buckets, never merged into a neighbour. **Absent when it would hold a single cell**, because that cell covers exactly the observations behind `units[]` and would repeat it field for field; the cell's own keys are then recoverable from the unit cell (`min_depth`/`max_depth` are its `depth_min`/`depth_max`, and `year` is the first four characters of `sampling_date_min` when they are digits). A present `breakdown` always holds at least two cells, and `l4_included: false` is what distinguishes "withheld to fit the budget" from "identical to the unit cell".
-
-Every cell reports `count`, `n_features`, `n_layers`, `min`, `max`, `mean`, `median`, `stddev`, `p05`, `p25`, `p75`, `p95`, sampling-date and depth ranges, the distinct `horizons` and `laboratory_methods` mixed into it, and a `histogram` of `histogram_bins` (default 10) equal-width bins spanning `min`–`max`. Values are in the soil property's `standard_unit`, applied at ingestion.
-
-The whole result has to fit inside the job's data, so a cell spends bytes only on what cannot be recovered from it. Four rules follow, and a client should be written to expect all four:
-
-- **Numbers are rounded to 3 decimals** — every statistic, plus `bin_width` and `area_m2`.
-- **A field with nothing to report is absent, not `null` or `[]`.** `stddev`, `sampling_date_min`/`_max`, `depth_min`/`_max`, `horizons` and `laboratory_methods` simply do not appear when they have no value. The one exception is a breakdown cell's `year`, `min_depth` and `max_depth`: there `null` identifies the bucket, so it is always spelled out.
-- **`histogram` is only emitted when `count > 100`.** Below that the bins describe the sample rather than the distribution, and `min`/`median`/`max` already say what little there is to say.
-- **Breakdown cells omit `depth_min`/`depth_max`.** The breakdown is grouped *by* depth interval, so those aggregates are exactly the cell's own `min_depth`/`max_depth`.
-
-Three figures are derivable and therefore not sent: the coefficient of variation (`stddev / |mean|`), the interquartile range (`p75 - p25`), and the histogram's bin boundaries (`min + i * bin_width`, the last one being `max`).
-
-`median` is interpolated (`percentile_cont`), not an observed value. When every value in a cell is identical the histogram degrades to a single bin — test `counts.length === 1` rather than `bin_width === 0`, because a genuine width below 0.0005 also rounds to 0.
-
-If the breakdown would exceed `SOIL_STATISTICS_MAX_CELLS` (default 200 000), whole (dataset, soil property) groups lose it: `truncated` becomes `true` and each affected group reports `l4_included: false`. Headline numbers are never truncated. The budget counts only cells that will actually be emitted, so the single cells omitted above are free and cannot push another group over the limit.
-
-`units[].area_m2` is the whole geometry's area. Raster filters restrict which observations count but never clip the geometry, so when `raster_filtered` is true the statistics cover less ground than that area suggests.
+> **TODO**: to be implemented in a future release
 
 ## `soil-statistics` — `crea-index`
 
-> **The values are currently mock data.** They are deterministic in `unit_id` — the same area always scores the same, and re-running a job returns identical numbers — so they look exactly like real output while meaning nothing. Do not build anything on the values; the shape is stable, the numbers are not real.
-
-One GeoJSON Point per aggregation area, in `crea_index`:
-
-```json
-{
-  "statistics_type": "crea-index",
-  "unit_count": 2,
-  "units": [{ "unit_id": "3f2b…", "label": "Field 7", "area_m2": 41230.5, "record_ids": [1], "raster_filtered": false }],
-  "crea_index": {
-    "type": "FeatureCollection",
-    "features": [
-      {
-        "type": "Feature",
-        "id": "3f2b…",
-        "geometry": { "type": "Point", "coordinates": [11.35, 44.49] },
-        "properties": { "value": 0.417 }
-      }
-    ]
-  }
-}
-```
-
-- **`id` is the `unit_id`** — the only way back to the area. Position in `features` does **not** correspond to a row of the source file, because equivalent geometries collapse into one area. Join on `id` against `units[]` for the label, `record_ids` and area.
-- **`properties` carries `value` and nothing else**, in `[0, 1]`, rounded to 3 decimals like everything else in this job's output.
-- **The Point is inside its area.** It is the centroid where the centroid falls within the geometry, and a guaranteed-interior point otherwise — a multipolygon of three disjoint parcels is *one* area, and its centroid can land in the gap between them.
-- **No datasets, no observations, no entitlement filtering.** The index is per area, not per (dataset, soil property), so `dataset_ids` and `histogram_bins` are rejected on submission, and `skipped_datasets`, `excluded_datasets`, `results` and `truncated` are never written.
-- `raster_filtered` is always `false`: this type applies no raster mask, so the area caveat that `descriptive` carries does not arise.
-- An area whose geometry yields no point is **omitted** from `features` (and logged) rather than emitted with a null geometry, so `features.length` can be smaller than `unit_count`.
+> **The values are currently mock data.**
 
 **Sequence of operations**
 
 1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given.
 2. Write `derived_filter_id`, `unit_count` and `units[]`.
 3. Resolve one representative point per unit.
-4. Score each point and write `crea_index`.
+4. Score each point, write the rows into a fresh partition for the run, and attach it.
+5. Mark the job complete.
 
 ---
 

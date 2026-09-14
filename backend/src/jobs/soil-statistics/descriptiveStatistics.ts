@@ -10,7 +10,6 @@ import { getSoilStatisticsMaxCells, getSoilStatisticsMaxUnits, getSoilStatistics
 import { JobError } from '../../errors/JobError';
 import { log } from '../../utils/logger';
 import { extractUnitsFromFile, unitsFromFilter, ExtractedUnits } from './extractUnits';
-import { DatasetExcludeReason, DatasetNote, DatasetSkipReason } from './types';
 import { ProducerContext } from './producer';
 
 const DEFAULT_HISTOGRAM_BINS = 10;
@@ -71,12 +70,7 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
   const candidates = await filterService.getDatasets(requestData, extracted.derivedFilterId ?? filter_id);
   const requested = dataset_ids && dataset_ids.length > 0 ? candidates.filter(d => dataset_ids.includes(d.id)) : candidates;
 
-  const excluded: DatasetNote<DatasetExcludeReason>[] = requested
-    .filter(dataset => dataset.data_type === GISDataType.RASTER)
-    .map(dataset => ({ id: dataset.id, reason: 'raster' as DatasetExcludeReason }));
-
   const vectorDatasets = requested.filter(dataset => dataset.data_type !== GISDataType.RASTER);
-  const skipped: DatasetNote<DatasetSkipReason>[] = [];
   const permitted: string[] = [];
   for (const dataset of vectorDatasets) {
     try {
@@ -88,7 +82,6 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
       if (dataset_ids && dataset_ids.length > 0) {
         throw new JobError('SST_DATASET_NOT_ENTITLED', { dataset_id: dataset.id });
       }
-      skipped.push({ id: dataset.id, reason: 'no_preview_entitlement' });
     }
   }
 
@@ -96,8 +89,6 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
     derived_filter_id: extracted.derivedFilterId,
     unit_count: units.length,
     units,
-    skipped_datasets: skipped,
-    excluded_datasets: excluded,
     progress_percentage: 15,
     progress_description: `Aggregating ${permitted.length} dataset(s) over ${units.length} area(s)...`,
   } as Partial<SoilStatisticsJob>);
@@ -117,8 +108,6 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
   });
 
   await updateJobState(jobId, {
-    results,
-    truncated,
     progress_percentage: 100,
     progress_description: truncated
       ? `Completed with a reduced breakdown: ${results.length} dataset/property group(s)`

@@ -134,13 +134,7 @@ export interface SoilStatisticsOutput {
 }
 
 /**
- * One Aggregation Unit's CREA index, as a GeoJSON Point.
- *
- * `id` is the `unit_id`, following FilterGeometry: it is the only way back to the area,
- * because equivalent geometries in a source file collapse into one Unit and positional
- * correspondence to the file's rows therefore does not exist. `properties` carries the
- * index and nothing else — the label, record ids and area stay on the `units` array,
- * where the descriptive type already puts them.
+ * One Aggregation Unit's CREA index, in flight between scoring and its `crea_index` row.
  */
 export interface CreaIndexFeature {
   type: 'Feature';
@@ -155,13 +149,4 @@ export interface CreaIndexFeature {
     /** The index, in [0, 1], rounded to 3 decimals as everywhere in this output. */
     value: number;
   };
-}
-
-export interface CreaIndexCollection {
-  type: 'FeatureCollection';
-  features: CreaIndexFeature[];
-}
-
-export interface CreaIndexOutput {
-  crea_index: CreaIndexCollection;
 }
