@@ -31,3 +31,15 @@ export enum EntitlementScope {
  * future ticket adds how one gets written.
  */
 export type EntityScope = Exclude<EntitlementScope, EntitlementScope.CONFIGS>;
+
+/**
+ * Recognized config subkey prefixes: a filtered view over the `configs` namespace, not a storage
+ * namespace of its own (see `EntitlementService.selectByScope`). For now separate from
+ * `EntitlementScope`.
+ */
+export enum ConfigSubkeyScope {
+  DASHBOARD = 'dashboard',
+}
+
+/** Every value `GET /entitlements`'s `scope` query param may take. */
+export type RequestScope = EntitlementScope | ConfigSubkeyScope;
