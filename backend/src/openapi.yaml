@@ -22,8 +22,12 @@ paths:
           required: true
           schema:
             type: string
-            enum: [datasets, configs]
-          description: Which namespace to return entitlements for. There is no "all scopes" response.
+            enum: [datasets, configs, dashboard]
+          description: >
+            Which namespace to return entitlements for. `datasets` and `configs` are real storage
+            namespaces, returned unfiltered. `dashboard` is not a storage namespace of its own —
+            it's a filtered view over `configs`, returning only the entries whose key is
+            `dashboard` or starts with `dashboard_`. There is no "all scopes" response.
       responses:
         '200':
           description: List of user entitlements for the requested scope
