@@ -145,17 +145,20 @@ Licenses are not derived. A raster has no per-record licence, so licence stays w
 
 ## When a Load Fails
 
-The dataset and its files go back to the unloaded state they were in before the job started, and the row in the dataset list carries an **Error details** link naming what failed and how to fix it. Nothing is left half-loaded.
+The dataset and its files go back to the unloaded state they were in before the job started, and the row in the dataset list carries an **Error details** link. It names the file and the band at fault and tells you how to fix that specific failure; some of those fixes link back to this page.
 
-| What went wrong | What to do |
+Nothing is left half-loaded. Every band mapping in the dataset is validated before the first band is written, so a load either completes or leaves the dataset as it found it.
+
+These are the conditions a load enforces, and where each one is stated:
+
+| What fails the load | Stated under |
 |---|---|
-| A file has no band mapping configured | Go back to the mapping step, declare what the file's bands measure, save, and retry. This is the normal state of a file between upload and mapping. |
-| The mapping names a band the file does not have | Map only the bands the file reports. If you expected more, check the file converted correctly and re-upload it. |
-| A band declares an invalid reference period | Use `YYYY`, `YYYY-MM` or `YYYY-MM-DD`. |
-| A band declares an invalid depth, or a minimum that is not below its maximum | Use whole centimetres from 0 to 5000, minimum below maximum. |
-| A band's unit conversion cannot be applied | Only a single multiplication of every pixel can be applied during loading. Re-scale the raster yourself so its values are already in the standard unit, then re-upload it. |
-| The file could not be normalised | Check the raster opens in QGIS or with `gdalinfo`, then retry. If it keeps failing, convert it to a Cloud Optimized GeoTIFF yourself and re-upload it. |
-| An additional resource points at a file that does not exist, or at a URL | Attach resources by uploading them in the mapping step. Fetching a resource straight from a URL is not implemented yet. |
+| A file has no band mapping, or its mapping names a band the file does not have | [Field Mapping](#field-mapping--match-your-data) |
+| A depth is not a whole number of centimetres from 0 to 5000, or the minimum is not below the maximum | [The mapping table](#the-mapping-table) |
+| A reference period is not a real date in `YYYY`, `YYYY-MM` or `YYYY-MM-DD` | [Per-band details](#per-band-details-optional) |
+| An additional resource names no uploaded file, or names a URL | [Per-band details](#per-band-details-optional) |
+| A band's unit conversion is not a single multiplication of every pixel | [What the load does](#what-the-load-does-to-your-raster) |
+| A file cannot be normalised to a Cloud Optimized GeoTIFF | [What the load does](#what-the-load-does-to-your-raster) |
 
 An empty mapping is not a failure. A file whose bands you have all unmapped is skipped, and the rest of the dataset loads.
 
