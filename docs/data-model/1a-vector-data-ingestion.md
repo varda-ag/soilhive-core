@@ -1,6 +1,6 @@
 # Loading Vector Data
 
-Vector data is soil data with one record per sampling location: a point, a polygon or a multipolygon, with the measured soil properties held in columns beside it. This page covers everything specific to loading it. The steps common to every dataset — creating it, describing it, uploading the files, and publishing it — are on the [Data Management Portal](1-data-management-portal.md) page.
+Vector data is soil data with one record per sampling location: a point, a polygon or a multipolygon, with the measured soil properties held in columns beside it. This page covers everything specific to loading it. The steps common to every dataset (creating it, describing it, uploading the files, and publishing it) are on the [Data Management Portal](1-data-management-portal.md) page.
 
 For vector data the portal walks you through four steps:
 
@@ -25,24 +25,24 @@ For vector data the portal walks you through four steps:
 | **GML** | Must validate against a standard GML schema and contain point or polygon geometries with associated feature attributes. |
 | **KML** | Point placemarks and polygon features are both supported; each placemark's or polygon's `ExtendedData` fields are mapped as soil property columns. Nested folders are flattened. |
 | **GDB** (File Geodatabase) | Must be uploaded as a ZIP archive of the `.gdb` folder. Must contain at least one feature class with point, polygon, or multipolygon geometries. |
-| **ZIP** | Used to bundle any of the above formats where multiple files are required (Shapefile, GDB) or simply to reduce upload size. A ZIP must contain exactly one dataset — do not bundle multiple unrelated files together. |
+| **ZIP** | Used to bundle any of the above formats where multiple files are required (Shapefile, GDB) or simply to reduce upload size. A ZIP must contain exactly one dataset: do not bundle multiple unrelated files together. |
 
-> **Note:** The table above reflects general format requirements. Platform-specific limits (e.g. maximum row count, exact required column names) should be confirmed and added here before publishing. The maximum file size is set by your platform administrator and shown under the upload box.
+> **Note:** The table above reflects general format requirements. The maximum file size is set by your platform administrator and shown under the upload box.
 
 ### What your file should contain
 
-A geometry field, or separate latitude and longitude columns, is required — the platform only supports geo-located data. Beyond that, the following are strongly recommended:
+A geometry field, or separate latitude and longitude columns, is required, because the platform only supports geo-located data. Beyond that, the following are strongly recommended:
 
 - Sampling date, in `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` format
 - Depth, as upper and lower values in centimetres, either in separate columns or as a single depth range value with the upper and lower bounds separated by a dash (e.g. `10-15` or `10 cm - 15 cm`)
-- License at the record level, if individual observations carry different licenses (if the whole dataset shares a single license, it can instead be set as a fixed value in a later step — see the [list of supported licenses](../../backend/docs/data-model/6-license_options.csv))
+- License at the record level, if individual observations carry different licenses (if the whole dataset shares a single license, it can instead be set as a fixed value in a later step; see the [list of supported licenses](../../backend/docs/data-model/6-license_options.csv))
 - Soil properties, each in its own column: one column per property, unit, and analytical procedure
 
 > **Note:** If sampling date, depth, or license are not present in the file, fixed values can be applied at the dataset level in a later step.
 
 ### Uploading multiple files
 
-All files within the same dataset must share an identical field structure — the same fields and the same data types — and must be loaded together. The first file you upload sets the expected structure; any later file that differs is flagged in the file list, and a dialog shows exactly which fields are missing from it and which extra fields it carries. You cannot continue until every file matches.
+All files within the same dataset must share an identical field structure (the same fields and the same data types) and must be loaded together. The first file you upload sets the expected structure; any later file that differs is flagged in the file list, and a dialog shows exactly which fields are missing from it and which extra fields it carries. You cannot continue until every file matches.
 
 ### Coordinate Reference System
 
@@ -66,18 +66,18 @@ Any field left unmapped will not be loaded into the platform.
 
 For each mapped property, you can expand the methodology panel to record how the value was produced:
 
-- **Sample pre-treatment** — physical or chemical preparation applied before analysis
-- **Technique** — Lab procedure (physical or chemical analysis), Spectral (NIR or MIR), or Calculated (derived from formulas, statistical models, or process-based models)
-- **Laboratory method** — the named protocol used
-- **Extractant concentration** — concentration of the extraction solution
-- **Extraction ratio** — soil-to-solution ratio
-- **Extraction base** — mass/mass, volume/mass, or volume/volume
-- **Measurement procedure** — instrument or procedure used to determine the value
-- **Limit of detection** — the lowest concentration reliably distinguishable from zero
+- **Sample pre-treatment**: physical or chemical preparation applied before analysis
+- **Technique**: Lab procedure (physical or chemical analysis), Spectral (NIR or MIR), or Calculated (derived from formulas, statistical models, or process-based models)
+- **Laboratory method**: the named protocol used
+- **Extractant concentration**: concentration of the extraction solution
+- **Extraction ratio**: soil-to-solution ratio
+- **Extraction base**: mass/mass, volume/mass, or volume/volume
+- **Measurement procedure**: instrument or procedure used to determine the value
+- **Limit of detection**: the lowest concentration reliably distinguishable from zero
 
 See [Analytical Methodology Vocabulary](4d-analytical-methodology-vocabulary.md).
 
-When you press **Continue**, each file is staged for loading — read, parsed against your mapping, and written to a temporary table — before the preview opens.
+When you press **Continue**, each file is staged for loading: read, parsed against your mapping, and written to a temporary table before the preview opens.
 
 ---
 
@@ -93,18 +93,18 @@ Your data may be subject to modification, and some data may be discarded if it d
 | Soil property values are rounded to a maximum of 3 decimal places | *Value rounded to 3 decimal places* |
 | Soil property values are converted to SoilHive's standard unit, based on the original unit you specified in Field Mapping | *Converted to standard unit of measurement* |
 
-**Discarded rows** — an entire row is removed when:
+**Discarded rows.** An entire row is removed when:
 
 | What happens | Shown in the summary as |
 |---|---|
 | Geometry contains a different type with respect to the dominant data type (e.g. 18 Point rows and 2 Polygon rows: 2 are discarded) | *Mixed geometry type* |
-| Coordinates fall outside the valid range for latitude (−90 to 90) or longitude (−180 to 180) — for polygon or multipolygon geometries, this is raised if any vertex falls outside these ranges (see [criteria](https://postgis.net/docs/using_postgis_dbmanagement.html#Valid_Geometry))| *Invalid coordinates (out of range)* |
+| Coordinates fall outside the valid range for latitude (−90 to 90) or longitude (−180 to 180). For polygon or multipolygon geometries, this is raised if any vertex falls outside these ranges (see [criteria](https://postgis.net/docs/using_postgis_dbmanagement.html#Valid_Geometry))| *Invalid coordinates (out of range)* |
 | The upper depth is greater than or equal to the lower depth (e.g. 30–0 cm) or the depth range column is not properly formed (e.g. 0-20-30 cm) | *Invalid depth interval (upper ≥ lower or invalid range)* |
 | After all other cleaning steps, the row no longer has both a valid location and at least one valid soil property value | *Minimum data requirement not met (missing geometry or invalid soil property value)* |
 | The row exactly duplicates another row already in the dataset (same coordinates, date, depth, and value for every property) | *Duplicate row (same coordinates, date, depth, value across all properties)* |
 | You manually removed the row yourself during the preview step | *User discarded row* |
 
-**Discarded cells** — a single value within a row is removed (treated as missing) when:
+**Discarded cells.** A single value within a row is removed, and treated as missing, when:
 
 | What happens | Shown in the summary as |
 |---|---|
@@ -120,4 +120,4 @@ You can review exactly which rows and cells were affected directly in the previe
 
 Once you're satisfied with the preview, confirm to load the data into the SoilHive database. The system applies all field mappings, coordinate reprojection, and unit conversions defined in the previous steps.
 
-When the load finishes the dataset is marked **Loaded** and is ready to publish — see [Publication](1-data-management-portal.md#publication).
+When the load finishes the dataset is marked **Loaded** and is ready to publish. See [Publication](1-data-management-portal.md#publication).

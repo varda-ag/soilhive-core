@@ -33,12 +33,12 @@ What follows depends on the kind of file you uploaded, because vector data and r
 
 | You uploaded | Remaining steps | Detailed guide |
 |---|---|---|
-| **Vector** — points or polygons, one row per sample (CSV, XLSX, GeoJSON, GPKG, SHP, GML, KML, GDB) | **Field Mapping**, then **Preview** | [Loading vector data](1a-vector-data-ingestion.md) |
-| **Raster** — a gridded surface, one value per pixel (GeoTIFF) | **Field Mapping**, then the load runs in the background | [Loading raster data](1b-raster-data-ingestion.md) |
+| **Vector**: points or polygons, one row per sample (CSV, XLSX, GeoJSON, GPKG, SHP, GML, KML, GDB) | **Field Mapping**, then **Preview** | [Loading vector data](1a-vector-data-ingestion.md) |
+| **Raster**: a gridded surface, one value per pixel (GeoTIFF) | **Field Mapping**, then the load runs in the background | [Loading raster data](1b-raster-data-ingestion.md) |
 
-> **Note:** Data cleaning should ideally be done before upload. For vector data the portal supports row-level deletion as a final check but does not yet provide a full cleaning environment. Raster data is not cleaned at all — what you upload is what is loaded.
+> **Note:** Data cleaning should ideally be done before upload. For vector data the portal supports row-level deletion as a final check but does not yet provide a full cleaning environment. Raster data is not cleaned at all. What you upload is what is loaded.
 
-Once your data is loaded, you can publish it — either publicly or privately to selected users. Publication works the same way for both kinds of data and is described [below](#publication).
+Once your data is loaded, you can publish it, either publicly or privately to selected users. Publication works the same way for both kinds of data and is described [below](#publication).
 
 ---
 
@@ -50,10 +50,10 @@ Provide basic descriptive information about the dataset you're about to create. 
 
 The following fields are requested at this stage:
 
-- **Name** — a concise, descriptive name for the dataset.
-- **Full Name** — the extended or formal name of the dataset.
-- **Description** — a brief description covering content, purpose, methodology, soil properties measured, and temporal and geographic coverage.
-- **Author** — the person or organisation responsible for creating the dataset.
+- **Name**: a concise, descriptive name for the dataset.
+- **Full Name**: the extended or formal name of the dataset.
+- **Description**: a brief description covering content, purpose, methodology, soil properties measured, and temporal and geographic coverage.
+- **Author**: the person or organisation responsible for creating the dataset.
 
 ### Soil Data — Upload Your File(s)
 
@@ -71,21 +71,21 @@ A dataset is either vector or raster, never both. The first file you upload deci
 
 **All files at once**
 
-All files in one dataset must be loaded together. The platform does not currently support adding files to an existing dataset afterwards. Vector files carry the additional requirement that they all share an identical field structure — the same fields and the same data types — which is described in more detail in the [vector guide](1a-vector-data-ingestion.md#uploading-multiple-files).
+All files in one dataset must be loaded together. The platform does not currently support adding files to an existing dataset afterwards. Vector files carry the additional requirement that they all share an identical field structure (the same fields and the same data types), described in more detail in the [vector guide](1a-vector-data-ingestion.md#uploading-multiple-files).
 
 **Coordinate Reference System**
 
 After upload, the portal shows the coordinate reference system it read from each file, and asks you to supply one where it could not read any. Where the CRS comes from, whether you can override it, and whether the data is reprojected all differ between the two kinds of data:
 
-- Vector data is always reprojected to EPSG:4326 (WGS 84) on load — see [Vector: coordinate reference system](1a-vector-data-ingestion.md#coordinate-reference-system).
-- Raster data is kept in whatever CRS it arrives in, and is only reprojected where a specific output needs it — see [Raster: coordinate reference system](1b-raster-data-ingestion.md#coordinate-reference-system).
+- Vector data is always reprojected to EPSG:4326 (WGS 84) on load. See [Vector: coordinate reference system](1a-vector-data-ingestion.md#coordinate-reference-system).
+- Raster data is kept in whatever CRS it arrives in, and is only reprojected where a specific output needs it. See [Raster: coordinate reference system](1b-raster-data-ingestion.md#coordinate-reference-system).
 
 ### The Remaining Steps
 
 Continue in the guide for the kind of data you uploaded:
 
-- **[Loading vector data](1a-vector-data-ingestion.md)** — field mapping, the cleaning rules applied at load, and the preview.
-- **[Loading raster data](1b-raster-data-ingestion.md)** — band mapping, what the load does to your raster file, and what can make it fail.
+- **[Loading vector data](1a-vector-data-ingestion.md)**: field mapping, the cleaning rules applied at load, and the preview.
+- **[Loading raster data](1b-raster-data-ingestion.md)**: band mapping, what the load does to your raster file, and what can make it fail.
 
 Both end with the data in the SoilHive database and the dataset marked **Loaded**, ready to publish.
 
@@ -97,7 +97,7 @@ Loading your data and publishing it are two separate things. Once the load finis
 
 **Finding your dataset in the list**
 
-Every dataset you have created is listed in the Admin console, with a status that tells you where it is in the process. Loaded datasets — the ones waiting to be published — are highlighted so they are easy to spot. You can search by name and filter by data type (Point, Polygonal, Raster) and by visibility (Public, Private).
+Every dataset you have created is listed in the Admin console, with a status that tells you where it is in the process. Loaded datasets, the ones waiting to be published, are highlighted so they are easy to spot. You can search by name and filter by data type (Point, Polygonal, Raster) and by visibility (Public, Private).
 
 | Status | What it means | What you can do |
 |---|---|---|
@@ -108,7 +108,7 @@ Every dataset you have created is listed in the Admin console, with a status tha
 
 If something went wrong during loading, the row is marked with a warning icon and an **Error details** link that opens a summary of what failed and how to fix it. Deleting a dataset requires the delete entitlement, so the bin icon is not shown to every administrator.
 
-**The Publish button — dataset settings**
+**Dataset settings**
 
 Clicking **Publish** on a Loaded dataset opens the *Dataset settings* page. Nothing is published until you confirm from this page, and the page has two sections.
 
@@ -118,7 +118,7 @@ The **Check your metadata** link opens the dataset's public metadata page in a n
 
 The metadata page is always visible to everyone, **even when the dataset is private**. That is intentional: people can discover that the data exists and see how it was produced, and then request access. Only the data itself is restricted.
 
-Publishing is blocked until every mandatory metadata field is filled in — the **Publish** button stays disabled and a warning tells you what is missing. The mandatory fields are:
+Publishing is blocked until every mandatory metadata field is filled in. The **Publish** button stays disabled and a warning tells you what is missing. The mandatory fields are:
 
 | Mandatory metadata | Notes |
 |---|---|
@@ -131,7 +131,7 @@ Publishing is blocked until every mandatory metadata field is filled in — the 
 | License | At least one |
 | Variables measured | At least one soil property |
 
-Several of these are filled in for you by the load. For raster datasets in particular, spatial resolution, spatial extent, depth range, reference period and variables measured are all derived from the layers that were loaded — see [what the load writes at dataset level](1b-raster-data-ingestion.md#what-the-load-writes-to-the-dataset).
+Several of these are filled in for you by the load. For raster datasets in particular, spatial resolution, spatial extent, depth range, reference period and variables measured are all derived from the layers that were loaded. See [what the load writes at dataset level](1b-raster-data-ingestion.md#what-the-load-writes-to-the-dataset).
 
 *2. Data visibility*
 
@@ -144,16 +144,16 @@ Choose one of the two cards:
 
 Choosing **Private** opens the *Who can access this dataset* panel, where you add the email addresses of the people allowed in. Each address you add is granted preview and download rights on this dataset only. The list is saved as a whole when you publish: whatever is on screen replaces the previous list, so removing an address here revokes that person's access.
 
-> **Note:** Granting access by email only works if your platform signs users in with an identifiable email address. If it doesn't, the panel is disabled and a warning explains that no one on the list will actually be granted access — a private dataset then stays restricted to data administrators. Contact your platform administrator if per-user access is required.
+> **Note:** Granting access by email only works if your platform signs users in with an identifiable email address. If it doesn't, the panel is disabled and a warning explains that no one on the list will actually be granted access, and a private dataset then stays restricted to data administrators. Contact your platform administrator if per-user access is required.
 
 **Confirming publication**
 
 Press **Publish** to confirm. If the platform has no Terms & Conditions and Privacy Policy configured, a dialog warns you first: a dataset license covers the data, but not how users of the platform may access, use, and handle it. You can either cancel and configure those documents (see the Look & Feel section of the Admin console) or proceed anyway.
 
-On confirmation the platform sets the status to **Published**, records today's date as the publication date — only the first time, so re-publishing later does not overwrite the original date — saves the access list if the dataset is private, and returns you to the dataset list.
+On confirmation the platform sets the status to **Published**, records today's date as the publication date (only the first time, so re-publishing later does not overwrite the original date), saves the access list if the dataset is private, and returns you to the dataset list.
 
 **After publication**
 
 The dataset is now included in everything the consumer portal does: search, preview, downloads. Only published datasets are ever returned by these queries.
 
-Publication is not final. Clicking the edit icon on a published dataset takes you straight back to the same settings page, where you can correct metadata, switch between public and private, or change who has access — press **Publish** again to save your changes. There is no separate "unpublish" action: to withdraw a dataset from circulation, either switch it to private or delete it.
+Publication is not final. Clicking the edit icon on a published dataset takes you straight back to the same settings page, where you can correct metadata, switch between public and private, or change who has access. Press **Publish** again to save your changes. There is no separate "unpublish" action: to withdraw a dataset from circulation, either switch it to private or delete it.
