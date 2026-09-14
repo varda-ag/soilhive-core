@@ -151,26 +151,26 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
 
-    describe('scope=dashboard (config subkey filter)', () => {
+    describe('scope=dashboards (config subkey filter)', () => {
       beforeEach(async () => {
         const entityManager = await getEntityManager();
         await entityManager.query(`
           UPDATE entitlements
-          SET data = data || '{"configs": {"dashboard_1": ["read"], "dashboard_2": ["read"], "look_and_feel": ["read"]}}'::jsonb
+          SET data = data || '{"configs": {"dashboards_1": ["read"], "dashboards_2": ["read"], "look_and_feel": ["read"]}}'::jsonb
           WHERE id = 'everyone'
         `);
       });
 
-      it('returns only the configs entries under the dashboard subkey', async () => {
-        const res = await request(app).get('/entitlements').query({ scope: 'dashboard' }).set('Authorization', `Bearer ${token}`);
+      it('returns only the configs entries under the dashboards subkey', async () => {
+        const res = await request(app).get('/entitlements').query({ scope: 'dashboards' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
-        expect(res.body).toEqual({ dashboard_1: ['read'], dashboard_2: ['read'] });
+        expect(res.body).toEqual({ dashboards_1: ['read'], dashboards_2: ['read'] });
       });
 
       it('still returns every configs entry unfiltered for scope=configs (no regression)', async () => {
         const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
-        expect(res.body).toEqual({ dashboard_1: ['read'], dashboard_2: ['read'], look_and_feel: ['read'] });
+        expect(res.body).toEqual({ dashboards_1: ['read'], dashboards_2: ['read'], look_and_feel: ['read'] });
       });
     });
   });

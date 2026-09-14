@@ -38,7 +38,7 @@ export type EntityScope = Exclude<EntitlementScope, EntitlementScope.CONFIGS>;
  * `EntitlementScope`.
  */
 export enum ConfigSubkeyScope {
-  DASHBOARD = 'dashboard',
+  DASHBOARDS = 'dashboards',
 }
 
 /** Every value `GET /entitlements`'s `scope` query param may take. */

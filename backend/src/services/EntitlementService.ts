@@ -148,8 +148,8 @@ export default class EntitlementService {
    * `DATASETS`/`CONFIGS` are real storage namespaces — passed through unfiltered. Any other
    * `scope` is a config subkey prefix: a virtual filter over `configs`, not a namespace of its
    * own, so it never looks at `entitlements.datasets` at all. A key matches either exactly (the
-   * singleton case, e.g. a lone `dashboard` entry with no suffix) or as `${scope}_...` (the
-   * multi-entry case, e.g. `dashboard_1`, `dashboard_2`) — `startsWith` alone would miss the
+   * singleton case, e.g. a lone `dashboards` entry with no suffix) or as `${scope}_...` (the
+   * multi-entry case, e.g. `dashboards_1`, `dashboards_2`) — `startsWith` alone would miss the
    * singleton case.
    */
   selectByScope = (entitlements: Entitlements, scope: RequestScope): CapabilityGrants => {

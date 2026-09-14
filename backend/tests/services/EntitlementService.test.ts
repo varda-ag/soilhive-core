@@ -368,17 +368,17 @@ describe('EntitlementService', () => {
     it('returns the configs entries under a subkey prefix, excluding unrelated keys', () => {
       const entitlements = {
         datasets: {},
-        configs: { dashboard_1: [Capability.READ], dashboard_2: [Capability.READ], look_and_feel: [Capability.READ] },
+        configs: { dashboards_1: [Capability.READ], dashboards_2: [Capability.READ], look_and_feel: [Capability.READ] },
       };
-      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARD)).toEqual({
-        dashboard_1: [Capability.READ],
-        dashboard_2: [Capability.READ],
+      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({
+        dashboards_1: [Capability.READ],
+        dashboards_2: [Capability.READ],
       });
     });
 
     it('matches a singleton subkey entry with no suffix, via exact equality', () => {
-      const entitlements = { datasets: {}, configs: { dashboard: [Capability.READ] } };
-      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARD)).toEqual({ dashboard: [Capability.READ] });
+      const entitlements = { datasets: {}, configs: { dashboards: [Capability.READ] } };
+      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({ dashboards: [Capability.READ] });
     });
   });
 
