@@ -205,7 +205,7 @@ For an "upload via a button" flow instead of drag-and-drop, use the `onUploadCli
 
 ## Using host data and hooks (`PluginContext`)
 
-Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, map selection, the logged-in user, and your plugin's own persisted config.
+Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, map selection, the logged-in user, your plugin's own persisted config, and dataset metadata URLs.
 
 See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`.
 
@@ -234,6 +234,30 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
 };
 
 export { pluginId, name, route, type, Page };
+```
+
+### Linking to a dataset's metadata page
+
+Call `context.metadataUrl(datasetId)` to get the absolute URL of a dataset's metadata page. Use the dataset `id` exactly as it arrives from `context.useFilteredCoverageQuery` — it is the dataset slug, which is what the metadata route expects.
+
+The host builds the URL because the origin comes from its runtime configuration (`APP_BASE_URL`), which a remote plugin cannot read. It is a plain function, not a hook, so you can call it inside a loop or a render callback:
+
+```tsx
+const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
+  const { data } = context.useFilteredCoverageQuery(filterId);
+
+  return (
+    <ul>
+      {data?.datasets.map(dataset => (
+        <li key={dataset.id}>
+          <a href={context.metadataUrl(dataset.id)} target="_blank" rel="noopener noreferrer">
+            {dataset.name}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+};
 ```
 
 ## Registering your plugin with the host

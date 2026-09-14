@@ -18,6 +18,7 @@ const PORT = Number(process.env.PORT ?? 3000);
 // extra network round-trip and no cache-busting concern.
 const _envVars = {
   BACKEND_BASE_URL: process.env.BACKEND_BASE_URL ?? '',
+  APP_BASE_URL: process.env.APP_BASE_URL ?? '',
   MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
   GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',

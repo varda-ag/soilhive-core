@@ -131,5 +131,6 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   useRasterCategories: () => query(rasterCategories),
   useSoilData: () => soilData,
   usePluginConfig: (_pluginId, _id, defaultConfig) => pluginConfig(defaultConfig),
+  metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
   ...overrides,
 });

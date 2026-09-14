@@ -1,8 +1,16 @@
 // Mock Editor and Button at the top
 jest.mock('primereact/editor', () => ({
   __esModule: true,
-  Editor: ({ value, onTextChange, ...props }: any) => (
-    <textarea data-testid="editor" value={value} onChange={e => onTextChange && onTextChange({ htmlValue: e.target.value })} {...props} />
+  // Only the props a <textarea> understands are forwarded: headerTemplate is a
+  // PrimeReact-only prop holding a React element, and spreading it onto the DOM
+  // makes React warn about an unrecognised attribute.
+  Editor: ({ value, onTextChange, style }: any) => (
+    <textarea
+      data-testid="editor"
+      value={value}
+      style={style}
+      onChange={e => onTextChange && onTextChange({ htmlValue: e.target.value })}
+    />
   ),
 }));
 jest.mock('../../../src/components/UI', () => ({

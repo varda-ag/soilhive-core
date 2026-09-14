@@ -23,6 +23,7 @@ import { useSoilData as useHostSoilData } from './useSoilData';
 import { useSoilProperties as useHostSoilProperties } from './useSoilProperties';
 import useHostTheme from './useTheme';
 import usePluginConfig from './usePluginConfig';
+import { metadataUrl } from 'configuration/routes';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
   const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading } = useHostTheme();
@@ -94,6 +95,9 @@ export function usePluginContext(): PluginContext {
       // Already matches PluginContext's signature (pluginId, id, defaultConfig),
       // so it's passed through directly rather than wrapped like the hooks above.
       usePluginConfig,
+      // A plain function, not a hook: plugins call it while rendering a dataset
+      // row, so it must not add a hook to their render order.
+      metadataUrl,
       // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
       // classes, not plain data, which PluginContext's thin contract must not depend on.
       mapSelection: {

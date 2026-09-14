@@ -49,6 +49,21 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn().mockReturnValue({ invalidateQueries: jest.fn() }),
 }));
 
+// Quill initialises asynchronously and updates state outside act(), which the
+// real Editor does on every admin render here. None of these tests exercise the
+// editor itself, so stand it in with a textarea as EditorRow.test.tsx does.
+jest.mock('primereact/editor', () => ({
+  __esModule: true,
+  Editor: ({ value, onTextChange, placeholder }: any) => (
+    <textarea
+      data-testid="mock-editor"
+      value={value ?? ''}
+      placeholder={placeholder}
+      onChange={(e: any) => onTextChange({ htmlValue: e.target.value })}
+    />
+  ),
+}));
+
 jest.mock('hooks/useDevice');
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
@@ -60,8 +75,7 @@ jest.mock('utilities/buildMetadataHead', () => ({
     title: 'Test Title',
     description: 'Test Description',
     siteName: 'Test Site',
-    url: 'https://test.example/',
-    image: 'https://test.example/img.png',
+    url: 'https://test.example/datasets/test-id',
   }),
 }));
 
@@ -186,7 +200,9 @@ describe('Metadata page', () => {
     expect(document.title).toBe('Test Title');
     expect(document.head.querySelector('meta[name="description"]')?.getAttribute('content')).toBe('Test Description');
     expect(document.head.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe('Test Title');
-    expect(document.head.querySelector('meta[property="og:image"]')?.getAttribute('content')).toBe('https://test.example/img.png');
+    expect(document.head.querySelector('meta[property="og:url"]')?.getAttribute('content')).toBe('https://test.example/datasets/test-id');
+    expect(document.head.querySelector('meta[property="og:image"]')).toBeNull();
+    expect(document.head.querySelector('meta[name="twitter:image"]')).toBeNull();
     expect(document.head.querySelector('meta[name="twitter:card"]')?.getAttribute('content')).toBe('summary');
     expect(document.head.querySelector('meta[name="twitter:description"]')?.getAttribute('content')).toBe('Test Description');
   });

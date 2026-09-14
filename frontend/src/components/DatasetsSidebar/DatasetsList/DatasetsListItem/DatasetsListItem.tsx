@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
 import { Capability, EntitlementScope, GISDataType } from '../../../../types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
+import { metadataPath } from 'configuration/routes';
 
 type Props = {
   dataset: AvailabilityDataset;
@@ -51,7 +52,7 @@ export function DatasetsListItem({ dataset }: Props) {
           </div>
         </div>
         <div className={styles.Bottom}>
-          <Button size="tiny" type="custom" className={styles.MetadataButton} href={`/datasets/${dataset.id}`}>
+          <Button size="tiny" type="custom" className={styles.MetadataButton} href={metadataPath(dataset.id)}>
             <NewTabIcon /> {t('datasets_list.metadata')}
           </Button>
           {dataset.visibility === 'private' && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}

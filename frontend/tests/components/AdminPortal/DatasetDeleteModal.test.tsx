@@ -3,6 +3,8 @@ import { DatasetDeleteModal } from 'components/AdminPortal/DatasetDeleteModal/Da
 
 jest.mock('react-i18next', () => ({
   ...jest.requireActual('react-i18next'),
+  // The real useTranslation warns when no i18next instance is initialised
+  useTranslation: () => ({ t: (key: string, fallback?: unknown) => (typeof fallback === 'string' ? fallback : key) }),
   Trans: ({ values }: any) => <span>{values?.datasetName}</span>,
 }));
 

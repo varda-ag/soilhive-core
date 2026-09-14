@@ -8,11 +8,12 @@ import './styles/index.scss';
 import { NotificationProvider, ThemeProvider } from './contexts';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { CookieConsentProvider } from './components/CookieConsentProvider';
+import { METADATA_ROUTE } from './configuration/routes';
 
 // SSR page components — loaded lazily so they are not bundled into every page.
 // The key must exactly match the `data-ssr-page` attribute injected by the server.
 const SSR_COMPONENTS: Record<string, () => Promise<{ default: React.ComponentType }>> = {
-  '/datasets/:id': () => import('./pages/Metadata'),
+  [METADATA_ROUTE]: () => import('./pages/Metadata'),
 };
 
 const rootEl = document.getElementById('root');

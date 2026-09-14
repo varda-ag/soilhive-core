@@ -12,6 +12,7 @@ import { feature } from '@turf/turf';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import { useTranslation } from 'react-i18next';
 import { backendToLocalFrontendDate } from '../../../utilities/date';
+import { metadataPath } from 'configuration/routes';
 
 function DownloadPreviewTable({
   data = [],
@@ -105,7 +106,7 @@ function DownloadPreviewTable({
           <Button
             type="tertiary"
             className={styles.MetadataButton}
-            {...(isMetadataDisabled ? { isDisabled: true } : { href: `/datasets/${metadataDatasetId}` })}
+            {...(isMetadataDisabled ? { isDisabled: true } : { href: metadataPath(metadataDatasetId) })}
           >
             <NewspaperIcon />
             {t('download_preview.metadata')}

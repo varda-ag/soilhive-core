@@ -125,6 +125,7 @@ production the Express server generates this file from OS env vars at startup):
 ```js
 window._env_ = {
   BACKEND_BASE_URL: 'http://localhost:4001',
+  APP_BASE_URL: 'http://localhost:3000',
   MAPBOX_ACCESS_TOKEN: '',   // leave empty to disable map tiles
   GTM_CONTAINER_ID: '',      // optional Google Tag Manager container ID
   COOKIE_DOMAIN: '',         // optional cookie domain override
@@ -144,7 +145,7 @@ pnpm dev
 pnpm build
 pnpm start
 # or with explicit env vars:
-BACKEND_BASE_URL=https://api.example.com MAPBOX_ACCESS_TOKEN=pk.xxx pnpm start
+BACKEND_BASE_URL=https://api.example.com APP_BASE_URL=https://app.example.com MAPBOX_ACCESS_TOKEN=pk.xxx pnpm start
 ```
 
 The server listens on **http://localhost:3000** (`PORT` env var overrides).

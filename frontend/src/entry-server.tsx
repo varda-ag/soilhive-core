@@ -13,6 +13,7 @@ import MetadataPage from './pages/Metadata';
 import { ssrAuthStore } from './auth/ssrAuthStore';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { buildMetadataHeadHtml } from './utilities/buildMetadataHead';
+import { METADATA_ROUTE } from './configuration/routes';
 import type { Dataset } from 'types/backend';
 import { IngestionStatus } from 'types/backend';
 
@@ -51,7 +52,7 @@ function isAdminToken(token: string | null): boolean {
  * routes fall through to the standard SPA index.html.
  */
 const SSR_ROUTES: Record<string, React.ComponentType> = {
-  '/datasets/:id': MetadataPage,
+  [METADATA_ROUTE]: MetadataPage,
 };
 
 /**
@@ -60,6 +61,15 @@ const SSR_ROUTES: Record<string, React.ComponentType> = {
  * before calling render() — without duplicating the route list.
  */
 export const SSR_ROUTE_PATHS: string[] = Object.keys(SSR_ROUTES);
+
+/** Percent-decodes one path segment, leaving a malformed one as-is. */
+function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
 
 function pathMatchesPattern(pattern: string, pathname: string): boolean {
   const re = new RegExp('^' + pattern.replace(/:[^/]+/g, '[^/]+') + '$');
@@ -110,14 +120,19 @@ export async function render(
   };
 
   // Prefetch route-specific queries so renderToString sees real data.
-  const datasetMatch = matchedPattern === '/datasets/:id' ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
-  if (datasetMatch) {
-    const datasetId = datasetMatch[1];
+  const datasetMatch = matchedPattern === METADATA_ROUTE ? pathname.match(/^\/datasets\/([^/]+)$/) : null;
+  // Decoded, because react-router hands the client a decoded param: the prefetched
+  // query key has to be the one the client reads, and metadataPath re-encodes when
+  // building URLs. Anything putting it back into a URL must re-encode it.
+  const datasetId = datasetMatch ? decodePathSegment(datasetMatch[1]) : undefined;
+  if (datasetId) {
     await Promise.all([
       queryClient.prefetchQuery({
         queryKey: ['dataset', datasetId],
         queryFn: async () => {
-          const res = await fetch(`${backendUrl}/datasets/${datasetId}`, { headers: buildHeaders() });
+          // Re-encoded: datasetId is decoded, so an id containing a slash would
+          // otherwise split into two path segments and hit the wrong endpoint.
+          const res = await fetch(`${backendUrl}/datasets/${encodeURIComponent(datasetId)}`, { headers: buildHeaders() });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
         },
@@ -140,7 +155,8 @@ export async function render(
       }),
     ]);
 
-    const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetMatch[1]]);
+    // datasetId, not the raw segment, because the query key is decoded
+    const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetId]);
     if (cachedDataset && cachedDataset.status !== IngestionStatus.PUBLISHED && !isAdminToken(context?.authToken ?? null)) {
       ssrAuthStore.set(null);
       return { redirect: '/' };
@@ -164,11 +180,10 @@ export async function render(
   const dehydratedState = dehydrate(queryClient);
 
   let head = '';
-  if (datasetMatch) {
-    const datasetId = datasetMatch[1];
+  if (datasetId) {
     const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetId]);
     if (cachedDataset?.name) {
-      head = buildMetadataHeadHtml(cachedDataset.name);
+      head = buildMetadataHeadHtml(cachedDataset.name, datasetId);
     }
   }
 
