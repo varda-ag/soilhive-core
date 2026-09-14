@@ -49,6 +49,21 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn().mockReturnValue({ invalidateQueries: jest.fn() }),
 }));
 
+// Quill initialises asynchronously and updates state outside act(), which the
+// real Editor does on every admin render here. None of these tests exercise the
+// editor itself, so stand it in with a textarea as EditorRow.test.tsx does.
+jest.mock('primereact/editor', () => ({
+  __esModule: true,
+  Editor: ({ value, onTextChange, placeholder }: any) => (
+    <textarea
+      data-testid="mock-editor"
+      value={value ?? ''}
+      placeholder={placeholder}
+      onChange={(e: any) => onTextChange({ htmlValue: e.target.value })}
+    />
+  ),
+}));
+
 jest.mock('hooks/useDevice');
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({

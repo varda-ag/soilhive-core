@@ -7,6 +7,12 @@ import useNotifications from 'hooks/useNotifications';
 import { getStoredJobIds, addStoredJobId, removeStoredJobId } from '../../src/utilities/downloadJobStorage';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
+// Clicking the generated <a> is a real navigation jsdom cannot perform; these
+// tests only cover job tracking, not the browser download itself.
+jest.mock('../../src/utilities/download', () => ({
+  downloadFile: jest.fn(),
+}));
+
 jest.mock('../../src/utilities/downloadJobStorage', () => ({
   getStoredJobIds: jest.fn(),
   addStoredJobId: jest.fn(() => []),
