@@ -5,6 +5,7 @@ import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { ErrorResponse } from '../utils/error';
 import { selectOverviewTable } from '../utils/raster';
 import { Capability, OverlapType } from '../types/enums';
+import { EntitlementScope } from '../types/Entitlements';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, FilteredRasterLayer, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
@@ -439,7 +440,7 @@ export default class SoilDataStorage {
     includeProcedureInfo: boolean = false,
   ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> => {
     const { geometryIds, parameters: filters } = filter;
-    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
+    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.DOWNLOAD);
 
     const schema = process.env.POSTGRES_SCHEMA;
     // Unlike the filtering paths, this aoi is returned to the caller as a GeoJSON
@@ -533,7 +534,7 @@ export default class SoilDataStorage {
   // yields 0 via the `rl.bbox && (SELECT geom FROM aoi)` predicate.
   getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
     const { geometryIds, parameters: filters } = filter;
-    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.DOWNLOAD);
+    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.DOWNLOAD);
 
     const schema = process.env.POSTGRES_SCHEMA;
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
@@ -606,7 +607,7 @@ export default class SoilDataStorage {
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    await entitlementService.enforceEntitlements(requestData, datasetSlugs, Capability.PREVIEW);
+    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.PREVIEW);
 
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
@@ -868,7 +869,10 @@ export const getEnabledRasterFilterTables = async (): Promise<string[]> => {
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
   try {
-    const enabledFilters = await rasterFilterService.getActiveRasterFilters({ entityManager: queryRunner.manager, entitlements: {} });
+    const enabledFilters = await rasterFilterService.getActiveRasterFilters({
+      entityManager: queryRunner.manager,
+      entitlements: {},
+    });
     const value = enabledFilters.map(f => f.id);
     enabledRasterFilterTablesCache = { value, expiresAt: Date.now() + ENABLED_RASTER_FILTER_TABLES_TTL_MS };
     return value;

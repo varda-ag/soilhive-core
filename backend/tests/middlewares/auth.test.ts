@@ -15,9 +15,9 @@ describe('authMiddleware', () => {
   let superAdminToken: string;
   let entityManager: EntityManager;
   let getUserEntitlementsSpy: jest.SpiedFunction<typeof EntitlementService.prototype.getUserEntitlements>;
-  const everyoneEntitlements = { 'dataset-1': [Capability.DOWNLOAD] };
-  const dataAdminEntitlements = { 'dataset-1': [Capability.DOWNLOAD, 'obfuscate_as_points', 'preview'] };
-  const superAdminEntitlements = { 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.DOWNLOAD] };
+  const everyoneEntitlements = { datasets: { 'dataset-1': [Capability.DOWNLOAD] }, configs: {} };
+  const dataAdminEntitlements = { datasets: { 'dataset-1': [Capability.DOWNLOAD, 'obfuscate_as_points', 'preview'] }, configs: {} };
+  const superAdminEntitlements = { datasets: { 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.DOWNLOAD] }, configs: {} };
 
   beforeAll(async () => {
     dataAdminToken = await getDataAdminToken();
@@ -38,9 +38,9 @@ describe('authMiddleware', () => {
     // Fill DB with test entitlements
     await entityManager.query(`
       INSERT INTO entitlements (id, data) VALUES
-      ('everyone', '{"dataset-1": ["download"]}'),
-      ('data-admin@localhost', '{"dataset-1": ["obfuscate_as_points", "preview", "download"]}'),
-      ('super-admin@localhost', '{"dataset-2": ["download"]}')
+      ('everyone', '{"datasets": {"dataset-1": ["download"]}}'),
+      ('data-admin@localhost', '{"datasets": {"dataset-1": ["obfuscate_as_points", "preview", "download"]}}'),
+      ('super-admin@localhost', '{"datasets": {"dataset-2": ["download"]}}')
     `);
     getUserEntitlementsSpy.mockClear();
   });

@@ -3,7 +3,7 @@ import { decodeTokenFromString, type Role } from '../auth/tokenScopes';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { FEATURE_FLAGS } from '../utilities/environmentVariables';
 import { useApiQuery } from './useApiQuery';
-import { Capability, type Entitlements } from 'types/backend';
+import { Capability, EntitlementScope, type Entitlements } from 'types/backend';
 
 // Special roles — not in token, resolved at runtime
 export const ANYONE = 'anyone' as const;
@@ -54,7 +54,7 @@ const ENTITLEMENT_MATRIX: Record<Action, AllRoles[]> = {
   [UPDATE_CONFIG]: [],
 };
 
-export function useEntitlements() {
+export function useEntitlements(scope?: EntitlementScope) {
   const { user } = useAuthContext();
   const isAuthenticated = !!user;
 
@@ -69,14 +69,17 @@ export function useEntitlements() {
   // frontend equivalent (that bypass is for service-to-service calls, not browser tokens).
   const isAdminBypassed = userRoles.includes('data-admin') || userRoles.includes('super-admin');
 
-  // GET /entitlements requires a bearer token; for an anonymous user this stays disabled, so
-  // `entitlements` is undefined and the entity-scoped checks below fall back to false. Public
-  // access for anonymous users is handled separately, via dataset.visibility.
+  // GET /entitlements is only fetched when a caller actually needs an entity-scoped check —
+  // most callers only ever check the role matrix below, which needs no network call at all
+  // (see ADR-0033). For an anonymous user this stays disabled too, so `entitlements` is
+  // undefined and the entity-scoped checks below fall back to false; public access for
+  // anonymous users is handled separately, via dataset.visibility.
   const { data: entitlements, isLoading } = useApiQuery<Entitlements>({
     endpoint: '/entitlements',
     method: 'GET',
-    queryKey: ['entitlements'],
-    enabled: isAuthenticated,
+    parameters: scope ? [['scope', scope]] : [],
+    queryKey: ['entitlements', scope],
+    enabled: isAuthenticated && scope !== undefined,
   });
 
   const can = useCallback(
@@ -87,6 +90,9 @@ export function useEntitlements() {
         }
         if (isAdminBypassed) {
           return true;
+        }
+        if (scope === undefined) {
+          throw new Error(`Action ${action} requires useEntitlements to be called with an explicit scope.`);
         }
         if (isLoading) {
           return false;
@@ -111,7 +117,7 @@ export function useEntitlements() {
 
       return allowedRoles.some(role => userRoles.includes(role));
     },
-    [isAdminBypassed, isLoading, entitlements, userRoles],
+    [isAdminBypassed, scope, isLoading, entitlements, userRoles],
   );
 
   return { can, isLoading };

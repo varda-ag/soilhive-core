@@ -96,22 +96,22 @@ describe('BulkDeleter class', () => {
         ('user1@example.com', $2),
         ('user2@example.com', $3)`,
       [
-        JSON.stringify({ [datasetToDelete.slug]: ['download'] }),
-        JSON.stringify({ [datasetToDelete.slug]: ['preview'], [datasetToKeep.slug]: ['download'] }),
-        JSON.stringify({ [datasetToKeep.slug]: ['preview'] }),
+        JSON.stringify({ datasets: { [datasetToDelete.slug]: ['download'] } }),
+        JSON.stringify({ datasets: { [datasetToDelete.slug]: ['preview'], [datasetToKeep.slug]: ['download'] } }),
+        JSON.stringify({ datasets: { [datasetToKeep.slug]: ['preview'] } }),
       ],
     );
 
     await BulkDeleterModule.processBulkDeletion(getJob(datasetToDelete.slug));
 
-    const rows: Array<{ id: string; data: Record<string, string[]> }> = await entityManager.query(
+    const rows: Array<{ id: string; data: Record<string, Record<string, string[]>> }> = await entityManager.query(
       `SELECT id, data FROM entitlements ORDER BY id`,
     );
     expect(rows.map(r => r.data)).toEqual([
-      // 'everyone' held only the purged dataset, so it is left with an empty record
-      {},
-      { [datasetToKeep.slug]: ['download'] },
-      { [datasetToKeep.slug]: ['preview'] },
+      // 'everyone' held only the purged dataset, so its "datasets" scope is left empty
+      { datasets: {} },
+      { datasets: { [datasetToKeep.slug]: ['download'] } },
+      { datasets: { [datasetToKeep.slug]: ['preview'] } },
     ]);
   });
 
@@ -127,13 +127,13 @@ describe('BulkDeleter class', () => {
 
     // Granted before the rename, so the key is the slug that is now historical
     await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ('user1@example.com', $1)`, [
-      JSON.stringify({ [originalSlug]: ['download'] }),
+      JSON.stringify({ datasets: { [originalSlug]: ['download'] } }),
     ]);
 
     await BulkDeleterModule.processBulkDeletion(getJob(renamed.slug));
 
     const rows = await entityManager.query(`SELECT data FROM entitlements WHERE id = 'user1@example.com'`);
-    expect(rows[0].data).toEqual({});
+    expect(rows[0].data).toEqual({ datasets: {} });
   });
 });
 
@@ -188,13 +188,13 @@ describe('BulkDeleter class - raster datasets', () => {
 
     const entityManager = await getEntityManager();
     await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ('user1@example.com', $1)`, [
-      JSON.stringify({ [rasterLayer.dataset.slug]: ['download'] }),
+      JSON.stringify({ datasets: { [rasterLayer.dataset.slug]: ['download'] } }),
     ]);
 
     await BulkDeleterModule.processBulkDeletion(getJob(rasterLayer.dataset.slug));
 
     const rows = await entityManager.query(`SELECT data FROM entitlements WHERE id = 'user1@example.com'`);
-    expect(rows[0].data).toEqual({});
+    expect(rows[0].data).toEqual({ datasets: {} });
   });
 });
 

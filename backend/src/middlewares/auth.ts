@@ -14,7 +14,7 @@ export const authMiddleware = async (req: Request & { openapi?: any }) => {
   const schema = req.openapi?.schema;
   const entitlementsRequired = schema?.['x-entitlements-required'] ?? false;
   if (!entitlementsRequired) {
-    req.customData.entitlements = {};
+    req.customData.entitlements = { datasets: {}, configs: {} };
   } else {
     const data = await entitlementService.getUserEntitlements(req.customData, req.customData.token?.email);
     req.customData.entitlements = data;
