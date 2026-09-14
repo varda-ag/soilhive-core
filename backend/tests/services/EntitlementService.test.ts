@@ -6,7 +6,7 @@ import { Token } from '../../src/interfaces/Token';
 import { addDataset, addLicense } from '../../src/utils/mock';
 import EntitlementService from '../../src/services/EntitlementService';
 import DatasetService from '../../src/services/DatasetService';
-import { EntitlementScope, CapabilityGrants } from '../../src/types/Entitlements';
+import { EntitlementScope, ConfigSubkeyScope, CapabilityGrants } from '../../src/types/Entitlements';
 import { Capability } from '../../src/types/enums';
 import DatasetEntity from '../../src/entities/Dataset';
 import LicenseEntity from '../../src/entities/License';
@@ -361,6 +361,24 @@ describe('EntitlementService', () => {
           expect.any(Object),
         );
       });
+    });
+  });
+
+  describe('selectByScope', () => {
+    it('returns the configs entries under a subkey prefix, excluding unrelated keys', () => {
+      const entitlements = {
+        datasets: {},
+        configs: { dashboard_1: [Capability.READ], dashboard_2: [Capability.READ], look_and_feel: [Capability.READ] },
+      };
+      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARD)).toEqual({
+        dashboard_1: [Capability.READ],
+        dashboard_2: [Capability.READ],
+      });
+    });
+
+    it('matches a singleton subkey entry with no suffix, via exact equality', () => {
+      const entitlements = { datasets: {}, configs: { dashboard: [Capability.READ] } };
+      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARD)).toEqual({ dashboard: [Capability.READ] });
     });
   });
 

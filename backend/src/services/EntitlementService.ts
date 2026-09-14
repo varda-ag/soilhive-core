@@ -5,7 +5,7 @@ import { EVERYONE } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
 import { Token } from '../interfaces/Token';
-import { EntitlementScope, type Entitlements, type EntityScope, type CapabilityGrants } from '../types/Entitlements';
+import { EntitlementScope, type Entitlements, type EntityScope, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
@@ -141,6 +141,23 @@ export default class EntitlementService {
       .where('data->:scope ?| array[:...slugs]')
       .setParameters({ scope, slugs })
       .execute();
+  };
+
+  /**
+   * Slices merged `entitlements` down to what a `GET /entitlements?scope=` caller asked for.
+   * `DATASETS`/`CONFIGS` are real storage namespaces — passed through unfiltered. Any other
+   * `scope` is a config subkey prefix: a virtual filter over `configs`, not a namespace of its
+   * own, so it never looks at `entitlements.datasets` at all. A key matches either exactly (the
+   * singleton case, e.g. a lone `dashboard` entry with no suffix) or as `${scope}_...` (the
+   * multi-entry case, e.g. `dashboard_1`, `dashboard_2`) — `startsWith` alone would miss the
+   * singleton case.
+   */
+  selectByScope = (entitlements: Entitlements, scope: RequestScope): CapabilityGrants => {
+    if (scope === EntitlementScope.DATASETS || scope === EntitlementScope.CONFIGS) {
+      return entitlements[scope] ?? {};
+    }
+    const configs = entitlements.configs ?? {};
+    return Object.fromEntries(Object.entries(configs).filter(([key]) => key === scope || key.startsWith(`${scope}_`)));
   };
 
   async getUserEntitlements(requestData: RequestData, id?: string): Promise<Entitlements> {
