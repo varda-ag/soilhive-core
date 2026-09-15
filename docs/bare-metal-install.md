@@ -59,12 +59,14 @@ brew install gdal
 
 **Ubuntu / Debian**
 ```sh
-sudo apt install libgdal-dev gdal-bin python3-gdal
+sudo apt install gdal-bin python3-gdal
 ```
 
 Verify:
 ```sh
-gdal-config --version   # should print 3.x.x
+gdalinfo --version                       # 3.8 or newer
+command -v gdal_footprint gdal_edit.py
+ogrinfo --formats | grep -i libkml
 ```
 
 ---

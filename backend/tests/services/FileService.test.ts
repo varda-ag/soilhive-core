@@ -385,7 +385,6 @@ describe('FileService', () => {
             const metadata = (await fileService.extractMetadata(requestData, prefix + file)) as VectorFileMetadata;
             results.push({ file, success: true, metadata });
           } catch (error) {
-            console.error(`Error processing file ${file}:`, error);
             results.push({ file, success: false, error });
           }
         }
