@@ -76,6 +76,57 @@ describe('Testing /config/{id} routes', () => {
   });
 });
 
+describe('Testing GET /config routes', () => {
+  let superAdminAuthHeader: IncomingHttpHeaders;
+  beforeAll(async () => {
+    const token = await getSuperAdminToken();
+    superAdminAuthHeader = { Authorization: `Bearer ${token}` };
+  });
+
+  it('Returns the requested configs keyed by id', async () => {
+    const dataA = { customValue: 123.456 };
+    const dataB = { anotherValue: 'test' };
+    await request(app).put('/config/a').set(superAdminAuthHeader).send(dataA);
+    await request(app).put('/config/b').set(superAdminAuthHeader).send(dataB);
+    const res = await request(app).get('/config').query({ ids: 'a,b' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toStrictEqual({ a: dataA, b: dataB });
+  });
+
+  it('Silently omits ids that do not exist', async () => {
+    const dataA = { customValue: 123.456 };
+    await request(app).put('/config/a').set(superAdminAuthHeader).send(dataA);
+    const res = await request(app).get('/config').query({ ids: 'a,doesnotexist' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toStrictEqual({ a: dataA });
+  });
+
+  it('Missing ids query param should fail', async () => {
+    const res = await request(app).get('/config');
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain("must have required property 'ids'");
+  });
+
+  it('Empty ids query param should fail', async () => {
+    const res = await request(app).get('/config?ids=');
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain("Empty value found for query parameter 'ids'");
+  });
+
+  it('More than 100 ids should fail', async () => {
+    const ids = Array.from({ length: 101 }, (_, i) => `id${i}`).join(',');
+    const res = await request(app).get('/config').query({ ids });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain('must NOT have more than 100 items');
+  });
+
+  it('All requested ids non-existent returns an empty object', async () => {
+    const res = await request(app).get('/config').query({ ids: 'doesnotexist1,doesnotexist2' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toStrictEqual({});
+  });
+});
+
 const createTestConfigInDB = async (data: any) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository('JsonStorage');

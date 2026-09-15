@@ -23,6 +23,13 @@ export const deleteConfig = async (req: Request, res: Response) => {
   res.sendStatus(StatusCodes.NO_CONTENT);
 };
 
+export const getConfigs = async (req: Request, res: Response) => {
+  const repo = req.customData.entityManager.getRepository(JsonStorage);
+  const ids = req.query['ids'] as string[];
+  const data = await configService.getConfigs(repo, ids);
+  res.json(data);
+};
+
 export const exportConfigs = async (req: Request, res: Response) => {
   const { repo } = getRepoAndId(req);
   const data = await configService.exportConfigs(repo);
