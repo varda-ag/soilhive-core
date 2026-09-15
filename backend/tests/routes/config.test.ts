@@ -76,6 +76,32 @@ describe('Testing /config/{id} routes', () => {
   });
 });
 
+describe('Testing GET /config routes', () => {
+  let superAdminAuthHeader: IncomingHttpHeaders;
+  beforeAll(async () => {
+    const token = await getSuperAdminToken();
+    superAdminAuthHeader = { Authorization: `Bearer ${token}` };
+  });
+
+  it('Returns the requested configs keyed by id', async () => {
+    const dataA = { customValue: 123.456 };
+    const dataB = { anotherValue: 'test' };
+    await request(app).put('/config/a').set(superAdminAuthHeader).send(dataA);
+    await request(app).put('/config/b').set(superAdminAuthHeader).send(dataB);
+    const res = await request(app).get('/config').query({ ids: 'a,b' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toStrictEqual({ a: dataA, b: dataB });
+  });
+
+  it('Silently omits ids that do not exist', async () => {
+    const dataA = { customValue: 123.456 };
+    await request(app).put('/config/a').set(superAdminAuthHeader).send(dataA);
+    const res = await request(app).get('/config').query({ ids: 'a,doesnotexist' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toStrictEqual({ a: dataA });
+  });
+});
+
 const createTestConfigInDB = async (data: any) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository('JsonStorage');

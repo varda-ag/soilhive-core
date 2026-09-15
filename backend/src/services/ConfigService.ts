@@ -1,7 +1,7 @@
 import { AuthModes, StorageModes } from '../types/enums';
 import { JsonStorage } from '../entities/JsonStorage';
 import { ErrorResponse } from '../utils/error';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AuthConfig, OIDCConfig } from '../interfaces/AuthConfig';
 import { StatusCodes } from 'http-status-codes';
 import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig';
@@ -34,6 +34,15 @@ export default class ConfigService {
 
   deleteConfig = async (repo: Repository<JsonStorage>, id: string): Promise<void> => {
     await repo.softDelete({ id });
+  };
+
+  getConfigs = async (repo: Repository<JsonStorage>, ids: string[]): Promise<any> => {
+    const rows = await repo.find({ where: { id: In(ids) } });
+    const output = {};
+    for (const r of rows) {
+      output[r.id] = r.data;
+    }
+    return output;
   };
 
   exportConfigs = async (repo: Repository<JsonStorage>): Promise<any> => {
