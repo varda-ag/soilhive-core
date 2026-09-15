@@ -32,6 +32,7 @@ import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 
 const dataMappingService = new DataMappingService();
 
@@ -233,8 +234,8 @@ export default class FileService {
   };
 
   /**
-   * Extracts ZIP file to a temporary directory and finds the main data file
-   * Looks for common geospatial file extensions in order: .shp, .gpkg, .geojson, .gml, .kml
+   * Extracts ZIP file to a temporary directory and finds the main data file.
+   * Looks for common geospatial file extensions.
    */
   private static extractZipAndFindMainFile = async (zipPath: string): Promise<{ tempZipExtractPath: string; mainFilePath: string }> => {
     const tempZipExtractPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-tmp'));
@@ -250,8 +251,8 @@ export default class FileService {
         return { tempZipExtractPath, mainFilePath };
       }
 
-      // Find main data file with common geospatial extensions
-      const extensions = ['.shp', '.gpkg', '.geojson', '.gml', '.kml', '.gdb'];
+      // Priority order: the first extension with a match wins
+      const extensions = ['.shp', '.gpkg', '.geojson', '.gml', '.kml', '.kmz', '.gdb', '.csv', '.xlsx'];
 
       for (const ext of extensions) {
         for (const file of files) {
@@ -263,7 +264,7 @@ export default class FileService {
       }
 
       throw new ErrorResponse(
-        'No recognized geospatial file found in ZIP archive (expected .shp, .gpkg, .geojson, .gml, or .kml)',
+        `No recognized geospatial file found in ZIP archive (expected one of: ${extensions.join(', ')})`,
         StatusCodes.BAD_REQUEST,
       );
     } catch (error) {
@@ -273,6 +274,26 @@ export default class FileService {
         throw error;
       }
       throw new ErrorResponse(`Failed to extract ZIP file: ${error}`, StatusCodes.BAD_REQUEST);
+    }
+  };
+
+  /**
+   * Pulls a ZIP out of S3 and applies same local storage logic.
+   * The download lands in its own temp directory, separate from the one the archive is unpacked into.
+   * The caller is responsible for removing it, as with local storage.
+   */
+  private static downloadAndExtractZip = async (fileKey: string): Promise<{ tempZipExtractPath: string; mainFilePath: string }> => {
+    const storage = FileService.getStorageEngine();
+    const downloadDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-src-'));
+    const localZipPath = path.join(downloadDir, path.basename(fileKey));
+
+    try {
+      // Piping to avoid OOM
+      const stream = await storage.read(fileKey);
+      await pipeline(stream as Readable, fs.createWriteStream(localZipPath));
+      return await this.extractZipAndFindMainFile(localZipPath);
+    } finally {
+      await this.removeTempFolder(downloadDir);
     }
   };
 
@@ -344,13 +365,19 @@ export default class FileService {
           ({ tempZipExtractPath, mainFilePath } = await this.extractZipAndFindMainFile(mainFilePath));
         }
       } else if (config.storageMode === StorageModes.S3) {
-        // For S3, use GDAL's S3 VSI support + VSIZIP to handle ZIP files directly from S3 without downloading.
-        // This requires the S3 bucket to allow range requests.
-        const isZip = fileKey.toLowerCase().endsWith('.zip');
-        const vsiPrefix = isZip ? '/vsizip/vsis3/' : '/vsis3/';
-        const s3Config = config.config as S3StorageConfig;
-        const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
-        mainFilePath = `${vsiPrefix}${s3Config.bucketName}/${key}`;
+        if (fileKey.toLowerCase().endsWith('.zip')) {
+          // A ZIP is pulled down and unpacked, so the archive resolves through
+          // extractZipAndFindMainFile exactly as it does on local storage.
+          //
+          // Use of /vsizip/vsis3/... avoids the download, but hands GDAL
+          // the archive *root* and lets it choose: it auto-detects a Shapefile or .gdb and
+          // fails on anything else, so a zipped CSV, GML or KMZ was rejected on S3.
+          ({ tempZipExtractPath, mainFilePath } = await this.downloadAndExtractZip(fileKey));
+        } else {
+          const s3Config = config.config as S3StorageConfig;
+          const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
+          mainFilePath = `/vsis3/${s3Config.bucketName}/${key}`;
+        }
       } else {
         throw new ErrorResponse(`Unsupported storage mode: ${config.storageMode}`, StatusCodes.INTERNAL_SERVER_ERROR);
       }

@@ -120,6 +120,9 @@ const pluginConfig = <T>(defaultConfig?: T): PluginConfigResult<T> => ({
   saveConfig: async () => {},
 });
 
+// Static stand-in for the batch endpoint: no ids are pre-populated in local preview.
+const pluginConfigs = <T>(): PluginQueryResult<Record<string, T>> => query({});
+
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
   mapSelection,
@@ -131,6 +134,7 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   useRasterCategories: () => query(rasterCategories),
   useSoilData: () => soilData,
   usePluginConfig: (_pluginId, _id, defaultConfig) => pluginConfig(defaultConfig),
+  usePluginConfigs: () => pluginConfigs(),
   metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
   ...overrides,
 });

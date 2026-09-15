@@ -26,6 +26,8 @@ Soil data is abundant but siloed: collected by different institutions, at differ
 ## Platform and data documentation
 
 - [Data Management Portal](docs/data-model/1-data-management-portal.md): How to upload, map, clean, and publish a dataset
+  - [Loading vector data](docs/data-model/1a-vector-data-ingestion.md): Format requirements, field mapping, cleaning rules and preview for point and polygonal data
+  - [Loading raster data](docs/data-model/1b-raster-data-ingestion.md): Band mapping, and what the load does to a GeoTIFF
 - [Data Model](docs/data-model/4a-soil-data-model.md): Standards alignment and physical database schema
 - [Metadata Schema](docs/data-model/3-metadata-schema.md): Dataset-level metadata fields and standards compliance
 - [Soil Property Vocabulary](docs/data-model/4b-soil-property-vocabulary.md): Design principles and structure of the controlled vocabulary

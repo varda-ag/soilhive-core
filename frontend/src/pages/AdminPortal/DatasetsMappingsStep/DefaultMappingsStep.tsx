@@ -6,11 +6,11 @@ import { MappingsTable } from './MappingsTable';
 import { MappingRow } from './MappingRow';
 import { DefaultMappingRowDetails } from './DefaultMappingRowDetails';
 import { MappingFieldsPane } from './MappingFieldsPane';
-import { INGESTION_DOCS_URL } from 'configuration/ingestion';
+import { VECTOR_INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { DataLoadingStartedPanel } from 'pages/AdminPortal/DatasetsPreviewStep/DataLoadingStartedPanel';
 import { ADMIN_PATHS } from 'configuration/admin';
 
-const DOCS_URL = `${INGESTION_DOCS_URL}#field-mapping--match-your-data`;
+const DOCS_URL = `${VECTOR_INGESTION_DOCS_URL}#field-mapping--match-your-data`;
 
 interface Props {
   id?: string;

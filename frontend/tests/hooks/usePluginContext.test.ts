@@ -3,6 +3,7 @@ import type { LngLat, MapGeoJSONFeature } from 'maplibre-gl';
 import { usePluginContext } from 'hooks/usePluginContext';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import usePluginConfig from 'hooks/usePluginConfig';
+import usePluginConfigs from 'hooks/usePluginConfigs';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('hooks/useAvailabilityMap', () => ({
@@ -27,6 +28,7 @@ jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 // usePluginConfig transitively imports useConfig -> App -> i18n's real (heavy) module
 // graph; mock it like the other host hooks above so importing usePluginContext stays cheap.
 jest.mock('hooks/usePluginConfig', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('hooks/usePluginConfigs', () => ({ __esModule: true, default: jest.fn() }));
 
 const useAvailabilityMapMock = useAvailabilityMap as jest.MockedFunction<typeof useAvailabilityMap>;
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
@@ -79,6 +81,12 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.usePluginConfig).toBe(usePluginConfig);
+  });
+
+  it('passes usePluginConfigs through unchanged, since its signature already matches PluginContext', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.usePluginConfigs).toBe(usePluginConfigs);
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {

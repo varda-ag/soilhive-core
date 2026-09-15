@@ -376,7 +376,7 @@ describe('FileService', () => {
         const prefix = storageMode === 's3' ? 'vector_files/pass/' : '';
         const files = fs
           .readdirSync(vectorFilesPassPath, { withFileTypes: true })
-          .filter(dirent => dirent.isFile())
+          .filter(dirent => dirent.isFile() && !dirent.name.endsWith('.xsd'))
           .map(dirent => dirent.name); // or dirent.path for full path;
         const results = [];
 

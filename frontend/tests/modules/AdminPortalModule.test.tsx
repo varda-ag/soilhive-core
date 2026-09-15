@@ -71,7 +71,7 @@ jest.mock('../../src/hooks/useDatasetsSoilData', () => ({
     handleSaveAndContinueLater: jest.fn(),
     handleContinue: jest.fn(),
   }),
-  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip'],
+  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.kml', '.kmz', '.gml', '.xlsx', '.zip'],
 }));
 
 jest.mock('../../src/contexts/IngestionFlowContext', () => ({

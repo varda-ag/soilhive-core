@@ -1,8 +1,9 @@
 import fs from 'fs/promises';
-import { createReadStream } from 'fs';
+import { createReadStream, createWriteStream } from 'fs';
 import os from 'os';
 import path from 'path';
 import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { streamRasterFootprints, type FootprintProgressCallback } from '../scripts/computeRasterFootprints';
 import { analyzeRasterMeta } from '../utils/raster';
 import { getDataSource, getEntityManager } from '../utils/data-source';
@@ -205,8 +206,9 @@ async function convertRasterFile(
     let inputPath: string;
     if (isS3) {
       inputPath = path.join(workDir, path.basename(filePath));
+      // Piping to avoid OOM
       const stream = await storage.read(filePath);
-      await fs.writeFile(inputPath, await FileService.streamToBuffer(stream as Readable));
+      await pipeline(stream as Readable, createWriteStream(inputPath));
     } else {
       ({ mainFilePath: inputPath } = await FileService.getMainFilePath(filePath));
     }
