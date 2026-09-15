@@ -32,6 +32,7 @@ import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 
 const dataMappingService = new DataMappingService();
 
@@ -233,8 +234,8 @@ export default class FileService {
   };
 
   /**
-   * Extracts ZIP file to a temporary directory and finds the main data file
-   * Looks for common geospatial file extensions in order: .shp, .gpkg, .geojson, .gml, .kml
+   * Extracts ZIP file to a temporary directory and finds the main data file.
+   * Looks for common geospatial file extensions.
    */
   private static extractZipAndFindMainFile = async (zipPath: string): Promise<{ tempZipExtractPath: string; mainFilePath: string }> => {
     const tempZipExtractPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-tmp'));
@@ -287,8 +288,9 @@ export default class FileService {
     const localZipPath = path.join(downloadDir, path.basename(fileKey));
 
     try {
+      // Piping to avoid OOM
       const stream = await storage.read(fileKey);
-      fs.writeFileSync(localZipPath, await FileService.streamToBuffer(stream as Readable));
+      await pipeline(stream as Readable, fs.createWriteStream(localZipPath));
       return await this.extractZipAndFindMainFile(localZipPath);
     } finally {
       await this.removeTempFolder(downloadDir);

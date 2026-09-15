@@ -25,6 +25,7 @@ This documentation is intended for:
 5. Click **Add a Dataset** in the top-right corner to begin.
 
 What follows depends on the kind of file you uploaded, because vector data and raster data are described in different ways.
+
 Once your data is loaded, you can publish it, either publicly or privately to selected users. Publication works the same way for both kinds of data and is described [below](#publication).
 
 ---

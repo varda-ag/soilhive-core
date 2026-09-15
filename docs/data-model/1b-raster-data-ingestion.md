@@ -147,8 +147,6 @@ Licenses are not derived. A raster has no per-record licence, so licence stays w
 
 The dataset and its files go back to the unloaded state they were in before the job started, and the row in the dataset list carries an **Error details** link. It names the file and the band at fault and tells you how to fix that specific failure; some of those fixes link back to this page.
 
-Nothing is left half-loaded. Every band mapping in the dataset is validated before the first band is written, so a load either completes or leaves the dataset as it found it.
-
 These are the conditions a load enforces, and where each one is stated:
 
 | What fails the load | Stated under |

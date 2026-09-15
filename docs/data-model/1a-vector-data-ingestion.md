@@ -121,3 +121,5 @@ You can review exactly which rows and cells were affected directly in the previe
 Once you're satisfied with the preview, confirm to load the data into the SoilHive database. The system applies all field mappings, coordinate reprojection, and unit conversions defined in the previous steps.
 
 When the load finishes the dataset is marked **Loaded** and is ready to publish. See [Publication](1-data-management-portal.md#publication).
+
+> **Note:** Data cleaning should ideally be done before upload. The portal supports row-level deletion as a final check but does not yet provide a full cleaning environment.
