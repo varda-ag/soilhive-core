@@ -26,8 +26,8 @@ This documentation is intended for:
 
 The first two steps are the same whatever you are loading:
 
-1. **General Info** – fill in essential metadata
-2. **File/s Upload** – upload your data file(s)
+- **General Info**: fill in essential metadata
+- **File/s Upload**: upload your data file(s)
 
 What follows depends on the kind of file you uploaded, because vector data and raster data are described in different ways:
 
