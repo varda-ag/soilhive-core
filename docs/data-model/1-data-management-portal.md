@@ -24,20 +24,7 @@ This documentation is intended for:
 4. Open the **Data Publication** panel.
 5. Click **Add a Dataset** in the top-right corner to begin.
 
-The first two steps are the same whatever you are loading:
-
-- **General Info**: fill in essential metadata
-- **File/s Upload**: upload your data file(s)
-
-What follows depends on the kind of file you uploaded, because vector data and raster data are described in different ways:
-
-| You uploaded | Remaining steps | Detailed guide |
-|---|---|---|
-| **Vector**: points or polygons, one row per sample (CSV, XLSX, GeoJSON, GPKG, GML, KML, KMZ, and zipped SHP or GDB) | **Field Mapping**, then **Preview** | [Loading vector data](1a-vector-data-ingestion.md) |
-| **Raster**: a gridded surface, one value per pixel (GeoTIFF) | **Field Mapping**, then the load runs in the background | [Loading raster data](1b-raster-data-ingestion.md) |
-
-> **Note:** Data cleaning should ideally be done before upload. For vector data the portal supports row-level deletion as a final check but does not yet provide a full cleaning environment. Raster data is not cleaned at all. What you upload is what is loaded.
-
+What follows depends on the kind of file you uploaded, because vector data and raster data are described in different ways.
 Once your data is loaded, you can publish it, either publicly or privately to selected users. Publication works the same way for both kinds of data and is described [below](#publication).
 
 ---
@@ -133,7 +120,7 @@ Publishing is blocked until every mandatory metadata field is filled in. The **P
 | License | At least one |
 | Variables measured | At least one soil property |
 
-Several of these are filled in for you by the load. For raster datasets in particular, spatial resolution, spatial extent, depth range, reference period and variables measured are all derived from the layers that were loaded. See [what the load writes at dataset level](1b-raster-data-ingestion.md#what-the-load-writes-to-the-dataset).
+Several of these are filled in for you by the load. License is mandatory and never derived. For raster datasets in particular, spatial resolution, spatial extent, depth range, reference period and variables measured are all derived from the layers that were loaded. See [what the load writes at dataset level](1b-raster-data-ingestion.md#what-the-load-writes-to-the-dataset).
 
 *2. Data visibility*
 

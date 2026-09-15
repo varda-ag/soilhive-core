@@ -84,7 +84,7 @@ At least one band must be mapped before you can continue.
 Expand a row to record the rest of what SoilHive can store about that band:
 
 - **Laboratory method**: the named protocol behind the values, from the [Analytical Methodology Vocabulary](4d-analytical-methodology-vocabulary.md). This is the only methodology field offered for rasters; the fuller panel available for vector data describes a wet-lab measurement of a sample, which a modelled or interpolated surface does not have.
-- **Reference period start** and **stop**: the period the values refer to, as `YYYY`, `YYYY-MM` or `YYYY-MM-DD` (e.g. `1977`, `1977-06`, `1977-06-15`). Both are checked against the calendar, so `2025-13` and `2025-02-31` are refused rather than stored.
+- **Reference period start** and **stop**: the period the values refer to, as `YYYY`, `YYYY-MM` or `YYYY-MM-DD` (e.g. `1977`, `1977-06`, `1977-06-15`). Both are checked against the calendar. Required before publishing.
 - **Layer description**: free prose about this band specifically: where it came from, how it was produced, what its characteristics are.
 - **Additional resources**: files to attach to this band's layer, such as a technical manual or a prediction layer. Upload them here (TXT, PDF, DOC, DOCX, TIF, TIFF); each becomes an asset of the layer.
 
