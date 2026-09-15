@@ -12,7 +12,7 @@ This guide covers running all platform services directly on the host without Doc
 | pnpm | **10.x** | Monorepo package manager |
 | PostgreSQL | **16.x** | 17+ recommended |
 | PostGIS | **3.4** | Must match the installed PostgreSQL major version |
-| GDAL | **3.6** | Required by the backend `gdal-async` native module |
+| GDAL | **3.8** | Required by the backend |
 
 ---
 
@@ -49,7 +49,8 @@ CREATE SCHEMA soilhive
 
 ## 2. GDAL
 
-The backend links against the system GDAL shared library via the `gdal-async` native module. The library must be present before running `npm install`.
+The backend uses GDAL command line tools.
+The CLI utilities must be installed before starting the platform.
 
 **macOS**
 ```sh
@@ -58,12 +59,14 @@ brew install gdal
 
 **Ubuntu / Debian**
 ```sh
-sudo apt install libgdal-dev gdal-bin
+sudo apt install gdal-bin python3-gdal
 ```
 
 Verify:
 ```sh
-gdal-config --version   # should print 3.x.x
+gdalinfo --version                       # 3.8 or newer
+command -v gdal_footprint gdal_edit.py
+ogrinfo --formats | grep -i libkml
 ```
 
 ---

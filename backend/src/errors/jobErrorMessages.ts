@@ -13,6 +13,13 @@ export interface JobErrorMessage {
 //     actions: ["Open the mapping for file '{file_id}' and remove the duplicate."],
 //   },
 
+// The per-data-type ingestion guides. Actions embed these as bare URLs, which the error modal
+// linkifies. The guide states the conditions a load enforces; these messages state the remedies —
+// so a remedy lives here and nowhere else, and the guide links back rather than restating it.
+const DOCS_BASE_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model';
+const VECTOR_DOCS_URL = `${DOCS_BASE_URL}/1a-vector-data-ingestion.md`;
+const RASTER_DOCS_URL = `${DOCS_BASE_URL}/1b-raster-data-ingestion.md`;
+
 const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   FTD_FILE_NOT_FOUND: {
     message: 'Your file was removed from storage before processing could start.',
@@ -44,7 +51,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'Column mapped to depth did not contain a valid range.',
     actions: [
       'Review your mapping to ensure you have mapped the depth related columns to depth if range, or min depth and max depth if separate values.',
-      'Check your file is compliant with the guidelines in the documentation: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files.',
+      `Check your file is compliant with the guidelines in the documentation: ${VECTOR_DOCS_URL}#what-your-file-should-contain`,
     ],
   },
   FTD_STALE_STAGING_TABLE: {
@@ -65,18 +72,22 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'An error occurred while writing soil records to the database.',
     actions: [
       'Try starting data loading again.',
-      'If it keeps failing, double check your data against the guidelines in the documentation at: https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model/1-data-management-portal.md#soil-data--upload-your-files',
+      `If it keeps failing, double check your data against the guidelines in the documentation at: ${VECTOR_DOCS_URL}#what-your-file-should-contain`,
     ],
   },
   RL_MAPPING_NOT_CONFIGURED: {
     message: "The band mapping for '{file_name}' has not been configured yet.",
-    actions: ["Go to the dataset's mapping step, declare what each band of '{file_name}' measures, save, then retry data loading."],
+    actions: [
+      "Go to the dataset's mapping step, declare what each band of '{file_name}' measures, save, then retry data loading.",
+      `What a band mapping declares, and how to fill it in: ${RASTER_DOCS_URL}#field-mapping--match-your-data`,
+    ],
   },
   RL_INVALID_BAND: {
     message: "The band mapping for '{file_name}' refers to band {band}, which the file does not have (it has {band_count}).",
     actions: [
       "Open the mapping for '{file_name}' and map only bands 1 to {band_count}.",
       'If you expected more bands, re-upload the file and check it converted correctly.',
+      `Which bands are loaded, and how they are numbered: ${RASTER_DOCS_URL}#field-mapping--match-your-data`,
     ],
   },
   RL_INVALID_REFERENCE_PERIOD: {
@@ -117,8 +128,9 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   RL_CONVERSION_FAILED: {
     message: "'{file_name}' could not be normalized for ingestion ({reasons}).",
     actions: [
-      'Check the raster opens in QGIS or with gdalinfo, then retry data loading.',
-      'If it keeps failing, convert it to an EPSG:4326 Cloud Optimized GeoTIFF yourself, then re-upload it.',
+      'Check if the raster opens in QGIS or with gdalinfo, then retry data loading.',
+      'If it keeps failing, convert it to a Cloud Optimized GeoTIFF yourself, then re-upload it.',
+      `What normalizing a raster involves: ${RASTER_DOCS_URL}#what-the-load-does-to-your-raster`,
     ],
   },
   RL_UNIT_NOT_CONVERTIBLE: {
@@ -127,6 +139,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     actions: [
       'Only a single multiplication of every pixel can be applied during loading.',
       'Re-scale the raster yourself so its values are already in {standard_unit}, then re-upload the file.',
+      `What the load does to pixel values: ${RASTER_DOCS_URL}#what-the-load-does-to-your-raster`,
     ],
   },
   BL_RECORD_VALIDATION_FAILED: {

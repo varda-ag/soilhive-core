@@ -289,7 +289,7 @@
             "step_description": "Upload your files",
             "title": "Add file/s",
             "template_docs_banner": "Check the template documentation <a>here</a> on Github.",
-            "upload_caption": "Supported formats: CSV, GeoPackage, GeoJSON, Shapefile, XLSX, ZIP and GeoTIFF.",
+            "upload_caption": "Supported formats: CSV, GeoPackage, GeoJSON, XLSX, KML, KMZ, GML, GDB, GeoTIFF and ZIP. Shapefiles and GDBs must be zipped.",
             "max_size_caption": "Max file size: {{size}}.",
             "files_uploaded_count": "Files uploaded: {{count}}",
             "clear_all": "Clear all",

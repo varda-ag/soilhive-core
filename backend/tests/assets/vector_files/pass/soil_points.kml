@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document id="root_doc">
+<Schema name="soil_points" id="soil_points">
+	<SimpleField name="depth" type="string"></SimpleField>
+	<SimpleField name="licence" type="string"></SimpleField>
+	<SimpleField name="pH" type="string"></SimpleField>
+	<SimpleField name="SOC_g_kg" type="string"></SimpleField>
+	<SimpleField name="TN_g_kg" type="string"></SimpleField>
+	<SimpleField name="clay_pct" type="string"></SimpleField>
+	<SimpleField name="sand_pct" type="string"></SimpleField>
+	<SimpleField name="CEC_cmolc_kg" type="string"></SimpleField>
+</Schema>
+<Folder><name>soil_points</name>
+  <Placemark id="soil_points.1">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">mit</SimpleData>
+		<SimpleData name="pH">6.8</SimpleData>
+		<SimpleData name="SOC_g_kg">18.4</SimpleData>
+		<SimpleData name="TN_g_kg">1.7</SimpleData>
+		<SimpleData name="clay_pct">28</SimpleData>
+		<SimpleData name="sand_pct">45</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">14.2</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>12.8,42.4</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.2">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">5.9</SimpleData>
+		<SimpleData name="SOC_g_kg">22.1</SimpleData>
+		<SimpleData name="TN_g_kg">2.1</SimpleData>
+		<SimpleData name="clay_pct">35</SimpleData>
+		<SimpleData name="sand_pct">38</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">18.7</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>139.6917,35.6895</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.3">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">50</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">6.1</SimpleData>
+		<SimpleData name="SOC_g_kg">14.3</SimpleData>
+		<SimpleData name="TN_g_kg">1.4</SimpleData>
+		<SimpleData name="clay_pct">38</SimpleData>
+		<SimpleData name="sand_pct">33</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">16.4</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>139.6917,35.6895</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.4">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">7.2</SimpleData>
+		<SimpleData name="SOC_g_kg">11.6</SimpleData>
+		<SimpleData name="TN_g_kg">1.1</SimpleData>
+		<SimpleData name="clay_pct">42</SimpleData>
+		<SimpleData name="sand_pct">29</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">22.1</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>116.4074,39.9042</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.5">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">50</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">7.5</SimpleData>
+		<SimpleData name="SOC_g_kg">7.8</SimpleData>
+		<SimpleData name="TN_g_kg">0.8</SimpleData>
+		<SimpleData name="clay_pct">45</SimpleData>
+		<SimpleData name="sand_pct">25</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">20.8</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>116.4074,39.9042</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.6">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by-sa</SimpleData>
+		<SimpleData name="pH">6.4</SimpleData>
+		<SimpleData name="SOC_g_kg">19.3</SimpleData>
+		<SimpleData name="TN_g_kg">1.8</SimpleData>
+		<SimpleData name="clay_pct">31</SimpleData>
+		<SimpleData name="sand_pct">51</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">13.5</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>72.8777,19.076</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.7">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">5.7</SimpleData>
+		<SimpleData name="SOC_g_kg">26.8</SimpleData>
+		<SimpleData name="TN_g_kg">2.5</SimpleData>
+		<SimpleData name="clay_pct">27</SimpleData>
+		<SimpleData name="sand_pct">44</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">11.9</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>100.5018,13.7563</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.8">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">50</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">5.9</SimpleData>
+		<SimpleData name="SOC_g_kg">18.2</SimpleData>
+		<SimpleData name="TN_g_kg">1.7</SimpleData>
+		<SimpleData name="clay_pct">30</SimpleData>
+		<SimpleData name="sand_pct">40</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">10.3</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>100.5018,13.7563</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.9">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by-sa</SimpleData>
+		<SimpleData name="pH">6.3</SimpleData>
+		<SimpleData name="SOC_g_kg">15.7</SimpleData>
+		<SimpleData name="TN_g_kg">1.5</SimpleData>
+		<SimpleData name="clay_pct">33</SimpleData>
+		<SimpleData name="sand_pct">42</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">17.6</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>126.978,37.5665</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.10">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">mit</SimpleData>
+		<SimpleData name="pH">5.4</SimpleData>
+		<SimpleData name="SOC_g_kg">31.2</SimpleData>
+		<SimpleData name="TN_g_kg">2.9</SimpleData>
+		<SimpleData name="clay_pct">24</SimpleData>
+		<SimpleData name="sand_pct">55</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">9.8</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>106.8456,-6.2088</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.11">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">7.8</SimpleData>
+		<SimpleData name="SOC_g_kg">8.4</SimpleData>
+		<SimpleData name="TN_g_kg">0.9</SimpleData>
+		<SimpleData name="clay_pct">48</SimpleData>
+		<SimpleData name="sand_pct">22</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">24.3</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>67.0099,24.8607</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.12">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">6.0</SimpleData>
+		<SimpleData name="SOC_g_kg">24.5</SimpleData>
+		<SimpleData name="TN_g_kg">2.3</SimpleData>
+		<SimpleData name="clay_pct">29</SimpleData>
+		<SimpleData name="sand_pct">47</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">12.1</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>90.4125,23.8103</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.13">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by-sa</SimpleData>
+		<SimpleData name="pH">5.8</SimpleData>
+		<SimpleData name="SOC_g_kg">20.7</SimpleData>
+		<SimpleData name="TN_g_kg">1.9</SimpleData>
+		<SimpleData name="clay_pct">26</SimpleData>
+		<SimpleData name="sand_pct">52</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">10.7</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>120.9842,14.5995</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.14">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">5.6</SimpleData>
+		<SimpleData name="SOC_g_kg">28.9</SimpleData>
+		<SimpleData name="TN_g_kg">2.7</SimpleData>
+		<SimpleData name="clay_pct">23</SimpleData>
+		<SimpleData name="sand_pct">58</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">9.2</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>105.8342,21.0278</coordinates></Point>
+  </Placemark>
+  <Placemark id="soil_points.15">
+	<ExtendedData><SchemaData schemaUrl="#soil_points">
+		<SimpleData name="depth">20</SimpleData>
+		<SimpleData name="licence">cc-by</SimpleData>
+		<SimpleData name="pH">5.6</SimpleData>
+		<SimpleData name="SOC_g_kg">28.9</SimpleData>
+		<SimpleData name="TN_g_kg">2.7</SimpleData>
+		<SimpleData name="clay_pct">23</SimpleData>
+		<SimpleData name="sand_pct">58</SimpleData>
+		<SimpleData name="CEC_cmolc_kg">9.3</SimpleData>
+	</SchemaData></ExtendedData>
+      <Point><coordinates>105.83423,21.02789</coordinates></Point>
+  </Placemark>
+</Folder>
+</Document></kml>
