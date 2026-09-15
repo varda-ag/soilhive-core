@@ -100,6 +100,31 @@ describe('Testing GET /config routes', () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual({ a: dataA });
   });
+
+  it('Missing ids query param should fail', async () => {
+    const res = await request(app).get('/config');
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain("must have required property 'ids'");
+  });
+
+  it('Empty ids query param should fail', async () => {
+    const res = await request(app).get('/config?ids=');
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain("Empty value found for query parameter 'ids'");
+  });
+
+  it('More than 100 ids should fail', async () => {
+    const ids = Array.from({ length: 101 }, (_, i) => `id${i}`).join(',');
+    const res = await request(app).get('/config').query({ ids });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.detail).toContain('must NOT have more than 100 items');
+  });
+
+  it('All requested ids non-existent returns an empty object', async () => {
+    const res = await request(app).get('/config').query({ ids: 'doesnotexist1,doesnotexist2' });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toStrictEqual({});
+  });
 });
 
 const createTestConfigInDB = async (data: any) => {
