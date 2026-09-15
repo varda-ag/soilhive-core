@@ -236,6 +236,14 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
 export { pluginId, name, route, type, Page };
 ```
 
+### Batch-fetching multiple config ids
+
+Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map:
+
+```tsx
+const { data, isLoading } = context.usePluginConfigs<WidgetSettings>(pluginId, ['widget-a', 'widget-b']);
+```
+
 ### Linking to a dataset's metadata page
 
 Call `context.metadataUrl(datasetId)` to get the absolute URL of a dataset's metadata page. Use the dataset `id` exactly as it arrives from `context.useFilteredCoverageQuery` — it is the dataset slug, which is what the metadata route expects.
