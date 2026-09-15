@@ -4,12 +4,12 @@ import { In } from 'typeorm';
 import { EVERYONE } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
-import { Token } from '../interfaces/Token';
 import { EntitlementScope, type Entitlements, type EntityScope, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
+import { isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 
 const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
@@ -286,18 +286,8 @@ export default class EntitlementService {
     }
   }
 
-  /**
-   * Internal requests and admins bypass entitlements checks entirely (see enforceEntitlements) —
-   * regardless of dataset ownership, not just for datasets they created themselves. Shared here
-   * so the bypass has one definition instead of drifting between the enforcement check and the
-   * capability list the frontend renders from.
-   */
-  private isEntitlementsBypassed = (token?: Token): boolean => {
-    return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
-  };
-
   async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {
-    if (this.isEntitlementsBypassed(requestData.token)) {
+    if (isPrivilegedCaller(requestData.token)) {
       // Internal requests and admins bypass entitlements checks
       return;
     }

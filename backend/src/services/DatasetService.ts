@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { getSubject } from '../utils/auth';
+import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
@@ -26,9 +26,12 @@ const dfmService = new DatasetFileMappingService();
 // so the enqueuing request's transaction has committed by the time it runs
 const DAI_REFRESH_START_AFTER_SECONDS = 5;
 export default class DatasetService {
+  /**
+   * The catalog listing. Only a Privileged caller is shown Datasets that are not PUBLISHED
+   */
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const entities = await repo.find();
+    const entities = await repo.find(isPrivilegedCaller(requestData.token) ? {} : { where: { status: IngestionStatus.PUBLISHED } });
     entities.map(e => {
       this.decorateWithCapabilities(e, requestData);
       this.decoratePreprocessingSteps(e);
@@ -36,8 +39,14 @@ export default class DatasetService {
     return entities;
   };
 
+  /**
+   * Resolves a Dataset by slug for any caller. A non-privileged caller gets 404 on a non-PUBLISHED dataset.
+   */
   getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
     const entity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
+    if (entity.status !== IngestionStatus.PUBLISHED && !isPrivilegedCaller(requestData.token)) {
+      throw new ErrorResponse(`Resource '${slug}' not found`, StatusCodes.NOT_FOUND);
+    }
     this.decorateWithCapabilities(entity, requestData);
     this.decoratePreprocessingSteps(entity);
     return entity;
@@ -149,7 +158,7 @@ export default class DatasetService {
   // than routed through EntitlementService, since that service's own getCapabilities helper
   // was removed as part of that unrelated migration.
   decorateWithCapabilities = (dataset: DatasetEntity, requestData: RequestData) => {
-    const isBypassed = Boolean(requestData.token?.isInternalRequest || requestData.token?.isDataAdmin || requestData.token?.isSuperAdmin);
+    const isBypassed = isPrivilegedCaller(requestData.token);
     dataset.capabilities =
       dataset.visibility === 'public' || isBypassed
         ? [Capability.PREVIEW, Capability.DOWNLOAD]

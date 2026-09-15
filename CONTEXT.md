@@ -160,6 +160,18 @@ _Avoid_: System filter, temporary filter, virtual filter (it is persisted and pe
 One request that was answered, kept together with the answer that was given for it, so the answer survives the disappearance of the **Run** that produced it. Distinct from a **Filter** in every direction: a Filter is a reusable, owned, deduplicated *scope* that queries are run against, while a Data Request is a single historical fact that is never reused and belongs to nobody. It has no owner at all — possession of its identifier is the whole of the permission to read it, so passing that identifier on is passing on the data.
 _Avoid_: Filter (a persisted scope, deduplicated per owner), query, job (the queue record that computes an answer, not the record of one), cache entry (an identical request is never answered from an earlier one), export
 
+**Ingestion Status**:
+The lifecycle stage of a Dataset — `PENDING`, `ONGOING`, `STAGED`, `LOADED`, `PUBLISHED`, `ARCHIVED` — recording how far its data has progressed through ingestion. A catalog/lifecycle attribute, **not** an access axis: it says whether a Dataset is offered in the catalog, never what a caller may do with its data. Access is governed by **Visibility** and **Entitlement** alone.
+_Avoid_: State, stage, publication state, visibility (the access attribute), "active"/"live" (already taken — see Flagged ambiguities)
+
+**Published**:
+The Ingestion Status a Dataset must hold to be **listed** — to appear in the catalog and in every filter, coverage and DAI result. It is not a release of the data: a Dataset's soil data is readable through `/soil-data` by anyone holding its slug at any Ingestion Status, subject only to **Visibility** and **Entitlement**. Say "listed", never "released".
+_Avoid_: Live, public (that is a **Visibility** value), released, available, approved
+
+**Privileged caller**:
+A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject.
+_Avoid_: Admin (ambiguous across the three scopes, and "data admin" also names the human role that curates Datasets), role, superuser, owner
+
 **Archive**:
 The reversible retirement of a Dataset: it stops appearing in every query, but all of its soil data, **Raster Layers** and **Entitlements** remain intact. A Dataset can be un-archived and be exactly what it was — which is why an Archive destroys nothing, and why a failed **Purge** falls back to one.
 _Avoid_: Delete (says nothing about reversibility — see Flagged ambiguities), soft delete (a mechanism), deactivate, retire
@@ -208,6 +220,9 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
+- Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
+- An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
+- **Ingestion Status**, **Visibility** and **Entitlement** are three independent attributes of a Dataset: the first decides whether it is listed, the other two decide what may be done with its data
 
 ## Example dialogue
 
@@ -219,6 +234,9 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 
 > **Dev:** "An admin deletes a private **Dataset**. Do the people who were entitled to download it lose that?"
 > **Domain expert:** "Depends which delete. An **Archive** changes nothing — the **Entitlements** are still there, because the data is still there and we might bring it back. A **Purge** takes them with it: once the **Observations** are gone there is nothing left to be entitled to. And only ours — if the external endpoint still hands out `download` for that Dataset, that is its business, not ours."
+
+> **Dev:** "A **Dataset** is sitting at `LOADED` because the pH column was mis-mapped. Nobody outside can get at it, right?"
+> **Domain expert:** "Nobody can *find* it — it is not **Published**, so it is not in the catalog and not in any filter or coverage result. But **Published** only governs listing. Anyone who has the slug can still pull the **Observations**, because that path answers to **Visibility** and **Entitlement** and those say nothing about status. If the Dataset is `public`, the bad pH is one URL away. Fix the mapping or make it `private` — do not rely on it being unpublished."
 
 > **Dev:** "Two of my fields overlap, and there's one sampling point in the overlap. Does it count once or twice?"
 > **Domain expert:** "Twice — once in each **Aggregation Unit**. 'Mean pH in this field' has to be the mean pH in that field, whatever else it overlaps. But the `overall` figure counts that **Observation** once, so don't expect the per-unit counts to add up to it."
@@ -232,6 +250,9 @@ An optional list of external URLs associated with a Dataset (e.g. publications, 
 _Avoid_: Links, references, attachments, additional resources (the Band Mapping key that declares Raster Layer Assets)
 
 ## Flagged ambiguities
+
+- **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: it means **listed only**. Every dataset-listing path pins `status = 'PUBLISHED'`, but `/soil-data` deliberately does not — an unpublished Dataset's Observations are readable by anyone holding its slug, gated by **Visibility** and **Entitlement** and nothing else. So "unpublished datasets aren't visible" is true of the catalog and false of the data. Always say *where*.
+- **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.
 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.
 

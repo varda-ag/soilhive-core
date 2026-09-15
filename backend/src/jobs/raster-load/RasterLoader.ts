@@ -59,7 +59,8 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
   const entitlementService = new EntitlementService();
   // created_by lives on the job's data, not on the pg-boss job wrapper.
   const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, data.created_by ?? EVERYONE);
-  const token = { sub: data.created_by } as Token; // Only sub is required
+  // getDataset hides Datasets that are not PUBLISHED from a non-privileged caller, and this job runs on one by definition
+  const token = { sub: data.created_by, isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin } as Token;
   const requestData = { entityManager, token, entitlements };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
