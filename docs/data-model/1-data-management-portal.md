@@ -33,7 +33,7 @@ What follows depends on the kind of file you uploaded, because vector data and r
 
 | You uploaded | Remaining steps | Detailed guide |
 |---|---|---|
-| **Vector**: points or polygons, one row per sample (CSV, XLSX, GeoJSON, GPKG, SHP, GML, KML, GDB) | **Field Mapping**, then **Preview** | [Loading vector data](1a-vector-data-ingestion.md) |
+| **Vector**: points or polygons, one row per sample (CSV, XLSX, GeoJSON, GPKG, GML, KML, KMZ, and zipped SHP or GDB) | **Field Mapping**, then **Preview** | [Loading vector data](1a-vector-data-ingestion.md) |
 | **Raster**: a gridded surface, one value per pixel (GeoTIFF) | **Field Mapping**, then the load runs in the background | [Loading raster data](1b-raster-data-ingestion.md) |
 
 > **Note:** Data cleaning should ideally be done before upload. For vector data the portal supports row-level deletion as a final check but does not yet provide a full cleaning environment. Raster data is not cleaned at all. What you upload is what is loaded.
@@ -61,7 +61,9 @@ Upload one or more files to associate with your dataset.
 
 **Supported formats**
 
-GeoJSON, GPKG, SHP, CSV, XLSX, GML, KML, and GDB are accepted as vector data, as well as ZIP archives containing any of these formats. Shapefiles must be zipped together with all their associated files (`.dbf`, `.shx`, `.prj`, etc.). GeoTIFF (`.tif`, `.tiff`) is accepted as raster data, and must not be zipped.
+GeoJSON, GPKG, CSV, XLSX, GML, KML and KMZ are accepted as vector data and can be uploaded directly. Shapefiles and File Geodatabases are accepted only inside a ZIP: a shapefile needs all its associated files (`.shp`, `.shx`, `.dbf`, `.prj`) in one archive, and a `.gdb` is a folder rather than a file. A lone `.shp` or `.gdb` is rejected by the upload box, because a file picker cannot collect either in one selection. GeoTIFF (`.tif`, `.tiff`) is accepted as raster data, and must not be zipped.
+
+The upload box lists the same set, and rejects anything else before the file leaves your browser.
 
 The maximum size of a single upload is set by the platform administrator and is shown underneath the upload box. The same limit applies to every file the Admin console accepts, including the platform logo.
 

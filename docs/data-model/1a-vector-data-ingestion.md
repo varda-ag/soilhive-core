@@ -21,9 +21,9 @@ For vector data the portal walks you through four steps:
 | **XLSX** | Same structural requirements as CSV. Only the first sheet is read; additional sheets are ignored. |
 | **GeoJSON** | Must be a valid `FeatureCollection`. Each `Feature` must have a `geometry` of type `Point`, `Polygon`, or `MultiPolygon`. Coordinates are assumed to be in WGS 84 (EPSG:4326) unless a `crs` member is specified. |
 | **GPKG** (GeoPackage) | Must contain at least one vector layer with point, polygon, or multipolygon geometries. If the file contains multiple layers, the first layer with valid geometries of a supported type is used. |
-| **SHP** (Shapefile) | Must be uploaded as a ZIP archive containing all associated files: `.shp`, `.shx`, `.dbf`, and `.prj` (the `.prj` file is required for automatic CRS detection). Geometry type must be Point, Polygon, or MultiPolygon. |
+| **SHP** (Shapefile) | Must be uploaded as a ZIP archive containing all associated files: `.shp`, `.shx`, `.dbf`, and `.prj` (the `.prj` file is required for automatic CRS detection). A lone `.shp` is rejected by the upload box. Geometry type must be Point, Polygon, or MultiPolygon. |
 | **GML** | Must validate against a standard GML schema and contain point or polygon geometries with associated feature attributes. |
-| **KML** | Point placemarks and polygon features are both supported; each placemark's or polygon's `ExtendedData` fields are mapped as soil property columns. Nested folders are flattened. |
+| **KML** | Point placemarks and polygon features are both supported; each placemark's `ExtendedData` fields are mapped as soil property columns. Each KML folder becomes a separate layer, and only the first one with valid geometries of a supported type is used, so split your data across folders only if you intend just the first to load. `.kmz` is accepted too, and read the same way. |
 | **GDB** (File Geodatabase) | Must be uploaded as a ZIP archive of the `.gdb` folder. Must contain at least one feature class with point, polygon, or multipolygon geometries. |
 | **ZIP** | Used to bundle any of the above formats where multiple files are required (Shapefile, GDB) or simply to reduce upload size. A ZIP must contain exactly one dataset: do not bundle multiple unrelated files together. |
 

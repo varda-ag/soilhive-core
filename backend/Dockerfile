@@ -83,7 +83,8 @@ ENV NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=256 --no-warnings" \
     NPM_CONFIG_LOGLEVEL=silent
 
-RUN apk add --no-cache gdal gdal-tools gdal-driver-pg
+# gdal-driver-libkml replaces GDAL built-in driver to support ExtendedData fields and .kmz
+RUN apk add --no-cache gdal gdal-tools gdal-driver-pg gdal-driver-libkml
 
 # Copy production dependencies from deps stage
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules

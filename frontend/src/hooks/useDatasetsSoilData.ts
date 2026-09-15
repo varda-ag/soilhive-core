@@ -18,7 +18,8 @@ import { useTranslation } from 'react-i18next';
 import useIngestionFlow from './useIngestionFlow';
 import { useDataset } from './useDatasets';
 
-export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip', '.tif', '.tiff'];
+// No '.shp' or '.gdb': ZIP archive is required
+export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.xlsx', '.kml', '.kmz', '.gml', '.zip', '.tif', '.tiff'];
 
 export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');

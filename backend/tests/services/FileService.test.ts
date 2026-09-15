@@ -376,7 +376,7 @@ describe('FileService', () => {
         const prefix = storageMode === 's3' ? 'vector_files/pass/' : '';
         const files = fs
           .readdirSync(vectorFilesPassPath, { withFileTypes: true })
-          .filter(dirent => dirent.isFile())
+          .filter(dirent => dirent.isFile() && !dirent.name.endsWith('xsd'))
           .map(dirent => dirent.name); // or dirent.path for full path;
         const results = [];
 
@@ -385,6 +385,7 @@ describe('FileService', () => {
             const metadata = (await fileService.extractMetadata(requestData, prefix + file)) as VectorFileMetadata;
             results.push({ file, success: true, metadata });
           } catch (error) {
+            console.error(`Error processing file ${file}:`, error);
             results.push({ file, success: false, error });
           }
         }

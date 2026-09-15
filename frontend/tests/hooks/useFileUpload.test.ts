@@ -3,7 +3,7 @@ import { useFileUpload } from 'hooks/useFileUpload';
 import { useStorageConfig } from 'hooks/useStorageConfig';
 
 jest.mock('hooks/useDatasetsSoilData', () => ({
-  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.shp', '.xlsx', '.zip', '.tif', '.tiff'],
+  ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.xlsx', '.kml', '.kmz', '.gml', '.zip', '.tif', '.tiff'],
   useDatasetsSoilData: jest.fn(),
 }));
 
@@ -115,6 +115,33 @@ describe('useFileUpload', () => {
       });
       expect(onFileUploaded).toHaveBeenCalledTimes(1);
       expect(result.current.uploadErrors).toHaveLength(0);
+    });
+  });
+
+  describe('handleFiles — vector extension validation', () => {
+    it.each(['soil_points.gml', 'soil_points.kml', 'soil_points.kmz'])('accepts %s', async name => {
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      await act(async () => {
+        await result.current.handleFiles([new File(['data'], name)]);
+      });
+      expect(onFileUploaded).toHaveBeenCalledTimes(1);
+      expect(result.current.uploadErrors).toHaveLength(0);
+    });
+
+    // Both are rejected before any request is sent. A .shp needs its .shx/.dbf/.prj siblings and a
+    // .gdb is a directory, so neither can be collected by a file picker — both arrive zipped instead.
+    it.each(['soil_points.shp', 'soil_points.gdb'])('rejects %s without uploading it', async name => {
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      await act(async () => {
+        await result.current.handleFiles([new File(['data'], name)]);
+      });
+      expect(onFileUploaded).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(result.current.uploadErrors).toHaveLength(1);
+        expect(result.current.uploadErrors[0]).toContain(name);
+      });
     });
   });
 
