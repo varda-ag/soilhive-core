@@ -1,7 +1,7 @@
 import { AuthModes, StorageModes } from '../types/enums';
 import { JsonStorage } from '../entities/JsonStorage';
 import { ErrorResponse } from '../utils/error';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AuthConfig, OIDCConfig } from '../interfaces/AuthConfig';
 import { StatusCodes } from 'http-status-codes';
 import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig';
@@ -36,9 +36,18 @@ export default class ConfigService {
     await repo.softDelete({ id });
   };
 
+  getConfigs = async (repo: Repository<JsonStorage>, ids: string[]): Promise<any> => {
+    const rows = await repo.find({ where: { id: In(ids) } });
+    return this.mapRowsById(rows);
+  };
+
   exportConfigs = async (repo: Repository<JsonStorage>): Promise<any> => {
     const rows = await repo.find();
-    const output = {};
+    return this.mapRowsById(rows);
+  };
+
+  private mapRowsById = (rows: JsonStorage[]): Record<string, unknown> => {
+    const output: Record<string, unknown> = {};
     for (const r of rows) {
       output[r.id] = r.data;
     }

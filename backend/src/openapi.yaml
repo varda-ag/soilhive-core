@@ -158,6 +158,34 @@ paths:
         '204':
           description: Configuration deleted successfully
 
+  /config:
+    get:
+      x-eov-operation-handler: controllers/config
+      x-eov-operation-id: getConfigs
+      summary: Retrieve multiple configuration items by id
+      tags:
+        - config
+      parameters:
+        - in: query
+          name: ids
+          required: true
+          description: IDs of configuration items to retrieve (comma-separated)
+          schema:
+            type: array
+            items:
+              type: string
+            minItems: 1
+            maxItems: 100
+          explode: false
+      responses:
+        '200':
+          description: Object mapping requested ids to their configuration data
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+
   /config-export:
     post:
       x-eov-operation-handler: controllers/config
