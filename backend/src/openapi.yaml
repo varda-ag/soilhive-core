@@ -842,6 +842,66 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /config/{configId}/entitlements:
+    get:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: getConfigEntitlements
+      summary: Get entitlement grants for a config item
+      tags:
+        - config
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - name: configId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the configuration
+      responses:
+        '200':
+          description: Entitlement grants for the config item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: setConfigEntitlement
+      summary: Set entitlement grants for a config item
+      tags:
+        - config
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - name: configId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Entitlements'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /soil-properties:
     get:
       x-eov-operation-handler: controllers/soil-properties
