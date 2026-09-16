@@ -310,3 +310,35 @@ describe('GdalCLI.extractEpsgFromWkt', () => {
     expect(GdalCLI.extractEpsgFromWkt(wkt)).toBe(4326);
   });
 });
+
+describe('GdalCLI.redactPaths', () => {
+  const redactPaths = (text: string) => (GdalCLI as any).redactPaths(text);
+
+  it('keeps the file name and drops the folders it sits in', () => {
+    expect(
+      redactPaths(
+        "ERROR 4: `/tmp/soilhive-storage/2026/09/2026-09-16T13-57-03-494_invalid.geojson' not recognized as being in a supported file format.",
+      ),
+    ).toBe("ERROR 4: `2026-09-16T13-57-03-494_invalid.geojson' not recognized as being in a supported file format.");
+  });
+
+  it("redacts a single-quoted path, the form gdalinfo's own failure line uses", () => {
+    expect(redactPaths("gdalinfo failed - unable to open '/tmp/soilhive-storage/2026/09/x.geojson'.")).toBe(
+      "gdalinfo failed - unable to open 'x.geojson'.",
+    );
+  });
+
+  it('redacts every path in a multi-line stderr, quoted or bare', () => {
+    const stderr = ['ERROR 1: Cannot open /srv/data/uploads/in.tif', 'Warning 1: /vsimem/tmp_1234.vrt: band 1 has no nodata'].join('\n');
+    expect(redactPaths(stderr)).toBe(['ERROR 1: Cannot open in.tif', 'Warning 1: tmp_1234.vrt: band 1 has no nodata'].join('\n'));
+  });
+
+  it('leaves messages that name no path untouched', () => {
+    const stderr = 'ERROR 6: Attempt to create 0x0 dataset is illegal,sizes must be larger than zero.';
+    expect(redactPaths(stderr)).toBe(stderr);
+  });
+
+  it('leaves a bare file name alone', () => {
+    expect(redactPaths("ERROR 4: `invalid.geojson' not recognized")).toBe("ERROR 4: `invalid.geojson' not recognized");
+  });
+});
