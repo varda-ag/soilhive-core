@@ -72,6 +72,14 @@
             "message": "Operation timed out."
         }
     },
+    "map": {
+        "draw": {
+            "self_intersecting_error": {
+                "title": "Invalid polygon",
+                "message": "This polygon can't be closed because its outline crosses itself. Concave shapes are fine, just make sure the edges don't intersect."
+            }
+        }
+    },
     "plugins": {
         "duplicate_id": {
             "title": "Duplicate plugin id",
