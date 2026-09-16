@@ -16,6 +16,18 @@ export const setDatasetEntitlement = async (req: Request, res: Response) => {
   res.json(data);
 };
 
+export const getConfigEntitlements = async (req: Request, res: Response) => {
+  const key = req.params['configId']! as string;
+  const data = await entitlementService.getEntityEntitlements(req.customData, EntitlementScope.CONFIGS, key);
+  res.json(data);
+};
+
+export const setConfigEntitlement = async (req: Request, res: Response) => {
+  const key = req.params['configId']! as string;
+  const data = await entitlementService.setEntityEntitlements(req.customData, EntitlementScope.CONFIGS, key, req.body);
+  res.json(data);
+};
+
 export const getUserEntitlements = async (req: Request, res: Response) => {
   // Required and enum-validated by the OpenAPI spec — invalid or missing values never reach here.
   const scope = req.query['scope'] as RequestScope;
