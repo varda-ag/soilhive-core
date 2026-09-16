@@ -62,9 +62,49 @@ describe('Testing /datasets routes', () => {
         .send({ name: 'Redirect Me Renamed' });
       const newSlug = patchRes.body.id;
 
-      const res = await request(app).get(`/datasets/${oldSlug}`);
+      // With the token: a freshly created dataset is PENDING, so only a privileged caller
+      // reaches the slug-history redirect at all.
+      const res = await request(app).get(`/datasets/${oldSlug}`).set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.MOVED_PERMANENTLY);
       expect(res.headers.location).toBe(`/datasets/${newSlug}`);
+
+      // Without it, the 301 must not fire: its Location header would otherwise disclose both
+      // the existence and the current name of an unpublished dataset.
+      const anonRes = await request(app).get(`/datasets/${oldSlug}`);
+      expect(anonRes.statusCode).toBe(StatusCodes.NOT_FOUND);
+      expect(anonRes.headers.location).toBeUndefined();
+    });
+
+    it('GET /datasets hides unpublished datasets from a non-privileged caller', async () => {
+      const published = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['ph'] });
+      const token = await getDataAdminToken();
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Not Published Yet' });
+      const unpublishedSlug = postRes.body.id;
+
+      const anonRes = await request(app).get('/datasets');
+      expect(anonRes.statusCode).toBe(StatusCodes.OK);
+      const anonIds = anonRes.body.map((item: any) => item.id);
+      expect(anonIds).toContain(published.dataset.slug);
+      expect(anonIds).not.toContain(unpublishedSlug);
+
+      const adminRes = await request(app).get('/datasets').set('Authorization', `Bearer ${token}`);
+      expect(adminRes.statusCode).toBe(StatusCodes.OK);
+      expect(adminRes.body.map((item: any) => item.id)).toContain(unpublishedSlug);
+    });
+
+    it('GET /datasets/:datasetId 404s on an unpublished dataset for a non-privileged caller', async () => {
+      const token = await getDataAdminToken();
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Hidden From Anon' });
+      const slug = postRes.body.id;
+
+      const anonRes = await request(app).get(`/datasets/${slug}`);
+      expect(anonRes.statusCode).toBe(StatusCodes.NOT_FOUND);
+      // Indistinguishable from a slug that was never issued
+      const missingRes = await request(app).get('/datasets/never-existed');
+      expect(anonRes.body.detail).toBe(missingRes.body.detail.replace('never-existed', slug));
+
+      const adminRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${token}`);
+      expect(adminRes.statusCode).toBe(StatusCodes.OK);
     });
   });
 

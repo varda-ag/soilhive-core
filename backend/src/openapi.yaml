@@ -302,7 +302,8 @@ paths:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getDatasets
       x-entitlements-required: true
-      summary: Get metadata for all datasets
+      summary: Get metadata for datasets
+      description: Returns PUBLISHED datasets only unless caller has data-admin, super-admin or internal-request scopes.
       tags:
         - datasets
       responses:
@@ -355,6 +356,7 @@ paths:
       x-eov-operation-id: getDataset
       x-entitlements-required: true
       summary: Get metadata for a specific dataset
+      description: Returns PUBLISHED datasets only unless caller has data-admin, super-admin or internal-request scopes.
       tags:
         - datasets
       responses:
@@ -364,6 +366,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Dataset'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
     patch:
       x-eov-operation-handler: controllers/datasets
@@ -420,6 +424,9 @@ paths:
       x-eov-operation-id: postJob
       x-entitlements-required: true
       summary: Starts async job
+      description: >-
+        bulk-load, raster-load, file-to-db and bulk-delete jobs require data-admin or super-admin scope.
+        Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
       tags:
         - jobs
       security:
@@ -457,6 +464,8 @@ paths:
           $ref: '#/components/responses/UnprocessableEntity'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 

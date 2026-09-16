@@ -10,7 +10,7 @@ import { createSignedPath } from '../utils/presigned-url';
 import EntitlementService from './EntitlementService';
 import FilterService from './FilterService';
 import FileService from './FileService';
-import { getSubject } from '../utils/auth';
+import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 
 const entitlementService = new EntitlementService();
@@ -43,6 +43,9 @@ export default class JobService {
       }
       if (data.anonymous) {
         throw new ErrorResponse(`Parameter anonymous: true not allowed for ${data.type} jobs`, StatusCodes.BAD_REQUEST);
+      }
+      if (!isPrivilegedCaller(requestData.token)) {
+        throw new ErrorResponse(`${data.type} jobs require the data-admin or super-admin scope`, StatusCodes.FORBIDDEN);
       }
     }
 

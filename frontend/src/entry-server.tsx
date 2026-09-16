@@ -15,7 +15,6 @@ import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { buildMetadataHeadHtml } from './utilities/buildMetadataHead';
 import { METADATA_ROUTE } from './configuration/routes';
 import type { Dataset } from 'types/backend';
-import { IngestionStatus } from 'types/backend';
 
 // Initialize i18next synchronously for SSR — no HTTP backend, no browser
 // language detector.  Translation files are imported directly so server
@@ -33,17 +32,6 @@ if (!i18n.isInitialized) {
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   });
-}
-
-function isAdminToken(token: string | null): boolean {
-  if (!token) return false;
-  try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
-    const roles = (payload.scope ?? '').toLowerCase().split(' ');
-    return roles.includes('data-admin') || roles.includes('super-admin');
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -126,6 +114,11 @@ export async function render(
   // building URLs. Anything putting it back into a URL must re-encode it.
   const datasetId = datasetMatch ? decodePathSegment(datasetMatch[1]) : undefined;
   if (datasetId) {
+    // Set by the dataset prefetch below when the backend answers 404. The backend hides datasets
+    // that are not PUBLISHED from a non-admin caller (ADR 0034), so unpublished, purged and
+    // misspelt arrive here as one indistinguishable answer — and all three redirect home. This
+    // replaces an SSR-side status check that decided the rule itself; the backend now owns it.
+    let datasetMissing = false;
     await Promise.all([
       queryClient.prefetchQuery({
         queryKey: ['dataset', datasetId],
@@ -133,6 +126,12 @@ export async function render(
           // Re-encoded: datasetId is decoded, so an id containing a slash would
           // otherwise split into two path segments and hit the wrong endpoint.
           const res = await fetch(`${backendUrl}/datasets/${encodeURIComponent(datasetId)}`, { headers: buildHeaders() });
+          // Returned rather than thrown: a 404 is a definitive answer, and throwing would make
+          // react-query retry it three times with backoff while SSR blocks on the response.
+          if (res.status === 404) {
+            datasetMissing = true;
+            return null;
+          }
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           return res.json();
         },
@@ -155,9 +154,7 @@ export async function render(
       }),
     ]);
 
-    // datasetId, not the raw segment, because the query key is decoded
-    const cachedDataset = queryClient.getQueryData<Dataset>(['dataset', datasetId]);
-    if (cachedDataset && cachedDataset.status !== IngestionStatus.PUBLISHED && !isAdminToken(context?.authToken ?? null)) {
+    if (datasetMissing) {
       ssrAuthStore.set(null);
       return { redirect: '/' };
     }

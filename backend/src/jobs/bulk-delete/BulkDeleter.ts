@@ -22,7 +22,7 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
   await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
-  const token = { sub: data.created_by } as Token; // Only sub is required
+  const token = { sub: data.created_by, isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin } as Token;
   const requestData = { entityManager, token, entitlements: {} };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const datasetId = dataset.id;

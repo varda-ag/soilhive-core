@@ -65,7 +65,7 @@ export function useEntitlements(scope?: EntitlementScope) {
 
   const userRoles: AllRoles[] = useMemo(() => [...(isAuthenticated ? [LOGGED_IN] : []), ...tokenRoles], [isAuthenticated, tokenRoles]);
 
-  // Mirrors EntitlementService.isEntitlementsBypassed on the backend — isInternalRequest has no
+  // Mirrors isPrivilegedCaller on the backend — isInternalRequest has no
   // frontend equivalent (that bypass is for service-to-service calls, not browser tokens).
   const isAdminBypassed = userRoles.includes('data-admin') || userRoles.includes('super-admin');
 
