@@ -2,6 +2,7 @@
 import { forwardRef, useImperativeHandle } from 'react';
 import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw';
 import { useControl } from 'react-map-gl/maplibre';
+import { TerraDrawPolygonMode } from 'terra-draw';
 
 import type { ControlPosition } from 'react-map-gl/maplibre';
 
@@ -38,6 +39,11 @@ const DrawControl = forwardRef<
           // 'download'
         ],
         open: true,
+        modeOptions: {
+          // Omit the default self-intersection validation so concave
+          // polygons (e.g. drawing around a coastline) can be drawn.
+          polygon: new TerraDrawPolygonMode({ editable: true }),
+        },
       }),
     () => {
       const drawInstance = drawControl.getTerraDrawInstance();
