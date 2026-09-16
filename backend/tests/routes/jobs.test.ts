@@ -7,7 +7,7 @@ import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/ser
 import { JobQueues, StatisticsType } from '../../src/types/enums';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { getRawTableName, sleep } from '../../src/utils/utils';
-import { getDataAdminToken } from '../helper';
+import { getDataAdminToken, getUserToken } from '../helper';
 import { RequestData } from '../../src/interfaces/RequestData';
 import FileService from '../../src/services/FileService';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
@@ -51,6 +51,40 @@ describe('Testing /jobs routes', () => {
       expect(bulkRes.body.detail).toContain(`Authentication required for ${queue} jobs`);
     },
   );
+
+  it.each([JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD, JobQueues.FILE_TO_DB, JobQueues.BULK_DELETE])(
+    'POST /jobs with a non-privileged token fails with HTTP 403 for %s',
+    async (queue: string) => {
+      const userToken = getUserToken('plain-user-id', 'plain-user@example.com');
+      const res = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({ type: queue, dataset_id: 'test-dataset' });
+
+      expect(res.statusCode).toBe(403);
+      expect(res.body.detail).toContain(`${queue} jobs require the data-admin or super-admin scope`);
+      // Refused at submit time, so nothing reached the queue to fail in a worker later
+      expect(res.body).not.toHaveProperty('id');
+    },
+  );
+
+  it('POST /jobs does not apply the scope requirement to the other queues', async () => {
+    // The 403 above is scoped to the four ingest/delete queues. An export job from the same
+    // non-privileged caller must not be refused by *that* rule — whatever its own entitlement
+    // and filter checks go on to decide, which is why no status is asserted here.
+    const userToken = getUserToken('plain-user-id', 'plain-user@example.com');
+    const res = await request(app)
+      .post('/jobs')
+      .set('Authorization', `Bearer ${userToken}`)
+      .send({
+        type: JobQueues.EXPORT,
+        filter_id: '4d214191-5998-4c42-aace-726dada50ba4',
+        formats: ['gpkg'],
+        dataset_ids: ['test-dataset'],
+      });
+
+    expect(res.body.detail ?? '').not.toContain('require the data-admin or super-admin scope');
+  });
 
   it('POST /jobs creates two jobs, GET endpoints return both', async () => {
     const token = await getDataAdminToken();

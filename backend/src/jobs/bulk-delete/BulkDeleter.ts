@@ -22,7 +22,6 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
   await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
-  // getDataset hides Datasets that are not PUBLISHED from a non-privileged caller, and this job runs on one by definition
   const token = { sub: data.created_by, isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin } as Token;
   const requestData = { entityManager, token, entitlements: {} };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
