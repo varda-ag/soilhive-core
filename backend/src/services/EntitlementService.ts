@@ -4,7 +4,7 @@ import { In } from 'typeorm';
 import { EVERYONE } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
-import { EntitlementScope, type Entitlements, type EntityScope, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
+import { EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
@@ -50,7 +50,7 @@ const parseExternalEntitlements = (body: unknown): CapabilityGrants => {
 };
 
 export default class EntitlementService {
-  private entitiesToEntitlements = (entities: EntitlementsEntity[], scope: EntityScope, slugs: string[]): CapabilityGrants => {
+  private entitiesToEntitlements = (entities: EntitlementsEntity[], scope: EntitlementScope, slugs: string[]): CapabilityGrants => {
     return entities.reduce((acc, { id, data }) => {
       const scopedData = data[scope] ?? {};
       const key = slugs.find(k => k in scopedData);
@@ -76,7 +76,7 @@ export default class EntitlementService {
     return slugs;
   };
 
-  getEntityEntitlements = async (requestData: RequestData, scope: EntityScope, slug: string): Promise<CapabilityGrants> => {
+  getEntityEntitlements = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<CapabilityGrants> => {
     // 1. Get all slugs related to the same entity (this handles slug history)
     const slugs = await this.resolveSlugs(requestData, slug);
     // 2. Get all entitlements that match any of the slugs, within this scope's own sub-object
@@ -87,7 +87,7 @@ export default class EntitlementService {
 
   setEntityEntitlements = async (
     requestData: RequestData,
-    scope: EntityScope,
+    scope: EntitlementScope,
     slug: string,
     entitlements: CapabilityGrants,
   ): Promise<CapabilityGrants> => {
@@ -122,7 +122,7 @@ export default class EntitlementService {
    * are kept: the row is a subject record rather than an entitlement, and the subject is retained
    * throughout the schema anyway (`created_by`).
    */
-  deleteEntityEntitlements = async (requestData: RequestData, scope: EntityScope, slug: string): Promise<void> => {
+  deleteEntityEntitlements = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<void> => {
     const slugs = await this.resolveSlugs(requestData, slug);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     await repo
