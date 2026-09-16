@@ -289,6 +289,40 @@ describe('EntitlementService', () => {
       const after = await entityManager.query(`SELECT xmin::text FROM entitlements WHERE id = 'user2@example.com'`);
       expect(after[0].xmin).toEqual(before[0].xmin);
     });
+
+    describe('configs scope', () => {
+      const configKey = 'dashboard-1';
+
+      beforeEach(async () => {
+        await entityManager.query(`
+          INSERT INTO entitlements (id, data) VALUES ('config-user1@example.com', '{"configs": {"${configKey}": ["read"]}}')
+        `);
+      });
+
+      it('gets entitlements set for a config key', async () => {
+        const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey);
+        expect(entitlements).toEqual({ 'config-user1@example.com': [Capability.READ] });
+      });
+
+      it('sets entitlements for a config key and returns the updated entitlements', async () => {
+        const payload = { 'config-user1@example.com': [Capability.READ], 'config-user2@example.com': [Capability.WRITE] };
+        const result = await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey, payload);
+        expect(result).toEqual(payload);
+        expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(payload);
+      });
+
+      it('deletes entitlements for a config key without touching the datasets scope', async () => {
+        await service.deleteEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey);
+
+        expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual({});
+        // datasets scope entitlements, seeded in the top-level beforeEach, must be untouched
+        expect(await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, 'dataset-1')).toEqual({
+          everyone: [Capability.DOWNLOAD],
+          'user1@example.com': [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW, Capability.DOWNLOAD],
+          'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
+        });
+      });
+    });
   });
 
   describe('callEntitlementsEndpoint', () => {

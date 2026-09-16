@@ -22,7 +22,7 @@ const mockToken: Token = {
 
 describe('Testing entitlements routes', () => {
   const slug = 'test_dataset_1';
-  const email = 'data-admin@localhost';
+  const userEmail = 'data-admin@localhost';
   let token: string;
 
   beforeAll(async () => {
@@ -44,7 +44,7 @@ describe('Testing entitlements routes', () => {
     await entityManager.query(`
         INSERT INTO entitlements (id, data) VALUES
         ('everyone', '{"datasets": {"${slug}": ["download"]}}'),
-        ('${email}', '{"datasets": {"${slug}": ["preview"]}}')
+        ('${userEmail}', '{"datasets": {"${slug}": ["preview"]}}')
         `);
   });
 
@@ -54,13 +54,13 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual({
         everyone: ['download'],
-        [email]: ['preview'],
+        [userEmail]: ['preview'],
       });
     });
   });
 
   describe('PUT /datasets/{datasetId}/entitlements', () => {
-    it.each([{}, { everyone: ['download'], [email]: ['preview'] }, { everyone: ['download'], [email]: ['read'] }])(
+    it.each([{}, { everyone: ['download'], [userEmail]: ['preview'] }, { everyone: ['download'], [userEmail]: ['read'] }])(
       'changes the dataset entitlements',
       async payload => {
         const putRes = await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(payload);
@@ -89,6 +89,62 @@ describe('Testing entitlements routes', () => {
       expect(updatedRes.statusCode).toBe(StatusCodes.OK);
       // Updated entitlements should be reflected in dataset capabilities: "everyone" + this subject's own grant
       expect(updatedRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS]);
+    });
+  });
+
+  describe('GET /config/{configId}/entitlements', () => {
+    const configId = 'test_config_1';
+
+    beforeEach(async () => {
+      const entityManager = await getEntityManager();
+      await entityManager.query(`
+        UPDATE entitlements SET data = data || jsonb_build_object('configs', jsonb_build_object('${configId}', '["download"]'::jsonb))
+        WHERE id = 'everyone'
+      `);
+    });
+
+    it('responds with the list of entitlements', async () => {
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ everyone: ['download'] });
+    });
+  });
+
+  describe('PUT /config/{configId}/entitlements', () => {
+    const configId = 'test_config_1';
+
+    it.each([{}, { everyone: ['download'], [userEmail]: ['preview'] }, { everyone: ['download'], [userEmail]: ['read'] }])(
+      'changes the config entitlements',
+      async payload => {
+        const putRes = await request(app).put(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`).send(payload);
+        expect(putRes.statusCode).toBe(StatusCodes.OK);
+        const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
+        expect(res.body).toEqual(payload);
+      },
+    );
+  });
+
+  describe('Scope isolation between datasets and configs', () => {
+    it('does not leak PUT /config/{id}/entitlements into GET /datasets/{id}/entitlements, or vice versa, for a colliding id', async () => {
+      // Reuses the dataset slug seeded in the top-level beforeEach as the config id
+      const collisionId = slug;
+      const configPayload = { everyone: ['preview'] };
+
+      const putConfigRes = await request(app)
+        .put(`/config/${collisionId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(configPayload);
+      expect(putConfigRes.statusCode).toBe(StatusCodes.OK);
+
+      // The dataset's own entitlements, seeded in the top-level beforeEach, must be unaffected
+      const datasetRes = await request(app).get(`/datasets/${collisionId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      expect(datasetRes.statusCode).toBe(StatusCodes.OK);
+      expect(datasetRes.body).toEqual({ everyone: ['download'], [userEmail]: ['preview'] });
+
+      // And the config entitlements must be exactly what was PUT, not merged with the dataset's
+      const configRes = await request(app).get(`/config/${collisionId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      expect(configRes.statusCode).toBe(StatusCodes.OK);
+      expect(configRes.body).toEqual(configPayload);
     });
   });
 
