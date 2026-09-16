@@ -78,10 +78,6 @@ export function useDatasetsSoilData() {
     });
   }, [soilDataFiles, t]);
 
-  // A file needs a CRS: an EPSG code, chosen or detected
-  const isContinueEnabled =
-    annotatedFiles.length > 0 && annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.hasCustomCrs) && !f.error);
-
   const updateSoilDataFile = useCallback((id: string, updates: Partial<SoilDataFile>) => {
     setSoilDataFiles(prev => prev.map(f => (f.id === id ? { ...f, ...updates } : f)));
   }, []);
@@ -105,6 +101,12 @@ export function useDatasetsSoilData() {
   );
 
   const { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles: handleFilesUpload } = useFileUpload(onFileUploaded);
+
+  // A file needs a CRS: an EPSG code, chosen or detected. Also block while an upload is still in flight.
+  const isContinueEnabled =
+    uploadingFiles.length === 0 &&
+    annotatedFiles.length > 0 &&
+    annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.hasCustomCrs) && !f.error);
 
   const handleFiles = useCallback(
     (files: FileList | File[] | null) => {
