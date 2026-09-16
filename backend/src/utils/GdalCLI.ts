@@ -186,9 +186,16 @@ export class GdalCLI {
       throw new Error(`Failed to run ${cmd}: ${getErrorMessage(error)}`);
     }
     if (code !== 0) {
-      throw new Error(`${cmd} failed (exit ${code}): ${stderr.trim()}`);
+      // The unredacted output is kept in the server logs
+      log.warn('GDAL command failed', { cmd, args, code, stderr: stderr.trim() });
+      throw new Error(`${cmd} failed (exit ${code}): ${GdalCLI.redactPaths(stderr.trim())}`);
     }
     return stdout;
+  }
+
+  private static redactPaths(text: string): string {
+    // Removes the directory part
+    return text.replace(/(?:\/[^\s'"/]+)+\/(?=[^\s'"/])/g, '');
   }
 
   /**

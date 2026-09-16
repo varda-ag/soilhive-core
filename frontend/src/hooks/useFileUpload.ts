@@ -51,7 +51,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
               let message;
               try {
                 const body = JSON.parse(xhr.responseText);
-                if (body?.message) message = body.message;
+                message = body.message || body.error || body.detail || t('datasets.soil_data.upload_error');
               } catch {
                 message = t('datasets.soil_data.upload_error');
               }
