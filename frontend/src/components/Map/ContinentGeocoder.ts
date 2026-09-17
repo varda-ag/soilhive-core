@@ -35,7 +35,7 @@ export const continentLocalGeocoder = (query: string): CarmenGeojsonFeature[] =>
           original_feature: feature,
           original_geometry: feature.geometry,
           place_name: feature.properties.name,
-          properties: feature.properties,
+          properties: { ...feature.properties, display_name: feature.properties.name },
           text: feature.properties.name,
           place_type: ['place'],
         }) as CarmenGeojsonFeature,
