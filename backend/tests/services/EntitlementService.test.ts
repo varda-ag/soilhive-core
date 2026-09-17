@@ -322,6 +322,43 @@ describe('EntitlementService', () => {
           'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
         });
       });
+
+      // `dataset-1` is renamed to `dataset-1-renamed` in the top-level beforeEach, so both
+      // strings sit in slug_history under one entity_id. Two config items keyed with those two
+      // strings are still two unrelated config items: config ids are opaque and never rename,
+      // and the dataset's history must not make either one an alias of the other.
+      describe('when a config key collides with an entity slug history', () => {
+        beforeEach(async () => {
+          await entityManager.query(`
+            INSERT INTO entitlements (id, data) VALUES
+            ('config-user9@example.com', '{"configs": {"dataset-1-renamed": ["download"]}}')
+          `);
+        });
+
+        it('does not return the grants of the config key matching the other slug', async () => {
+          const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1');
+          expect(entitlements).toEqual({});
+        });
+
+        it('does not strip the grants of the config key matching the other slug on write', async () => {
+          await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1', {
+            'config-user1@example.com': [Capability.READ],
+          });
+
+          expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1-renamed')).toEqual({
+            'config-user9@example.com': [Capability.DOWNLOAD],
+          });
+        });
+
+        it('still expands the same pair of slugs in the datasets scope', async () => {
+          const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, 'dataset-1-renamed');
+          expect(entitlements).toEqual({
+            everyone: [Capability.DOWNLOAD],
+            'user1@example.com': [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW, Capability.DOWNLOAD],
+            'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
+          });
+        });
+      });
     });
   });
 

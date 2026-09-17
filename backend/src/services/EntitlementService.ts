@@ -14,6 +14,17 @@ import DatasetEntity from '../entities/Dataset';
 
 const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
 
+/**
+ * Scopes whose keys are entity slugs, and so carry an identity that survives a rename.
+ *
+ * `CONFIGS` keys are freeform ids chosen by the caller of `PUT /config/{configId}`, with no entity
+ * behind them. Resolving one through `slug_history` would alias it to every slug some unrelated
+ * entity has ever held, so a config id that happens to equal a renamed dataset's old slug would
+ * read, and delete, the grants of the config id equal to its new one. `getUserEntitlements` draws
+ * this same line for the same reason; this is the single place both paths take it from.
+ */
+const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
+
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
   Array.from(new Set([...(existing ?? []), ...(Array.isArray(incoming) ? incoming : [])])).sort();
@@ -65,8 +76,14 @@ export default class EntitlementService {
    * ever had, since entitlements are written with whatever slug was current at the time. Reads
    * and deletes must resolve identity the same way, or a rename leaves keys that are still
    * honoured on read but missed on delete — hence the single helper (see ADR 0027).
+   *
+   * Only for scopes keyed by entity slug. A key in any other scope is an opaque id and is its own
+   * only spelling, so it is returned as given without consulting `slug_history` at all.
    */
-  private resolveSlugs = async (requestData: RequestData, slug: string): Promise<string[]> => {
+  private resolveSlugs = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<string[]> => {
+    if (!ENTITY_BACKED_SCOPES.has(scope)) {
+      return [slug];
+    }
     const slugs = await getEntitySlugs(requestData, slug);
     if (slugs.length === 0) {
       // This handles entitlements for "non-entities" (e.g.: "spatial_filter")
@@ -78,7 +95,7 @@ export default class EntitlementService {
 
   getEntityEntitlements = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<CapabilityGrants> => {
     // 1. Get all slugs related to the same entity (this handles slug history)
-    const slugs = await this.resolveSlugs(requestData, slug);
+    const slugs = await this.resolveSlugs(requestData, scope, slug);
     // 2. Get all entitlements that match any of the slugs, within this scope's own sub-object
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     const entities = await repo.createQueryBuilder('ent').where('ent.data->:scope ?| array[:...slugs]', { scope, slugs }).getMany();
@@ -123,7 +140,7 @@ export default class EntitlementService {
    * throughout the schema anyway (`created_by`).
    */
   deleteEntityEntitlements = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<void> => {
-    const slugs = await this.resolveSlugs(requestData, slug);
+    const slugs = await this.resolveSlugs(requestData, scope, slug);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     await repo
       .createQueryBuilder('ent')
@@ -180,9 +197,9 @@ export default class EntitlementService {
       return acc;
     }, externalEntitlements); // Using external entitlements as the accumulator base
 
-    // Only entity-backed scopes need slug-history expansion (today: datasets). `configs` keys
-    // are freeform, with no entity behind them, so they pass through untouched — this is the
-    // seam a future entity-backed scope would join.
+    // Only ENTITY_BACKED_SCOPES need slug-history expansion (today: datasets). `configs` keys are
+    // freeform, with no entity behind them, so they pass through untouched — this is the seam a
+    // future entity-backed scope would join, in step with that constant and `resolveSlugs`.
     return {
       datasets: await this.expandAcrossSlugHistory(requestData, merged.datasets ?? {}),
       configs: merged.configs ?? {},
