@@ -494,6 +494,40 @@ describe('EntitlementService', () => {
         const rd = { ...requestData, entitlements: { datasets: {}, configs: { dashboard_1: [Capability.READ] } } };
         await expect(service.enforceEntitlements(rd, EntitlementScope.CONFIGS, ['dashboard_1'], Capability.READ)).resolves.toBeUndefined();
       });
+
+      describe('slug-history collision', () => {
+        // Prerequisites:
+        // - "dataset-1" fixture is renamed to "dataset-1-renamed" in the top-level beforeEach,
+        // - entitlements are under the historical slug.
+        // The tests verifies that the configs scope is not affected by that rename,
+        // even though the two slugs happen to collide with two config keys.
+        beforeEach(async () => {
+          await entityManager.query(`
+            INSERT INTO entitlements (id, data) VALUES
+            ('config-user9@example.com', '{"configs": {"dataset-1-renamed": ["download"]}}')
+          `);
+        });
+
+        it('does not return another config item grants', async () => {
+          const grants = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1');
+          // Nobody holds a grant on config `dataset-1`.
+          expect(grants).toEqual({});
+        });
+
+        it('does not wipe another config item grants on write', async () => {
+          await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1', {
+            'config-user1@example.com': [Capability.READ],
+          });
+
+          // Asserted against the raw row on purpose: reading back through
+          // getEntityEntitlements('dataset-1-renamed') expands the same way and would
+          // mask the wipe by surfacing the grant just written under 'dataset-1'.
+          const [row] = await entityManager.query(
+            `SELECT data->'configs' AS configs FROM entitlements WHERE id = 'config-user9@example.com'`,
+          );
+          expect(row.configs).toEqual({ 'dataset-1-renamed': ['download'] });
+        });
+      });
     });
   });
 });
