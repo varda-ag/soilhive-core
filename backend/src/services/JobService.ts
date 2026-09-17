@@ -12,6 +12,7 @@ import FilterService from './FilterService';
 import FileService from './FileService';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
+import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 
 const entitlementService = new EntitlementService();
 
@@ -94,7 +95,7 @@ export default class JobService {
    * Parameters that the requested statistics_type does not use are rejected rather than
    * ignored, following the same rule as `label_field` without `file_id`: a caller who set
    * histogram_bins: 50 and got no histograms deserves to be told, not left guessing.
-   * Rejecting now also keeps the door open — accepting one of these for a future type is
+   * Rejecting now also keeps the door open - accepting one of these for a future type is
    * an additive change, whereas silently ignoring it now and tightening later is breaking.
    */
   private validateSoilStatisticsJob = async (requestData: RequestData, data: SoilStatisticsJob): Promise<void> => {
@@ -191,7 +192,30 @@ export default class JobService {
     await this.boss.cancel(job.queue, jobId);
   };
 
+  /**
+   * A failure can reach here three different ways, and `message` has to be readable from all of
+   * them - for an Export it is the *only* channel, since ErrorService.getDatasetErrors covers the
+   * dataset-scoped queues and an Export has no dataset_id to be found by.
+   *
+   *   1. A JobError recorded by runJob into `data.errors`. Its raw Error message is only the code
+   *      ("JobError: EX_XLSX_TOO_MANY_RECORDS"), so it is translated here rather than shown.
+   *   2. Any other thrown error, whose Error pg-boss serialises directly onto `output`.
+   *   3. A monitor reap. `failJobsByTimeout` and `failJobsByHeartbeat` run as literal SQL on
+   *      whichever node holds the maintenance lock - none of our code runs, nothing lands in
+   *      `data.errors`, and their output nests the message under `value` rather than at the top
+   *      level, carrying a raw queue-library string.
+   *
+   * All three are resolved to display-ready copy here so no client has to know any of it.
+   */
   private translateJob = (job: JobWithMetadata<unknown>): Job => {
+    const output = job.output as Record<string, any> | null | undefined;
+    const jobError = (job.data as { errors?: Array<{ code: string; params?: Record<string, unknown> }> } | null)?.errors?.[0];
+    const raw = output?.['message'] ?? output?.['value']?.['message'];
+    const message = jobError
+      ? translateJobError(jobError.code, jobError.params ?? {}).message
+      : typeof raw === 'string'
+        ? translateQueueMessage(raw)
+        : raw;
     return {
       id: job.id,
       queue: job.name,
@@ -199,7 +223,7 @@ export default class JobService {
       created_at: job.createdOn,
       completed_at: job.completedOn,
       data: job.data as AnyJob,
-      message: job.output?.['message'],
+      message,
     };
   };
 

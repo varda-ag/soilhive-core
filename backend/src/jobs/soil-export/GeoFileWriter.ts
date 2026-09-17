@@ -1,9 +1,10 @@
 // src/jobs/soil-export/writers/GeoFileWriter.ts
 
+import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as wellknown from 'wellknown';
-import { ExportRecord, VectorFileFormat, EXPORT_SCHEMA, FieldMetadata } from './types';
+import { ExportRecord, VectorFileFormat, EXPORT_SCHEMA, FieldMetadata, EXPORT_CONFIG } from './types';
 import { GdalCLI } from '../../utils/GdalCLI';
 
 export class GeoFileWriter {
@@ -13,6 +14,8 @@ export class GeoFileWriter {
   private createdLayers = new Set<string>();
   private batchBuffer = new Map<string, ExportRecord[]>();
   private currentPropertyAcronym: string | null = null;
+  /** Set only while staging (XLSX). Created on first write, removed by `dispose`. */
+  private stagingDir: string | null = null;
 
   constructor(fileFormat: VectorFileFormat, targetCrs?: number) {
     this.fileFormat = fileFormat;
@@ -21,10 +24,20 @@ export class GeoFileWriter {
     }
   }
 
+  /**
+   * True if batches are written to an intermediate GPKG instead of straight to the output file (XLSX only)
+   */
+  private get isStaged(): boolean {
+    return this.fileFormat === VectorFileFormat.XLSX;
+  }
+
   async openFile(outputDir: string): Promise<void> {
     this.outputDir = outputDir;
     this.batchBuffer = new Map();
     this.currentPropertyAcronym = null;
+    if (this.isStaged && !this.stagingDir) {
+      this.stagingDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.STAGING_DIR_PREFIX));
+    }
   }
 
   async setProperty(propertyAcronym: string): Promise<void> {
@@ -62,6 +75,24 @@ export class GeoFileWriter {
     this.currentPropertyAcronym = null;
   }
 
+  /**
+   * Turns the staged GPKG into the real output file.
+   * ogr2ogr copies every layer of the source in a single pass, so
+   * the workbook is built once and each Soil Property's layer becomes one worksheet.
+   */
+  async finalize(): Promise<void> {
+    if (!this.isStaged || !this.stagingDir || this.createdLayers.size === 0) return;
+    const stagingPath = path.join(this.stagingDir, EXPORT_CONFIG.STAGING_FILENAME);
+    await GdalCLI.ogr2ogr(['-f', 'XLSX', this.buildFilePath(), stagingPath]);
+  }
+
+  /** Removes the staging directory. Safe to call unconditionally, and more than once. */
+  async dispose(): Promise<void> {
+    if (!this.stagingDir) return;
+    fs.rmSync(this.stagingDir, { recursive: true, force: true });
+    this.stagingDir = null;
+  }
+
   // --- Private Helpers ---
 
   private buildFeatureCollection(records: ExportRecord[]): object {
@@ -97,7 +128,13 @@ export class GeoFileWriter {
       args.push('-update');
     }
 
-    if (this.fileFormat === VectorFileFormat.SHP) {
+    if (this.isStaged) {
+      // `-nlt NONE` defines as "NONE" the geometry type for the created layer.
+      // Every staged format is tabular, so the records carry their geometry as a WKT string in a field named `geom`
+      // and GPKG gives each layer a geometry field of that same name, which collides.
+      // Forcing "NONE" as the staging layer geometry restores that, and the tables convert to worksheets unchanged.
+      args.push('-f', 'GPKG', '-nlt', 'NONE');
+    } else if (this.fileFormat === VectorFileFormat.SHP) {
       args.push('-f', 'ESRI Shapefile');
     } else if (this.fileFormat === VectorFileFormat.CSV) {
       args.push('-f', 'CSV');
@@ -118,6 +155,9 @@ export class GeoFileWriter {
   }
 
   private getOutputPath(propertyAcronym: string): string {
+    if (this.isStaged) {
+      return path.join(this.stagingDir!, EXPORT_CONFIG.STAGING_FILENAME);
+    }
     if (this.isSingleFileFormat()) {
       return this.buildFilePath();
     }

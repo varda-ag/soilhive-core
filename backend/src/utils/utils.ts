@@ -201,8 +201,21 @@ export const getServerPort = (): number => {
   return Number(process.env.PORT) || 4001;
 };
 
+/**
+ * Records fetched - and handed to the writer - per iteration of an Export's batch loop.
+ */
 export const getExportBatchSize = (): number => {
-  return Number(process.env.EXPORT_BATCH_SIZE) || 100;
+  return Number(process.env.EXPORT_BATCH_SIZE) || 5000;
+};
+
+/**
+ * Maximum records an XLSX Export will produce. See docs/adr/0035.
+ * XLSX is the only format whose writer cannot stream: a staging GPKG is built and then converted to XLSX in one pass,
+ * so the whole workbook is held in memory at once: 300k = ~1.1 GB, 1M = ~2.7 GB
+ * Queue concurrency is limited to 3 workers per pod, so 1M would OOM a 4 GB pod.
+ */
+export const getExportXlsxMaxRecords = (): number => {
+  return Number(process.env.EXPORT_XLSX_MAX_RECORDS) || 300_000;
 };
 
 export const getJobLocalConcurrency = (): number => {
@@ -227,7 +240,7 @@ export const getSoilStatisticsMaxCells = (): number => {
 
 /**
  * Statement timeout for the aggregation queries. Deliberately far above the 60s used on
- * request paths — this is a batch job, not a request — and far below pg-boss's 24h job
+ * request paths - this is a batch job, not a request - and far below pg-boss's 24h job
  * expiry so a stuck query fails the job rather than occupying a worker for a day.
  */
 export const getSoilStatisticsStatementTimeoutMs = (): number => {
@@ -264,7 +277,7 @@ export const replaceExtension = (filePath: string, newExt: string): string => {
   return path.format({ ...parsed, base: undefined, ext: newExt.startsWith('.') ? newExt : `.${newExt}` });
 };
 
-// For dates/depths: treat null as "no data in this geometry" — skip it when a value exists,
+// For dates/depths: treat null as "no data in this geometry" - skip it when a value exists,
 // return null only when both sides have no data (matches SQL MIN/MAX aggregate behaviour).
 export const mergeMin = (a: string | null, b: string | null): string | null => {
   if (a === null) return b;
