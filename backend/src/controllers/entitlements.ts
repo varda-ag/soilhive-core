@@ -18,7 +18,7 @@ export const setDatasetEntitlement = async (req: Request, res: Response) => {
 
 export const getConfigEntitlements = async (req: Request, res: Response) => {
   const key = req.params['configId']! as string;
-  const data = await entitlementService.getEntityEntitlements(req.customData, EntitlementScope.CONFIGS, key);
+  const data = await entitlementService.getConfigEntitlement(req.customData, key);
   res.json(data);
 };
 

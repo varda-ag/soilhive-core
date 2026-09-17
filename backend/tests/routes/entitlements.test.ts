@@ -109,13 +109,40 @@ describe('Testing entitlements routes', () => {
       expect(res.body).toEqual({ everyone: ['download'] });
     });
 
-    it('allows a non-admin authenticated user (no entitlements check on GET)', async () => {
+    it('rejects a non-admin caller with no READ/WRITE capability for the config', async () => {
       const nonAdminToken = getUserToken('reader-id', 'reader@example.com');
 
       const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${nonAdminToken}`);
 
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('allows a non-admin caller holding READ for the config', async () => {
+      const readerEmail = 'reader-with-read@example.com';
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ everyone: ['download'], [readerEmail]: ['read'] });
+      const readerToken = getUserToken('reader-with-read-id', readerEmail);
+
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${readerToken}`);
+
       expect(res.statusCode).toBe(StatusCodes.OK);
-      expect(res.body).toEqual({ everyone: ['download'] });
+      expect(res.body).toEqual({ everyone: ['download'], [readerEmail]: ['read'] });
+    });
+
+    it('allows a non-admin caller holding WRITE for the config', async () => {
+      const writerEmail = 'reader-with-write@example.com';
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ everyone: ['download'], [writerEmail]: ['write'] });
+      const writerToken = getUserToken('reader-with-write-id', writerEmail);
+
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${writerToken}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ everyone: ['download'], [writerEmail]: ['write'] });
     });
 
     it('returns 401 with no token', async () => {

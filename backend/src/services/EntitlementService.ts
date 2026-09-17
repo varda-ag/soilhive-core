@@ -314,6 +314,25 @@ export default class EntitlementService {
   }
 
   /**
+   * Domain-level read gate for `GET /config/{configId}/entitlements`: the response is the full
+   * multi-subject grants map (every subject's email/id and their capabilities for the config), so
+   * only a privileged caller or someone who already holds `READ` or `WRITE` on the config gets to
+   * see it. Unlike the write gate, there is no "first access" bypass: if nobody holds a grant yet,
+   * a non-privileged caller by definition holds neither capability either, so this falls out of
+   * the same capability check without a separate branch.
+   */
+  assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+    if (isPrivilegedCaller(requestData.token)) {
+      return;
+    }
+
+    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
+    if (!callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE)) {
+      throw new ErrorResponse(`User does not have read entitlement for config ${key}`, StatusCodes.FORBIDDEN);
+    }
+  };
+
+  /**
    * Domain-level write gate for `PUT /config/{configId}/entitlements`, distinct from
    * `enforceEntitlements`: that method always throws when the caller lacks the key outright, with
    * no "first access" bypass, and carries dataset-visibility filtering that has no analogue here.
@@ -348,6 +367,15 @@ export default class EntitlementService {
   setConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<CapabilityGrants> => {
     await this.assertCanWriteConfigEntitlement(requestData, key);
     return this.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, key, entitlements);
+  };
+
+  /**
+   * `GET /config/{configId}/entitlements`'s single entry point: composes the read gate with the
+   * generic reader, same reasoning as `setConfigEntitlement`.
+   */
+  getConfigEntitlement = async (requestData: RequestData, key: string): Promise<CapabilityGrants> => {
+    await this.assertCanReadConfigEntitlement(requestData, key);
+    return this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
   };
 
   async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {

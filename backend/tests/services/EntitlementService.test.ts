@@ -435,6 +435,38 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('assertCanReadConfigEntitlement', () => {
+    const configKey = 'test-config-key';
+
+    it('rejects a non-privileged caller with no capability for the config', async () => {
+      await expect(service.assertCanReadConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('allows a non-privileged caller holding READ for the config', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    it('allows a non-privileged caller holding WRITE for the config', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    it('rejects a non-privileged caller holding an unrelated capability only', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [] } } };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('allows a privileged caller regardless of capability', async additionalData => {
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+  });
+
   describe('assertCanWriteConfigEntitlement', () => {
     const configKey = 'test-config-key';
 

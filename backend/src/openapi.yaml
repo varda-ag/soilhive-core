@@ -846,6 +846,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/entitlements
       x-eov-operation-id: getConfigEntitlements
+      x-entitlements-required: true
       summary: Get entitlement grants for a config item
       tags:
         - config
@@ -869,6 +870,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     put:
       x-eov-operation-handler: controllers/entitlements
       x-eov-operation-id: setConfigEntitlement

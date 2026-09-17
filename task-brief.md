@@ -3,13 +3,26 @@
 ## Summary
 `GET`/`PUT /config/{configId}/entitlements` currently require an admin token
 (`super-admin` or `data-admin`). This changes both endpoints to accept any
-authenticated user. `GET` becomes fully open once authenticated — no further
-check. `PUT` gets a new domain-level authorization rule: a non-admin caller
+authenticated user, each gated by its own domain-level rule (revised after
+initial implementation — see Subtask 5).
+
+`PUT` gets a new domain-level authorization rule: a non-admin caller
 may write a config's entitlements only if nobody holds any entitlement for
 that config yet (first access / bootstrap), or if the caller already holds
 the `WRITE` capability for that config. Admins keep bypassing this check
 entirely, consistent with the existing `isPrivilegedCaller` bypass used
-throughout the entitlements system. Out of scope: `/datasets/{datasetId}/entitlements`
+throughout the entitlements system — except for a set of reserved config
+keys (`theme`, `frontend-logo`, `ingestion-status`, `vocabulary-csv-hashes`)
+whose entitlements nobody may ever write, not even an admin.
+
+`GET` returns the full multi-subject grants map (every subject's id and
+capabilities for that config) — a more sensitive payload than a single
+capability check, so it is gated too: a privileged caller, or a caller who
+already holds `READ` or `WRITE` on the config, may read it; everyone else
+gets `403`. No "first access" bypass here — nobody holds READ/WRITE on a
+config nobody has ever been granted anything on, so the same check covers it.
+
+Out of scope: `/datasets/{datasetId}/entitlements`
 (stays admin-only) and making `GET /config`/`GET /configs` honor entitlements
 (separate ticket).
 
@@ -140,14 +153,50 @@ service method of the same name. Leave `getConfigEntitlements`,
 end-to-end, using `getUserToken` for the non-admin cases.
 **Files:** `backend/tests/routes/entitlements.test.ts`
 **Tests:**
-- Happy path: non-admin authenticated user gets `200` from
-  `GET /config/{configId}/entitlements`.
 - Edge case: non-admin user holding `WRITE` on a config can `PUT` it even
   though grants already exist for that config (regression guard,
   complements subtask 3's rejection case).
 - Edge case: non-admin user gets `403` on route-level `PUT` for a reserved
   config key (e.g. `theme`), even on first access; an admin user gets `403`
   on the same reserved key too.
+
+  (The GET happy-path test originally planned here — non-admin gets `200`
+  unconditionally — was superseded by Subtask 5, which gates GET too.)
+
+### Subtask 5 — Authorization gate for config reads (added after initial implementation)
+**What to implement:** Add `assertCanReadConfigEntitlement(requestData: RequestData, key: string): Promise<void>`
+in `EntitlementService.ts`, next to the write gate:
+1. Return immediately if `isPrivilegedCaller(requestData.token)`.
+2. Otherwise read `requestData.entitlements[EntitlementScope.CONFIGS]?.[key]`;
+   if it includes neither `Capability.READ` nor `Capability.WRITE`, throw
+   `new ErrorResponse(\`User does not have read entitlement for config ${key}\`, StatusCodes.FORBIDDEN)`.
+
+No "first access" bypass, unlike the write gate: a non-privileged caller on
+a config nobody has ever been granted anything on holds neither capability
+either, so the same check rejects it without a separate branch.
+
+Also add `getConfigEntitlement(requestData, key)`, composing the gate with
+`getEntityEntitlements(..., CONFIGS, key)`, mirroring `setConfigEntitlement`
+— same reasoning: keep "check before read" inside the service so no future
+caller of the CONFIGS-scoped reader can skip it. The controller's
+`getConfigEntitlements` becomes a one-line call to this method.
+
+OpenAPI: add `x-entitlements-required: true` and a `403`
+(`$ref: '#/components/responses/Forbidden'`) response to `GET`, same as
+`PUT` already has.
+
+**Files:** `backend/src/openapi.yaml`, `backend/src/services/EntitlementService.ts`,
+`backend/src/controllers/entitlements.ts`, `backend/tests/services/EntitlementService.test.ts`,
+`backend/tests/routes/entitlements.test.ts`
+**Tests:**
+- Happy path: non-privileged caller holding `READ` or `WRITE` on the config
+  is allowed; privileged caller allowed regardless of capability.
+- Edge case: non-privileged caller with no capability (or an unrelated one)
+  for the config is rejected (`403`) — including on first access (nobody
+  holds any grant yet).
+- Route-level: non-admin gets `403` with no capability, `200` holding
+  `READ`, `200` holding `WRITE`; admin (privileged) still gets `200`
+  unconditionally (existing test, unaffected).
 
 ## Test plan
 Steps for `/verify` to execute after implementation. All calls are backend
@@ -166,11 +215,15 @@ Steps for `/verify` to execute after implementation. All calls are backend
    `write` grant on it — expect `403`.
 5. **Authorized PUT as WRITE holder:** as the subject granted `write` in
    step 3, `PUT` again on the same `configId` — expect `200`.
-6. **Open GET:** `curl localhost:4001/config/test_config_x/entitlements -H "Authorization: Bearer <any authenticated token>"` — expect `200` regardless of admin status.
+6. **Gated GET, admin:** `curl localhost:4001/config/test_config_x/entitlements -H "Authorization: Bearer <admin>"` — expect `200` (privileged bypass).
+6b. **Gated GET, WRITE holder:** as the subject granted `write` in step 3, `GET`
+   the same `configId` — expect `200`, body includes that subject's own grant.
+6c. **Gated GET, no capability:** `GET` the same `configId` as a *third*
+   non-admin subject with no grant on it at all — expect `403`.
 7. **Unauthenticated:** repeat steps 3 and 6 with no `Authorization` header —
    expect `401` on both.
 8. **DB check:** `psql -h localhost -U dbuser -d soilhive -c "SELECT id, data->'configs' FROM soilhive.entitlements WHERE data->'configs' ? 'test_config_x';"`
    to confirm the persisted grants match what was `PUT`.
-9. Run the full backend suite: `npm test` (covers subtasks 1–4's automated
+9. Run the full backend suite: `npm test` (covers subtasks 1–5's automated
    tests plus regression on `/datasets/{datasetId}/entitlements`, which must
    remain admin-only and unaffected).
