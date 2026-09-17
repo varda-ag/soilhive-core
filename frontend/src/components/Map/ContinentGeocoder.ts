@@ -56,7 +56,7 @@ export const filterDuplicateContinentPoints = (
   const isPoint = (feature as any).original_geometry?.type === 'Point';
   if (!isPoint) return true;
   const hasMatchingContinentResult = allResults.some(
-    other => isContinentResult(other) && other.place_name.toLowerCase() === feature.place_name.toLowerCase(),
+    other => isContinentResult(other) && other.place_name?.toLowerCase() === feature.place_name?.toLowerCase(),
   );
   return !hasMatchingContinentResult;
 };

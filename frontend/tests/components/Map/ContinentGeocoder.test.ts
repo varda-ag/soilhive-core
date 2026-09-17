@@ -106,4 +106,12 @@ describe('filterDuplicateContinentPoints', () => {
     } as unknown as CarmenGeojsonFeature;
     expect(filterDuplicateContinentPoints(point)).toBe(true);
   });
+
+  it('keeps a point result with a missing place_name without throwing', () => {
+    const point = {
+      id: 'nominatim-5',
+      original_geometry: { type: 'Point' },
+    } as unknown as CarmenGeojsonFeature;
+    expect(filterDuplicateContinentPoints(point, 1, [continentResult, point])).toBe(true);
+  });
 });
