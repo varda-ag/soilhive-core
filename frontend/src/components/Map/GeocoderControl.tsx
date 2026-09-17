@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { createPortal } from 'react-dom';
+import { continentLocalGeocoder, filterDuplicateContinentPoints } from './ContinentGeocoder';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   geocoder?: 'nominatim' | 'mapbox';
@@ -174,6 +175,8 @@ export default function GeocoderControl(props: GeocoderControlProps) {
         debounceSearch: isNominatim ? 1000 : 200, // Nominatim's policy requires to limit searches to maximum 1 request per second https://operations.osmfoundation.org/policies/nominatim/
         clearAndBlurOnEsc: true,
         placeholder: 'Search by any location',
+        localGeocoder: isNominatim ? continentLocalGeocoder : undefined,
+        filter: isNominatim ? filterDuplicateContinentPoints : undefined,
         render: feature => {
           const geomType = (feature as any).original_geometry?.type || '';
 
