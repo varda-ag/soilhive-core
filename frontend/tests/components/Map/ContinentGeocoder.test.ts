@@ -15,6 +15,8 @@ describe('continentNameMatches', () => {
     ['multi-word name matches via a later word (other continent)', 'South America', 'america', true],
     ['unrelated prefix does not match', 'Oceania', 'aus', false],
     ['no match for an unrelated query', 'Asia', 'zzz', false],
+    ['query is uppercase', 'Europe', 'EURO', true],
+    ['query has mixed case matching a later word', 'North America', 'Ame', true],
   ])('%s', (_desc, name, query, expected) => {
     expect(continentNameMatches(name, query)).toBe(expected);
   });

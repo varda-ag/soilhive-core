@@ -5,10 +5,11 @@ import type { CarmenGeojsonFeature } from '@maplibre/maplibre-gl-geocoder';
 import continents from 'assets/data/continents.json';
 
 export const continentNameMatches = (name: string, query: string): boolean => {
-  const lower = name.toLowerCase();
+  const n = name.toLowerCase();
+  const q = query.toLowerCase();
   // Matches the full name ("north am" -> "North America") or any individual
   // word in it ("america" -> both "North America" and "South America").
-  return lower.startsWith(query) || lower.split(' ').some(word => word.startsWith(query));
+  return n.startsWith(q) || n.split(' ').some(word => word.startsWith(q));
 };
 
 // Nominatim doesn't index continents at all, so we supplement it with a small
