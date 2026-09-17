@@ -850,7 +850,7 @@ paths:
       tags:
         - config
       security:
-        - bearerAuth: [super-admin, data-admin]
+        - bearerAuth: []
       parameters:
         - name: configId
           in: path
@@ -872,11 +872,12 @@ paths:
     put:
       x-eov-operation-handler: controllers/entitlements
       x-eov-operation-id: setConfigEntitlement
+      x-entitlements-required: true
       summary: Set entitlement grants for a config item
       tags:
         - config
       security:
-        - bearerAuth: [super-admin, data-admin]
+        - bearerAuth: []
       parameters:
         - name: configId
           in: path
@@ -901,6 +902,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /soil-properties:
     get:
