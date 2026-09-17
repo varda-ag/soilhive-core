@@ -122,6 +122,32 @@ describe('Testing entitlements routes', () => {
         expect(res.body).toEqual(payload);
       },
     );
+
+    it('allows a non-admin caller to PUT on first access (nobody holds a grant for the config yet)', async () => {
+      const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .send({ 'first-access@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+    });
+
+    it('rejects a non-admin caller lacking WRITE once the config already has grants', async () => {
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ [userEmail]: [Capability.READ] });
+      const noWriteToken = getUserToken('no-write-id', 'no-write@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${noWriteToken}`)
+        .send({ 'no-write@example.com': [Capability.READ] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
   });
 
   describe('Scope isolation between datasets and configs', () => {

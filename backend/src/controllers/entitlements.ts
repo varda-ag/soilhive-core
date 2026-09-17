@@ -24,6 +24,7 @@ export const getConfigEntitlements = async (req: Request, res: Response) => {
 
 export const setConfigEntitlement = async (req: Request, res: Response) => {
   const key = req.params['configId']! as string;
+  await entitlementService.assertCanWriteConfigEntitlement(req.customData, key);
   const data = await entitlementService.setEntityEntitlements(req.customData, EntitlementScope.CONFIGS, key, req.body);
   res.json(data);
 };
