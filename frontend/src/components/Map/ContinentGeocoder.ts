@@ -1,7 +1,10 @@
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import type { CarmenGeojsonFeature } from '@maplibre/maplibre-gl-geocoder';
-// Continent boundaries dissolved/simplified from Natural Earth's 110m Admin-0
-// Countries dataset (public domain): https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_admin_0_countries.geojson
+// Continent boundaries for Africa, Antarctica, and North America are
+// dissolved/simplified from Natural Earth's 110m Admin-0 Countries dataset
+// (public domain): https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_admin_0_countries.geojson
+// Asia, Europe, Oceania, and South America are taken from
+// https://gist.github.com/hrbrmstr/91ea5cc9474286c72838#file-continents-json (MIT licensed).
 import continents from 'assets/data/continents.json';
 
 export const continentNameMatches = (name: string, query: string): boolean => {
