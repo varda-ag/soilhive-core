@@ -26,11 +26,12 @@ const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
 const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
 
 /**
- * Config keys whose entitlements a non-admin caller can never write, regardless of the
- * first-access/WRITE gate in `assertCanWriteConfigEntitlement`. These back system-level config
- * (theming, ingestion status, vocabulary hashes, ...) rather than a caller-owned config item, so
- * bootstrap and self-service WRITE grants don't apply to them. Admins still bypass this via
- * `isPrivilegedCaller`, same as every other entitlements check.
+ * Config keys whose entitlements nobody may write via `PUT /config/{configId}/entitlements` — not
+ * even a privileged caller. These back system-level config (theming, ingestion status, vocabulary
+ * hashes, ...) rather than a caller-owned config item, so the whole entitlements permission model
+ * (bootstrap, WRITE grants, the `isPrivilegedCaller` bypass) is beside the point for them: nothing
+ * should ever hold an entitlement on one. Checked before `isPrivilegedCaller` in
+ * `assertCanWriteConfigEntitlement`, deliberately unlike every other check in that method.
  */
 const RESERVED_CONFIG_KEYS: ReadonlySet<string> = new Set(['theme', 'frontend-logo', 'ingestion-status', 'vocabulary-csv-hashes']);
 
@@ -320,12 +321,12 @@ export default class EntitlementService {
    * (bootstrap), or if the caller already holds `WRITE` on it.
    */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
-    if (isPrivilegedCaller(requestData.token)) {
-      return;
-    }
-
     if (RESERVED_CONFIG_KEYS.has(key)) {
       throw new ErrorResponse(`Config ${key} is reserved and its entitlements cannot be modified`, StatusCodes.FORBIDDEN);
+    }
+
+    if (isPrivilegedCaller(requestData.token)) {
+      return;
     }
 
     const existingGrants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);

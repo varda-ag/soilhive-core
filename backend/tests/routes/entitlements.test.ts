@@ -190,6 +190,15 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
 
+    it('rejects an admin caller on a reserved config key too', async () => {
+      const res = await request(app)
+        .put(`/config/theme/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ [userEmail]: [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
     it('returns 401 with no token', async () => {
       const res = await request(app).put(`/config/${configId}/entitlements`).send({});
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);

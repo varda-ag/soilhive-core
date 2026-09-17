@@ -480,10 +480,10 @@ describe('EntitlementService', () => {
         },
       );
 
-      it('allows a privileged caller to write a reserved key', async () => {
+      it('rejects a privileged caller too — nobody bypasses the reserved-key block', async () => {
         const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
 
-        await expect(service.assertCanWriteConfigEntitlement(rd, 'theme')).resolves.toBeUndefined();
+        await expect(service.assertCanWriteConfigEntitlement(rd, 'theme')).rejects.toMatchObject({ status: 403 });
       });
     });
   });
