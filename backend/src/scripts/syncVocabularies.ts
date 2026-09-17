@@ -8,6 +8,7 @@ import { log } from '../utils/logger';
 import { JsonStorage } from '../entities/JsonStorage';
 import ConfigService from '../services/ConfigService';
 import { VocabularyType } from '../types/data';
+import { CSV_HASHES_CONFIG_ID } from '../constants/constants';
 
 /**
  * Syncs vocabulary tables from the CSVs in backend/docs/data-model/, automatically on every boot (app.ts).
@@ -26,7 +27,6 @@ import { VocabularyType } from '../types/data';
  */
 
 const DEFAULT_DATA_MODEL_DIR = path.join(__dirname, '../../docs/data-model');
-const CSV_HASHES_CONFIG_ID = 'vocabulary-csv-hashes';
 // Arbitrary but stable key for the boot-time sync's advisory lock —
 // chosen so a multi-pod deploy has exactly one pod doing the sync instead of every pod
 // redoing the same upserts concurrently at once.

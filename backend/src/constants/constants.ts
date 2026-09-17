@@ -4,6 +4,8 @@ export const MAX_PROPERTY_LEVEL = 2;
 export const DATA_PREVIEW_SIZE = 20;
 export const OUTSIDE_LOD_VALUE = -999;
 export const EVERYONE = 'everyone';
+export const FRONTEND_LOGO_CONFIG_ID = 'frontend-logo';
+export const CSV_HASHES_CONFIG_ID = 'vocabulary-csv-hashes';
 export const INTERNAL_REQUEST_TOKEN_PAYLOAD = {
   sub: TokenScopes.INTERNAL_REQUEST,
   iss: TOKEN_ISSUER,

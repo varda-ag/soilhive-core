@@ -1,7 +1,7 @@
 import { assert } from 'console';
 import { StatusCodes } from 'http-status-codes';
 import { In } from 'typeorm';
-import { EVERYONE } from '../constants/constants';
+import { EVERYONE, FRONTEND_LOGO_CONFIG_ID, CSV_HASHES_CONFIG_ID } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
 import { EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
@@ -33,7 +33,7 @@ const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([Entitlement
  * should ever hold an entitlement on one. Checked before `isPrivilegedCaller` in
  * `assertCanWriteConfigEntitlement`, deliberately unlike every other check in that method.
  */
-const RESERVED_CONFIG_KEYS: ReadonlySet<string> = new Set(['theme', 'frontend-logo', 'ingestion-status', 'vocabulary-csv-hashes']);
+const RESERVED_CONFIG_KEYS: ReadonlySet<string> = new Set(['theme', FRONTEND_LOGO_CONFIG_ID, 'ingestion-status', CSV_HASHES_CONFIG_ID]);
 
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
