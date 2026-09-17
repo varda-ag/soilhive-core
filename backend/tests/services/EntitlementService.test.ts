@@ -488,6 +488,40 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('setConfigEntitlement', () => {
+    const configKey = 'test-config-key';
+
+    it('writes the entitlements when the write gate passes (first access)', async () => {
+      const payload = { 'config-user@example.com': [Capability.WRITE] };
+
+      const result = await service.setConfigEntitlement(requestData, configKey, payload);
+
+      expect(result).toEqual(payload);
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(payload);
+    });
+
+    it('rejects and does not write when the write gate fails', async () => {
+      const existingGrants = { 'config-other@example.com': [Capability.READ] };
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+
+      await expect(
+        service.setConfigEntitlement(requestData, configKey, { 'new-user@example.com': [Capability.READ] }),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(existingGrants);
+    });
+
+    it('rejects a reserved config key without writing, even for a privileged caller', async () => {
+      const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
+
+      await expect(service.setConfigEntitlement(rd, 'theme', { 'config-user@example.com': [Capability.WRITE] })).rejects.toMatchObject({
+        status: 403,
+      });
+      expect(await service.getEntityEntitlements(rd, EntitlementScope.CONFIGS, 'theme')).toEqual({});
+    });
+  });
+
   describe('selectByScope', () => {
     it('returns the configs entries under a subkey prefix, excluding unrelated keys', () => {
       const entitlements = {

@@ -340,6 +340,16 @@ export default class EntitlementService {
     }
   };
 
+  /**
+   * `PUT /config/{configId}/entitlements`'s single entry point: composes the write gate with the
+   * generic writer so a caller can't reach `setEntityEntitlements(CONFIGS, ...)` without the check
+   * running first — the gate has no other production caller to enforce that ordering itself.
+   */
+  setConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<CapabilityGrants> => {
+    await this.assertCanWriteConfigEntitlement(requestData, key);
+    return this.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, key, entitlements);
+  };
+
   async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {
     if (isPrivilegedCaller(requestData.token)) {
       // Internal requests and admins bypass entitlements checks
