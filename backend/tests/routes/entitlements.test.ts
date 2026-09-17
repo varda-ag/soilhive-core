@@ -108,6 +108,20 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual({ everyone: ['download'] });
     });
+
+    it('allows a non-admin authenticated user (no entitlements check on GET)', async () => {
+      const nonAdminToken = getUserToken('reader-id', 'reader@example.com');
+
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${nonAdminToken}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ everyone: ['download'] });
+    });
+
+    it('returns 401 with no token', async () => {
+      const res = await request(app).get(`/config/${configId}/entitlements`);
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    });
   });
 
   describe('PUT /config/{configId}/entitlements', () => {
@@ -147,6 +161,38 @@ describe('Testing entitlements routes', () => {
         .send({ 'no-write@example.com': [Capability.READ] });
 
       expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('allows a non-admin caller holding WRITE on the config even though grants already exist', async () => {
+      const writeHolderEmail = 'write-holder@example.com';
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ [writeHolderEmail]: [Capability.WRITE] });
+      const writeHolderToken = getUserToken('write-holder-id', writeHolderEmail);
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${writeHolderToken}`)
+        .send({ [writeHolderEmail]: [Capability.WRITE], [userEmail]: [Capability.READ] });
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+    });
+
+    it('rejects a non-admin caller on a reserved config key, even on first access', async () => {
+      const nonAdminToken = getUserToken('reserved-key-id', 'reserved-key@example.com');
+
+      const res = await request(app)
+        .put(`/config/theme/entitlements`)
+        .set('Authorization', `Bearer ${nonAdminToken}`)
+        .send({ 'reserved-key@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('returns 401 with no token', async () => {
+      const res = await request(app).put(`/config/${configId}/entitlements`).send({});
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
     });
   });
 
