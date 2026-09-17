@@ -25,6 +25,15 @@ const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
  */
 const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
 
+/**
+ * Config keys whose entitlements a non-admin caller can never write, regardless of the
+ * first-access/WRITE gate in `assertCanWriteConfigEntitlement`. These back system-level config
+ * (theming, ingestion status, vocabulary hashes, ...) rather than a caller-owned config item, so
+ * bootstrap and self-service WRITE grants don't apply to them. Admins still bypass this via
+ * `isPrivilegedCaller`, same as every other entitlements check.
+ */
+const RESERVED_CONFIG_KEYS: ReadonlySet<string> = new Set(['theme', 'frontend-logo', 'ingestion-status', 'vocabulary-csv-hashes']);
+
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
   Array.from(new Set([...(existing ?? []), ...(Array.isArray(incoming) ? incoming : [])])).sort();
@@ -302,6 +311,33 @@ export default class EntitlementService {
       return emptyEntitlements();
     }
   }
+
+  /**
+   * Domain-level write gate for `PUT /config/{configId}/entitlements`, distinct from
+   * `enforceEntitlements`: that method always throws when the caller lacks the key outright, with
+   * no "first access" bypass, and carries dataset-visibility filtering that has no analogue here.
+   * A non-admin caller may write a config's entitlements only if nobody holds any grant for it yet
+   * (bootstrap), or if the caller already holds `WRITE` on it.
+   */
+  assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+    if (isPrivilegedCaller(requestData.token)) {
+      return;
+    }
+
+    if (RESERVED_CONFIG_KEYS.has(key)) {
+      throw new ErrorResponse(`Config ${key} is reserved and its entitlements cannot be modified`, StatusCodes.FORBIDDEN);
+    }
+
+    const existingGrants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
+    if (Object.keys(existingGrants).length === 0) {
+      return;
+    }
+
+    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
+    if (!callerCapabilities?.includes(Capability.WRITE)) {
+      throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
+    }
+  };
 
   async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {
     if (isPrivilegedCaller(requestData.token)) {

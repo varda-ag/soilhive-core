@@ -435,6 +435,59 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('assertCanWriteConfigEntitlement', () => {
+    const configKey = 'test-config-key';
+
+    it('allows a non-privileged caller when nobody holds a grant for the config yet (first access)', async () => {
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).resolves.toBeUndefined();
+    });
+
+    it('rejects a non-privileged caller without WRITE once the config already has any grant', async () => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('allows a caller holding WRITE for the config even though other grants already exist', async () => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('allows a privileged caller regardless of existing grants', async additionalData => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    describe('reserved config keys', () => {
+      it.each(['theme', 'frontend-logo', 'ingestion-status', 'vocabulary-csv-hashes'])(
+        'rejects a non-privileged caller even on first access for reserved key %s',
+        async reservedKey => {
+          await expect(service.assertCanWriteConfigEntitlement(requestData, reservedKey)).rejects.toMatchObject({ status: 403 });
+        },
+      );
+
+      it('allows a privileged caller to write a reserved key', async () => {
+        const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
+
+        await expect(service.assertCanWriteConfigEntitlement(rd, 'theme')).resolves.toBeUndefined();
+      });
+    });
+  });
+
   describe('selectByScope', () => {
     it('returns the configs entries under a subkey prefix, excluding unrelated keys', () => {
       const entitlements = {
