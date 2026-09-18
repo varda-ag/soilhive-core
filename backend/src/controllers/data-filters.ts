@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { parseBboxString } from '../utils/geometry';
-import { withDisconnectSignal } from '../utils/cancelable-query';
 import FilterService from '../services/FilterService';
 
 const filterService = new FilterService();
@@ -22,14 +21,12 @@ export const getDataFilterById = async (req: Request, res: Response) => {
 };
 
 export const getDataFilterCoverage = async (req: Request, res: Response) => {
-  const requestData = { ...req.customData, signal: withDisconnectSignal(res) };
-  const data = await filterService.getCoverage(requestData, req.params['filterId']! as string, !!req.query['geometryOnly']);
+  const data = await filterService.getCoverage(req.customData, req.params['filterId']! as string, !!req.query['geometryOnly']);
   res.json(data);
 };
 
 export const getDataFilterDatasets = async (req: Request, res: Response) => {
-  const requestData = { ...req.customData, signal: withDisconnectSignal(res) };
-  const data = await filterService.getDatasets(requestData, req.params['filterId']! as string);
+  const data = await filterService.getDatasets(req.customData, req.params['filterId']! as string);
   res.json(data);
 };
 

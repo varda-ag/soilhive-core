@@ -3,11 +3,9 @@ import { EntityManager } from 'typeorm';
 import { getDataSource } from './data-source';
 
 /**
- * Builds an AbortSignal tied to the response's socket closing, for controllers that opt a
- * route into `runCancelableQuery`'s borrowed-connection pattern (see below): those queries
- * run on connections independent of the request's own transactional entityManager, so they
- * need their own signal to cancel themselves on client disconnect - the request's own
- * connection is already covered by `transactionMiddleware`.
+ * Builds a plain AbortSignal tied to the response's socket closing - usable for any work that
+ * should stop once the client disconnects. `transactionMiddleware` wires one into `requestData.signal`
+ * for every request.
  */
 export const withDisconnectSignal = (res: Response): AbortSignal => {
   const controller = new AbortController();

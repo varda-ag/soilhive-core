@@ -368,9 +368,7 @@ describe('Testing /data-filters routes', () => {
       const pidCalls = querySpy.mock.calls
         .map((call, i) => ({ sql: call[0], result: querySpy.mock.results[i]! }))
         .filter(call => typeof call.sql === 'string' && call.sql.includes('pg_backend_pid()'));
-      const pids = await Promise.all(
-        pidCalls.map(call => (call.result.value as Promise<{ pid: number }[]>).then(rows => rows[0]!.pid)),
-      );
+      const pids = await Promise.all(pidCalls.map(call => (call.result.value as Promise<{ pid: number }[]>).then(rows => rows[0]!.pid)));
 
       // filterVector, filterRaster and getRasterCoverage each borrow their own connection.
       expect(pids).toHaveLength(3);

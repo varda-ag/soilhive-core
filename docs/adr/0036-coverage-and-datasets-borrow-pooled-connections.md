@@ -60,11 +60,16 @@ Two things had to be added to make this safe, both factored into
   optional `AbortSignal`; when given one, it captures the borrowed connection's own
   `pg_backend_pid()` and cancels it (via a second, separate connection, mirroring
   `transactionMiddleware`'s approach) if the signal fires before the query resolves.
-  `withDisconnectSignal(res)` builds that signal from `res.on('close', ...)`, and the
-  `getDataFilterCoverage`/`getDataFilterDatasets` controllers wire one in per request.
+  `withDisconnectSignal(res)` builds that signal from `res.on('close', ...)`. Rather than
+  every controller wiring its own, `transactionMiddleware` builds one per request and sets
+  it as `req.customData.signal` for every endpoint (skip-listed or not) - one extra, additive
+  `res.on('close', ...)` listener, harmless for endpoints that never read it.
 
-This is opt-in per endpoint: the global `transactionMiddleware` and every other route are
-unchanged.
+Borrowing pooled connections in `getCoverage`/`getDatasets` is opt-in - `SoilDataStorage`'s
+methods only do it because `FilterService` passes them `getEntityManager()` instead of
+`requestData.entityManager`. But the disconnect signal itself is unconditional: it costs
+nothing for the endpoints not opting in, and means a future one can adopt the same pattern by
+passing `requestData.signal` straight through, with no controller wiring of its own.
 
 ## Consequences
 
