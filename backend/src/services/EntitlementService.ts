@@ -1,7 +1,7 @@
 import { assert } from 'console';
 import { StatusCodes } from 'http-status-codes';
 import { In } from 'typeorm';
-import { EVERYONE } from '../constants/constants';
+import { EVERYONE, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { JsonStorage } from '../entities/JsonStorage';
 import { RequestData } from '../interfaces/RequestData';
@@ -332,12 +332,17 @@ export default class EntitlementService {
    * `enforceEntitlements`: that method always throws when the caller lacks the key outright, with
    * no "first access" bypass, and carries dataset-visibility filtering that has no analogue here.
    * A non-admin caller may write a config's entitlements only if it is a genuine first access
-   * (bootstrap), or if the caller already holds `WRITE` on it.
+   * (bootstrap) on a config id it is allowed to bootstrap, or if the caller already holds `WRITE`
+   * on it.
    *
-   * "First access" requires both no entitlement grant *and* no `ConfigItem` (see `configExists`).
-   * Grant-only would be insufficient: `PUT /config/{configId}` is admin-only, so every config in
-   * production already exists with zero grants, and grant-only would treat all of them as
-   * unclaimed. Requiring non-existence too scopes the bootstrap to configs nobody has created yet.
+   * "First access" requires no entitlement grant, no `ConfigItem` (see `configExists`), *and* a
+   * `PLUGIN_CONFIG_ID_PATTERN` match. Grant-and-existence alone would be insufficient: nothing
+   * about those two facts distinguishes a caller-owned plugin config from a system config
+   * (`frontend-logo`, `theme`, `ingestion-status`, `vocabulary-csv-hashes`, ...) that simply
+   * hasn't been created yet. Scoping bootstrap to the `plugin:` namespace closes
+   * this structurally: every system id is permanently ineligible for self-service, with nothing to
+   * maintain as new system configs are added, while `usePluginConfig`
+   * (frontend/src/hooks/usePluginConfig.ts) is the only caller that ever needs this bypass at all.
    */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
     if (isPrivilegedCaller(requestData.token)) {
@@ -345,7 +350,7 @@ export default class EntitlementService {
     }
 
     const existingGrants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
-    if (Object.keys(existingGrants).length === 0 && !(await this.configExists(requestData, key))) {
+    if (Object.keys(existingGrants).length === 0 && PLUGIN_CONFIG_ID_PATTERN.test(key) && !(await this.configExists(requestData, key))) {
       return;
     }
 

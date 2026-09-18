@@ -6,6 +6,14 @@ export const OUTSIDE_LOD_VALUE = -999;
 export const EVERYONE = 'everyone';
 export const FRONTEND_LOGO_CONFIG_ID = 'frontend-logo';
 export const CSV_HASHES_CONFIG_ID = 'vocabulary-csv-hashes';
+/**
+ * Matches the `plugin:${pluginId}:${id}` config id convention `usePluginConfig`
+ * (frontend/src/hooks/usePluginConfig.ts) already uses for every plugin-owned config. This is the
+ * only namespace a non-privileged caller may claim on first access (see
+ * `EntitlementService.assertCanWriteConfigEntitlement`) — a system config id (`frontend-logo`,
+ * `theme`, `ingestion-status`, `vocabulary-csv-hashes`, ...) never matches it.
+ */
+export const PLUGIN_CONFIG_ID_PATTERN = /^plugin:[^:]+:.+$/;
 export const INTERNAL_REQUEST_TOKEN_PAYLOAD = {
   sub: TokenScopes.INTERNAL_REQUEST,
   iss: TOKEN_ISSUER,

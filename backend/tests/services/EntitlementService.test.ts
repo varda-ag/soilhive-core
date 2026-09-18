@@ -483,8 +483,12 @@ describe('EntitlementService', () => {
   describe('assertCanWriteConfigEntitlement', () => {
     const configKey = 'test-config-key';
 
-    it('allows a non-privileged caller when nobody holds a grant for the config yet (first access)', async () => {
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).resolves.toBeUndefined();
+    it('allows a non-privileged caller first access to a plugin-owned config (nobody holds a grant yet)', async () => {
+      await expect(service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings')).resolves.toBeUndefined();
+    });
+
+    it('rejects a non-privileged caller first access to a non-plugin config id, even with no grant or row yet', async () => {
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
     });
 
     it('rejects a non-privileged caller without WRITE once the config already has any grant', async () => {
@@ -532,7 +536,7 @@ describe('EntitlementService', () => {
   });
 
   describe('setConfigEntitlement', () => {
-    const configKey = 'test-config-key';
+    const configKey = 'plugin:my-plugin:settings';
 
     it('writes the entitlements when the write gate passes (first access)', async () => {
       const payload = { 'config-user@example.com': [Capability.WRITE] };

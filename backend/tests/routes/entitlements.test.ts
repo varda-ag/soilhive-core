@@ -164,7 +164,19 @@ describe('Testing entitlements routes', () => {
       },
     );
 
-    it('allows a non-admin caller to PUT on first access (nobody holds a grant for the config yet)', async () => {
+    it('allows a non-admin caller to PUT on first access of a plugin-owned config (nobody holds a grant yet)', async () => {
+      const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
+      const pluginConfigId = 'plugin:my-plugin:settings';
+
+      const res = await request(app)
+        .put(`/config/${pluginConfigId}/entitlements`)
+        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .send({ 'first-access@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+    });
+
+    it('rejects a non-admin caller on first access of a non-plugin config id, even with no grants or row yet', async () => {
       const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
 
       const res = await request(app)
@@ -172,7 +184,7 @@ describe('Testing entitlements routes', () => {
         .set('Authorization', `Bearer ${firstAccessToken}`)
         .send({ 'first-access@example.com': [Capability.WRITE] });
 
-      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
 
     it('rejects a non-admin caller on first access when the config already exists but has no grants yet', async () => {
