@@ -877,6 +877,12 @@ paths:
       x-eov-operation-id: setConfigEntitlement
       x-entitlements-required: true
       summary: Set entitlement grants for a config item
+      description: >-
+        A non-admin caller may only claim a config's entitlements on first access (nobody holds a
+        grant for it yet, and it hasn't been created) when configId follows the plugin:{pluginId}:{id}
+        convention, matching the id usePluginConfig builds on the frontend. Any other configId is
+        first-access only for a super-admin or data-admin; a non-admin caller needs an existing
+        WRITE grant.
       tags:
         - config
       security:
