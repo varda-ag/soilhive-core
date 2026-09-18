@@ -55,7 +55,7 @@ describe('EntitlementService', () => {
       ('user1@example.com', '{"datasets": {"dataset-1": ["obfuscate_as_points", "preview", "download"]}}'),
       ('user2@example.com', '{"datasets": {"dataset-2": ["obfuscate_as_points"]}}'),
       ('user3@example.com', '{"datasets": {"dataset-3": ["obfuscate_as_points"], "dataset-1": ["obfuscate_as_points"]}}'),
-      ('user4@example.com', '{"datasets": {"spatial_filter": "world"}}')
+      ('user4@example.com', '{"datasets": {"spatial_filter": ["download"]}}')
     `);
   });
 
@@ -108,6 +108,19 @@ describe('EntitlementService', () => {
       },
       configs: {},
     });
+  });
+
+  it('skips a malformed (non-array) capability grant instead of throwing, and still returns well-formed keys', async () => {
+    // beforeEach already seeds an 'everyone' row (under `datasets`); merge `configs` into it here
+    // rather than inserting a fresh row, which would collide on the primary key.
+    await entityManager.query(`
+      UPDATE entitlements SET data = data || '{"configs": {"probe_config": {"poisoned": true}, "good_config": ["read"]}}'::jsonb
+      WHERE id = 'everyone'
+    `);
+
+    const entitlements = await service.getUserEntitlements(requestData, 'unrelated-victim@example.com');
+
+    expect(entitlements.configs).toEqual({ good_config: [Capability.READ] });
   });
 
   it('merges a grant under a historical slug with one already under the current slug for the same Dataset', async () => {
@@ -190,7 +203,7 @@ describe('EntitlementService', () => {
       },
     ],
     ['dataset-2', { 'user2@example.com': [Capability.OBFUSCATE_AS_POINTS] }],
-    ['spatial_filter', { 'user4@example.com': 'world' }],
+    ['spatial_filter', { 'user4@example.com': [Capability.DOWNLOAD] }],
   ])('should retrieve entity entitlements', async (slug, expectedEntitlements) => {
     const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, slug);
     expect(entitlements).toEqual(expectedEntitlements);
@@ -247,7 +260,7 @@ describe('EntitlementService', () => {
       });
       // A key with no slug_history row at all must survive
       expect(await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, 'spatial_filter')).toEqual({
-        'user4@example.com': 'world',
+        'user4@example.com': [Capability.DOWNLOAD],
       });
     });
 
@@ -288,6 +301,87 @@ describe('EntitlementService', () => {
 
       const after = await entityManager.query(`SELECT xmin::text FROM entitlements WHERE id = 'user2@example.com'`);
       expect(after[0].xmin).toEqual(before[0].xmin);
+    });
+
+    describe('configs scope', () => {
+      const configKey = 'dashboard-1';
+
+      beforeEach(async () => {
+        await entityManager.query(`
+          INSERT INTO entitlements (id, data) VALUES ('config-user1@example.com', '{"configs": {"${configKey}": ["read"]}}')
+        `);
+      });
+
+      it('gets entitlements set for a config key', async () => {
+        const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey);
+        expect(entitlements).toEqual({ 'config-user1@example.com': [Capability.READ] });
+      });
+
+      it('skips a malformed (non-array) capability grant instead of returning it as-is', async () => {
+        await entityManager.query(`
+          INSERT INTO entitlements (id, data) VALUES ('config-user2@example.com', '{"configs": {"${configKey}": {"poisoned": true}}}')
+        `);
+
+        const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey);
+
+        expect(entitlements).toEqual({ 'config-user1@example.com': [Capability.READ] });
+      });
+
+      it('sets entitlements for a config key and returns the updated entitlements', async () => {
+        const payload = { 'config-user1@example.com': [Capability.READ], 'config-user2@example.com': [Capability.WRITE] };
+        const result = await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey, payload);
+        expect(result).toEqual(payload);
+        expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(payload);
+      });
+
+      it('deletes entitlements for a config key without touching the datasets scope', async () => {
+        await service.deleteEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey);
+
+        expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual({});
+        // datasets scope entitlements, seeded in the top-level beforeEach, must be untouched
+        expect(await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, 'dataset-1')).toEqual({
+          everyone: [Capability.DOWNLOAD],
+          'user1@example.com': [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW, Capability.DOWNLOAD],
+          'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
+        });
+      });
+
+      // `dataset-1` is renamed to `dataset-1-renamed` in the top-level beforeEach, so both
+      // strings sit in slug_history under one entity_id. Two config items keyed with those two
+      // strings are still two unrelated config items: config ids are opaque and never rename,
+      // and the dataset's history must not make either one an alias of the other.
+      describe('when a config key collides with an entity slug history', () => {
+        beforeEach(async () => {
+          await entityManager.query(`
+            INSERT INTO entitlements (id, data) VALUES
+            ('config-user9@example.com', '{"configs": {"dataset-1-renamed": ["download"]}}')
+          `);
+        });
+
+        it('does not return the grants of the config key matching the other slug', async () => {
+          const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1');
+          expect(entitlements).toEqual({});
+        });
+
+        it('does not strip the grants of the config key matching the other slug on write', async () => {
+          await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1', {
+            'config-user1@example.com': [Capability.READ],
+          });
+
+          expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1-renamed')).toEqual({
+            'config-user9@example.com': [Capability.DOWNLOAD],
+          });
+        });
+
+        it('still expands the same pair of slugs in the datasets scope', async () => {
+          const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, 'dataset-1-renamed');
+          expect(entitlements).toEqual({
+            everyone: [Capability.DOWNLOAD],
+            'user1@example.com': [Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW, Capability.DOWNLOAD],
+            'user3@example.com': [Capability.OBFUSCATE_AS_POINTS],
+          });
+        });
+      });
     });
   });
 
@@ -364,6 +458,118 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('assertCanReadConfigEntitlement', () => {
+    const configKey = 'test-config-key';
+
+    it('rejects a non-privileged caller with no capability for the config', async () => {
+      await expect(service.assertCanReadConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('allows a non-privileged caller holding READ for the config', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    it('allows a non-privileged caller holding WRITE for the config', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    it('rejects a non-privileged caller holding an unrelated capability only', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [] } } };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('allows a privileged caller regardless of capability', async additionalData => {
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('assertCanWriteConfigEntitlement', () => {
+    const configKey = 'test-config-key';
+
+    it('allows a non-privileged caller first access to a plugin-owned config (nobody holds a grant yet)', async () => {
+      await expect(service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings')).resolves.toBeUndefined();
+    });
+
+    it('rejects a non-privileged caller first access to a non-plugin config id, even with no grant or row yet', async () => {
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('rejects a non-privileged caller without WRITE once the config already has any grant', async () => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('allows a caller holding WRITE for the config even though other grants already exist', async () => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    it('rejects a non-privileged caller on an existing config with no grants yet — not a genuine first access', async () => {
+      await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
+
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('allows a privileged caller on an existing config with no grants yet', async () => {
+      await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
+      const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
+
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('allows a privileged caller regardless of existing grants', async additionalData => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('setConfigEntitlement', () => {
+    const configKey = 'plugin:my-plugin:settings';
+
+    it('writes the entitlements when the write gate passes (first access)', async () => {
+      const payload = { 'config-user@example.com': [Capability.WRITE] };
+
+      const result = await service.setConfigEntitlement(requestData, configKey, payload);
+
+      expect(result).toEqual(payload);
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(payload);
+    });
+
+    it('rejects and does not write when the write gate fails', async () => {
+      const existingGrants = { 'config-other@example.com': [Capability.READ] };
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+      `);
+
+      await expect(
+        service.setConfigEntitlement(requestData, configKey, { 'new-user@example.com': [Capability.READ] }),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(existingGrants);
+    });
+  });
+
   describe('selectByScope', () => {
     it('returns the configs entries under a subkey prefix, excluding unrelated keys', () => {
       const entitlements = {
@@ -379,6 +585,23 @@ describe('EntitlementService', () => {
     it('matches a singleton subkey entry with no suffix, via exact equality', () => {
       const entitlements = { datasets: {}, configs: { dashboards: [Capability.READ] } };
       expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({ dashboards: [Capability.READ] });
+    });
+
+    it('matches a plugin-owned key on its id part, keeping the full key (with prefix) in the result', () => {
+      const entitlements = {
+        datasets: {},
+        configs: {
+          'plugin:weather-widget:dashboards_1': [Capability.READ],
+          'plugin:weather-widget:dashboards': [Capability.READ],
+          'plugin:weather-widget:look_and_feel': [Capability.READ],
+          dashboards_2: [Capability.READ],
+        },
+      };
+      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({
+        'plugin:weather-widget:dashboards_1': [Capability.READ],
+        'plugin:weather-widget:dashboards': [Capability.READ],
+        dashboards_2: [Capability.READ],
+      });
     });
   });
 
@@ -459,6 +682,40 @@ describe('EntitlementService', () => {
       it('does not throw when the user has the required capability for the config key', async () => {
         const rd = { ...requestData, entitlements: { datasets: {}, configs: { dashboard_1: [Capability.READ] } } };
         await expect(service.enforceEntitlements(rd, EntitlementScope.CONFIGS, ['dashboard_1'], Capability.READ)).resolves.toBeUndefined();
+      });
+
+      describe('slug-history collision', () => {
+        // Prerequisites:
+        // - "dataset-1" fixture is renamed to "dataset-1-renamed" in the top-level beforeEach,
+        // - entitlements are under the historical slug.
+        // The tests verifies that the configs scope is not affected by that rename,
+        // even though the two slugs happen to collide with two config keys.
+        beforeEach(async () => {
+          await entityManager.query(`
+            INSERT INTO entitlements (id, data) VALUES
+            ('config-user9@example.com', '{"configs": {"dataset-1-renamed": ["download"]}}')
+          `);
+        });
+
+        it('does not return another config item grants', async () => {
+          const grants = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1');
+          // Nobody holds a grant on config `dataset-1`.
+          expect(grants).toEqual({});
+        });
+
+        it('does not wipe another config item grants on write', async () => {
+          await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1', {
+            'config-user1@example.com': [Capability.READ],
+          });
+
+          // Asserted against the raw row on purpose: reading back through
+          // getEntityEntitlements('dataset-1-renamed') expands the same way and would
+          // mask the wipe by surfacing the grant just written under 'dataset-1'.
+          const [row] = await entityManager.query(
+            `SELECT data->'configs' AS configs FROM entitlements WHERE id = 'config-user9@example.com'`,
+          );
+          expect(row.configs).toEqual({ 'dataset-1-renamed': ['download'] });
+        });
       });
     });
   });

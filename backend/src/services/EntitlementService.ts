@@ -1,10 +1,11 @@
 import { assert } from 'console';
 import { StatusCodes } from 'http-status-codes';
 import { In } from 'typeorm';
-import { EVERYONE } from '../constants/constants';
+import { EVERYONE, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
+import { JsonStorage } from '../entities/JsonStorage';
 import { RequestData } from '../interfaces/RequestData';
-import { EntitlementScope, type Entitlements, type EntityScope, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
+import { EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
@@ -13,6 +14,17 @@ import { isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 
 const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
+
+/**
+ * Scopes whose keys are entity slugs, and so carry an identity that survives a rename.
+ *
+ * `CONFIGS` keys are freeform ids chosen by the caller of `PUT /config/{configId}`, with no entity
+ * behind them. Resolving one through `slug_history` would alias it to every slug some unrelated
+ * entity has ever held, so a config id that happens to equal a renamed dataset's old slug would
+ * read, and delete, the grants of the config id equal to its new one. `getUserEntitlements` draws
+ * this same line for the same reason; this is the single place both paths take it from.
+ */
+const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
 
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
@@ -50,12 +62,17 @@ const parseExternalEntitlements = (body: unknown): CapabilityGrants => {
 };
 
 export default class EntitlementService {
-  private entitiesToEntitlements = (entities: EntitlementsEntity[], scope: EntityScope, slugs: string[]): CapabilityGrants => {
+  private entitiesToEntitlements = (entities: EntitlementsEntity[], scope: EntitlementScope, slugs: string[]): CapabilityGrants => {
     return entities.reduce((acc, { id, data }) => {
       const scopedData = data[scope] ?? {};
       const key = slugs.find(k => k in scopedData);
       assert(key, 'Key should be found in data');
-      acc[id] = scopedData[key!]!;
+      const capabilities = scopedData[key!]!;
+      if (!Array.isArray(capabilities)) {
+        log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
+        return acc;
+      }
+      acc[id] = capabilities;
       return acc;
     }, {} as CapabilityGrants);
   };
@@ -65,8 +82,14 @@ export default class EntitlementService {
    * ever had, since entitlements are written with whatever slug was current at the time. Reads
    * and deletes must resolve identity the same way, or a rename leaves keys that are still
    * honoured on read but missed on delete — hence the single helper (see ADR 0027).
+   *
+   * Only for scopes keyed by entity slug. A key in any other scope is an opaque id and is its own
+   * only spelling, so it is returned as given without consulting `slug_history` at all.
    */
-  private resolveSlugs = async (requestData: RequestData, slug: string): Promise<string[]> => {
+  private resolveSlugs = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<string[]> => {
+    if (!ENTITY_BACKED_SCOPES.has(scope)) {
+      return [slug];
+    }
     const slugs = await getEntitySlugs(requestData, slug);
     if (slugs.length === 0) {
       // This handles entitlements for "non-entities" (e.g.: "spatial_filter")
@@ -76,9 +99,9 @@ export default class EntitlementService {
     return slugs;
   };
 
-  getEntityEntitlements = async (requestData: RequestData, scope: EntityScope, slug: string): Promise<CapabilityGrants> => {
+  getEntityEntitlements = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<CapabilityGrants> => {
     // 1. Get all slugs related to the same entity (this handles slug history)
-    const slugs = await this.resolveSlugs(requestData, slug);
+    const slugs = await this.resolveSlugs(requestData, scope, slug);
     // 2. Get all entitlements that match any of the slugs, within this scope's own sub-object
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     const entities = await repo.createQueryBuilder('ent').where('ent.data->:scope ?| array[:...slugs]', { scope, slugs }).getMany();
@@ -87,7 +110,7 @@ export default class EntitlementService {
 
   setEntityEntitlements = async (
     requestData: RequestData,
-    scope: EntityScope,
+    scope: EntitlementScope,
     slug: string,
     entitlements: CapabilityGrants,
   ): Promise<CapabilityGrants> => {
@@ -122,8 +145,8 @@ export default class EntitlementService {
    * are kept: the row is a subject record rather than an entitlement, and the subject is retained
    * throughout the schema anyway (`created_by`).
    */
-  deleteEntityEntitlements = async (requestData: RequestData, scope: EntityScope, slug: string): Promise<void> => {
-    const slugs = await this.resolveSlugs(requestData, slug);
+  deleteEntityEntitlements = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<void> => {
+    const slugs = await this.resolveSlugs(requestData, scope, slug);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     await repo
       .createQueryBuilder('ent')
@@ -151,13 +174,23 @@ export default class EntitlementService {
    * singleton case, e.g. a lone `dashboards` entry with no suffix) or as `${scope}_...` (the
    * multi-entry case, e.g. `dashboards_1`, `dashboards_2`) — `startsWith` alone would miss the
    * singleton case.
+   *
+   * A plugin-owned key (`plugin:${pluginId}:${id}`, see `PLUGIN_CONFIG_ID_PATTERN`) is matched on
+   * its `id` part alone — `plugin:weather-widget:dashboards_1` counts as a `dashboards` entry the
+   * same way `dashboards_1` does — since the subkey convention is a property of what a plugin
+   * named its own config, not of the plugin namespace wrapped around it. The full key (prefix
+   * included) is what's returned, so the caller still knows which config it is.
    */
   selectByScope = (entitlements: Entitlements, scope: RequestScope): CapabilityGrants => {
     if (scope === EntitlementScope.DATASETS || scope === EntitlementScope.CONFIGS) {
       return entitlements[scope] ?? {};
     }
     const configs = entitlements.configs ?? {};
-    return Object.fromEntries(Object.entries(configs).filter(([key]) => key === scope || key.startsWith(`${scope}_`)));
+    const matchesSubkey = (key: string): boolean => {
+      const id = PLUGIN_CONFIG_ID_PATTERN.exec(key)?.[2] ?? key;
+      return id === scope || id.startsWith(`${scope}_`);
+    };
+    return Object.fromEntries(Object.entries(configs).filter(([key]) => matchesSubkey(key)));
   };
 
   async getUserEntitlements(requestData: RequestData, id?: string): Promise<Entitlements> {
@@ -170,19 +203,23 @@ export default class EntitlementService {
         const target = (acc[scope] ??= {});
         const scopedData = data[scope] ?? {};
         for (const key in scopedData) {
+          const capabilities = scopedData[key]!;
+          if (!Array.isArray(capabilities)) {
+            log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
+            continue;
+          }
           if (!target[key]) {
             target[key] = [];
           }
-          const capabilities = scopedData[key]!;
           target[key] = Array.from(new Set([...target[key], ...capabilities]));
         }
       }
       return acc;
     }, externalEntitlements); // Using external entitlements as the accumulator base
 
-    // Only entity-backed scopes need slug-history expansion (today: datasets). `configs` keys
-    // are freeform, with no entity behind them, so they pass through untouched — this is the
-    // seam a future entity-backed scope would join.
+    // Only ENTITY_BACKED_SCOPES need slug-history expansion (today: datasets). `configs` keys are
+    // freeform, with no entity behind them, so they pass through untouched — this is the seam a
+    // future entity-backed scope would join, in step with that constant and `resolveSlugs`.
     return {
       datasets: await this.expandAcrossSlugHistory(requestData, merged.datasets ?? {}),
       configs: merged.configs ?? {},
@@ -285,6 +322,83 @@ export default class EntitlementService {
       return emptyEntitlements();
     }
   }
+
+  /**
+   * Domain-level read gate for `GET /config/{configId}/entitlements`: the response is the full
+   * multi-subject grants map (every subject's email/id and their capabilities for the config), so
+   * only a privileged caller or someone who already holds `READ` or `WRITE` on the config gets to
+   * see it. Unlike the write gate, there is no "first access" bypass: if nobody holds a grant yet,
+   * a non-privileged caller by definition holds neither capability either, so this falls out of
+   * the same capability check without a separate branch.
+   */
+  assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+    if (isPrivilegedCaller(requestData.token)) {
+      return;
+    }
+
+    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
+    if (!callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE)) {
+      throw new ErrorResponse(`User does not have read entitlement for config ${key}`, StatusCodes.FORBIDDEN);
+    }
+  };
+
+  /**
+   * Domain-level write gate for `PUT /config/{configId}/entitlements`, distinct from
+   * `enforceEntitlements`: that method always throws when the caller lacks the key outright, with
+   * no "first access" bypass, and carries dataset-visibility filtering that has no analogue here.
+   * A non-admin caller may write a config's entitlements only if it is a genuine first access
+   * (bootstrap) on a config id it is allowed to bootstrap, or if the caller already holds `WRITE`
+   * on it.
+   *
+   * "First access" requires no entitlement grant, no `ConfigItem` (see `configExists`), *and* a
+   * `PLUGIN_CONFIG_ID_PATTERN` match. Grant-and-existence alone would be insufficient: nothing
+   * about those two facts distinguishes a caller-owned plugin config from a system config
+   * (`frontend-logo`, `theme`, `ingestion-status`, `vocabulary-csv-hashes`, ...) that simply
+   * hasn't been created yet. Scoping bootstrap to the `plugin:` namespace closes
+   * this structurally: every system id is permanently ineligible for self-service, with nothing to
+   * maintain as new system configs are added, while `usePluginConfig`
+   * (frontend/src/hooks/usePluginConfig.ts) is the only caller that ever needs this bypass at all.
+   */
+  assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+    if (isPrivilegedCaller(requestData.token)) {
+      return;
+    }
+
+    const existingGrants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
+    if (Object.keys(existingGrants).length === 0 && PLUGIN_CONFIG_ID_PATTERN.test(key) && !(await this.configExists(requestData, key))) {
+      return;
+    }
+
+    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
+    if (!callerCapabilities?.includes(Capability.WRITE)) {
+      throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
+    }
+  };
+
+  /** Whether a `ConfigItem` has ever been stored under this id via `PUT /config/{configId}`. */
+  private configExists = async (requestData: RequestData, key: string): Promise<boolean> => {
+    const repo = requestData.entityManager.getRepository(JsonStorage);
+    return repo.exists({ where: { id: key } });
+  };
+
+  /**
+   * `PUT /config/{configId}/entitlements`'s single entry point: composes the write gate with the
+   * generic writer so a caller can't reach `setEntityEntitlements(CONFIGS, ...)` without the check
+   * running first — the gate has no other production caller to enforce that ordering itself.
+   */
+  setConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<CapabilityGrants> => {
+    await this.assertCanWriteConfigEntitlement(requestData, key);
+    return this.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, key, entitlements);
+  };
+
+  /**
+   * `GET /config/{configId}/entitlements`'s single entry point: composes the read gate with the
+   * generic reader, same reasoning as `setConfigEntitlement`.
+   */
+  getConfigEntitlement = async (requestData: RequestData, key: string): Promise<CapabilityGrants> => {
+    await this.assertCanReadConfigEntitlement(requestData, key);
+    return this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
+  };
 
   async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {
     if (isPrivilegedCaller(requestData.token)) {

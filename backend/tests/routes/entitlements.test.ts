@@ -22,7 +22,7 @@ const mockToken: Token = {
 
 describe('Testing entitlements routes', () => {
   const slug = 'test_dataset_1';
-  const email = 'data-admin@localhost';
+  const userEmail = 'data-admin@localhost';
   let token: string;
 
   beforeAll(async () => {
@@ -44,7 +44,7 @@ describe('Testing entitlements routes', () => {
     await entityManager.query(`
         INSERT INTO entitlements (id, data) VALUES
         ('everyone', '{"datasets": {"${slug}": ["download"]}}'),
-        ('${email}', '{"datasets": {"${slug}": ["preview"]}}')
+        ('${userEmail}', '{"datasets": {"${slug}": ["preview"]}}')
         `);
   });
 
@@ -54,13 +54,13 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual({
         everyone: ['download'],
-        [email]: ['preview'],
+        [userEmail]: ['preview'],
       });
     });
   });
 
   describe('PUT /datasets/{datasetId}/entitlements', () => {
-    it.each([{}, { everyone: ['download'], [email]: ['preview'] }, { everyone: ['download'], [email]: ['read'] }])(
+    it.each([{}, { everyone: ['download'], [userEmail]: ['preview'] }, { everyone: ['download'], [userEmail]: ['read'] }])(
       'changes the dataset entitlements',
       async payload => {
         const putRes = await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(payload);
@@ -89,6 +89,186 @@ describe('Testing entitlements routes', () => {
       expect(updatedRes.statusCode).toBe(StatusCodes.OK);
       // Updated entitlements should be reflected in dataset capabilities: "everyone" + this subject's own grant
       expect(updatedRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS]);
+    });
+  });
+
+  describe('GET /config/{configId}/entitlements', () => {
+    const configId = 'test_config_1';
+
+    beforeEach(async () => {
+      const entityManager = await getEntityManager();
+      await entityManager.query(`
+        UPDATE entitlements SET data = data || jsonb_build_object('configs', jsonb_build_object('${configId}', '["download"]'::jsonb))
+        WHERE id = 'everyone'
+      `);
+    });
+
+    it('responds with the list of entitlements', async () => {
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ everyone: ['download'] });
+    });
+
+    it('rejects a non-admin caller with no READ/WRITE capability for the config', async () => {
+      const nonAdminToken = getUserToken('reader-id', 'reader@example.com');
+
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${nonAdminToken}`);
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('allows a non-admin caller holding READ for the config', async () => {
+      const readerEmail = 'reader-with-read@example.com';
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ everyone: ['download'], [readerEmail]: ['read'] });
+      const readerToken = getUserToken('reader-with-read-id', readerEmail);
+
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${readerToken}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ everyone: ['download'], [readerEmail]: ['read'] });
+    });
+
+    it('allows a non-admin caller holding WRITE for the config', async () => {
+      const writerEmail = 'reader-with-write@example.com';
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ everyone: ['download'], [writerEmail]: ['write'] });
+      const writerToken = getUserToken('reader-with-write-id', writerEmail);
+
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${writerToken}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ everyone: ['download'], [writerEmail]: ['write'] });
+    });
+
+    it('returns 401 with no token', async () => {
+      const res = await request(app).get(`/config/${configId}/entitlements`);
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    });
+  });
+
+  describe('PUT /config/{configId}/entitlements', () => {
+    const configId = 'test_config_1';
+
+    it.each([{}, { everyone: ['download'], [userEmail]: ['preview'] }, { everyone: ['download'], [userEmail]: ['read'] }])(
+      'changes the config entitlements',
+      async payload => {
+        const putRes = await request(app).put(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`).send(payload);
+        expect(putRes.statusCode).toBe(StatusCodes.OK);
+        const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
+        expect(res.body).toEqual(payload);
+      },
+    );
+
+    it('allows a non-admin caller to PUT on first access of a plugin-owned config (nobody holds a grant yet)', async () => {
+      const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
+      const pluginConfigId = 'plugin:my-plugin:settings';
+
+      const res = await request(app)
+        .put(`/config/${pluginConfigId}/entitlements`)
+        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .send({ 'first-access@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+    });
+
+    it('rejects a non-admin caller on first access of a non-plugin config id, even with no grants or row yet', async () => {
+      const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .send({ 'first-access@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('rejects a non-admin caller on first access when the config already exists but has no grants yet', async () => {
+      const entityManager = await getEntityManager();
+      await entityManager.getRepository('JsonStorage').save({ id: configId, data: { some: 'value' } });
+      const nonAdminToken = getUserToken('existing-config-id', 'existing-config@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${nonAdminToken}`)
+        .send({ 'existing-config@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('rejects a non-admin caller lacking WRITE once the config already has grants', async () => {
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ [userEmail]: [Capability.READ] });
+      const noWriteToken = getUserToken('no-write-id', 'no-write@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${noWriteToken}`)
+        .send({ 'no-write@example.com': [Capability.READ] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('allows a non-admin caller holding WRITE on the config even though grants already exist', async () => {
+      const writeHolderEmail = 'write-holder@example.com';
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ [writeHolderEmail]: [Capability.WRITE] });
+      const writeHolderToken = getUserToken('write-holder-id', writeHolderEmail);
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${writeHolderToken}`)
+        .send({ [writeHolderEmail]: [Capability.WRITE], [userEmail]: [Capability.READ] });
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+    });
+
+    it('returns 401 with no token', async () => {
+      const res = await request(app).put(`/config/${configId}/entitlements`).send({});
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    });
+
+    it('rejects a non-array capability value at the schema layer instead of persisting it', async () => {
+      const poisonToken = getUserToken('poison-id', 'poison@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${poisonToken}`)
+        .send({ everyone: { poisoned: true } });
+
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
+  });
+
+  describe('Scope isolation between datasets and configs', () => {
+    it('does not leak PUT /config/{id}/entitlements into GET /datasets/{id}/entitlements, or vice versa, for a colliding id', async () => {
+      // Reuses the dataset slug seeded in the top-level beforeEach as the config id
+      const collisionId = slug;
+      const configPayload = { everyone: ['preview'] };
+
+      const putConfigRes = await request(app)
+        .put(`/config/${collisionId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send(configPayload);
+      expect(putConfigRes.statusCode).toBe(StatusCodes.OK);
+
+      // The dataset's own entitlements, seeded in the top-level beforeEach, must be unaffected
+      const datasetRes = await request(app).get(`/datasets/${collisionId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      expect(datasetRes.statusCode).toBe(StatusCodes.OK);
+      expect(datasetRes.body).toEqual({ everyone: ['download'], [userEmail]: ['preview'] });
+
+      // And the config entitlements must be exactly what was PUT, not merged with the dataset's
+      const configRes = await request(app).get(`/config/${collisionId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      expect(configRes.statusCode).toBe(StatusCodes.OK);
+      expect(configRes.body).toEqual(configPayload);
     });
   });
 
@@ -156,21 +336,30 @@ describe('Testing entitlements routes', () => {
         const entityManager = await getEntityManager();
         await entityManager.query(`
           UPDATE entitlements
-          SET data = data || '{"configs": {"dashboards_1": ["read"], "dashboards_2": ["read"], "look_and_feel": ["read"]}}'::jsonb
+          SET data = data || '{"configs": {"dashboards_1": ["read"], "dashboards_2": ["read"], "look_and_feel": ["read"], "plugin:weather-widget:dashboards_1": ["read"]}}'::jsonb
           WHERE id = 'everyone'
         `);
       });
 
-      it('returns only the configs entries under the dashboards subkey', async () => {
+      it('returns only the configs entries under the dashboards subkey, including a plugin-owned one', async () => {
         const res = await request(app).get('/entitlements').query({ scope: 'dashboards' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
-        expect(res.body).toEqual({ dashboards_1: ['read'], dashboards_2: ['read'] });
+        expect(res.body).toEqual({
+          dashboards_1: ['read'],
+          dashboards_2: ['read'],
+          'plugin:weather-widget:dashboards_1': ['read'],
+        });
       });
 
       it('still returns every configs entry unfiltered for scope=configs (no regression)', async () => {
         const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
-        expect(res.body).toEqual({ dashboards_1: ['read'], dashboards_2: ['read'], look_and_feel: ['read'] });
+        expect(res.body).toEqual({
+          dashboards_1: ['read'],
+          dashboards_2: ['read'],
+          look_and_feel: ['read'],
+          'plugin:weather-widget:dashboards_1': ['read'],
+        });
       });
     });
   });

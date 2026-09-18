@@ -842,6 +842,78 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /config/{configId}/entitlements:
+    get:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: getConfigEntitlements
+      x-entitlements-required: true
+      summary: Get entitlement grants for a config item
+      tags:
+        - config
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: configId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the configuration
+      responses:
+        '200':
+          description: Entitlement grants for the config item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    put:
+      x-eov-operation-handler: controllers/entitlements
+      x-eov-operation-id: setConfigEntitlement
+      x-entitlements-required: true
+      summary: Set entitlement grants for a config item
+      description: >-
+        A non-admin caller may only claim a config's entitlements on first access (nobody holds a
+        grant for it yet, and it hasn't been created) when configId follows the plugin:{pluginId}:{id}
+        convention, matching the id usePluginConfig builds on the frontend. Any other configId is
+        first-access only for a super-admin or data-admin; a non-admin caller needs an existing
+        WRITE grant.
+      tags:
+        - config
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: configId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Unique identifier for the configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Entitlements'
+      responses:
+        '200':
+          description: Update successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Entitlements'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
   /soil-properties:
     get:
       x-eov-operation-handler: controllers/soil-properties
@@ -3161,6 +3233,17 @@ components:
         Flat map of key (a dataset slug, or a freeform config key under the `configs` scope) to
         the list of capabilities granted for it. Used both by `GET /entitlements` (one scope's
         slice) and by `GET`/`PUT /datasets/{datasetId}/entitlements` (always the `datasets` scope).
+      additionalProperties:
+        type: array
+        items:
+          type: string
+          enum:
+            - preview
+            - download
+            - obfuscate_as_points
+            - obfuscate_as_polygons
+            - read
+            - write
 
     DataAvailabilityIndex:
       type: object
