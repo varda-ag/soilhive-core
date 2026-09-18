@@ -32,6 +32,7 @@ export interface RasterFileMetadata {
   size: [number, number]; // [width, height] in pixels
   band_count: number;
   raster_bands: RasterBandMetadata[];
+  unit_conversion_applied?: boolean; // Avoids re-applying the unit-conversion factor on top of already-scaled pixels on load retry.
 }
 
 export interface VectorFileMetadata {

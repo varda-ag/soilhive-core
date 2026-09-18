@@ -15,6 +15,7 @@ import ConfigService from './ConfigService';
 import { StorageModes } from '../types/enums';
 import { GdalCLI, type GdalProgressCallback } from '../utils/GdalCLI';
 import { JobError } from '../errors/JobError';
+import type { RasterFileMetadata } from '../interfaces/File';
 
 const SUBDIVIDE_MAX_VERTICES = 1000;
 
@@ -105,19 +106,16 @@ function parseConversionFactor(formula: string): number | null {
  * Checks the file against the format a raster layer requires — Cloud Optimized GeoTIFF
  * and pixels already in the soil property's standard unit — and normalizes it with
  * convertRaster function when it deviates, repointing the file record at the converted output.
- *
- * Replaces the previous pair of assertions: the same three conditions are still preconditions of
- * ingestion, but a deviation is now something the loader fixes rather than something it refuses.
- * A conforming file is left untouched, which also makes this a no-op for every band after the
- * first of a multiband file.
  */
 export async function checkFileFormat(opts: RasterFormatCheckOptions): Promise<RasterFormatCheckResult> {
   const em = await getEntityManager();
-  const [file] = await em.query(`SELECT file_path, "name" FROM files WHERE id = $1`, [opts.fileId]);
+  const [file] = await em.query(`SELECT file_path, "name", metadata FROM files WHERE id = $1`, [opts.fileId]);
   const filePath: string | undefined = file?.file_path;
   if (!filePath) {
     throw new Error(`File ${opts.fileId} has no file_path`);
   }
+  // File has already been converted and updated in prior raster-load execution
+  const alreadyUnitConverted = Boolean((file.metadata as RasterFileMetadata | null)?.unit_conversion_applied);
 
   const { mainFilePath } = await FileService.getMainFilePath(filePath);
   const info = await GdalCLI.gdalinfo(mainFilePath);
@@ -162,7 +160,7 @@ export async function checkFileFormat(opts: RasterFormatCheckOptions): Promise<R
 
   const deviations: FormatDeviations = {
     notCog: !isCog,
-    unitFactors: anyScaling ? unitFactors : null,
+    unitFactors: anyScaling && !alreadyUnitConverted ? unitFactors : null,
   };
   if (!deviations.notCog && deviations.unitFactors === null) {
     return { filePath, converted: false };
@@ -221,8 +219,7 @@ async function convertRasterFile(
     const producedPath = await timed('convertRaster', () => convertRaster(inputPath, outputPath, deviations, resampling, opts.onProgress));
 
     // Deterministic so re-running a failed load overwrites its own output instead of piling up.
-    let convertedKey = filePath.replace(/(\.tif)?$/i, '_cog.tif');
-    if (convertedKey === filePath) convertedKey = filePath.replace(/(\.tif)?$/i, '_normalized.tif');
+    const convertedKey = filePath.replace(/(\.tif)?$/i, '_cog.tif');
 
     await opts.onProgress?.(85, `Storing normalized '${fileName}'...`);
     if (await storage.fileExists(convertedKey)) {
@@ -230,7 +227,11 @@ async function convertRasterFile(
     }
     await storage.write(convertedKey, createReadStream(producedPath));
 
-    await em.query(`UPDATE files SET file_path = $1, updated_at = now() WHERE id = $2`, [convertedKey, opts.fileId]);
+    const metadataPatch: Partial<RasterFileMetadata> = deviations.unitFactors !== null ? { unit_conversion_applied: true } : {};
+    await em.query(
+      `UPDATE files SET file_path = $1, metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = now() WHERE id = $3`,
+      [convertedKey, JSON.stringify(metadataPatch), opts.fileId],
+    );
     log.info('Raster normalized', { from: filePath, to: convertedKey, bands: opts.bands.map(b => b.band), reasons });
     await opts.onProgress?.(100, `Normalized '${fileName}'`);
 

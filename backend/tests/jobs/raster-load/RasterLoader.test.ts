@@ -64,27 +64,48 @@ const rasterMetadata = (bandCount: number): RasterFileMetadata => ({
   })),
 });
 
-const bandEntry = (propertySlug: string, minDepth: number, maxDepth: number) => ({
+const bandEntry = (propertySlug: string, minDepth: number, maxDepth: number, conversion_id: string | null = null) => ({
   property_id: propertySlug,
-  conversion_id: null,
+  conversion_id,
   min_depth: minDepth,
   max_depth: maxDepth,
 });
 
+/** One unit conversion for setUpRasterLoad to create against its own internal property. */
+interface UnitConversionSpec {
+  originalUnit: string;
+  formula: string | null;
+  type?: UnitConversionType;
+}
+
 /**
  * Builds what a Raster Load consumes: a raster dataset, a pending raster file carrying the band
  * metadata probed at upload, and a band mapping linked to both. `buildMapping` receives the soil
- * property slug the mapping should reference; returning null links the file with no mapping.
+ * property slug the mapping should reference, the slug of the unit conversion created from
+ * `options.unitConversion` (undefined unless that option is given), and the slugs of the
+ * conversions created from `options.unitConversions` for per-band conversions (undefined unless that
+ * option is given) — returning null links the file with no mapping.
  */
 const setUpRasterLoad = async (
   name: string,
-  buildMapping: (propertySlug: string) => Record<string, unknown> | null,
-  options?: { bandCount?: number; fileName?: string },
+  buildMapping: (propertySlug: string, conversionSlug?: string, conversionSlugs?: string[]) => Record<string, unknown> | null,
+  options?: {
+    bandCount?: number;
+    fileName?: string;
+    unitConversion?: UnitConversionSpec;
+    unitConversions?: UnitConversionSpec[];
+  },
 ) => {
   const dataSource = await getDataSource();
   const dataset = await addDataset(name, [-180, -90, 180, 90], GISDataType.RASTER);
   const category = await addCategory(`category-${name}`);
   const property = await addSoilProperty(`property-${name}`, category.id);
+  const conversion = options?.unitConversion
+    ? await addUnitConversion(property.id, options.unitConversion.originalUnit, options.unitConversion.formula, options.unitConversion.type)
+    : null;
+  const conversions = options?.unitConversions
+    ? await Promise.all(options.unitConversions.map(c => addUnitConversion(property.id, c.originalUnit, c.formula, c.type)))
+    : undefined;
 
   const fileName = options?.fileName ?? MULTIBAND_FILE;
   const fileRepo = dataSource.getRepository(FileEntity);
@@ -98,7 +119,11 @@ const setUpRasterLoad = async (
     }),
   );
 
-  const mapping = buildMapping(property.slug);
+  const mapping = buildMapping(
+    property.slug,
+    conversion?.slug,
+    conversions?.map(c => c.slug),
+  );
   const dataMapping = mapping ? await addDataMapping(mapping) : null;
 
   const mappingRepo = dataSource.getRepository(DatasetFileMappingEntity);
@@ -495,29 +520,22 @@ describe('RasterLoader', () => {
 
     it('scales each band by its own conversion factor, averaging resampled overviews', async () => {
       const storageDir = useScratchStorage(MULTIBAND_FILE);
-      const dataSource = await getDataSource();
-      const category = await addCategory('category-per-band');
-      const property = await addSoilProperty('property-per-band', category.id, 'mg/kg');
-      const thousandFold = await addUnitConversion(property.id, 'g/kg', 'x*1000');
-      const tenFold = await addUnitConversion(property.id, 'cg/kg', 'x*10');
-
-      const dataset = await addDataset(uniqueName('per-band-scaling'), [-180, -90, 180, 90], GISDataType.RASTER);
-      const fileRepo = dataSource.getRepository(FileEntity);
-      const file = await fileRepo.save(
-        fileRepo.create({
-          name: MULTIBAND_FILE,
-          file_path: MULTIBAND_FILE,
-          created_by: 'tests',
-          status: IngestionStatus.PENDING,
-          metadata: rasterMetadata(2),
+      const { dataset, file } = await setUpRasterLoad(
+        uniqueName('per-band-scaling'),
+        (slug, _conversionSlug, conversionSlugs) => ({
+          '1': { property_id: slug, conversion_id: conversionSlugs![0], min_depth: 0, max_depth: 5 },
+          '2': { property_id: slug, conversion_id: conversionSlugs![1], min_depth: 5, max_depth: 15 },
         }),
+        {
+          fileName: MULTIBAND_FILE,
+          unitConversions: [
+            { originalUnit: 'g/kg', formula: 'x*1000' },
+            { originalUnit: 'cg/kg', formula: 'x*10' },
+          ],
+        },
       );
-      const dataMapping = await addDataMapping({
-        '1': { property_id: property.slug, conversion_id: thousandFold.slug, min_depth: 0, max_depth: 5 },
-        '2': { property_id: property.slug, conversion_id: tenFold.slug, min_depth: 5, max_depth: 15 },
-      });
-      const mappingRepo = dataSource.getRepository(DatasetFileMappingEntity);
-      await mappingRepo.save(mappingRepo.create({ dataset_id: dataset.id, file_id: file.id, data_mapping_id: dataMapping.id }));
+      const dataSource = await getDataSource();
+      const fileRepo = dataSource.getRepository(FileEntity);
 
       const translate = jest.spyOn(GdalCLI, 'translate');
       try {
@@ -544,6 +562,40 @@ describe('RasterLoader', () => {
       // multiples — a single broadcast factor would scale both by the same amount.
       expect(maxOf(band1!)).toBeCloseTo(77 * 1000, 0);
       expect(maxOf(band2!)).toBeCloseTo(240 * 10, 0);
+    });
+
+    it('does not re-apply the unit-conversion factor or rename the file again on a retry', async () => {
+      const storageDir = useScratchStorage(MULTIBAND_FILE);
+      const { dataset, file } = await setUpRasterLoad(
+        uniqueName('retry-scaling'),
+        (slug, conversionSlug) => ({ '1': { property_id: slug, conversion_id: conversionSlug, min_depth: 0, max_depth: 5 } }),
+        { bandCount: 1, fileName: MULTIBAND_FILE, unitConversion: { originalUnit: 'cg/kg', formula: 'x*10' } },
+      );
+
+      const dataSource = await getDataSource();
+      const fileRepo = dataSource.getRepository(FileEntity);
+
+      const maxOfBand1 = async (filePath: string): Promise<number> => {
+        const tiff = await fromFile(path.join(storageDir, filePath));
+        const image = await tiff.getImage(0);
+        const [band1] = (await image.readRasters({ samples: [0] })) as unknown as ArrayLike<number>[];
+        let max = -Infinity;
+        for (let i = 0; i < band1!.length; i++) max = Math.max(max, band1![i] as number);
+        return max;
+      };
+
+      await processRasterLoad(getJob(dataset.slug));
+      const afterFirst = await fileRepo.findOneByOrFail({ id: file.id });
+      // Source max is 77; a single x10 application lands here.
+      expect(await maxOfBand1(afterFirst.file_path)).toBeCloseTo(77 * 10, 0);
+
+      // Simulates a retried job: re-running against the same file and (unchanged) mapping must not
+      // re-derive "needs scaling" from the mapping's still-x10 conversion_id and apply it again.
+      await processRasterLoad(getJob(dataset.slug));
+      const afterRetry = await fileRepo.findOneByOrFail({ id: file.id });
+
+      expect(afterRetry.file_path).toBe(afterFirst.file_path);
+      expect(await maxOfBand1(afterRetry.file_path)).toBeCloseTo(77 * 10, 0);
     });
 
     it('leaves a conforming raster untouched', async () => {
@@ -631,8 +683,9 @@ describe('RasterLoader', () => {
 
   describe('is_categorical', () => {
     it('persists is_categorical=true when the property has a categorical unit conversion', async () => {
-      const { dataset, file, property } = await setUpRasterLoad(uniqueName('categorical'), slug => ({ '1': bandEntry(slug, 0, 5) }));
-      await addUnitConversion(property.id, 'code 1-12', 'x', UnitConversionType.CATEGORY_MAPPING);
+      const { dataset, file } = await setUpRasterLoad(uniqueName('categorical'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        unitConversion: { originalUnit: 'code 1-12', formula: null, type: UnitConversionType.CATEGORY_MAPPING },
+      });
 
       await processRasterLoad(getJob(dataset.slug));
 
@@ -859,28 +912,12 @@ describe('RasterLoader', () => {
     });
 
     it('RL_UNIT_NOT_CONVERTIBLE when the unit conversion is not a single multiplication', async () => {
-      const dataSource = await getDataSource();
-      const category = await addCategory('category-nonlinear');
       // 'x / 10' cannot be expressed as --conversion_factor, so it cannot be applied automatically.
-      const property = await addSoilProperty('property-nonlinear', category.id, 'mg/kg');
-      const conversion = await addUnitConversion(property.id, 'g/kg', 'x / 10');
-
-      const dataset = await addDataset(uniqueName('nonlinear-unit'), [-180, -90, 180, 90], GISDataType.RASTER);
-      const fileRepo = dataSource.getRepository(FileEntity);
-      const file = await fileRepo.save(
-        fileRepo.create({
-          name: MULTIBAND_FILE,
-          file_path: MULTIBAND_FILE,
-          created_by: 'tests',
-          status: IngestionStatus.PENDING,
-          metadata: rasterMetadata(2),
-        }),
+      const { dataset, file } = await setUpRasterLoad(
+        uniqueName('nonlinear-unit'),
+        (slug, conversionSlug) => ({ '1': bandEntry(slug, 0, 5, conversionSlug ?? null) }),
+        { unitConversion: { originalUnit: 'g/kg', formula: 'x / 10' } },
       );
-      const dataMapping = await addDataMapping({
-        '1': { property_id: property.slug, conversion_id: conversion.slug, min_depth: 0, max_depth: 5 },
-      });
-      const mappingRepo = dataSource.getRepository(DatasetFileMappingEntity);
-      await mappingRepo.save(mappingRepo.create({ dataset_id: dataset.id, file_id: file.id, data_mapping_id: dataMapping.id }));
 
       await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
         name: 'JobError',
