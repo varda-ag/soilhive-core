@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import path from 'path';
 import { analyzeRasterMeta, selectOverviewTable } from '../../src/utils/raster';
+import { writableAssets } from '../assets';
 
-const rasterAssetsPath = path.join(__dirname, '../assets/raster');
+const rasterAssetsPath = writableAssets('raster');
 // Same fixture as RasterLoader.test.ts: a valid COG, but in EPSG:3857 rather than EPSG:4326.
 const EPSG3857_FILE = 'epsg3857_2b_250m.tif';
 

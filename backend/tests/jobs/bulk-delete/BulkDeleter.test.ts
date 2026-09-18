@@ -1,5 +1,4 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import path from 'path';
 import { Job } from 'pg-boss';
 import { QueryFailedError } from 'typeorm';
 import DatasetEntity from '../../../src/entities/Dataset';
@@ -11,6 +10,7 @@ import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { addRasterData, addSyntheticData, getLoadedDataCount, syntheticDataOptions } from '../../../src/utils/mock';
 import * as computeRasterFootprints from '../../../src/scripts/computeRasterFootprints';
+import { writableAsset } from '../../assets';
 
 // addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
 // these tiny fixtures. Lowering it here doesn't affect production (see computeRasterFootprints.ts).
@@ -168,7 +168,7 @@ describe('BulkDeleter class - raster datasets', () => {
 
   it('does not delete raster layers belonging to a different dataset', async () => {
     const keep = await addRasterData(undefined, { dataset: 'bulk-delete-raster-keep' });
-    const remove = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif'), {
+    const remove = await addRasterData(writableAsset('raster/bdod_5-15cm_mean.tif'), {
       dataset: 'bulk-delete-raster-remove',
     });
 

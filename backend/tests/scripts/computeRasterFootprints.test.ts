@@ -1,21 +1,22 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import fs from 'fs/promises';
-import os from 'os';
-import path from 'path';
 import type { MultiPolygon } from 'geojson';
 import { streamRasterFootprints } from '../../src/scripts/computeRasterFootprints';
+import { getTempDir } from '../../src/utils/utils';
+import { writableAssets } from '../assets';
 
-const rasterAssetsPath = path.join(__dirname, '../assets/raster');
+const rasterAssetsPath = writableAssets('raster');
 // Float32 band whose GDAL_NODATA tag is the text "-3.4e+38"
 const NODATA_F32_FILE = 'nodata_34e38_f32.tif';
 // Lambert Azimuthal Equal Area, no EPSG code — exercises the srcSrs-detection path and
 // gdal_footprint's own -t_srs reprojection, not gdaltransform.
 const CUSTOM_CRS_FILE = 'epsg8807_1b_250m.tif';
 
-// gdal_translate/gdal_footprint temp artifacts this module creates in os.tmpdir(); scoped by
-// prefix so unrelated files already present there don't produce false positives.
+// gdal_translate/gdal_footprint temp artifacts this module creates in the temp directory; scoped
+// by prefix so unrelated files already present there don't produce false positives. Read through
+// the same getTempDir the module writes through, which is per Jest worker
 async function listFootprintTempFiles(): Promise<string[]> {
-  const entries = await fs.readdir(os.tmpdir()).catch(() => [] as string[]);
+  const entries = await fs.readdir(getTempDir()).catch(() => [] as string[]);
   return entries.filter(name => name.startsWith('footprint-overview-') || name.startsWith('footprint-tile-'));
 }
 
@@ -73,7 +74,7 @@ describe('streamRasterFootprints', () => {
     }
   });
 
-  it('leaves no temp files behind in os.tmpdir() after a successful run', async () => {
+  it('leaves no temp files behind in the temp directory after a successful run', async () => {
     const before = await listFootprintTempFiles();
 
     await streamRasterFootprints(NODATA_F32_FILE, 1, async () => {});

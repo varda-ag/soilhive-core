@@ -9,6 +9,7 @@ import FileService from '../../../src/services/FileService';
 import RasterFilterService from '../../../src/services/RasterFilterService';
 import SoilPropertyService from '../../../src/services/SoilPropertyService';
 import { VectorFileFormat } from '../../../src/jobs/soil-export/types';
+import { workerOutputDir } from '../../assets';
 
 const mockFilterEntity = {
   filter: {
@@ -174,7 +175,7 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
   let tempDir: string;
 
   beforeEach(() => {
-    tempDir = '/tmp'; //fs.mkdtempSync(path.join(os.tmpdir(), 'readme-e2e-'));
+    tempDir = workerOutputDir('readme-e2e');
     // The outer beforeEach mocked generateExportPdf — restore it so real pdfkit runs.
     generateExportPdfSpy.mockRestore();
     // Still mock storage to avoid real S3/local FS reads.

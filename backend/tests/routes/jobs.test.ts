@@ -1,5 +1,4 @@
 import { describe, expect, it, beforeAll, afterEach, afterAll, jest } from '@jest/globals';
-import path from 'path';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { Token } from '../../src/interfaces/Token';
@@ -15,6 +14,7 @@ import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
 import { VectorFileMetadata } from '../../src/interfaces/File';
 import { addDataset, linkMapping } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
+import { writableAssets } from '../assets';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -201,7 +201,7 @@ describe('Testing /jobs routes', () => {
   });
 
   it('POST /jobs for file-to-db job', async () => {
-    const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
+    const vectorFilesPassPath = writableAssets('vector_files/pass');
     process.env.LOCAL_STORAGE_ROOT_FOLDER = vectorFilesPassPath;
     const token = await getDataAdminToken();
     const entityManager = await getEntityManager();

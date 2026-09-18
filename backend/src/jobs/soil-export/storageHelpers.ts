@@ -1,18 +1,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
 import archiver from 'archiver';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import { EXPORT_CONFIG, RasterFileFormat } from './types';
 import { log } from '../../utils/logger';
+import { getTempDir } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
 
 /**
  * Create a temporary directory for export files
  */
 export async function createTempDirectory(): Promise<string> {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
+  const tempDir = fs.mkdtempSync(path.join(getTempDir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
   return tempDir;
 }
 
