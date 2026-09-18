@@ -19,7 +19,7 @@ services:
       retries: 20
       start_period: 30s
   minio:
-    image: minio/minio
+    image: quay.io/minio/minio
     command: ["server", "--console-address", ":9001", "/data"]
     environment:
       MINIO_ROOT_USER: test
@@ -35,7 +35,7 @@ services:
       timeout: 5s
       retries: 5
   createbuckets:
-    image: minio/mc
+    image: quay.io/minio/mc
     depends_on:
       minio:
         condition: service_healthy
