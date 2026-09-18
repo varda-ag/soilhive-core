@@ -2,7 +2,7 @@ import {
   continentNameMatches,
   continentLocalGeocoder,
   isContinentResult,
-  filterDuplicateContinentPoints,
+  filterDuplicateContinentResults,
 } from 'components/Map/ContinentGeocoder';
 import type { CarmenGeojsonFeature } from '@maplibre/maplibre-gl-geocoder';
 
@@ -63,7 +63,7 @@ describe('isContinentResult', () => {
   });
 });
 
-describe('filterDuplicateContinentPoints', () => {
+describe('filterDuplicateContinentResults', () => {
   const continentResult = {
     id: 'continent.Africa',
     place_name: 'Africa',
@@ -71,7 +71,7 @@ describe('filterDuplicateContinentPoints', () => {
   } as unknown as CarmenGeojsonFeature;
 
   it('always keeps continent-sourced results', () => {
-    expect(filterDuplicateContinentPoints(continentResult, 0, [continentResult])).toBe(true);
+    expect(filterDuplicateContinentResults(continentResult, 0, [continentResult])).toBe(true);
   });
 
   it('drops a Nominatim point result with the same name as a continent result', () => {
@@ -80,7 +80,7 @@ describe('filterDuplicateContinentPoints', () => {
       place_name: 'Africa',
       original_geometry: { type: 'Point' },
     } as unknown as CarmenGeojsonFeature;
-    expect(filterDuplicateContinentPoints(duplicate, 1, [continentResult, duplicate])).toBe(false);
+    expect(filterDuplicateContinentResults(duplicate, 1, [continentResult, duplicate])).toBe(false);
   });
 
   it('keeps a Nominatim point result with a different name', () => {
@@ -89,32 +89,37 @@ describe('filterDuplicateContinentPoints', () => {
       place_name: 'Africa Building, Lagos',
       original_geometry: { type: 'Point' },
     } as unknown as CarmenGeojsonFeature;
-    expect(filterDuplicateContinentPoints(other, 1, [continentResult, other])).toBe(true);
+    expect(filterDuplicateContinentResults(other, 1, [continentResult, other])).toBe(true);
   });
 
-  it('keeps non-point Nominatim results regardless of name', () => {
-    const country = {
+  it('drops a non-point Nominatim result with the same name as a continent result (e.g. Antarctica)', () => {
+    const antarctica = {
+      id: 'continent.Antarctica',
+      place_name: 'Antarctica',
+      original_geometry: { type: 'MultiPolygon' },
+    } as unknown as CarmenGeojsonFeature;
+    const duplicateShape = {
       id: 'nominatim-3',
-      place_name: 'Africa',
+      place_name: 'Antarctica',
       original_geometry: { type: 'Polygon' },
     } as unknown as CarmenGeojsonFeature;
-    expect(filterDuplicateContinentPoints(country, 1, [continentResult, country])).toBe(true);
+    expect(filterDuplicateContinentResults(duplicateShape, 1, [antarctica, duplicateShape])).toBe(false);
   });
 
-  it('keeps point results when no allResults array is provided', () => {
+  it('keeps results when no allResults array is provided', () => {
     const point = {
       id: 'nominatim-4',
       place_name: 'Africa',
       original_geometry: { type: 'Point' },
     } as unknown as CarmenGeojsonFeature;
-    expect(filterDuplicateContinentPoints(point)).toBe(true);
+    expect(filterDuplicateContinentResults(point)).toBe(true);
   });
 
-  it('keeps a point result with a missing place_name without throwing', () => {
+  it('keeps a result with a missing place_name without throwing', () => {
     const point = {
       id: 'nominatim-5',
       original_geometry: { type: 'Point' },
     } as unknown as CarmenGeojsonFeature;
-    expect(filterDuplicateContinentPoints(point, 1, [continentResult, point])).toBe(true);
+    expect(filterDuplicateContinentResults(point, 1, [continentResult, point])).toBe(true);
   });
 });

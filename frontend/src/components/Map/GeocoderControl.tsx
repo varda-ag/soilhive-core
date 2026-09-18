@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { MAPBOX_ACCESS_TOKEN } from '../../utilities/environmentVariables';
 import { bbox as bboxFn, centerOfMass } from '@turf/turf';
 import { createPortal } from 'react-dom';
-import { continentLocalGeocoder, filterDuplicateContinentPoints } from './ContinentGeocoder';
+import { continentLocalGeocoder, filterDuplicateContinentResults } from './ContinentGeocoder';
 
 type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker'> & {
   geocoder?: 'nominatim' | 'mapbox';
@@ -176,7 +176,7 @@ export default function GeocoderControl(props: GeocoderControlProps) {
         clearAndBlurOnEsc: true,
         placeholder: 'Search by any location',
         localGeocoder: isNominatim ? continentLocalGeocoder : undefined,
-        filter: isNominatim ? filterDuplicateContinentPoints : undefined,
+        filter: isNominatim ? filterDuplicateContinentResults : undefined,
         render: feature => {
           const geomType = (feature as any).original_geometry?.type || '';
 

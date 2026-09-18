@@ -49,16 +49,16 @@ export const isContinentResult = (feature: CarmenGeojsonFeature): boolean =>
   typeof feature.id === 'string' && feature.id.startsWith('continent.');
 
 // When a continent local result is present (e.g. searching "Africa"), Nominatim
-// often also returns its own point-only entry for the same name - drop that
-// duplicate so only our polygon-backed continent result shows up.
-export const filterDuplicateContinentPoints = (
+// often also returns its own entry for the same name - drop that duplicate so
+// only our polygon-backed continent result shows up. Nominatim's duplicate is
+// usually a point, but for Antarctica it's a shape instead, unlike every
+// other continent, so geometry type can't be used to distinguish it.
+export const filterDuplicateContinentResults = (
   feature: CarmenGeojsonFeature,
   _index?: number,
   allResults?: CarmenGeojsonFeature[],
 ): boolean => {
   if (isContinentResult(feature) || !allResults) return true;
-  const isPoint = (feature as any).original_geometry?.type === 'Point';
-  if (!isPoint) return true;
   const hasMatchingContinentResult = allResults.some(
     other => isContinentResult(other) && other.place_name?.toLowerCase() === feature.place_name?.toLowerCase(),
   );
