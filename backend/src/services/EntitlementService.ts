@@ -169,13 +169,23 @@ export default class EntitlementService {
    * singleton case, e.g. a lone `dashboards` entry with no suffix) or as `${scope}_...` (the
    * multi-entry case, e.g. `dashboards_1`, `dashboards_2`) — `startsWith` alone would miss the
    * singleton case.
+   *
+   * A plugin-owned key (`plugin:${pluginId}:${id}`, see `PLUGIN_CONFIG_ID_PATTERN`) is matched on
+   * its `id` part alone — `plugin:weather-widget:dashboards_1` counts as a `dashboards` entry the
+   * same way `dashboards_1` does — since the subkey convention is a property of what a plugin
+   * named its own config, not of the plugin namespace wrapped around it. The full key (prefix
+   * included) is what's returned, so the caller still knows which config it is.
    */
   selectByScope = (entitlements: Entitlements, scope: RequestScope): CapabilityGrants => {
     if (scope === EntitlementScope.DATASETS || scope === EntitlementScope.CONFIGS) {
       return entitlements[scope] ?? {};
     }
     const configs = entitlements.configs ?? {};
-    return Object.fromEntries(Object.entries(configs).filter(([key]) => key === scope || key.startsWith(`${scope}_`)));
+    const matchesSubkey = (key: string): boolean => {
+      const id = PLUGIN_CONFIG_ID_PATTERN.exec(key)?.[2] ?? key;
+      return id === scope || id.startsWith(`${scope}_`);
+    };
+    return Object.fromEntries(Object.entries(configs).filter(([key]) => matchesSubkey(key)));
   };
 
   async getUserEntitlements(requestData: RequestData, id?: string): Promise<Entitlements> {

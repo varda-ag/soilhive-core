@@ -576,6 +576,23 @@ describe('EntitlementService', () => {
       const entitlements = { datasets: {}, configs: { dashboards: [Capability.READ] } };
       expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({ dashboards: [Capability.READ] });
     });
+
+    it('matches a plugin-owned key on its id part, keeping the full key (with prefix) in the result', () => {
+      const entitlements = {
+        datasets: {},
+        configs: {
+          'plugin:weather-widget:dashboards_1': [Capability.READ],
+          'plugin:weather-widget:dashboards': [Capability.READ],
+          'plugin:weather-widget:look_and_feel': [Capability.READ],
+          dashboards_2: [Capability.READ],
+        },
+      };
+      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({
+        'plugin:weather-widget:dashboards_1': [Capability.READ],
+        'plugin:weather-widget:dashboards': [Capability.READ],
+        dashboards_2: [Capability.READ],
+      });
+    });
   });
 
   describe('enforceEntitlements', () => {
