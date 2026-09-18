@@ -1,11 +1,13 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, jest } from '@jest/globals';
 import { IncomingHttpHeaders } from 'http';
+import { EntityManager } from 'typeorm';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { FilteredDatasetSummary, FilteredData, FilteredDataset } from '../../src/interfaces/DatasetFilter';
 import { getDataSource } from '../../src/utils/data-source';
+import * as RasterUtilsModule from '../../src/utils/raster';
 import { addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import { getDataAdminToken, getSuperAdminToken } from '../helper';
+import { addRasterFilterData, addRasterFilterMappings, getDataAdminToken, getSuperAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
 import { IngestionStatus } from '../../src/types/data';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
@@ -348,6 +350,35 @@ describe('Testing /data-filters routes', () => {
     expect(resultDatasets[0].visibility).toBe('public');
     const resultDatasetIds = resultDatasets.map(r => r.id);
     expect(resultDatasetIds).toContain(dataset.slug);
+  });
+
+  it('Coverage runs its filterVector/filterRaster/getRasterCoverage sub-queries on 3 different connections', async () => {
+    const mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => table);
+    const querySpy = jest.spyOn(EntityManager.prototype, 'query');
+    try {
+      await addRasterFilterData();
+      await addRasterFilterMappings();
+
+      const resPost = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [filteringPolygon] });
+      const resCoverage = await request(app).get(`/data-filters/${resPost.body.id}/coverage`);
+      expect(resCoverage.statusCode).toBe(StatusCodes.OK);
+
+      const pidCalls = querySpy.mock.calls
+        .map((call, i) => ({ sql: call[0], result: querySpy.mock.results[i]! }))
+        .filter(call => typeof call.sql === 'string' && call.sql.includes('pg_backend_pid()'));
+      const pids = await Promise.all(
+        pidCalls.map(call => (call.result.value as Promise<{ pid: number }[]>).then(rows => rows[0]!.pid)),
+      );
+
+      // filterVector, filterRaster and getRasterCoverage each borrow their own connection.
+      expect(pids).toHaveLength(3);
+      expect(new Set(pids).size).toBe(3);
+    } finally {
+      querySpy.mockRestore();
+      mockSelectOverview.mockRestore();
+    }
   });
 
   it('Coverage should reflect dataset visibility', async () => {
