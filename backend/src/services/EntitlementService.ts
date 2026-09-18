@@ -67,7 +67,12 @@ export default class EntitlementService {
       const scopedData = data[scope] ?? {};
       const key = slugs.find(k => k in scopedData);
       assert(key, 'Key should be found in data');
-      acc[id] = scopedData[key!]!;
+      const capabilities = scopedData[key!]!;
+      if (!Array.isArray(capabilities)) {
+        log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
+        return acc;
+      }
+      acc[id] = capabilities;
       return acc;
     }, {} as CapabilityGrants);
   };

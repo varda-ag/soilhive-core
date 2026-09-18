@@ -55,7 +55,7 @@ describe('EntitlementService', () => {
       ('user1@example.com', '{"datasets": {"dataset-1": ["obfuscate_as_points", "preview", "download"]}}'),
       ('user2@example.com', '{"datasets": {"dataset-2": ["obfuscate_as_points"]}}'),
       ('user3@example.com', '{"datasets": {"dataset-3": ["obfuscate_as_points"], "dataset-1": ["obfuscate_as_points"]}}'),
-      ('user4@example.com', '{"datasets": {"spatial_filter": "world"}}')
+      ('user4@example.com', '{"datasets": {"spatial_filter": ["download"]}}')
     `);
   });
 
@@ -203,7 +203,7 @@ describe('EntitlementService', () => {
       },
     ],
     ['dataset-2', { 'user2@example.com': [Capability.OBFUSCATE_AS_POINTS] }],
-    ['spatial_filter', { 'user4@example.com': 'world' }],
+    ['spatial_filter', { 'user4@example.com': [Capability.DOWNLOAD] }],
   ])('should retrieve entity entitlements', async (slug, expectedEntitlements) => {
     const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, slug);
     expect(entitlements).toEqual(expectedEntitlements);
@@ -260,7 +260,7 @@ describe('EntitlementService', () => {
       });
       // A key with no slug_history row at all must survive
       expect(await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, 'spatial_filter')).toEqual({
-        'user4@example.com': 'world',
+        'user4@example.com': [Capability.DOWNLOAD],
       });
     });
 
@@ -314,6 +314,16 @@ describe('EntitlementService', () => {
 
       it('gets entitlements set for a config key', async () => {
         const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey);
+        expect(entitlements).toEqual({ 'config-user1@example.com': [Capability.READ] });
+      });
+
+      it('skips a malformed (non-array) capability grant instead of returning it as-is', async () => {
+        await entityManager.query(`
+          INSERT INTO entitlements (id, data) VALUES ('config-user2@example.com', '{"configs": {"${configKey}": {"poisoned": true}}}')
+        `);
+
+        const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey);
+
         expect(entitlements).toEqual({ 'config-user1@example.com': [Capability.READ] });
       });
 
