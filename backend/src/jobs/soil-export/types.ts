@@ -93,6 +93,9 @@ export interface GroupedRecords {
  */
 export const EXPORT_CONFIG = {
   TEMP_DIR_PREFIX: 'soil-export-',
+  // XLSX staging (see docs/adr/0035) gets a directory of its own rather than a reserved filename inside the export temp dir
+  STAGING_DIR_PREFIX: 'soil-export-staging-',
+  STAGING_FILENAME: 'staging.gpkg',
   EXPORTS_BASE_PATH: 'exports',
   JOB_NAME: 'soil-data-export',
 } as const;

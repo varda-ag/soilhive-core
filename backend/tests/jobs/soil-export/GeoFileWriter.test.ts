@@ -105,6 +105,18 @@ const ALL_FORMATS: VectorFileFormat[] = [
 const SPATIAL_FORMATS: VectorFileFormat[] = [VectorFileFormat.GPKG, VectorFileFormat.SHP, VectorFileFormat.GEOJSON];
 const TABULAR_FORMATS: VectorFileFormat[] = [VectorFileFormat.CSV, VectorFileFormat.XLSX];
 
+/**
+ * Ends a writer's write phase the way the export job does.
+ *
+ * Batches alone do not produce the output file for every format: XLSX stages to an intermediate
+ * GPKG and only becomes a workbook in `finalize` (ADR 0035), so a test that reads export.xlsx
+ * straight after `closeFile` would find nothing. A no-op for the formats that write direct.
+ */
+async function finishWriting(writer: GeoFileWriter): Promise<void> {
+  await writer.finalize();
+  await writer.dispose();
+}
+
 describe('GeoFileWriter', () => {
   beforeAll(() => {
     fs.mkdirSync(TEST_OUTPUT_DIR, { recursive: true });
@@ -141,6 +153,7 @@ describe('GeoFileWriter', () => {
         await writer.writeRecord(soilSampleToExportRecord(sample));
       }
       await writer.closeFile();
+      await finishWriting(writer);
 
       // --- Verify ---
       const { rows } = await readLayerRows(format, 'Al');
@@ -195,6 +208,7 @@ describe('GeoFileWriter', () => {
       );
 
       await writer.closeFile();
+      await finishWriting(writer);
 
       // --- Verify Al ---
       const { rows: alRows } = await readLayerRows(format, 'Al');
@@ -282,6 +296,107 @@ describe('GeoFileWriter', () => {
     });
   });
 
+  describe('XLSX staging', () => {
+    // The regression these guard: XLSX used to be appended to directly, once per property per
+    // batch. GDAL's XLSX driver rebuilds the whole workbook in memory on every open, so the cost
+    // was quadratic and a large export OOM-killed the pod. ADR 0035.
+    it('never touches the workbook during the batch loop, and builds it exactly once in finalize', async () => {
+      const ogr2ogr = jest.spyOn(GdalCLI, 'ogr2ogr');
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX);
+
+      for (const id of ['1', '2', '3']) {
+        await writer.openFile(TEST_OUTPUT_DIR);
+        await writer.setProperty('Al');
+        await writer.writeRecord(soilSampleToExportRecord(makeSample({ id })));
+        await writer.closeFile();
+      }
+
+      const batchArgs = ogr2ogr.mock.calls.map(c => c[0]);
+      expect(batchArgs).toHaveLength(3);
+      batchArgs.forEach(args => {
+        expect(args).toEqual(expect.arrayContaining(['-f', 'GPKG']));
+        // Without this the staging write fails outright: the tabular schema carries geometry as a
+        // WKT string field called `geom`, which collides with GPKG's own geometry field.
+        expect(args).toEqual(expect.arrayContaining(['-nlt', 'NONE']));
+        expect(args.some(a => a.endsWith('.xlsx'))).toBe(false);
+      });
+      // Nothing is written where the export is assembled until the conversion runs.
+      expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'export.xlsx'))).toBe(false);
+
+      await writer.finalize();
+
+      const finalArgs = ogr2ogr.mock.calls.at(-1)![0];
+      expect(ogr2ogr.mock.calls).toHaveLength(4);
+      expect(finalArgs).toEqual(expect.arrayContaining(['-f', 'XLSX']));
+      expect(finalArgs).not.toContain('-update');
+      expect(finalArgs).not.toContain('-append');
+
+      ogr2ogr.mockRestore();
+      await writer.dispose();
+    });
+
+    it('keeps the staging file out of the directory that becomes the Export Bundle', async () => {
+      // mergeGPKG globs this directory for stray .gpkg files and treats each as a raster, and the
+      // whole directory is zipped for the user — so a staging file left here corrupts one or both.
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+
+      expect(fs.readdirSync(TEST_OUTPUT_DIR).filter(f => f.endsWith('.gpkg'))).toEqual([]);
+
+      await finishWriting(writer);
+      expect(fs.readdirSync(TEST_OUTPUT_DIR).filter(f => f.endsWith('.gpkg'))).toEqual([]);
+      expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'export.xlsx'))).toBe(true);
+    });
+
+    it('writes no output file at all when nothing matched', async () => {
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await finishWriting(writer);
+
+      expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'export.xlsx'))).toBe(false);
+    });
+
+    // target_crs and XLSX are individually covered and were never exercised together, and the args
+    // they produce contradict each other: `-nlt NONE` declares the staging layer to have no
+    // geometry, and `-s_srs`/`-t_srs` then ask GDAL to reproject it. GDAL accepts the pair without
+    // complaint, so the two tests are here to pin what it actually does rather than to assert a
+    // remedy: the export still succeeds, and the requested CRS has no effect on anything.
+    it('survives target_crs, which asks the staging layer declared -nlt NONE to be reprojected', async () => {
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX, 3857);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+      await finishWriting(writer);
+
+      expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'export.xlsx'))).toBe(true);
+      const { rows, fieldNames } = await readLayerRows(VectorFileFormat.XLSX, 'Al');
+      expect(fieldNames).toContain('geom');
+      expect(rows).toHaveLength(1);
+    });
+
+    it('leaves the geom text column unprojected, target_crs or not', async () => {
+      // A tabular format carries its geometry as a WKT string in a `geom` field, which is data to
+      // GDAL and not geometry - so -t_srs cannot reach it. The coordinates stay as written, in
+      // EPSG:4326, and a caller who asked for 3857 is not told the request was dropped. That is
+      // the behaviour worth knowing about: if reprojecting the WKT is ever made to work, this
+      // fails, which is the point.
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX, 3857);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+      await finishWriting(writer);
+
+      const { rows } = await readLayerRows(VectorFileFormat.XLSX, 'Al');
+      // Web Mercator would put this sample in the millions of metres; it is still lon/lat.
+      expect(rows[0]['geom']).toMatch(/POINT \(-124\.1303482 40\.4684982\)/);
+    });
+  });
+
   describe('geometry in spatial formats', () => {
     it.each(SPATIAL_FORMATS)('%s: should write Point geometry with correct coordinates', async format => {
       const writer = new GeoFileWriter(format);
@@ -307,6 +422,7 @@ describe('GeoFileWriter', () => {
       await writer.setProperty('Al');
       await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
       await writer.closeFile();
+      await finishWriting(writer);
 
       const { rows, fieldNames } = await readLayerRows(format, 'Al');
       expect(fieldNames).toContain('geom');
@@ -327,6 +443,7 @@ describe('GeoFileWriter', () => {
       await writer.setProperty('Al');
       await writer.writeRecord(soilSampleToExportRecord(sample));
       await writer.closeFile();
+      await finishWriting(writer);
 
       const { rows, fieldNames } = await readLayerRows(format, 'Al');
 

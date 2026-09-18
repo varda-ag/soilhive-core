@@ -65,7 +65,10 @@ const setupQueues = async () => {
   const options = {
     retryLimit: 0, // Zero retries
     expireInSeconds: 60 * 60 * 24 - 1, // 24 hours (minus one according to pg-boss policy)
-    retentionSeconds: 60 * 60 * 24 * 30, // 30 days — retain failed jobs for error surfacing
+    retentionSeconds: 60 * 60 * 24 * 30, // 30 days - retain failed jobs for error surfacing
+    // How long a job may go without its worker checking in before the monitor fails it.
+    // Without this a worker that dies (OOM kill, node eviction) leaves its job in `active` until `expireInSeconds` (24h) elapses
+    heartbeatSeconds: 300,
   };
   const boss = getPgBoss();
   await Promise.all(Object.values(JobQueues).map(queue => boss.createQueue(queue, options)));
@@ -73,8 +76,8 @@ const setupQueues = async () => {
   log.info('PgBoss queues created', { queues: Object.values(JobQueues) });
 };
 
-// Queues whose jobs mutate soil data — or derived tables that cached queries
-// read, like feature_dai_stats — and must invalidate the query cache on every
+// Queues whose jobs mutate soil data - or derived tables that cached queries
+// read, like feature_dai_stats - and must invalidate the query cache on every
 // node (see docs/adr/0008). Bumped in `finally`: a failed bulk job may still
 // have committed partial batches. For REFRESH_DAI_STATS the enqueue-time bump
 // in DatasetService happens before the stats change; this one invalidates
@@ -98,7 +101,7 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
       stack: error instanceof Error ? error.stack : undefined,
     });
     // Every failure is recorded. A JobError carries a translatable code.
-    // Anything else — a check-constraint violation, a statement timeout — is
+    // Anything else - a check-constraint violation, a statement timeout - is
     // recorded under UNEXPECTED_JOB_ERROR_CODE with its raw message as the detail.
     // Written while the job is still active, so it lands before pg-boss moves the row to `failed`;
     // failJobs copies `data` across unchanged, so the entry survives the transition.
@@ -124,7 +127,7 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
     }
     // Same rationale as the epoch bump: a failed bulk load may have committed
     // partial batches, so the DAI rollup is refreshed regardless of outcome.
-    // BULK_DELETE needs no hook here — it soft-deletes the dataset first via
+    // BULK_DELETE needs no hook here - it soft-deletes the dataset first via
     // DatasetService.deleteDataset with syncDaiRefresh, which refreshes while
     // dataset_layers rows still exist (see refreshDaiStats). Must never fail
     // the job result.
@@ -192,7 +195,7 @@ const setupWorkers = async () => {
   });
   // Capped at one per node: each run holds two staging tables and sorts them with
   // work_mem = 512MB for the percentile aggregates, so concurrent runs would multiply
-  // that. Same per-node caveat as RASTER_LOAD — several nodes each run one.
+  // that. Same per-node caveat as RASTER_LOAD - several nodes each run one.
   await boss.work<SoilStatisticsJob>(
     JobQueues.SOIL_STATISTICS,
     { ...options, localConcurrency: 1 },
