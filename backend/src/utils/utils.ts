@@ -1,4 +1,3 @@
-import os from 'os';
 import path from 'path';
 import { config } from 'dotenv';
 import jwt from 'jsonwebtoken';
@@ -6,12 +5,6 @@ import assert from 'assert';
 import { TokenScopes } from '../types/enums';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
-
-/**
- * The directory for scratch files.
- * `os.tmpdir()` cannot be used directly because under Jest a TMPDIR is set for every worker.
- */
-export const getTempDir = (): string => process.env['TMPDIR'] || os.tmpdir();
 
 export const sleep = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms));

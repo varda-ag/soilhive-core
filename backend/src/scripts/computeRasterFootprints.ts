@@ -1,12 +1,12 @@
 import type { MultiPolygon } from 'geojson';
 import { SyntaxValidator } from 'fast-xml-validator';
 import fs from 'fs/promises';
+import os from 'os';
 import path from 'path';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
 import { log, timed } from '../utils/logger';
 import { isGeographicCrs } from '../utils/raster';
-import { getTempDir } from '../utils/utils';
 
 const MAX_TILES = (256 * 256) / 16;
 // Exported so tests can override it directly.
@@ -163,7 +163,7 @@ export async function streamRasterFootprints(
       // "overview level N" of a multi-resolution source. -outsize matches the overview's own
       // dimensions exactly, so GDAL reads the COG's embedded overview data as-is rather than
       // resampling from full resolution.
-      const overviewPath = path.join(getTempDir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
+      const overviewPath = path.join(os.tmpdir(), `footprint-overview-${Date.now()}-${Math.random().toString(36).slice(2)}.tif`);
       await timed('extract overview locally', () =>
         GdalCLI.translate(mainFilePath, overviewPath, [
           '-b',
@@ -187,7 +187,7 @@ export async function streamRasterFootprints(
 
       // A one-time whole-file VRT, used purely as a text template: every tile's VRT is
       // built by substituting its own size/offset/origin into a copy of this via buildTileVrt
-      const referenceVrtPath = path.join(getTempDir(), `footprint-reference-${Date.now()}-${Math.random().toString(36).slice(2)}.vrt`);
+      const referenceVrtPath = path.join(os.tmpdir(), `footprint-reference-${Date.now()}-${Math.random().toString(36).slice(2)}.vrt`);
       await GdalCLI.translate(overviewPath, referenceVrtPath, ['-of', 'VRT']);
       const referenceVrtXml = await fs.readFile(referenceVrtPath, 'utf-8');
       await fs.unlink(referenceVrtPath).catch(() => {});
@@ -229,7 +229,7 @@ export async function streamRasterFootprints(
       const tilePixH = pyEnd - pyStart;
       if (tilePixW <= 0 || tilePixH <= 0) return { multiPolygon: null, vrtMs: 0, footprintMs: 0 };
 
-      const vrtPath = path.join(getTempDir(), `footprint-tile-${runId}-${iRow}-${iCol}.vrt`);
+      const vrtPath = path.join(os.tmpdir(), `footprint-tile-${runId}-${iRow}-${iCol}.vrt`);
       let t = Date.now();
       const tileGeoXMin = xMin + pxStart * ovPixelW;
       const tileGeoYMax = yMax - pyStart * ovPixelH;

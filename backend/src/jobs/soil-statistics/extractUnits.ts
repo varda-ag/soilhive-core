@@ -1,11 +1,11 @@
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { StatusCodes } from 'http-status-codes';
 import { Geometry, MultiPolygon, Polygon } from 'geojson';
 import FileService from '../../services/FileService';
 import FilterService from '../../services/FilterService';
 import { RequestData } from '../../interfaces/RequestData';
-import { getTempDir } from '../../utils/utils';
 import { FilterCriteria } from '../../interfaces/DatasetFilter';
 import { VectorFileMetadata } from '../../interfaces/File';
 import { JobError } from '../../errors/JobError';
@@ -85,7 +85,7 @@ export const extractUnitsFromFile = async (
     throw error;
   });
 
-  const tempDir = fs.mkdtempSync(path.join(getTempDir(), 'soil-statistics-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'soil-statistics-'));
   const outputPath = path.join(tempDir, 'units.geojson');
 
   let features: { geometry: Geometry | null; id?: string | number; properties: Record<string, unknown> | null }[];
