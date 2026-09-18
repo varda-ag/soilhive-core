@@ -196,6 +196,7 @@ export default class JobService {
    * A failure can reach here three different ways, and `message` has to be readable from all of
    * them - for an Export it is the *only* channel, since ErrorService.getDatasetErrors covers the
    * dataset-scoped queues and an Export has no dataset_id to be found by.
+   * That is also why a JobError's `actions` are folded into `message`.
    *
    *   1. A JobError recorded by runJob into `data.errors`. Its raw Error message is only the code
    *      ("JobError: EX_XLSX_TOO_MANY_RECORDS"), so it is translated here rather than shown.
@@ -208,11 +209,16 @@ export default class JobService {
    * All three are resolved to display-ready copy here so no client has to know any of it.
    */
   private translateJob = (job: JobWithMetadata<unknown>): Job => {
-    const output = job.output as Record<string, any> | null | undefined;
-    const jobError = (job.data as { errors?: Array<{ code: string; params?: Record<string, unknown> }> } | null)?.errors?.[0];
+    // Only a failed job has a failure to describe
+    const failed = job.state === 'failed';
+    const output = failed ? (job.output as Record<string, any> | null | undefined) : undefined;
+    const jobError = failed
+      ? (job.data as { errors?: Array<{ code: string; params?: Record<string, unknown> }> } | null)?.errors?.[0]
+      : undefined;
     const raw = output?.['message'] ?? output?.['value']?.['message'];
-    const message = jobError
-      ? translateJobError(jobError.code, jobError.params ?? {}).message
+    const translated = jobError ? translateJobError(jobError.code, jobError.params ?? {}) : undefined;
+    const message = translated
+      ? [translated.message, ...translated.actions].join(' ')
       : typeof raw === 'string'
         ? translateQueueMessage(raw)
         : raw;

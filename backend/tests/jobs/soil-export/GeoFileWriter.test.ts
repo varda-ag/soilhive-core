@@ -357,6 +357,43 @@ describe('GeoFileWriter', () => {
 
       expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'export.xlsx'))).toBe(false);
     });
+
+    // target_crs and XLSX are individually covered and were never exercised together, and the args
+    // they produce contradict each other: `-nlt NONE` declares the staging layer to have no
+    // geometry, and `-s_srs`/`-t_srs` then ask GDAL to reproject it. GDAL accepts the pair without
+    // complaint, so the two tests are here to pin what it actually does rather than to assert a
+    // remedy: the export still succeeds, and the requested CRS has no effect on anything.
+    it('survives target_crs, which asks the staging layer declared -nlt NONE to be reprojected', async () => {
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX, 3857);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+      await finishWriting(writer);
+
+      expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'export.xlsx'))).toBe(true);
+      const { rows, fieldNames } = await readLayerRows(VectorFileFormat.XLSX, 'Al');
+      expect(fieldNames).toContain('geom');
+      expect(rows).toHaveLength(1);
+    });
+
+    it('leaves the geom text column unprojected, target_crs or not', async () => {
+      // A tabular format carries its geometry as a WKT string in a `geom` field, which is data to
+      // GDAL and not geometry - so -t_srs cannot reach it. The coordinates stay as written, in
+      // EPSG:4326, and a caller who asked for 3857 is not told the request was dropped. That is
+      // the behaviour worth knowing about: if reprojecting the WKT is ever made to work, this
+      // fails, which is the point.
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX, 3857);
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Al');
+      await writer.writeRecord(soilSampleToExportRecord(makeSample({ id: '1' })));
+      await writer.closeFile();
+      await finishWriting(writer);
+
+      const { rows } = await readLayerRows(VectorFileFormat.XLSX, 'Al');
+      // Web Mercator would put this sample in the millions of metres; it is still lon/lat.
+      expect(rows[0]['geom']).toMatch(/POINT \(-124\.1303482 40\.4684982\)/);
+    });
   });
 
   describe('geometry in spatial formats', () => {
