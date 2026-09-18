@@ -160,6 +160,14 @@ _Avoid_: System filter, temporary filter, virtual filter (it is persisted and pe
 One request that was answered, kept together with the answer that was given for it, so the answer survives the disappearance of the **Run** that produced it. Distinct from a **Filter** in every direction: a Filter is a reusable, owned, deduplicated *scope* that queries are run against, while a Data Request is a single historical fact that is never reused and belongs to nobody. It has no owner at all — possession of its identifier is the whole of the permission to read it, so passing that identifier on is passing on the data.
 _Avoid_: Filter (a persisted scope, deduplicated per owner), query, job (the queue record that computes an answer, not the record of one), cache entry (an identical request is never answered from an earlier one), export
 
+**Export**:
+One execution of a download request: a **Filter** and a set of **Datasets** resolved into files in the caller's chosen formats. Identified by the id of the job that runs it, and the unit that progress, failure and the size limit are all attributed to — so "the Export is too large" is always a statement about how many **Observations** it names, never about how big its files turned out. Two Exports of an identical request are two Exports, and neither supersedes the other.
+_Avoid_: Download (the act of retrieving the **Export Bundle**, not of producing it), **Data Request** (a historical answer that is never recomputed — an Export is recomputed every time it is asked for), report, extract, query
+
+**Export Bundle**:
+The single ZIP an **Export** produces: a readme PDF, one file or worksheet per **Soil Property**, and one folder per exported **Raster Layer**. It is the artifact, never the request — its size is measured in bytes and its shape depends on the chosen formats, while the Export that produced it is measured in **Observations**. An Export that fails produces no Export Bundle at all; there is no partial one.
+_Avoid_: **Export** (the execution that produces it), the ZIP/the archive (names the container, and "archive" already means the reversible retirement of a **Dataset**), the download, output files
+
 **Ingestion Status**:
 The lifecycle stage of a Dataset — `PENDING`, `ONGOING`, `STAGED`, `LOADED`, `PUBLISHED`, `ARCHIVED` — recording how far its data has progressed through ingestion. A catalog/lifecycle attribute, **not** an access axis: it says whether a Dataset is offered in the catalog, never what a caller may do with its data. Access is governed by **Visibility** and **Entitlement** alone.
 _Avoid_: State, stage, publication state, visibility (the access attribute), "active"/"live" (already taken — see Flagged ambiguities)
@@ -202,6 +210,7 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 
 ## Relationships
 
+- An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
 - A **Dataset** *references* one or more **Features** through its **DatasetLayers**; it does not contain them, and the same **Feature** may be referenced by several **Datasets**
 - A **Feature** has one or more **DatasetLayers**
 - A **DatasetLayer** links a **Feature** to a **Layer** and a **Soil Property**

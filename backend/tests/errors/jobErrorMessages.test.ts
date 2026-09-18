@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { JobError } from '../../src/errors/JobError';
-import { translateJobError, UNEXPECTED_JOB_ERROR_CODE } from '../../src/errors/jobErrorMessages';
+import { translateJobError, translateQueueMessage, UNEXPECTED_JOB_ERROR_CODE } from '../../src/errors/jobErrorMessages';
 
 describe('JobError', () => {
   it('stores detail when provided', () => {
@@ -11,6 +11,20 @@ describe('JobError', () => {
   it('detail is undefined when omitted', () => {
     const err = new JobError('BL_RECORD_WRITE_FAILED');
     expect(err.detail).toBeUndefined();
+  });
+});
+
+describe('translateQueueMessage', () => {
+  // pg-boss writes these from a maintenance query, so no application code runs and nothing lands
+  // in data.errors. They reach the client through `message` and must already be readable there.
+  it.each(['job heartbeat timeout', 'job timed out'])('replaces the raw queue string %s', raw => {
+    const result = translateQueueMessage(raw);
+    expect(result).not.toBe(raw);
+    expect(result).toMatch(/job/i);
+  });
+
+  it('leaves anything that is not a reap message untouched', () => {
+    expect(translateQueueMessage('ENOENT: no such file or directory')).toBe('ENOENT: no such file or directory');
   });
 });
 
@@ -34,6 +48,7 @@ describe('translateJobError', () => {
     'RL_INVALID_DEPTH_RANGE',
     'RL_CONVERSION_FAILED',
     'RL_UNIT_NOT_CONVERTIBLE',
+    'EX_XLSX_TOO_MANY_RECORDS',
   ];
 
   it.each(DEFINED_CODES)('returns non-empty message and actions for %s', code => {
@@ -53,6 +68,13 @@ describe('translateJobError', () => {
     const result = translateJobError('UNKNOWN_CODE');
     expect(result.message).toBeTruthy();
     expect(result.actions.length).toBeGreaterThan(0);
+  });
+
+  it('interpolates the count and the limit in EX_XLSX_TOO_MANY_RECORDS', () => {
+    const result = translateJobError('EX_XLSX_TOO_MANY_RECORDS', { record_count: '1,536,173', max_records: '300,000' });
+    expect(result.message).toBe('Your selection contains 1,536,173 records, more than the 300,000 Excel limit.');
+    // The remedy has to name a format that has no such limit, not just the limit that was hit.
+    expect(result.actions[0]).toContain('CSV');
   });
 
   it('interpolates field and issue params in BL_RECORD_VALIDATION_FAILED', () => {

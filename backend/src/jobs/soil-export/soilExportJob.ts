@@ -37,7 +37,8 @@ import DatasetService from '../../services/DatasetService';
 import FilterService from '../../services/FilterService';
 import FileService from '../../services/FileService';
 import { GISDataType } from '../../types/data';
-import { getExportBatchSize } from '../../utils/utils';
+import { getExportBatchSize, getExportXlsxMaxRecords } from '../../utils/utils';
+import { JobError } from '../../errors/JobError';
 import { getRasterMask } from '../../data-layer/FilteringMasks';
 import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
 import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
@@ -55,7 +56,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const entitlementService = new EntitlementService();
   const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
 
-  // Create temp working directory - fresh start on every run (handles pod eviction)
+  // Fresh working directory on every run, and therefore no partial output from any previous one.
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
   let localZipPath: string | null = null;
 
@@ -81,6 +82,18 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
     const total_records_estimate = vectorRequested ? await getTotalRecordsCount(requestData, vectorData) : 0;
     const total_layers_estimate = rasterRequested ? await getTotalLayersCount(requestData, rasterData) : 0;
+
+    // The XLSX size limit is enforced here rather than at enqueue time because this is the first
+    // moment the record count is known without paying for it twice: JobService would have to run
+    // the same spatial count — which carries a 60s statement timeout — inside the HTTP request.
+    // Checked before anything is written, so an over-sized request costs one count and no GDAL.
+    const xlsxMaxRecords = getExportXlsxMaxRecords();
+    if (vectorFormat === VectorFileFormat.XLSX && total_records_estimate > xlsxMaxRecords) {
+      throw new JobError('EX_XLSX_TOO_MANY_RECORDS', {
+        record_count: total_records_estimate.toLocaleString('en-US'),
+        max_records: xlsxMaxRecords.toLocaleString('en-US'),
+      });
+    }
 
     // Calculate filter geometries' area for raster report tracking
     let aoi_area_km2: number | null = null;
@@ -166,52 +179,67 @@ async function exportVectorData(
 
   const writer = new GeoFileWriter(fileFormat, targetCrs);
 
-  let cursor: string | undefined = data.current_cursor ?? undefined;
-  let totalRecordsProcessed = data.total_records_processed ?? 0;
+  // Always from the start. `data.current_cursor` is deliberately not read.
+  // Resuming from it would produce a bundle with a hole in it.
+  let cursor: string | undefined = undefined;
+  let totalRecordsProcessed = 0;
 
-  while (true) {
-    if (await isJobCancelled(jobId)) break;
+  let cancelled = false;
 
-    const batch = await fetchBatch(requestData, data, cursor);
-    if (!batch || batch.length === 0) break;
-
-    const grouped = groupByProperty(batch);
-
-    await writer.openFile(tempDir);
-
-    for (const [propertyKey, records] of Object.entries(grouped)) {
-      await writer.setProperty(propertyKey);
-      for (const record of records) {
-        await writer.writeRecord(record);
+  try {
+    while (true) {
+      if (await isJobCancelled(jobId)) {
+        cancelled = true;
+        break;
       }
+
+      const batch = await fetchBatch(requestData, data, cursor);
+      if (!batch || batch.length === 0) break;
+
+      const grouped = groupByProperty(batch);
+
+      await writer.openFile(tempDir);
+
+      for (const [propertyKey, records] of Object.entries(grouped)) {
+        await writer.setProperty(propertyKey);
+        for (const record of records) {
+          await writer.writeRecord(record);
+        }
+      }
+
+      await writer.closeFile();
+
+      cursor = batch.at(-1)?.cursor;
+      totalRecordsProcessed += batch.length;
+
+      const stored_data = await getJobData(jobId);
+      const progress_percentage = computeCombinedProgress(
+        totalRecordsProcessed,
+        stored_data.total_records_estimate,
+        stored_data.total_layers_processed ?? 0,
+        stored_data.total_layers_estimate,
+        stored_data.aoi_area_km2,
+      );
+      const progress_description_vector = totalRecordsProcessed > 0 ? `${totalRecordsProcessed} records` : null;
+      const progress_description_raster =
+        (stored_data.total_layers_processed ?? 0) > 0 ? `${stored_data.total_layers_processed} raster_layers` : null;
+
+      await updateJobState(jobId, {
+        ...data,
+        current_cursor: cursor ?? null,
+        total_records_processed: totalRecordsProcessed,
+        progress_percentage,
+        progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
+      });
+
+      if (batch.length < getExportBatchSize()) break;
     }
 
-    await writer.closeFile();
-
-    cursor = batch.at(-1)?.cursor;
-    totalRecordsProcessed += batch.length;
-
-    const stored_data = await getJobData(jobId);
-    const progress_percentage = computeCombinedProgress(
-      totalRecordsProcessed,
-      stored_data.total_records_estimate,
-      stored_data.total_layers_processed ?? 0,
-      stored_data.total_layers_estimate,
-      stored_data.aoi_area_km2,
-    );
-    const progress_description_vector = totalRecordsProcessed > 0 ? `${totalRecordsProcessed} records` : null;
-    const progress_description_raster =
-      (stored_data.total_layers_processed ?? 0) > 0 ? `${stored_data.total_layers_processed} raster_layers` : null;
-
-    await updateJobState(jobId, {
-      ...data,
-      current_cursor: cursor ?? null,
-      total_records_processed: totalRecordsProcessed,
-      progress_percentage,
-      progress_description: `Processed ${[progress_description_vector, progress_description_raster].filter(e => e !== null).join(' and ')}...`,
-    });
-
-    if (batch.length < getExportBatchSize()) break;
+    // Builds the real output file from staged batches, for the formats that stage.
+    // Skipped on cancellation: processExportJob discards the whole temp directory in that case.
+    if (!cancelled) await writer.finalize();
+  } finally {
+    await writer.dispose();
   }
 
   return { total_records_processed: totalRecordsProcessed };

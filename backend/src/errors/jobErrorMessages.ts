@@ -14,7 +14,7 @@ export interface JobErrorMessage {
 //   },
 
 // The per-data-type ingestion guides. Actions embed these as bare URLs, which the error modal
-// linkifies. The guide states the conditions a load enforces; these messages state the remedies —
+// linkifies. The guide states the conditions a load enforces; these messages state the remedies -
 // so a remedy lives here and nowhere else, and the guide links back rather than restating it.
 const DOCS_BASE_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model';
 const VECTOR_DOCS_URL = `${DOCS_BASE_URL}/1a-vector-data-ingestion.md`;
@@ -32,7 +32,7 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     ],
   },
   FTD_NO_DATA_COLUMNS: {
-    message: 'Your file contains only geometry — no soil measurement columns were found.',
+    message: 'Your file contains only geometry - no soil measurement columns were found.',
     actions: ['Open the file and confirm it has at least one numeric data column besides the coordinate or geometry field.'],
   },
   FTD_MISSING_LAYER_NAME: {
@@ -196,17 +196,24 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "'{statistics_type}' is not a kind of statistics this server can compute.",
     actions: ['Start the job again with one of: {supported}.'],
   },
+  EX_XLSX_TOO_MANY_RECORDS: {
+    message: 'Your selection contains {record_count} records, more than the {max_records} Excel limit.',
+    actions: [
+      'Export as CSV or GeoPackage instead: neither has this limit.',
+      'Alternatively, narrow the area of interest, the date or depth range, or the selected datasets until the selection is under {max_records} records.',
+    ],
+  },
   BD_TIMEOUT: {
     message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
     actions: ['Try deleting again; if it keeps timing out, contact support'],
   },
-  // FTD_GDAL_NOT_INSTALLED: reserved for future use — GdalCLI already emits a
+  // FTD_GDAL_NOT_INSTALLED: reserved for future use - GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
   // the time fileToDB runs GDAL has already been used (ogrinfo during metadata
   // extraction), making this condition practically unreachable there.
   // FTD_GDAL_NOT_INSTALLED: {
   //   message: 'File staging failed due to a server configuration problem.',
-  //   action: 'Contact your system administrator — the GDAL geo-processing tools are missing from this server.',
+  //   action: 'Contact your system administrator - the GDAL geo-processing tools are missing from this server.',
   // },
 };
 
@@ -217,6 +224,17 @@ const FALLBACK: JobErrorMessage = {
 
 // The code recorded for a failure that is not a JobError (check-constraint violation, statement timeout, dropped connection)
 export const UNEXPECTED_JOB_ERROR_CODE = 'UNEXPECTED_ERROR';
+
+// pg-boss kills jobs that stopped checking in (heartbeatSeconds) or that outlived its expiry (expireInSeconds)
+// from a maintenance query, so nothing lands in data.errors.
+// These raw strings are the only explanation: here we translate them to something readable.
+const QUEUE_REAP_MESSAGES: Record<string, string> = {
+  'job heartbeat timeout': 'The job was interrupted before it could finish. Please try again.',
+  'job timed out': 'The job ran for longer than allowed and was stopped. Try again with a smaller selection.',
+};
+
+// Returns user-facing copy for a pg-boss reap, or the message unchanged when it is not one.
+export const translateQueueMessage = (message: string): string => QUEUE_REAP_MESSAGES[message] ?? message;
 
 const interpolate = (template: string, params: Record<string, unknown>): string =>
   template.replace(/\{(\w+)\}/g, (_, key) => (params[key] !== undefined ? String(params[key]) : `{${key}}`));
