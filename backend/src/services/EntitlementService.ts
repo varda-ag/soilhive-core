@@ -1,8 +1,9 @@
 import { assert } from 'console';
 import { StatusCodes } from 'http-status-codes';
 import { In } from 'typeorm';
-import { EVERYONE, FRONTEND_LOGO_CONFIG_ID, CSV_HASHES_CONFIG_ID } from '../constants/constants';
+import { EVERYONE } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
+import { JsonStorage } from '../entities/JsonStorage';
 import { RequestData } from '../interfaces/RequestData';
 import { EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
@@ -24,16 +25,6 @@ const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
  * this same line for the same reason; this is the single place both paths take it from.
  */
 const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
-
-/**
- * Config keys whose entitlements nobody may write via `PUT /config/{configId}/entitlements` — not
- * even a privileged caller. These back system-level config (theming, ingestion status, vocabulary
- * hashes, ...) rather than a caller-owned config item, so the whole entitlements permission model
- * (bootstrap, WRITE grants, the `isPrivilegedCaller` bypass) is beside the point for them: nothing
- * should ever hold an entitlement on one. Checked before `isPrivilegedCaller` in
- * `assertCanWriteConfigEntitlement`, deliberately unlike every other check in that method.
- */
-const RESERVED_CONFIG_KEYS: ReadonlySet<string> = new Set(['theme', FRONTEND_LOGO_CONFIG_ID, 'ingestion-status', CSV_HASHES_CONFIG_ID]);
 
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
@@ -340,20 +331,21 @@ export default class EntitlementService {
    * Domain-level write gate for `PUT /config/{configId}/entitlements`, distinct from
    * `enforceEntitlements`: that method always throws when the caller lacks the key outright, with
    * no "first access" bypass, and carries dataset-visibility filtering that has no analogue here.
-   * A non-admin caller may write a config's entitlements only if nobody holds any grant for it yet
+   * A non-admin caller may write a config's entitlements only if it is a genuine first access
    * (bootstrap), or if the caller already holds `WRITE` on it.
+   *
+   * "First access" requires both no entitlement grant *and* no `ConfigItem` (see `configExists`).
+   * Grant-only would be insufficient: `PUT /config/{configId}` is admin-only, so every config in
+   * production already exists with zero grants, and grant-only would treat all of them as
+   * unclaimed. Requiring non-existence too scopes the bootstrap to configs nobody has created yet.
    */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
-    if (RESERVED_CONFIG_KEYS.has(key)) {
-      throw new ErrorResponse(`Config ${key} is reserved and its entitlements cannot be modified`, StatusCodes.FORBIDDEN);
-    }
-
     if (isPrivilegedCaller(requestData.token)) {
       return;
     }
 
     const existingGrants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
-    if (Object.keys(existingGrants).length === 0) {
+    if (Object.keys(existingGrants).length === 0 && !(await this.configExists(requestData, key))) {
       return;
     }
 
@@ -361,6 +353,12 @@ export default class EntitlementService {
     if (!callerCapabilities?.includes(Capability.WRITE)) {
       throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
     }
+  };
+
+  /** Whether a `ConfigItem` has ever been stored under this id via `PUT /config/{configId}`. */
+  private configExists = async (requestData: RequestData, key: string): Promise<boolean> => {
+    const repo = requestData.entityManager.getRepository(JsonStorage);
+    return repo.exists({ where: { id: key } });
   };
 
   /**

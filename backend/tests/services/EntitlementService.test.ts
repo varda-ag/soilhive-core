@@ -504,6 +504,19 @@ describe('EntitlementService', () => {
       await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
     });
 
+    it('rejects a non-privileged caller on an existing config with no grants yet — not a genuine first access', async () => {
+      await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
+
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('allows a privileged caller on an existing config with no grants yet', async () => {
+      await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
+      const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
+
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+
     it.each([
       { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
       { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
@@ -515,21 +528,6 @@ describe('EntitlementService', () => {
       const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
 
       await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
-    });
-
-    describe('reserved config keys', () => {
-      it.each(['theme', 'frontend-logo', 'ingestion-status', 'vocabulary-csv-hashes'])(
-        'rejects a non-privileged caller even on first access for reserved key %s',
-        async reservedKey => {
-          await expect(service.assertCanWriteConfigEntitlement(requestData, reservedKey)).rejects.toMatchObject({ status: 403 });
-        },
-      );
-
-      it('rejects a privileged caller too — nobody bypasses the reserved-key block', async () => {
-        const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
-
-        await expect(service.assertCanWriteConfigEntitlement(rd, 'theme')).rejects.toMatchObject({ status: 403 });
-      });
     });
   });
 
@@ -555,15 +553,6 @@ describe('EntitlementService', () => {
         service.setConfigEntitlement(requestData, configKey, { 'new-user@example.com': [Capability.READ] }),
       ).rejects.toMatchObject({ status: 403 });
       expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(existingGrants);
-    });
-
-    it('rejects a reserved config key without writing, even for a privileged caller', async () => {
-      const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
-
-      await expect(service.setConfigEntitlement(rd, 'theme', { 'config-user@example.com': [Capability.WRITE] })).rejects.toMatchObject({
-        status: 403,
-      });
-      expect(await service.getEntityEntitlements(rd, EntitlementScope.CONFIGS, 'theme')).toEqual({});
     });
   });
 

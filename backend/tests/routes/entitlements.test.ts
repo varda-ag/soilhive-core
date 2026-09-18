@@ -175,6 +175,19 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
     });
 
+    it('rejects a non-admin caller on first access when the config already exists but has no grants yet', async () => {
+      const entityManager = await getEntityManager();
+      await entityManager.getRepository('JsonStorage').save({ id: configId, data: { some: 'value' } });
+      const nonAdminToken = getUserToken('existing-config-id', 'existing-config@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${nonAdminToken}`)
+        .send({ 'existing-config@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
     it('rejects a non-admin caller lacking WRITE once the config already has grants', async () => {
       await request(app)
         .put(`/config/${configId}/entitlements`)
@@ -204,26 +217,6 @@ describe('Testing entitlements routes', () => {
         .send({ [writeHolderEmail]: [Capability.WRITE], [userEmail]: [Capability.READ] });
 
       expect(res.statusCode).toBe(StatusCodes.OK);
-    });
-
-    it('rejects a non-admin caller on a reserved config key, even on first access', async () => {
-      const nonAdminToken = getUserToken('reserved-key-id', 'reserved-key@example.com');
-
-      const res = await request(app)
-        .put(`/config/theme/entitlements`)
-        .set('Authorization', `Bearer ${nonAdminToken}`)
-        .send({ 'reserved-key@example.com': [Capability.WRITE] });
-
-      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
-    });
-
-    it('rejects an admin caller on a reserved config key too', async () => {
-      const res = await request(app)
-        .put(`/config/theme/entitlements`)
-        .set('Authorization', `Bearer ${token}`)
-        .send({ [userEmail]: [Capability.WRITE] });
-
-      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
 
     it('returns 401 with no token', async () => {
