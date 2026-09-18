@@ -22,6 +22,7 @@ import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
 import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
 import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedQuery } from '../utils/query-cache';
+import { runCancelableQuery } from '../utils/cancelable-query';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const rasterFilterService = new RasterFilterService();
@@ -51,7 +52,7 @@ export default class SoilDataStorage {
     return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
   };
 
-  filterVector = async (entityManager: EntityManager, filter: DataFilter): Promise<FilteredDatasetSummary[]> => {
+  filterVector = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDatasetSummary[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
@@ -62,8 +63,6 @@ export default class SoilDataStorage {
     if (!vectorTypeRequested) {
       return [];
     }
-    await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
-
     const schema = process.env.POSTGRES_SCHEMA;
     const enabledRasterFilterTables = await timed('filterVector.enabledRasterFilterTables', () => getEnabledRasterFilterTables());
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
@@ -222,7 +221,10 @@ export default class SoilDataStorage {
       GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses
     `;
 
-    const results = await timed('filterVector.query', () => cachedQuery<any>(entityManager, sql, params, CACHE_TTL_SPATIAL_MS));
+    const results = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
+      await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
+      return timed('filterVector.query', () => cachedQuery<any>(transactionalEntityManager, sql, params, CACHE_TTL_SPATIAL_MS));
+    });
 
     return results.map(row => ({
       id: row.dataset_slug,
@@ -241,7 +243,7 @@ export default class SoilDataStorage {
     }));
   };
 
-  filterVectorDatasets = async (entityManager: EntityManager, filter: DataFilter): Promise<FilteredDataset[]> => {
+  filterVectorDatasets = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDataset[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
@@ -304,12 +306,14 @@ export default class SoilDataStorage {
         AND ds.id IN (SELECT dataset_id FROM matching_datasets)
     `;
 
-    await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
-    return entityManager.query(sql, params);
+    return runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
+      await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
+      return transactionalEntityManager.query(sql, params);
+    });
   };
 
   // Assess whether a simplified version (as filterVectorDatasets) is needed
-  filterRaster = async (entityManager: EntityManager, filter: DataFilter): Promise<FilteredDatasetSummary[]> => {
+  filterRaster = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDatasetSummary[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
@@ -415,8 +419,10 @@ export default class SoilDataStorage {
       GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop
     `;
 
-    await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
-    const rows = await timed('filterRaster.query', () => cachedQuery<any>(entityManager, sql, params, CACHE_TTL_SPATIAL_MS));
+    const rows = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
+      await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
+      return timed('filterRaster.query', () => cachedQuery<any>(transactionalEntityManager, sql, params, CACHE_TTL_SPATIAL_MS));
+    });
 
     return rows.map(row => ({
       id: row.id,
@@ -774,7 +780,7 @@ export default class SoilDataStorage {
     return entityManager.query(sql, params);
   };
 
-  getRasterCoverage = async (entityManager: EntityManager, filter: DataFilter): Promise<Record<string, number[]>> => {
+  getRasterCoverage = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<Record<string, number[]>> => {
     const {
       geometryIds,
       parameters: { raster_filters },
@@ -833,14 +839,16 @@ export default class SoilDataStorage {
       ${aoi_cte}
       SELECT ${selectClauses.join(', ')}
     `;
-    await entityManager.query(SET_LOCAL_WORK_MEM_SQL);
-    const results = await timed(
-      'getRasterCoverage.query',
-      () => cachedQuery<any[]>(entityManager, sql, [geometryIds], CACHE_TTL_SPATIAL_MS),
-      {
-        realCoverage: calculateRealCoverage,
-      },
-    );
+    const results = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
+      await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
+      return timed(
+        'getRasterCoverage.query',
+        () => cachedQuery<any[]>(transactionalEntityManager, sql, [geometryIds], CACHE_TTL_SPATIAL_MS),
+        {
+          realCoverage: calculateRealCoverage,
+        },
+      );
+    });
     assert(results.length === 1, 'Expecting one raster coverage aggregated result row');
 
     return decodeRasterColumns(results[0]);
