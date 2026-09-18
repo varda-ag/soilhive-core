@@ -5,8 +5,9 @@ import os from 'os';
 import path from 'path';
 import { GdalCLI } from '../../src/utils/GdalCLI';
 import { buildTileVrt } from '../../src/scripts/computeRasterFootprints';
+import { writableAssets } from '../assets';
 
-const rasterAssetsPath = path.join(__dirname, '../assets/raster');
+const rasterAssetsPath = writableAssets('raster');
 
 const FOOTPRINT_ARGS = ['-b', '1', '-max_points', 'unlimited', '-t_srs', 'EPSG:4326', '-of', 'GeoJSON', '-q'];
 

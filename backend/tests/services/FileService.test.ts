@@ -14,11 +14,12 @@ import { Token } from '../../src/interfaces/Token';
 import { EntityManager } from 'typeorm';
 import FileEntity from '../../src/entities/File';
 import { IngestionStatus } from '../../src/types/data';
+import { writableAssets } from '../assets';
 
 // Use absolute path from package root
-const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
-const vectorFilesFailPath = path.join(__dirname, '../assets/vector_files/fail');
-const rasterFilesPath = path.join(__dirname, '../assets/raster');
+const vectorFilesPassPath = writableAssets('vector_files/pass');
+const vectorFilesFailPath = writableAssets('vector_files/fail');
+const rasterFilesPath = writableAssets('raster');
 
 const mockToken: Token = {
   sub: 'test-user-id',

@@ -13,8 +13,10 @@
     "copy-data": "copyfiles -u 1 'src/migrations/data/*.sql' 'dist/'",
     "start": "node dist/app.js",
     "dev": "nodemon --exec 'ts-node --transpile-only' src/app.ts --watch src/**/*.ts src/openapi.yaml",
-    "test": "jest --runInBand --bail --detectOpenHandles --coverage --collectCoverageFrom='src/**/*.ts'",
-    "test:watch": "jest --detectOpenHandles --watch",
+    "test": "jest --bail",
+    "test:coverage": "jest --bail --coverage --collectCoverageFrom='src/**/*.ts'",
+    "test:debug": "jest --runInBand --detectOpenHandles",
+    "test:watch": "jest --watch",
     "typeorm": "typeorm-ts-node-commonjs"
   },
   "keywords": [],
@@ -104,14 +106,18 @@
     "testMatch": [
       "<rootDir>/tests/**/*.test.ts"
     ],
+    "setupFiles": [
+      "<rootDir>/tests/jest.env.ts"
+    ],
     "setupFilesAfterEnv": [
       "<rootDir>/tests/jest.beforeEach.ts"
     ],
     "globalSetup": "<rootDir>/tests/jest.setup.ts",
     "globalTeardown": "<rootDir>/tests/jest.teardown.ts",
-    "testTimeout": 25000,
+    "coverageProvider": "v8",
+    "testTimeout": 120000,
     "forceExit": true,
-    "maxWorkers": 1,
+    "maxWorkers": "50%",
     "coveragePathIgnorePatterns": [
       "<rootDir>/src/migrations/",
       "<rootDir>/src/entities/"
