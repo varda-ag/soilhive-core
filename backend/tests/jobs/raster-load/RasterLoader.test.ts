@@ -74,7 +74,7 @@ const bandEntry = (propertySlug: string, minDepth: number, maxDepth: number, con
 /** One unit conversion for setUpRasterLoad to create against its own internal property. */
 interface UnitConversionSpec {
   originalUnit: string;
-  formula: string | null;
+  formula?: string;
   type?: UnitConversionType;
 }
 
@@ -684,7 +684,7 @@ describe('RasterLoader', () => {
   describe('is_categorical', () => {
     it('persists is_categorical=true when the property has a categorical unit conversion', async () => {
       const { dataset, file } = await setUpRasterLoad(uniqueName('categorical'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
-        unitConversion: { originalUnit: 'code 1-12', formula: null, type: UnitConversionType.CATEGORY_MAPPING },
+        unitConversion: { originalUnit: 'code 1-12', formula: 'x', type: UnitConversionType.CATEGORY_MAPPING },
       });
 
       await processRasterLoad(getJob(dataset.slug));
