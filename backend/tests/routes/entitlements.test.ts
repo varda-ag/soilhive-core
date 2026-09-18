@@ -230,6 +230,17 @@ describe('Testing entitlements routes', () => {
       const res = await request(app).put(`/config/${configId}/entitlements`).send({});
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
     });
+
+    it('rejects a non-array capability value at the schema layer instead of persisting it', async () => {
+      const poisonToken = getUserToken('poison-id', 'poison@example.com');
+
+      const res = await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${poisonToken}`)
+        .send({ everyone: { poisoned: true } });
+
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
   });
 
   describe('Scope isolation between datasets and configs', () => {

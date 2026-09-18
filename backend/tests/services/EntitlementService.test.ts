@@ -110,6 +110,19 @@ describe('EntitlementService', () => {
     });
   });
 
+  it('skips a malformed (non-array) capability grant instead of throwing, and still returns well-formed keys', async () => {
+    // beforeEach already seeds an 'everyone' row (under `datasets`); merge `configs` into it here
+    // rather than inserting a fresh row, which would collide on the primary key.
+    await entityManager.query(`
+      UPDATE entitlements SET data = data || '{"configs": {"probe_config": {"poisoned": true}, "good_config": ["read"]}}'::jsonb
+      WHERE id = 'everyone'
+    `);
+
+    const entitlements = await service.getUserEntitlements(requestData, 'unrelated-victim@example.com');
+
+    expect(entitlements.configs).toEqual({ good_config: [Capability.READ] });
+  });
+
   it('merges a grant under a historical slug with one already under the current slug for the same Dataset', async () => {
     await entityManager.query(`
       INSERT INTO entitlements (id, data) VALUES

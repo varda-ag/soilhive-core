@@ -3227,6 +3227,17 @@ components:
         Flat map of key (a dataset slug, or a freeform config key under the `configs` scope) to
         the list of capabilities granted for it. Used both by `GET /entitlements` (one scope's
         slice) and by `GET`/`PUT /datasets/{datasetId}/entitlements` (always the `datasets` scope).
+      additionalProperties:
+        type: array
+        items:
+          type: string
+          enum:
+            - preview
+            - download
+            - obfuscate_as_points
+            - obfuscate_as_polygons
+            - read
+            - write
 
     DataAvailabilityIndex:
       type: object

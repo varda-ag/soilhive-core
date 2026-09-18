@@ -197,10 +197,14 @@ export default class EntitlementService {
         const target = (acc[scope] ??= {});
         const scopedData = data[scope] ?? {};
         for (const key in scopedData) {
+          const capabilities = scopedData[key]!;
+          if (!Array.isArray(capabilities)) {
+            log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
+            continue;
+          }
           if (!target[key]) {
             target[key] = [];
           }
-          const capabilities = scopedData[key]!;
           target[key] = Array.from(new Set([...target[key], ...capabilities]));
         }
       }
