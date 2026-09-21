@@ -1,6 +1,5 @@
 import { Response } from 'express';
 import { EntityManager } from 'typeorm';
-import { getDataSource } from './data-source';
 
 /**
  * Builds a plain AbortSignal tied to the response's socket closing - usable for any work that
@@ -40,14 +39,14 @@ export const runCancelableQuery = async <T>(
 
     const [{ pid }] = await transactionalEntityManager.query('SELECT pg_backend_pid() AS pid');
     const cancelBackend = async () => {
+      const cancelRunner = entityManager.connection.createQueryRunner();
       try {
-        const dataSource = await getDataSource();
-        const cancelRunner = dataSource.createQueryRunner();
         await cancelRunner.connect();
         await cancelRunner.query('SELECT pg_cancel_backend($1)', [pid]);
-        await cancelRunner.release();
       } catch {
         // best-effort; ignore if the backend already finished
+      } finally {
+        await cancelRunner.release().catch(() => {});
       }
     };
 
