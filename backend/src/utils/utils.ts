@@ -227,10 +227,34 @@ export const getJobGroupConcurrency = (): number => {
 };
 
 /**
- * Maximum Aggregation Units a data-requests job will report on.
+ * Maximum Aggregation Units any Run will report on - a Data Request or a Soil Index alike, since
+ * the Units are resolved identically for both. One shared ceiling rather than one per queue: the
+ * CREA index's cost does not scale with unit count, so there is nothing yet to tune apart
+ * (ADR 0036). DATA_REQUESTS_MAX_UNITS is the deprecated former name, still honoured.
  */
-export const getDataRequestsMaxUnits = (): number => {
-  return Number(process.env['DATA_REQUESTS_MAX_UNITS']) || 2000;
+export const getMaxAggregationUnits = (): number => {
+  return Number(process.env['MAX_AGGREGATION_UNITS']) || Number(process.env['DATA_REQUESTS_MAX_UNITS']) || 2000;
+};
+
+/**
+ * Runs of the data-requests queue per node.
+ */
+export const getDataRequestsConcurrency = (): number => {
+  return Number(process.env['DATA_REQUESTS_CONCURRENCY']) || 5;
+};
+
+/**
+ * work_mem for the descriptive aggregation queries, per concurrent Run.
+ */
+export const getDataRequestsWorkMem = (): string => {
+  return process.env['DATA_REQUESTS_WORK_MEM'] || '128MB';
+};
+
+/**
+ * Runs of the soil-indexes queue per node.
+ */
+export const getSoilIndexesConcurrency = (): number => {
+  return Number(process.env['SOIL_INDEXES_CONCURRENCY']) || 1;
 };
 
 /** Upper bound on breakdown (per year and depth interval) cells before groups are dropped. */

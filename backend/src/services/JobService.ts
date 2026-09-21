@@ -1,8 +1,8 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { AnyJob, ExportJob, Job, DataRequestJob } from '../interfaces/Job';
-import { Capability, JobQueues, StatisticsType } from '../types/enums';
+import { AnyJob, ExportJob, Job, DataRequestJob, SoilIndexJob, RunJobData } from '../interfaces/Job';
+import { Capability, JobQueues, SoilIndexType, StatisticsType } from '../types/enums';
 import { EntitlementScope } from '../types/Entitlements';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
@@ -64,6 +64,10 @@ export default class JobService {
       await this.validateDataRequestJob(requestData, data as DataRequestJob);
     }
 
+    if (data.type === JobQueues.SOIL_INDEXES) {
+      await this.validateSoilIndexJob(requestData, data as SoilIndexJob);
+    }
+
     // Set owner and enqueue the job. created_by holds the Subject, not the raw sub: it is
     // what the entitlements table is keyed by (and what datasets.created_by already holds),
     // so a processor re-deriving entitlements from it resolves the submitter's own rows
@@ -99,9 +103,13 @@ export default class JobService {
    * an additive change, whereas silently ignoring it now and tightening later is breaking.
    */
   private validateDataRequestJob = async (requestData: RequestData, data: DataRequestJob): Promise<void> => {
-    const filterService = new FilterService();
-
-    const statisticsType = data.statistics_type ?? StatisticsType.DESCRIPTIVE;
+    const statisticsType = data.statistics_type;
+    if (!statisticsType) {
+      throw new ErrorResponse(
+        `Parameter statistics_type is required: use one of ${Object.values(StatisticsType).join(', ')}`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
     if (!Object.values(StatisticsType).includes(statisticsType)) {
       throw new ErrorResponse(
         `Parameter statistics_type '${statisticsType}' is not supported: use one of ${Object.values(StatisticsType).join(', ')}`,
@@ -116,6 +124,37 @@ export default class JobService {
         throw new ErrorResponse(`Parameter dataset_ids does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
       }
     }
+
+    await this.validateRunJob(requestData, data);
+
+    if (data.dataset_ids && data.dataset_ids.length > 0) {
+      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, data.dataset_ids, Capability.PREVIEW);
+    }
+  };
+
+  /**
+   * Enqueue-time validation for soil-indexes jobs: `soil_index_type` is required
+   */
+  private validateSoilIndexJob = async (requestData: RequestData, data: SoilIndexJob): Promise<void> => {
+    if (!data.soil_index_type) {
+      throw new ErrorResponse(
+        `Parameter soil_index_type is required: use one of ${Object.values(SoilIndexType).join(', ')}`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+    if (!Object.values(SoilIndexType).includes(data.soil_index_type)) {
+      throw new ErrorResponse(
+        `Parameter soil_index_type '${data.soil_index_type}' is not supported: use one of ${Object.values(SoilIndexType).join(', ')}`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+
+    await this.validateRunJob(requestData, data);
+  };
+
+  /** The spatial scope every Run takes, checked identically whichever queue will compute it. */
+  private validateRunJob = async (requestData: RequestData, data: RunJobData): Promise<void> => {
+    const filterService = new FilterService();
 
     // Throws 404 when the filter does not exist.
     const filter = await filterService.getFilterById(requestData, data.filter_id);
@@ -139,10 +178,6 @@ export default class JobService {
       if (!metadata.field_names.includes(data.label_field)) {
         throw new ErrorResponse(`File '${data.file_id}' has no field named '${data.label_field}'`, StatusCodes.BAD_REQUEST);
       }
-    }
-
-    if (data.dataset_ids && data.dataset_ids.length > 0) {
-      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, data.dataset_ids, Capability.PREVIEW);
     }
   };
 

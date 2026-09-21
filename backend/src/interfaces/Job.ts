@@ -1,7 +1,15 @@
-import type { StatisticsType } from '../types/enums';
-import type { AggregationUnit } from '../jobs/data-requests/types';
+import type { StatisticsType, SoilIndexType } from '../types/enums';
+import type { AggregationUnit } from '../jobs/runs/types';
 
-export type AnyJob = BulkLoadJob | RasterLoadJob | ExportJob | FileToDbJob | BulkDeleteJob | RefreshDaiStatsJob | DataRequestJob;
+export type AnyJob =
+  | BulkLoadJob
+  | RasterLoadJob
+  | ExportJob
+  | FileToDbJob
+  | BulkDeleteJob
+  | RefreshDaiStatsJob
+  | DataRequestJob
+  | SoilIndexJob;
 
 export interface Job {
   id: string | null;
@@ -71,13 +79,11 @@ export interface RefreshDaiStatsJob extends CommonJobData {
   dataset_ids: string[];
 }
 
-export interface DataRequestJobParameters {
-  /**
-   * Which product to compute over the Aggregation Units. Absent means `descriptive`.
-   * The parameters a type does not use are rejected at enqueue time, not ignored:
-   * `histogram_bins` and `dataset_ids` apply to `descriptive` only.
-   */
-  statistics_type?: StatisticsType;
+/**
+ * What a caller supplies to any job that is a **Run**: the spatial scope, resolved identically
+ * for a Data Request and for a Soil Index. Only the product a queue computes differs.
+ */
+export interface RunJobParameters {
   /** Supplies the criteria; also supplies the AOI when no file_id is given. */
   filter_id: string;
   /**
@@ -85,16 +91,33 @@ export interface DataRequestJobParameters {
    * Filter's own geometries are NOT used — filter_id then contributes criteria only.
    */
   file_id?: string;
-  /** Dataset slugs. Absent means every dataset the filter matches that the caller can preview. */
-  dataset_ids?: string[];
-  histogram_bins?: number;
   /** Field of the source file whose value labels each Aggregation Unit. */
   label_field?: string;
 }
 
-export interface DataRequestJob extends DataRequestJobParameters, CommonJobData {
+/** A Run's job data: what the caller supplied, plus what resolving its Units wrote back. */
+export interface RunJobData extends RunJobParameters, CommonJobData {
   /** Filter holding the Aggregation Units; null when they are filter_id's own geometries. */
   derived_filter_id: string | null;
   unit_count: number;
   units: AggregationUnit[];
 }
+
+export interface DataRequestJobParameters extends RunJobParameters {
+  /**
+   * Which product to compute over the Aggregation Units (required).
+   */
+  statistics_type: StatisticsType;
+  /** Dataset slugs. Absent means every dataset the filter matches that the caller can preview. */
+  dataset_ids?: string[];
+  histogram_bins?: number;
+}
+
+export interface DataRequestJob extends DataRequestJobParameters, RunJobData {}
+
+export interface SoilIndexJobParameters extends RunJobParameters {
+  /** Which Soil Index to compute. */
+  soil_index_type: SoilIndexType;
+}
+
+export interface SoilIndexJob extends SoilIndexJobParameters, RunJobData {}

@@ -444,6 +444,7 @@ paths:
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
                 - $ref: '#/components/schemas/DataRequestJob'
+                - $ref: '#/components/schemas/SoilIndexJob'
               discriminator:
                 propertyName: type
                 mapping:
@@ -453,6 +454,7 @@ paths:
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
                   data-requests: '#/components/schemas/DataRequestJob'
+                  soil-indexes: '#/components/schemas/SoilIndexJob'
       responses:
         '201':
           description: Async job started successfull
@@ -3077,6 +3079,7 @@ components:
         type, and only what is computed over them differs.
       required:
         - type
+        - statistics_type
         - filter_id
       properties:
         type:
@@ -3085,14 +3088,16 @@ components:
           description: Job type
         statistics_type:
           type: string
-          enum: [descriptive, crea-index]
-          default: descriptive
+          enum: [descriptive]
           description: >-
             Which product to compute. `descriptive` gives descriptive statistics over the
             matching observations, per aggregation area, dataset, soil property, sampling
-            year and depth interval. `crea-index` gives one scored GeoJSON Point per aggregation area.
+            year and depth interval. Required: there is no default, and a request that does
+            not name its product is rejected with a 400.
             Parameters that the chosen type does not use are rejected with a 400 rather than
             ignored: histogram_bins and dataset_ids apply to `descriptive` only.
+            `crea-index` is no longer a statistics_type — soil indexes moved to the
+            `soil-indexes` job.
         anonymous:
           type: boolean
           description: Set to true to allow access without authentication
@@ -3126,6 +3131,46 @@ components:
             Number of equal-width histogram bins spanning each cell's min-max range.
             Applies to statistics_type `descriptive` only; sending it with another type is
             a 400.
+        label_field:
+          type: string
+          description: >-
+            Optional field of file_id whose value labels each aggregation area. Must name
+            an existing field of that file.
+
+    SoilIndexJob:
+      type: object
+      description: >-
+        Computes a soil index — a single score per aggregation area, from a named
+        methodology — over the areas matching a filter.
+      required:
+        - type
+        - soil_index_type
+        - filter_id
+      properties:
+        type:
+          type: string
+          enum: [soil-indexes]
+          description: Job type
+        soil_index_type:
+          type: string
+          enum: [crea-index]
+          description: >-
+            Which soil index to compute. `crea-index` gives one scored GeoJSON Point per
+            aggregation area; the scores are rows in the soil_index table.
+        anonymous:
+          type: boolean
+          description: Set to true to allow access without authentication
+        filter_id:
+          type: string
+          format: uuid
+          description: >-
+            Filter supplying the criteria. Also supplies the aggregation areas, unless
+            file_id is given — in which case the filter's own geometries are not used.
+        file_id:
+          type: string
+          description: >-
+            Optional spatial file whose geometries each become one aggregation area. Must
+            be a vector file with a known EPSG code and only polygon or multipolygon geometries.
         label_field:
           type: string
           description: >-
