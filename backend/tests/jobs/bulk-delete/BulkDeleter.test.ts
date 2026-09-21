@@ -40,12 +40,37 @@ describe('BulkDeleter class', () => {
 
     expect(dataset.status).toBe(IngestionStatus.PUBLISHED);
 
-    const promise = BulkDeleterModule.processBulkDeletion(getJob(dataset.slug));
-    await new Promise(r => setTimeout(r, 50));
     const dataSource = await getDataSource();
     const repo = dataSource.getRepository(DatasetEntity);
-    const datasets = await repo.find();
-    expect(datasets.length).toBe(0);
+
+    // The dataset has to vanish from ordinary queries before the purge starts, not merely by the
+    // time it finishes. Hold the purge transaction open on a gate rather than sleeping into it:
+    // the soft-deletion ahead of it takes ~50ms on an idle machine, so any fixed wait short
+    // enough to still land mid-purge is one a loaded worker loses at random.
+    const entityManager = await getEntityManager();
+    const realTransaction = entityManager.transaction.bind(entityManager);
+    let purgeStarted!: () => void;
+    const purgeReached = new Promise<void>(resolve => (purgeStarted = resolve));
+    let releasePurge!: () => void;
+    const purgeGate = new Promise<void>(resolve => (releasePurge = resolve));
+    // The purge is the first transaction() processBulkDeletion opens - the BD_TIMEOUT tests below
+    // mock that same first call and only reach their assertions because of it.
+    const spy = jest.spyOn(entityManager, 'transaction').mockImplementationOnce((async (runInTransaction: any) => {
+      purgeStarted();
+      await purgeGate;
+      return realTransaction(runInTransaction);
+    }) as typeof entityManager.transaction);
+
+    let promise!: Promise<void>;
+    try {
+      promise = BulkDeleterModule.processBulkDeletion(getJob(dataset.slug));
+      await Promise.race([purgeReached, promise]);
+      const datasets = await repo.find();
+      expect(datasets.length).toBe(0);
+    } finally {
+      releasePurge();
+      spy.mockRestore();
+    }
 
     await promise;
 

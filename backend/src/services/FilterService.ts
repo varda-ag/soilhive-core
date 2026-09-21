@@ -25,6 +25,7 @@ import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
 import { DaiPointRow, getDaiPointDataPrecomputed, isPrecomputableDaiParameters } from '../data-layer/DaiStats';
 import { GISDataType } from '../types/data';
+import { getEntityManager } from '../utils/data-source';
 
 const sds = new SoilDataStorage();
 
@@ -130,9 +131,12 @@ export default class FilterService {
     // Geometries are stored (and deduplicated) before the filter row so the filter's
     // identity can be computed over their canonical ids. A filter's geometries are a
     // set: payload geometries that canonicalise to the same stored row collapse to one.
-    const geometryIds = [
-      ...new Set(await Promise.all(filter.geometries.map(async geometry => (await this.insertUserGeometry(requestData, geometry)).id))),
-    ];
+    // Inserted sequentially due to one transactional connection only (internal query queing deprecated in pg@9.0).
+    const insertedGeometryIds: string[] = [];
+    for (const geometry of filter.geometries) {
+      insertedGeometryIds.push((await this.insertUserGeometry(requestData, geometry)).id);
+    }
+    const geometryIds = [...new Set(insertedGeometryIds)];
 
     const owner = requestData.token?.sub || null;
     const filterHash = computeFilterHash(geometryIds, filter.parameters);
@@ -154,17 +158,15 @@ export default class FilterService {
     );
     const savedFilter = rows[0]!;
 
-    await Promise.all(
-      geometryIds.map(user_geometry_id =>
-        requestData.entityManager
-          .createQueryBuilder()
-          .insert()
-          .into(DataFilterUserGeometryEntity)
-          .values({ data_filter_id: savedFilter.id, user_geometry_id })
-          .orIgnore()
-          .execute(),
-      ),
-    );
+    for (const user_geometry_id of geometryIds) {
+      await requestData.entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(DataFilterUserGeometryEntity)
+        .values({ data_filter_id: savedFilter.id, user_geometry_id })
+        .orIgnore()
+        .execute();
+    }
 
     return savedFilter;
   };
@@ -203,17 +205,17 @@ export default class FilterService {
     );
     const savedFilter = rows[0]!;
 
-    await Promise.all(
-      geometryIds.map(user_geometry_id =>
-        requestData.entityManager
-          .createQueryBuilder()
-          .insert()
-          .into(DataFilterUserGeometryEntity)
-          .values({ data_filter_id: savedFilter.id, user_geometry_id })
-          .orIgnore()
-          .execute(),
-      ),
-    );
+    // Sequential, not Promise.all: see the equivalent note in createFilter above - these
+    // writes share the request's one transactional connection.
+    for (const user_geometry_id of geometryIds) {
+      await requestData.entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(DataFilterUserGeometryEntity)
+        .values({ data_filter_id: savedFilter.id, user_geometry_id })
+        .orIgnore()
+        .execute();
+    }
 
     return savedFilter;
   };
@@ -333,21 +335,28 @@ export default class FilterService {
   getCoverage = async (requestData: RequestData, filterId: string, geometryOnly: boolean): Promise<FilteredData> => {
     const filter = await timed('coverage.getFilterById', () => this.getFilterById(requestData, filterId), { filterId });
     const effectiveFilter = geometryOnly ? { ...filter, parameters: {} } : filter;
+    // These 3 long-running reads borrow connections from the pool's default manager
+    // instead of the request's single transactional entityManager, so they run concurrently.
+    const pooledEntityManager = await getEntityManager();
     const [vectorDatasets, rasterDatasets, rasterCoverage] = await Promise.all([
-      timed('coverage.filterVector', () => sds.filterVector(requestData.entityManager, effectiveFilter), { filterId }),
-      timed('coverage.filterRaster', () => sds.filterRaster(requestData.entityManager, effectiveFilter), { filterId }),
-      timed('coverage.getRasterCoverage', () => sds.getRasterCoverage(requestData.entityManager, effectiveFilter), { filterId }),
+      timed('coverage.filterVector', () => sds.filterVector(pooledEntityManager, effectiveFilter, requestData.signal), { filterId }),
+      timed('coverage.filterRaster', () => sds.filterRaster(pooledEntityManager, effectiveFilter, requestData.signal), { filterId }),
+      timed('coverage.getRasterCoverage', () => sds.getRasterCoverage(pooledEntityManager, effectiveFilter, requestData.signal), {
+        filterId,
+      }),
     ]);
     const datasets = mergeDatasetSummaries([vectorDatasets, rasterDatasets]);
     return { datasets, raster_filters: rasterCoverage };
   };
 
+  // See getCoverage: same borrowed-connection + cancel-on-disconnect pattern.
   getDatasets = async (requestData: RequestData, filterId: string): Promise<FilteredDataset[]> => {
     const filter = await this.getFilterById(requestData, filterId);
+    const pooledEntityManager = await getEntityManager();
     const [vectorDatasets, rasterDatasets] = await Promise.all([
-      sds.filterVectorDatasets(requestData.entityManager, filter),
+      sds.filterVectorDatasets(pooledEntityManager, filter, requestData.signal),
       sds
-        .filterRaster(requestData.entityManager, filter)
+        .filterRaster(pooledEntityManager, filter, requestData.signal)
         .then(results => results.map(({ id, name, data_type, visibility }) => ({ id, name, data_type, visibility }))),
     ]);
     return [...vectorDatasets, ...rasterDatasets];

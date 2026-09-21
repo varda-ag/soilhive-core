@@ -92,6 +92,12 @@ describe('Testing /jobs routes', () => {
     jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
     jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
 
+    // The spy has to exist before the job is enqueued. pg-boss only records into spies that
+    // already exist for the queue (manager.#spies.get(name)), and getSpy creates one lazily - so
+    // a job the worker drains before this call completes unobserved, and the wait below then
+    // never resolves and the test dies on the 120s timeout.
+    const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
+
     // Create bulk load job
     const bulkRes = await request(app)
       .post('/jobs')
@@ -147,7 +153,6 @@ describe('Testing /jobs routes', () => {
     expect(getByIdResNoToken2.body).toHaveProperty('id', exportId);
 
     // Wait for bulk load job to complete
-    const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
     await spy.waitForJobWithId(bulkId, 'completed');
 
     // Check on job status
@@ -165,6 +170,9 @@ describe('Testing /jobs routes', () => {
     // the job fails instead of draining. With no staged files it has nothing to ingest and completes.
     await addDataset('test-dataset', [-180, -90, 180, 90], GISDataType.RASTER);
 
+    // Acquired before the job is enqueued - see the bulk-load test above
+    const spy = getPgBoss().getSpy(JobQueues.RASTER_LOAD);
+
     const res = await request(app)
       .post('/jobs')
       .send({ type: 'raster-load', dataset_id: 'test-dataset' })
@@ -172,7 +180,6 @@ describe('Testing /jobs routes', () => {
     expect(res.statusCode).toBe(201);
     expect(res.body.queue).toBe(JobQueues.RASTER_LOAD);
 
-    const spy = getPgBoss().getSpy(JobQueues.RASTER_LOAD);
     await spy.waitForJobWithId(res.body.id, 'completed');
 
     const statusRes = await request(app).get(`/jobs/${res.body.id}`).set('Authorization', `Bearer ${token}`);
@@ -237,6 +244,8 @@ describe('Testing /jobs routes', () => {
       const fileEntity = await fileService.createFile(requestData, file);
       await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
       const queue = JobQueues.FILE_TO_DB;
+      // Acquired before the job is enqueued - see the bulk-load test above
+      const spy = getPgBoss().getSpy(queue);
       const jobResponse = await request(app)
         .post('/jobs')
         .set('Authorization', `Bearer ${token}`)
@@ -245,7 +254,6 @@ describe('Testing /jobs routes', () => {
 
       // Wait for file to DB job to complete
       const jobId = jobResponse.body.id;
-      const spy = getPgBoss().getSpy(queue);
       await spy.waitForJobWithId(jobId, 'completed');
 
       const statusResponse = await request(app).get(`/jobs/${jobId}`).set('Authorization', `Bearer ${token}`);

@@ -1,11 +1,19 @@
 import { Request, Response, NextFunction } from 'express';
 import { getDataSource } from '../utils/data-source';
+import { withDisconnectSignal } from '../utils/cancelable-query';
 
 const skip = ['/health', '/ready', '/docs', '/openapi.json', '/oauth'];
 
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  // Every request gets a disconnect signal, not just endpoints that currently borrow pooled
+  // connections (see runCancelableQuery/ADR 0036): it costs one extra `res.on('close', ...)`
+  // listener (additive - doesn't interfere with this middleware's own cleanup below) and
+  // means any future endpoint can opt into that pattern via `requestData.signal` without
+  // having to wire its own signal per controller.
+  const signal = withDisconnectSignal(res);
+
   if (skip.some(p => req.path.startsWith(p))) {
-    req.customData = req.customData || {};
+    req.customData = req.customData || ({ signal } as typeof req.customData);
     return next();
   }
 
@@ -28,7 +36,7 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   };
 
   await queryRunner.startTransaction();
-  req.customData = req.customData || { entityManager: queryRunner.manager };
+  req.customData = req.customData || { entityManager: queryRunner.manager, signal };
 
   if (req.method === 'GET') {
     res.on('close', async () => {
