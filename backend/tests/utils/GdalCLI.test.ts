@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { GdalCLI } from '../../src/utils/GdalCLI';
+import { writableAsset } from '../assets';
 
 const GEOJSON_OGRINFO = JSON.stringify({
   description: '/path/to/sample_point_0.geojson',
@@ -171,7 +172,7 @@ describe('GdalCLI.parseProgress', () => {
 });
 
 describe('GdalCLI.translate progress reporting', () => {
-  const SOURCE = path.join(__dirname, '../assets/raster/bdod_5-15cm_mean.tif');
+  const SOURCE = writableAsset('raster/bdod_5-15cm_mean.tif');
   const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gdalcli-progress-'));
 
   afterAll(() => {

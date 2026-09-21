@@ -8,10 +8,11 @@ import { RasterFileFormat } from '../../../src/jobs/soil-export/types';
 import { FilteredRasterLayer } from '../../../src/interfaces/DatasetFilter';
 import FileService from '../../../src/services/FileService';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
+import { workerOutputDir, writableAsset } from '../../assets';
 
-const TEST_OUTPUT_DIR = path.join(__dirname, 'raster-test-output');
-const TEST_RASTER = path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif');
-const EPSG3857_RASTER = path.join(__dirname, '../../assets/raster/epsg3857_2b_250m.tif');
+const TEST_OUTPUT_DIR = workerOutputDir('raster-file-writer');
+const TEST_RASTER = writableAsset('raster/bdod_5-15cm_mean.tif');
+const EPSG3857_RASTER = writableAsset('raster/epsg3857_2b_250m.tif');
 // Kept outside the per-test cleanup sweep; covers the test AOI with all-valid pixels.
 const MASK_TIFF = path.join(TEST_OUTPUT_DIR, 'test-mask.tif');
 // A mask in the same EPSG:3857 metres as EPSG3857_RASTER, overlapping its extent

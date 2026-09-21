@@ -30,6 +30,7 @@ import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { GdalCLI } from '../../src/utils/GdalCLI';
 import path from 'path';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
+import { writableAsset } from '../assets';
 
 // addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
 // these tiny fixtures.
@@ -970,7 +971,7 @@ describe('SoilDataStorage class', () => {
       await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
       // A second *file*, not the same one again: a raster layer is identified by (file, band),
       // so two layers differing only in reference period cannot come from one band of one file.
-      await addRasterData(path.join(__dirname, '../assets/raster/bdod_5-15cm_mean.tif'), {
+      await addRasterData(writableAsset('raster/bdod_5-15cm_mean.tif'), {
         layerFields: { reference_period_start: '2010-01-01', reference_period_stop: '2020-12-31' },
         dataset_status: IngestionStatus.PUBLISHED,
       });

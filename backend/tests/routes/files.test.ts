@@ -15,9 +15,10 @@ import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../src/services/FileService';
 import { createSignedPath } from '../../src/utils/presigned-url';
 import { sleep } from '../../src/utils/utils';
+import { writableAssets } from '../assets';
 
 // Use absolute path from package root
-const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
+const vectorFilesPassPath = writableAssets('vector_files/pass');
 const fakeId = '00000000-0000-0000-0000-000000000000';
 const fileName = 'sample_point.geojson';
 

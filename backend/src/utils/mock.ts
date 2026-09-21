@@ -617,6 +617,17 @@ export interface SyntheticRasterDataset {
  * Note `(file_id, band)` is unique: two calls with the same tif and band update one layer rather
  * than producing siblings. Pass a different `tifPath` (or `band`) for a second, distinct layer.
  */
+
+/**
+ * Directory with the default raster fixture.
+ */
+const rasterAssetsDir = (): string =>
+  process.env['SOILHIVE_TEST_ASSETS']
+    ? path.join(process.env['SOILHIVE_TEST_ASSETS']!, 'raster')
+    : path.join(__dirname, '../../tests/assets/raster');
+
+const DEFAULT_RASTER_FIXTURE = 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif';
+
 export const addRasterData = async (
   tifPath?: string,
   options?: {
@@ -636,9 +647,7 @@ export const addRasterData = async (
     dataset_status?: IngestionStatus;
   },
 ): Promise<RasterLayerEntity> => {
-  const input = path.resolve(
-    tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif'),
-  );
+  const input = path.resolve(tifPath ?? path.join(rasterAssetsDir(), DEFAULT_RASTER_FIXTURE));
   const datasetName = options?.dataset ?? 'test-ds';
   const propertyName = options?.soilProperty ?? 'Organic Carbon Stock';
   const categoryName = options?.soilPropertyCategory ?? 'Chemical';
@@ -706,7 +715,7 @@ export const addRasterData = async (
 };
 
 export const addRasterDataset = async (id: string, tifPath?: string): Promise<SyntheticRasterDataset> => {
-  const input = tifPath ?? path.join(__dirname, '../../tests/assets/raster/sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif');
+  const input = tifPath ?? path.join(rasterAssetsDir(), DEFAULT_RASTER_FIXTURE);
   const spatial_extent = [-180, -90, 180, 90];
   const license = await addLicense(`test_raster_license_${id}`);
   const dataset = await addDataset(`test_raster_dataset_${id}`, spatial_extent, GISDataType.RASTER, [license.slug]);

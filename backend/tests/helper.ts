@@ -3,20 +3,24 @@ import { dbRestore } from '../src/utils/db-restore';
 import request from 'supertest';
 import { app } from '../src/app';
 import { exec } from 'child_process';
+import { promisify } from 'util';
+import { PgBoss } from 'pg-boss';
 import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } from '../src/utils/data-source';
 import { signToken, sleep } from '../src/utils/utils';
 import { TOKEN_ISSUER } from '../src/types/enums';
-import { setupTestEnv } from './environment';
+import { schemaForWorker, setupTestEnv, tmpDirForWorker } from './environment';
 import assert from 'assert';
-import { readFileSync } from 'fs';
+import fs, { readFileSync } from 'fs';
+
+const execAsync = promisify(exec);
 
 export const startDockerCompose = async () => {
   setupTestEnv();
   const yaml = path.join(__dirname, 'docker-compose.yml');
-  exec(`docker compose -f ${yaml} up -d`);
+  await execAsync(`docker compose -f ${yaml} up -d`);
   let count = 0;
-  let error = undefined;
-  while (count++ < 10) {
+  let error: unknown = undefined;
+  while (count++ < 60) {
     try {
       const ok = await isDBAvailable();
       if (ok) {
@@ -33,12 +37,63 @@ export const startDockerCompose = async () => {
   throw new Error('Failed to connect to Dockerized Postgres (is the deamon running?): ' + error);
 };
 
+/**
+ * Installs pg-boss's own schema for a worker, the way `PG_BOSS_SCHEMA` derives it.
+ */
+const installPgBossSchema = async (schema: string) => {
+  const boss = new PgBoss({
+    host: process.env.POSTGRES_HOST!,
+    port: Number(process.env.POSTGRES_PORT!),
+    user: process.env.POSTGRES_USER!,
+    password: process.env.POSTGRES_PASSWORD!,
+    database: process.env.POSTGRES_DB!,
+    schema: `${schema}_pgboss`,
+  });
+  boss.on('error', () => {});
+  await boss.start();
+  await boss.stop({ graceful: false });
+};
+
+/**
+ * Clears each worker's scratch directory before the workers are forked.
+ */
+export const resetWorkerTempDirs = (workerCount: number) => {
+  for (let id = 1; id <= workerCount; id++) {
+    fs.rmSync(tmpDirForWorker(String(id)), { recursive: true, force: true });
+  }
+};
+
+/**
+ * Creates and migrates one schema per Jest worker beyond the first.
+ * Worker 1's schema is already done by startDockerCompose, which also creates the postgis,
+ * postgis_raster and unaccent extensions in `public` -- the only objects outside its own schema
+ * that the migrations touch.
+ */
+export const initializeWorkerSchemas = async (workerCount: number) => {
+  const schemas = Array.from({ length: workerCount }, (_, i) => schemaForWorker(String(i + 1)));
+  const original = process.env.POSTGRES_SCHEMA;
+  try {
+    // One at a time, with POSTGRES_SCHEMA pointed at the target
+    for (const schema of schemas.slice(1)) {
+      process.env.POSTGRES_SCHEMA = schema;
+      await initializeSchema(schema);
+    }
+  } finally {
+    process.env.POSTGRES_SCHEMA = original;
+  }
+  // pg-boss reads no such variable, so its schemas can go up together.
+  await Promise.all(schemas.map(schema => installPgBossSchema(schema)));
+};
+
 export const teardown = async () => {
   await destroyDataSource();
 };
 
 export const clearDatabase = async () => {
-  assert(process.env.POSTGRES_SCHEMA === 'testschema', 'clearDatabase can only be run on testschema');
+  assert(
+    process.env.POSTGRES_SCHEMA?.startsWith('testschema'),
+    `clearDatabase can only be run on a test schema, got '${process.env.POSTGRES_SCHEMA}'`,
+  );
   const excludeTables: string[] = [];
   const includeTables: string[] = ['land_cover', 'soil_groups'];
   const dataSource = await getDataSource();
@@ -126,12 +181,58 @@ const getToken = async (password: string): Promise<string> => {
   return res.body.access_token;
 };
 
+/**
+ * Raster filter fixture tables, restored once per run and copied into the test schema on demand.
+ */
+const RASTER_FIXTURE_TABLES = ['land_cover', 'soil_groups'] as const;
+
+/** Schema holding the pristine, read-only copy the per-test copies are cloned from. */
+const RASTER_FIXTURE_SCHEMA = 'testfixtures';
+
+const RASTER_DUMP_SCHEMA = 'testschema';
+
+/**
+ * Restores the raster filter dumps once per run into {@link RASTER_FIXTURE_SCHEMA}.
+ */
+export const loadRasterFilterFixtures = async (): Promise<void> => {
+  const dataSource = await getDataSource();
+  await dataSource.query(`CREATE SCHEMA IF NOT EXISTS "${RASTER_DUMP_SCHEMA}"`);
+  await dataSource.query(`CREATE SCHEMA IF NOT EXISTS "${RASTER_FIXTURE_SCHEMA}"`);
+  for (const table of RASTER_FIXTURE_TABLES) {
+    const dump = path.join(__dirname, `./assets/${table}/${table}.dump`);
+    await dataSource.query(`DROP TABLE IF EXISTS "${RASTER_FIXTURE_SCHEMA}"."${table}" CASCADE`);
+    let restoreError: unknown;
+    await dbRestore(dump).catch(e => {
+      restoreError = e;
+    });
+    const [{ restored }] = await dataSource.query(
+      `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2) AS restored`,
+      [RASTER_DUMP_SCHEMA, table],
+    );
+    if (!restored) {
+      throw new Error(`Failed to restore raster filter fixture '${table}' from ${dump}: ${restoreError}`);
+    }
+    await dataSource.query(`ALTER TABLE "${RASTER_DUMP_SCHEMA}"."${table}" SET SCHEMA "${RASTER_FIXTURE_SCHEMA}"`);
+  }
+  // The worker schemas are all suffixed, so the bare name is only ever the restore's landing zone.
+  // Dropping it also clears out the single shared schema the suite used before it ran per worker.
+  assert(
+    process.env.POSTGRES_SCHEMA !== RASTER_DUMP_SCHEMA,
+    `The dump landing schema '${RASTER_DUMP_SCHEMA}' is in use as POSTGRES_SCHEMA and would be dropped`,
+  );
+  await dataSource.query(`DROP SCHEMA IF EXISTS "${RASTER_DUMP_SCHEMA}" CASCADE`);
+};
+
+/**
+ * Gives the current test its own copy of the raster filter tables.
+ */
 export const addRasterFilterData = async (): Promise<void> => {
-  // Loading data (it takes a while)
-  const landCoverDump = path.join(__dirname, './assets/land_cover/land_cover.dump');
-  const soilGroupsDump = path.join(__dirname, './assets/soil_groups/soil_groups.dump');
-  await dbRestore(landCoverDump).catch(() => {});
-  await dbRestore(soilGroupsDump).catch(() => {});
+  const dataSource = await getDataSource();
+  for (const table of RASTER_FIXTURE_TABLES) {
+    await dataSource.query(`DROP TABLE IF EXISTS "${table}" CASCADE`);
+    await dataSource.query(`CREATE TABLE "${table}" (LIKE "${RASTER_FIXTURE_SCHEMA}"."${table}" INCLUDING ALL)`);
+    await dataSource.query(`INSERT INTO "${table}" SELECT * FROM "${RASTER_FIXTURE_SCHEMA}"."${table}"`);
+  }
 };
 
 export const addRasterFilterMappings = async (): Promise<void> => {
