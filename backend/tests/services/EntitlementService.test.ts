@@ -574,6 +574,17 @@ describe('EntitlementService', () => {
       await expect(service.assertCanWriteConfigEntitlement(rd, configKey, { anyone: [Capability.WRITE] })).resolves.toBeUndefined();
     });
 
+    it('rejects a non-privileged caller from re-bootstrapping a plugin config id whose value was soft-deleted', async () => {
+      const pluginConfigKey = 'plugin:acme:widget';
+      const jsonStorageRepo = entityManager.getRepository('JsonStorage');
+      await jsonStorageRepo.save({ id: pluginConfigKey, data: { some: 'value' } });
+      await jsonStorageRepo.softDelete({ id: pluginConfigKey });
+
+      await expect(
+        service.assertCanWriteConfigEntitlement(requestData, pluginConfigKey, { [callerSubject]: [Capability.WRITE] }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
     it.each([
       { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
       { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },

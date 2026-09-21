@@ -393,10 +393,17 @@ export default class EntitlementService {
     }
   };
 
-  /** Whether a `ConfigItem` has ever been stored under this id via `PUT /config/{configId}`. */
+  /**
+   * Whether a `ConfigItem` has ever been stored under this id via `PUT /config/{configId}`,
+   * including one a super-admin has since removed via `DELETE /config/{configId}` (a soft
+   * delete, see `ConfigService.deleteConfig`). `withDeleted: true` is required for that: a plain
+   * `exists` excludes a soft-deleted row, which would make a deleted id look never-created and
+   * re-open first-access bootstrap for it to any non-admin caller — deleting a config is not the
+   * same fact as it never having existed.
+   */
   private configExists = async (requestData: RequestData, key: string): Promise<boolean> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
-    return repo.exists({ where: { id: key } });
+    return repo.exists({ where: { id: key }, withDeleted: true });
   };
 
   /**
