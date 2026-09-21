@@ -112,6 +112,31 @@ describe('EntitlementService', () => {
     });
   });
 
+  it('treats a "__proto__" grant key as an ordinary entry instead of crashing on it', async () => {
+    // A row keyed literally "__proto__" is a real, storable JSON key — JSON.parse never treats it
+    // as prototype pollution — but the merge accumulator used to be a plain {}, whose inherited
+    // __proto__ accessor made this key look "already populated" and crash on a non-iterable spread.
+    // jsonb_set (not `||`, which would replace the whole "datasets" object and drop 'dataset-1')
+    // nests it alongside the top-level beforeEach's 'dataset-1' grant, so slug-history expansion
+    // still runs and exercises `expandAcrossSlugHistory`'s own accumulator too, not just the merge.
+    await entityManager.query(`
+      UPDATE entitlements SET data = jsonb_set(data, '{datasets,__proto__}', '["preview"]'::jsonb)
+      WHERE id = 'everyone'
+    `);
+
+    const entitlements = await service.getUserEntitlements(requestData, 'unrelated-caller@example.com');
+
+    // Computed key, not a literal `'__proto__': ...` property — the latter sets the object
+    // literal's own prototype (the same special-casing this whole bug is about), rather than
+    // creating an own property, and would defeat this assertion.
+    expect(entitlements.datasets).toEqual({
+      ['__proto__']: [Capability.PREVIEW],
+      'dataset-1': [Capability.DOWNLOAD],
+      'dataset-1-renamed': [Capability.DOWNLOAD],
+    });
+    expect(Object.getPrototypeOf(entitlements.datasets)).toBeNull();
+  });
+
   it('skips a malformed (non-array) capability grant instead of throwing, and still returns well-formed keys', async () => {
     // beforeEach already seeds an 'everyone' row (under `datasets`); merge `configs` into it here
     // rather than inserting a fresh row, which would collide on the primary key.
@@ -209,6 +234,24 @@ describe('EntitlementService', () => {
   ])('should retrieve entity entitlements', async (slug, expectedEntitlements) => {
     const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, slug);
     expect(entitlements).toEqual(expectedEntitlements);
+  });
+
+  it('treats a subject id of "__proto__" as an ordinary grantee instead of hijacking the result map', async () => {
+    // A subject id can legitimately be "__proto__" (e.g. a non-admin WRITE holder adding it as an
+    // extra grantee in a follow-up PUT — see EntitlementService.ts's assertCanWriteConfigEntitlement
+    // doc comment). entitiesToEntitlements's `acc[id] = capabilities` is a plain assignment, which on
+    // a plain {} would silently repoint the accumulator's own prototype instead of storing an entry.
+    await entityManager.query(`
+      INSERT INTO entitlements (id, data) VALUES ('__proto__', '{"datasets": {"dataset-2": ["read"]}}')
+    `);
+
+    const entitlements = await service.getEntityEntitlements(requestData, EntitlementScope.DATASETS, 'dataset-2');
+
+    expect(entitlements).toEqual({
+      'user2@example.com': [Capability.OBFUSCATE_AS_POINTS],
+      ['__proto__']: [Capability.READ],
+    });
+    expect(Object.getPrototypeOf(entitlements)).toBeNull();
   });
 
   it.each([
@@ -413,6 +456,22 @@ describe('EntitlementService', () => {
         datasets: { 'dataset-1': [Capability.DOWNLOAD], 'dataset-2': [Capability.PREVIEW] },
         configs: {},
       });
+    });
+
+    it('treats a "__proto__" entry key from the external reply as an ordinary grant, not prototype hijacking', async () => {
+      // JSON.parse of raw response text (not a JS object literal, which special-cases a literal
+      // `__proto__:` key as setting the object's own prototype rather than creating an own
+      // property) — this is what response.json() actually produces for an untrusted HTTP reply.
+      const remoteReply = JSON.parse('[{"__proto__": ["read"]}, {"dataset-1": ["download"]}]');
+      fetchSpy.mockResolvedValue({ ok: true, json: async () => remoteReply } as Response);
+
+      const entitlements = await service.callEntitlementsEndpoint(requestData);
+
+      expect(entitlements).toEqual({
+        datasets: { ['__proto__']: [Capability.READ], 'dataset-1': [Capability.DOWNLOAD] },
+        configs: {},
+      });
+      expect(Object.getPrototypeOf(entitlements.datasets)).toBeNull();
     });
 
     it('degrades to local entitlements (empty object) when the endpoint responds with an error status', async () => {

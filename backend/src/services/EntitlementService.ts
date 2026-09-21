@@ -13,7 +13,9 @@ import { getEntitySlugs } from '../utils/slugs';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 
-const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
+// Object.create(null), not {}: a key here can legitimately be "__proto__" (see the comment in
+// getUserEntitlements for why that's dangerous on a plain object).
+const emptyEntitlements = (): Entitlements => ({ datasets: Object.create(null), configs: Object.create(null) });
 
 /**
  * Scopes whose keys are entity slugs, and so carry an identity that survives a rename.
@@ -52,29 +54,39 @@ const isEntitlementsEntry = (entry: unknown): entry is CapabilityGrants =>
  * `{ "dataset-1": ["preview", "download"], "dataset-2": ["preview"] }`). Anything that doesn't
  * match it is untrusted: log it and discard the whole reply, the same "degrade to local-only"
  * behavior already used for a failed fetch, rather than guessing at a shape nobody has agreed to.
+ *
+ * Merges into `Object.create(null)`, not `{}` — same "__proto__" key risk as `getUserEntitlements`,
+ * except `Object.assign` would actually pull it off (unlike `JSON.parse`), since it writes each
+ * key through a normal assignment rather than defining it.
  */
 const parseExternalEntitlements = (body: unknown): CapabilityGrants => {
   if (!Array.isArray(body) || !body.every(isEntitlementsEntry)) {
     log.error('External entitlements endpoint replied in an unexpected shape, discarding its response', { body: JSON.stringify(body) });
-    return {};
+    return Object.create(null);
   }
-  return Object.assign({}, ...body);
+  return Object.assign(Object.create(null), ...body);
 };
 
 export default class EntitlementService {
+  // Object.create(null): a subject id can legitimately be "__proto__" — same risk as
+  // getUserEntitlements's merge loop, but here `acc[id] = ...` is a plain assignment, so it
+  // would silently repoint acc's prototype rather than crash.
   private entitiesToEntitlements = (entities: EntitlementsEntity[], scope: EntitlementScope, slugs: string[]): CapabilityGrants => {
-    return entities.reduce((acc, { id, data }) => {
-      const scopedData = data[scope] ?? {};
-      const key = slugs.find(k => k in scopedData);
-      assert(key, 'Key should be found in data');
-      const capabilities = scopedData[key!]!;
-      if (!Array.isArray(capabilities)) {
-        log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
+    return entities.reduce(
+      (acc, { id, data }) => {
+        const scopedData = data[scope] ?? {};
+        const key = slugs.find(k => k in scopedData);
+        assert(key, 'Key should be found in data');
+        const capabilities = scopedData[key!]!;
+        if (!Array.isArray(capabilities)) {
+          log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
+          return acc;
+        }
+        acc[id] = capabilities;
         return acc;
-      }
-      acc[id] = capabilities;
-      return acc;
-    }, {} as CapabilityGrants);
+      },
+      Object.create(null) as CapabilityGrants,
+    );
   };
 
   /**
@@ -200,7 +212,12 @@ export default class EntitlementService {
     const rows = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
     const merged = rows.reduce((acc, { data }) => {
       for (const scope of Object.values(EntitlementScope)) {
-        const target = (acc[scope] ??= {});
+        // Object.create(null), not {}: a stored key can legitimately be "__proto__". On a plain
+        // {}, target["__proto__"] reads back Object.prototype (truthy, not iterable) instead of
+        // undefined, so the init check below is skipped and the spread on the next line crashes.
+        // A null-prototype target has no such built-in property, so "__proto__" behaves like any
+        // other key that hasn't been set yet.
+        const target = (acc[scope] ??= Object.create(null));
         const scopedData = data[scope] ?? {};
         for (const key in scopedData) {
           const capabilities = scopedData[key]!;
@@ -215,7 +232,7 @@ export default class EntitlementService {
         }
       }
       return acc;
-    }, externalEntitlements); // Using external entitlements as the accumulator base
+    }, externalEntitlements); // Using external entitlements as the accumulator base — itself built null-prototype, see emptyEntitlements/parseExternalEntitlements
 
     // Only ENTITY_BACKED_SCOPES need slug-history expansion (today: datasets). `configs` keys are
     // freeform, with no entity behind them, so they pass through untouched — this is the seam a
@@ -273,7 +290,9 @@ export default class EntitlementService {
     }
 
     const matchedInputSlugs = new Set(rows.map(row => row.input_slug));
-    const expanded: CapabilityGrants = {};
+    // Object.create(null): same "__proto__" risk as entitiesToEntitlements — `expanded[slug] = ...`
+    // below is a plain assignment, which would otherwise hijack the prototype instead of storing it.
+    const expanded: CapabilityGrants = Object.create(null);
 
     // Unmatched keys (e.g. spatial_filter) pass through unchanged.
     for (const slug of slugs) {
