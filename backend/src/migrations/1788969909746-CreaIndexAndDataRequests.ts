@@ -16,12 +16,15 @@ export class CreaIndexAndDataRequests1788969909746 implements MigrationInterface
          "run" uuid NOT NULL,
          "geometry" geometry(Geometry,4326) NOT NULL,
          "value" double precision NOT NULL,
-         "metadata" jsonb NOT NULL DEFAULT '{}'::jsonb
+         "metadata" jsonb NOT NULL DEFAULT '{}'::jsonb,
+         "year" smallint
        ) PARTITION BY LIST ("run")`,
     );
 
     // Declared on the parent so Postgres propagates a matching index to every partition.
     await queryRunner.query(`CREATE INDEX "IDX_crea_index_geometry" ON "crea_index" USING GIST ("geometry")`);
+
+    await queryRunner.query(`CREATE INDEX "IDX_crea_index_year" ON "crea_index" ("year")`);
 
     // ── data_requests ─────────────────────────────────────────────────────────
     //
