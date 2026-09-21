@@ -125,10 +125,13 @@ describe('async DAI refresh through the REFRESH_DAI_STATS queue', () => {
     expect(await statsCount()).toBe(0);
 
     const token = await getDataAdminToken();
+    // Before the request that enqueues the job: pg-boss records only into spies that already
+    // exist for the queue, so a job drained before getSpy runs is never observed and the wait
+    // below never resolves. afterEach clears the spies, so nothing leaks into the next test.
+    const spy = getPgBoss().getSpy<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS);
     const res = await request(app).patch(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`).send({ status: 'PUBLISHED' });
     expect(res.statusCode).toBe(200);
 
-    const spy = getPgBoss().getSpy<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS);
     const job = await spy.waitForJob(data => data.dataset_ids?.includes(dataset.id), 'completed');
     expect(job.data.dataset_ids).toEqual([dataset.id]);
 
@@ -156,10 +159,11 @@ describe('async DAI refresh through the REFRESH_DAI_STATS queue', () => {
     expect(await statsCount()).toBe(1);
 
     const token = await getDataAdminToken();
+    // Acquired before the request that enqueues the job - see the PATCH test above
+    const spy = getPgBoss().getSpy<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS);
     const res = await request(app).delete(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(204);
 
-    const spy = getPgBoss().getSpy<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS);
     const job = await spy.waitForJob(data => data.dataset_ids?.includes(dataset.id), 'completed');
     expect(job.data.dataset_ids).toEqual([dataset.id]);
 
