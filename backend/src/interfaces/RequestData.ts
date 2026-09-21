@@ -10,4 +10,5 @@ export interface RequestData {
     fileKey?: string;
   };
   entitlements: Entitlements;
+  signal?: AbortSignal;
 }

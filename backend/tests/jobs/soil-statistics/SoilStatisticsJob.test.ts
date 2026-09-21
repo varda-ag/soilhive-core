@@ -431,9 +431,11 @@ describe('processSoilStatistics', () => {
 
     /** POSTs the job as the caller and waits for the worker to finish it. */
     const runAsCaller = async (token: string, body: object): Promise<{ jobId: string; data: SoilStatisticsJob }> => {
+      // Before the POST: pg-boss records only into spies that already exist for the queue, so a
+      // job drained before getSpy runs is never observed and the wait never resolves.
+      const spy = getPgBoss().getSpy<SoilStatisticsJob>(JobQueues.SOIL_STATISTICS);
       const res = await request(app).post('/jobs').set('Authorization', `Bearer ${token}`).send(body).expect(201);
       const jobId = res.body.id;
-      const spy = getPgBoss().getSpy<SoilStatisticsJob>(JobQueues.SOIL_STATISTICS);
       await spy.waitForJobWithId(jobId, 'completed');
       return { jobId, data: await readJobData(jobId) };
     };
