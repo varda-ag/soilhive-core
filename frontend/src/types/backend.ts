@@ -301,6 +301,9 @@ export interface VocabularyItem {
 export type EntitlementCapability = 'preview' | 'download' | 'obfuscate_as_points' | 'obfuscate_as_polygons';
 export type DatasetEntitlements = Record<string, EntitlementCapability[]>;
 
+export type ConfigEntitlementCapability = 'read' | 'write';
+export type ConfigEntitlements = Record<string, ConfigEntitlementCapability[]>;
+
 /**
  * Namespace `GET /entitlements`'s mandatory `scope` query param selects (see backend ADR-0032).
  * `DASHBOARDS` is not a storage namespace of its own — it's a filtered view over `CONFIGS`,

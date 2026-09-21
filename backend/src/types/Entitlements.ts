@@ -16,21 +16,11 @@ export type Entitlements = {
   configs?: CapabilityGrants;
 };
 
-/** Every namespace `data` can be scoped by, entity-backed or not (see `EntityScope`). */
+/** Every namespace `data` can be scoped by, entity-backed or not. */
 export enum EntitlementScope {
   DATASETS = 'datasets',
   CONFIGS = 'configs',
 }
-
-/**
- * Scopes whose keys identify an entity with a slug history (see `EntitlementService.resolveSlugs`
- * / `expandAcrossSlugHistory`).
- *
- * `configs` has no write path at the moment: `getEntityEntitlements`/`setEntityEntitlements`/
- * `deleteEntityEntitlements` are restricted to `EntityScope`  and no endpoint calls them with `configs`. A
- * future ticket adds how one gets written.
- */
-export type EntityScope = Exclude<EntitlementScope, EntitlementScope.CONFIGS>;
 
 /**
  * Recognized config subkey prefixes: a filtered view over the `configs` namespace, not a storage

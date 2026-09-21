@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import EntitlementService from '../services/EntitlementService';
 import { tokenValidator } from './tokenValidator';
+import { getSubject } from '../utils/auth';
 
 const entitlementService = new EntitlementService();
 
@@ -16,7 +17,8 @@ export const authMiddleware = async (req: Request & { openapi?: any }) => {
   if (!entitlementsRequired) {
     req.customData.entitlements = { datasets: {}, configs: {} };
   } else {
-    const data = await entitlementService.getUserEntitlements(req.customData, req.customData.token?.email);
+    const subject = req.customData.token ? getSubject(req.customData) : undefined;
+    const data = await entitlementService.getUserEntitlements(req.customData, subject);
     req.customData.entitlements = data;
   }
 };

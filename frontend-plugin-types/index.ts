@@ -1,4 +1,11 @@
-import type { PluginConfigResult, PluginQueryResult, PluginUser } from './common';
+import type {
+  PluginConfigEntitlements,
+  PluginConfigResult,
+  PluginEntitlementScope,
+  PluginMutationResult,
+  PluginQueryResult,
+  PluginUser,
+} from './common';
 import type { PluginMapSelection } from './map';
 import type { PluginDataFilterInput, PluginFilteredData } from './filter';
 import type {
@@ -32,6 +39,14 @@ export interface PluginContext {
   // Read-only batch counterpart to usePluginConfig: fetches multiple ids in one
   // request. Missing ids are simply absent from the returned map.
   usePluginConfigs: <T>(pluginId: string, ids: string[]) => PluginQueryResult<Record<string, T>>;
+  usePluginConfigEntitlements: (pluginId: string, configId: string) => PluginQueryResult<PluginConfigEntitlements>;
+  usePluginConfigEntitlementsMutation: (
+    pluginId: string,
+    configId: string,
+  ) => PluginMutationResult<PluginConfigEntitlements, PluginConfigEntitlements>;
+  // Filtered to the calling plugin's own plugin:{pluginId}: namespace and unprefixed
+  // (see ADR 0036) — a plugin never sees another plugin's or the host's entitlements.
+  usePluginUserEntitlements: (pluginId: string, scope: PluginEntitlementScope) => PluginQueryResult<PluginConfigEntitlements>;
   // Absolute URL of a dataset's metadata page. Provided by the host because the
   // origin comes from its runtime configuration, which a remote plugin cannot read.
   metadataUrl: (datasetId: string) => string;
