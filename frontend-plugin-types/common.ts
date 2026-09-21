@@ -17,3 +17,12 @@ export interface PluginConfigResult<T> {
   isError: boolean;
   saveConfig: (config: T) => Promise<void>;
 }
+
+export interface PluginMutationResult<TInput, TOutput> {
+  mutateAsync: (input: TInput) => Promise<TOutput>;
+  isPending: boolean;
+  isError: boolean;
+}
+
+export type PluginConfigEntitlementCapability = 'read' | 'write';
+export type PluginConfigEntitlements = Record<string, PluginConfigEntitlementCapability[]>;
