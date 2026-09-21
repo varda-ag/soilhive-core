@@ -176,6 +176,28 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
     });
 
+    it('rejects a non-admin caller squatting another plugin config id on first access by naming a different subject', async () => {
+      const squatterToken = getUserToken('squatter-id', 'squatter@example.com');
+
+      const res = await request(app)
+        .put('/config/plugin:someone-elses-plugin:settings/entitlements')
+        .set('Authorization', `Bearer ${squatterToken}`)
+        .send({ 'not-the-caller@example.com': [Capability.WRITE] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('rejects a non-admin caller planting an extra grant (e.g. everyone) alongside their own on first access', async () => {
+      const squatterToken = getUserToken('squatter-id', 'squatter@example.com');
+
+      const res = await request(app)
+        .put('/config/plugin:someone-elses-plugin:settings/entitlements')
+        .set('Authorization', `Bearer ${squatterToken}`)
+        .send({ 'squatter@example.com': [Capability.WRITE], everyone: [Capability.READ] });
+
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
     it('rejects a non-admin caller on first access of a non-plugin config id, even with no grants or row yet', async () => {
       const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
 

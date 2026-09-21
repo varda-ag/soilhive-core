@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
 import { EntityManager } from 'typeorm';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { getEntityManager } from '../../src/utils/data-source';
+import { getSubject } from '../../src/utils/auth';
 import { Token } from '../../src/interfaces/Token';
 import { addDataset, addLicense } from '../../src/utils/mock';
 import EntitlementService from '../../src/services/EntitlementService';
@@ -492,13 +493,48 @@ describe('EntitlementService', () => {
 
   describe('assertCanWriteConfigEntitlement', () => {
     const configKey = 'test-config-key';
+    // `requestData` is only populated by the top-level `beforeAll`, so `getSubject` must run
+    // after that, not at `describe`-body evaluation time.
+    let callerSubject: string;
+    let selfOnlyWriteGrant: CapabilityGrants;
+    beforeEach(() => {
+      callerSubject = getSubject(requestData);
+      selfOnlyWriteGrant = { [callerSubject]: [Capability.WRITE] };
+    });
 
-    it('allows a non-privileged caller first access to a plugin-owned config (nobody holds a grant yet)', async () => {
-      await expect(service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings')).resolves.toBeUndefined();
+    it('allows a non-privileged caller first access to a plugin-owned config, granting WRITE to their own subject only', async () => {
+      await expect(
+        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', selfOnlyWriteGrant),
+      ).resolves.toBeUndefined();
+    });
+
+    it('rejects first access when the payload grants a different subject instead of the caller', async () => {
+      await expect(
+        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', {
+          'someone-else@example.com': [Capability.WRITE],
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('rejects first access when the payload grants the caller plus another subject', async () => {
+      await expect(
+        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', {
+          ...selfOnlyWriteGrant,
+          everyone: [Capability.READ],
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('rejects first access when the caller grants themselves a capability other than WRITE', async () => {
+      await expect(
+        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', { [callerSubject]: [Capability.READ] }),
+      ).rejects.toMatchObject({ status: 403 });
     });
 
     it('rejects a non-privileged caller first access to a non-plugin config id, even with no grant or row yet', async () => {
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey, selfOnlyWriteGrant)).rejects.toMatchObject({
+        status: 403,
+      });
     });
 
     it('rejects a non-privileged caller without WRITE once the config already has any grant', async () => {
@@ -506,7 +542,9 @@ describe('EntitlementService', () => {
         INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
       `);
 
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey, selfOnlyWriteGrant)).rejects.toMatchObject({
+        status: 403,
+      });
     });
 
     it('allows a caller holding WRITE for the config even though other grants already exist', async () => {
@@ -515,20 +553,25 @@ describe('EntitlementService', () => {
       `);
       const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
 
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+      // Once WRITE is already held, this is no longer "first access" — the payload can grant anyone.
+      await expect(
+        service.assertCanWriteConfigEntitlement(rd, configKey, { 'config-other@example.com': [Capability.READ] }),
+      ).resolves.toBeUndefined();
     });
 
     it('rejects a non-privileged caller on an existing config with no grants yet — not a genuine first access', async () => {
       await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
 
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey, selfOnlyWriteGrant)).rejects.toMatchObject({
+        status: 403,
+      });
     });
 
     it('allows a privileged caller on an existing config with no grants yet', async () => {
       await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
       const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
 
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey, { anyone: [Capability.WRITE] })).resolves.toBeUndefined();
     });
 
     it.each([
@@ -541,7 +584,7 @@ describe('EntitlementService', () => {
       `);
       const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
 
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey, { anyone: [Capability.WRITE] })).resolves.toBeUndefined();
     });
   });
 
@@ -549,7 +592,7 @@ describe('EntitlementService', () => {
     const configKey = 'plugin:my-plugin:settings';
 
     it('writes the entitlements when the write gate passes (first access)', async () => {
-      const payload = { 'config-user@example.com': [Capability.WRITE] };
+      const payload = { [getSubject(requestData)]: [Capability.WRITE] };
 
       const result = await service.setConfigEntitlement(requestData, configKey, payload);
 

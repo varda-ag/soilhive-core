@@ -10,7 +10,7 @@ import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
-import { isPrivilegedCaller } from '../utils/auth';
+import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 
 const emptyEntitlements = (): Entitlements => ({ datasets: {}, configs: {} });
@@ -358,15 +358,33 @@ export default class EntitlementService {
    * this structurally: every system id is permanently ineligible for self-service, with nothing to
    * maintain as new system configs are added, while `usePluginConfig`
    * (frontend/src/hooks/usePluginConfig.ts) is the only caller that ever needs this bypass at all.
+   *
+   * Nothing about the `plugin:` namespace ties `pluginId` to the caller — any authenticated caller
+   * can be first to bootstrap any plugin's config id, not only the plugin's own users. A first
+   * access is therefore restricted to a payload that grants `WRITE` to the caller's own subject
+   * and nothing else: the claim stays attributable to a real, authenticated identity, and a
+   * bootstrap call can no longer also plant grants for other subjects (e.g. `everyone`) before
+   * anyone holds `WRITE`. Once the caller holds `WRITE` from that first call, a later call is no
+   * longer "first access" and goes through the ordinary `WRITE`-holder branch below, which is
+   * unrestricted in what it may grant.
    */
-  assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+  assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<void> => {
     if (isPrivilegedCaller(requestData.token)) {
       return;
     }
 
     const existingGrants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
-    if (Object.keys(existingGrants).length === 0 && PLUGIN_CONFIG_ID_PATTERN.test(key) && !(await this.configExists(requestData, key))) {
-      return;
+    const isFirstAccess =
+      Object.keys(existingGrants).length === 0 && PLUGIN_CONFIG_ID_PATTERN.test(key) && !(await this.configExists(requestData, key));
+    if (isFirstAccess) {
+      const subject = getSubject(requestData);
+      const grantedKeys = Object.keys(entitlements);
+      const isSelfOnlyWriteGrant =
+        grantedKeys.length === 1 && grantedKeys[0] === subject && entitlements[subject]?.includes(Capability.WRITE);
+      if (isSelfOnlyWriteGrant) {
+        return;
+      }
+      throw new ErrorResponse(`First access to config ${key} must grant WRITE to the caller's own subject only`, StatusCodes.FORBIDDEN);
     }
 
     const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
@@ -387,7 +405,7 @@ export default class EntitlementService {
    * running first — the gate has no other production caller to enforce that ordering itself.
    */
   setConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<CapabilityGrants> => {
-    await this.assertCanWriteConfigEntitlement(requestData, key);
+    await this.assertCanWriteConfigEntitlement(requestData, key, entitlements);
     return this.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, key, entitlements);
   };
 

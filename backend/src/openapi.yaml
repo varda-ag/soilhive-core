@@ -880,9 +880,10 @@ paths:
       description: >-
         A non-admin caller may only claim a config's entitlements on first access (nobody holds a
         grant for it yet, and it hasn't been created) when configId follows the plugin:{pluginId}:{id}
-        convention, matching the id usePluginConfig builds on the frontend. Any other configId is
-        first-access only for a super-admin or data-admin; a non-admin caller needs an existing
-        WRITE grant.
+        convention, matching the id usePluginConfig builds on the frontend, and the request body
+        grants WRITE to the caller's own subject only. Any other configId is first-access only for
+        a super-admin or data-admin; a non-admin caller needs an existing WRITE grant, and may then
+        grant any subject.
       tags:
         - config
       security:
