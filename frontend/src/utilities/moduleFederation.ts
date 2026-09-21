@@ -3,6 +3,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import i18next from 'i18next';
 import * as ReactI18next from 'react-i18next';
+import * as ReactRouter from 'react-router';
 import { PluginType, type NewTabPlugin, type Plugin, type RemotePlugin, type SinglePagePlugin } from '../types/plugins';
 
 export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePlugin =>
@@ -149,6 +150,24 @@ mf.registerShared({
     shareConfig: {
       singleton: true,
       requiredVersion: '16.5.4',
+    },
+  },
+  // A plugin that mounts its own nested <Routes> (e.g. the dashboards plugin's PluginRoutes)
+  // calls useRoutes() internally, which reads React context (NavigationContext) off its own
+  // bundled react-router module. Since this app never wraps a plugin's Page in a Router of its
+  // own anymore (the host's own RouterProvider supplies that context — see Routes.tsx), the
+  // plugin's react-router must resolve to this exact same module instance, or its useRoutes()
+  // call finds no matching context and throws "useRoutes() may be used only in the context of a
+  // <Router> component." Each plugin declares 'react-router': { singleton: true } as shared
+  // (see e.g. soilhive-plugins/dashboards/module-federation.config.ts) expecting the host to
+  // provide it, same as react/react-dom/i18next/react-i18next above.
+  'react-router': {
+    version: '7.9.4',
+    scope: 'default',
+    lib: () => ReactRouter,
+    shareConfig: {
+      singleton: true,
+      requiredVersion: '7.9.4',
     },
   },
 });
