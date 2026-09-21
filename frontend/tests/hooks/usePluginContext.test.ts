@@ -5,6 +5,7 @@ import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
+import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('hooks/useAvailabilityMap', () => ({
@@ -34,6 +35,7 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
   usePluginConfigEntitlements: jest.fn(),
   usePluginConfigEntitlementsMutation: jest.fn(),
 }));
+jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
 
 const useAvailabilityMapMock = useAvailabilityMap as jest.MockedFunction<typeof useAvailabilityMap>;
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
@@ -104,6 +106,12 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.usePluginConfigEntitlementsMutation).toBe(usePluginConfigEntitlementsMutation);
+  });
+
+  it('passes usePluginUserEntitlements through unchanged, since its signature already matches PluginContext', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.usePluginUserEntitlements).toBe(usePluginUserEntitlements);
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {
