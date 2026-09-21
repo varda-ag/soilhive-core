@@ -131,18 +131,34 @@ describe('Testing entitlements routes', () => {
       expect(res.body).toEqual({ everyone: ['download'], [readerEmail]: ['read'] });
     });
 
-    it('allows a non-admin caller holding WRITE for the config', async () => {
-      const writerEmail = 'reader-with-write@example.com';
+    it('does not leak an unrelated subject grant to a caller holding only READ', async () => {
+      const readerEmail = 'reader-only@example.com';
+      const otherEmail = 'someone-else@example.com';
       await request(app)
         .put(`/config/${configId}/entitlements`)
         .set('Authorization', `Bearer ${token}`)
-        .send({ everyone: ['download'], [writerEmail]: ['write'] });
+        .send({ [readerEmail]: ['read'], [otherEmail]: ['write'] });
+      const readerToken = getUserToken('reader-only-id', readerEmail);
+
+      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${readerToken}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual({ [readerEmail]: ['read'] });
+    });
+
+    it('allows a non-admin caller holding WRITE for the config, seeing every other subject too', async () => {
+      const writerEmail = 'reader-with-write@example.com';
+      const otherEmail = 'someone-else@example.com';
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ everyone: ['download'], [writerEmail]: ['write'], [otherEmail]: ['read'] });
       const writerToken = getUserToken('reader-with-write-id', writerEmail);
 
       const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${writerToken}`);
 
       expect(res.statusCode).toBe(StatusCodes.OK);
-      expect(res.body).toEqual({ everyone: ['download'], [writerEmail]: ['write'] });
+      expect(res.body).toEqual({ everyone: ['download'], [writerEmail]: ['write'], [otherEmail]: ['read'] });
     });
 
     it('returns 401 with no token', async () => {

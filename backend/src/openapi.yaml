@@ -848,6 +848,10 @@ paths:
       x-eov-operation-id: getConfigEntitlements
       x-entitlements-required: true
       summary: Get entitlement grants for a config item
+      description: >-
+        Requires a privileged caller, or a non-admin caller holding READ or WRITE on the config. A
+        caller holding WRITE (or privileged) sees every subject's grants; a caller let in on READ
+        alone sees only their own entry plus EVERYONE's, not other subjects' identities.
       tags:
         - config
       security:

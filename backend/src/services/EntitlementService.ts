@@ -419,10 +419,28 @@ export default class EntitlementService {
   /**
    * `GET /config/{configId}/entitlements`'s single entry point: composes the read gate with the
    * generic reader, same reasoning as `setConfigEntitlement`.
+   *
+   * The generic reader returns every subject holding a grant — every other subject's email/id, not
+   * only the caller's own. That's fine for a privileged caller or a `WRITE` holder (managing the
+   * ACL needs to see it in full), but a caller let in on `READ` alone would otherwise turn this
+   * into an email-enumeration endpoint for anyone the config's (non-admin) owner ever grants
+   * `READ` to — including `EVERYONE`, which a non-admin owner can grant same as any other subject.
+   * A `READ`-only caller is therefore handed only their own entry, plus `EVERYONE`'s (never an
+   * individual identity, so safe to reveal — and how the caller can tell their `READ` came from
+   * being individually named vs. covered by `EVERYONE`).
    */
   getConfigEntitlement = async (requestData: RequestData, key: string): Promise<CapabilityGrants> => {
     await this.assertCanReadConfigEntitlement(requestData, key);
-    return this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
+    const grants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
+
+    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
+    const canSeeFullGrantList = isPrivilegedCaller(requestData.token) || callerCapabilities?.includes(Capability.WRITE);
+    if (canSeeFullGrantList) {
+      return grants;
+    }
+
+    const subject = getSubject(requestData);
+    return Object.fromEntries(Object.entries(grants).filter(([grantee]) => grantee === subject || grantee === EVERYONE));
   };
 
   async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {

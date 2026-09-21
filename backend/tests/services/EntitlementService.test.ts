@@ -3,6 +3,7 @@ import { EntityManager } from 'typeorm';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getSubject } from '../../src/utils/auth';
+import { EVERYONE } from '../../src/constants/constants';
 import { Token } from '../../src/interfaces/Token';
 import { addDataset, addLicense } from '../../src/utils/mock';
 import EntitlementService from '../../src/services/EntitlementService';
@@ -488,6 +489,72 @@ describe('EntitlementService', () => {
     ])('allows a privileged caller regardless of capability', async additionalData => {
       const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
       await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('getConfigEntitlement', () => {
+    const configKey = 'test-config-key';
+
+    beforeEach(async () => {
+      // The top-level `beforeEach` already seeds an 'everyone' row (under `datasets`) — merge
+      // `configs` into it here rather than inserting a fresh row, which would collide on the
+      // primary key.
+      await entityManager.query(`
+        UPDATE entitlements SET data = data || jsonb_build_object('configs', jsonb_build_object('${configKey}', '["read"]'::jsonb))
+        WHERE id = '${EVERYONE}'
+      `);
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES
+        ('reader@example.com', jsonb_build_object('configs', jsonb_build_object('${configKey}', '["read"]'::jsonb))),
+        ('writer@example.com', jsonb_build_object('configs', jsonb_build_object('${configKey}', '["write"]'::jsonb)))
+      `);
+    });
+
+    it('gives a caller holding only READ their own entry and the EVERYONE entry, not other subjects', async () => {
+      const rd = {
+        ...requestData,
+        token: { ...mockToken, sub: 'reader-id', email: 'reader@example.com' },
+        entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } },
+      };
+
+      await expect(service.getConfigEntitlement(rd, configKey)).resolves.toEqual({
+        [EVERYONE]: [Capability.READ],
+        'reader@example.com': [Capability.READ],
+      });
+    });
+
+    it('gives a caller holding WRITE the full grant list, including other subjects', async () => {
+      const rd = {
+        ...requestData,
+        token: { ...mockToken, sub: 'writer-id', email: 'writer@example.com' },
+        entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } },
+      };
+
+      await expect(service.getConfigEntitlement(rd, configKey)).resolves.toEqual({
+        [EVERYONE]: [Capability.READ],
+        'reader@example.com': [Capability.READ],
+        'writer@example.com': [Capability.WRITE],
+      });
+    });
+
+    it('gives a privileged caller the full grant list regardless of their own capability', async () => {
+      const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true }, entitlements: {} };
+
+      await expect(service.getConfigEntitlement(rd, configKey)).resolves.toEqual({
+        [EVERYONE]: [Capability.READ],
+        'reader@example.com': [Capability.READ],
+        'writer@example.com': [Capability.WRITE],
+      });
+    });
+
+    it('gives a caller covered only by EVERYONE just their EVERYONE-derived entry, not other subjects', async () => {
+      const rd = {
+        ...requestData,
+        token: { ...mockToken, sub: 'bystander-id', email: 'bystander@example.com' },
+        entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } },
+      };
+
+      await expect(service.getConfigEntitlement(rd, configKey)).resolves.toEqual({ [EVERYONE]: [Capability.READ] });
     });
   });
 
