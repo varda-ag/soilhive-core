@@ -162,12 +162,12 @@ mf.registerShared({
   // (see e.g. soilhive-plugins/dashboards/module-federation.config.ts) expecting the host to
   // provide it, same as react/react-dom/i18next/react-i18next above.
   'react-router': {
-    version: '7.9.4',
+    version: '7.18.4',
     scope: 'default',
     lib: () => ReactRouter,
     shareConfig: {
       singleton: true,
-      requiredVersion: '7.9.4',
+      requiredVersion: '7.18.4',
     },
   },
 });
