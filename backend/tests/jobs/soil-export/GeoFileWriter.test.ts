@@ -5,8 +5,9 @@ import { GeoFileWriter } from '../../../src/jobs/soil-export/GeoFileWriter';
 import { EXPORT_SCHEMA, VectorFileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
+import { workerOutputDir } from '../../assets';
 
-const TEST_OUTPUT_DIR = path.join(__dirname, 'output');
+const TEST_OUTPUT_DIR = workerOutputDir('geo-file-writer');
 
 function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
   return {

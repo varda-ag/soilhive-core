@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
-import path from 'path';
 import { EntityManager } from 'typeorm';
 import FileService from '../../src/services/FileService';
 import { VectorFileMetadata } from '../../src/interfaces/File';
 import { getEntityManager } from '../../src/utils/data-source';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
+import { writableAssets } from '../assets';
 
-const vectorFilesPassPath = path.join(__dirname, '../assets/vector_files/pass');
-const vectorFilesFailPath = path.join(__dirname, '../assets/vector_files/fail');
+const vectorFilesPassPath = writableAssets('vector_files/pass');
+const vectorFilesFailPath = writableAssets('vector_files/fail');
 
 const mockToken: Token = {
   sub: 'test-user-id',

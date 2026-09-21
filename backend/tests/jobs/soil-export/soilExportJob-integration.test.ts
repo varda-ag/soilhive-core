@@ -36,6 +36,7 @@ import { addRasterFilterData, addRasterFilterMappings } from '../../helper';
 import * as RasterUtilsModule from '../../../src/utils/raster';
 import { fromFile } from 'geotiff';
 import * as computeRasterFootprints from '../../../src/scripts/computeRasterFootprints';
+import { writableAsset, writableAssets } from '../../assets';
 
 // addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
 // these tiny fixtures.
@@ -100,7 +101,7 @@ async function hasNonNodataPixel(tifPath: string, nodataValue: number): Promise<
 
 describe('Soil Export Job Integration Test', () => {
   beforeAll(async () => {
-    const rasterAssetsDir = path.join(__dirname, '../../assets/raster');
+    const rasterAssetsDir = writableAssets('raster');
     fs.cpSync(rasterAssetsDir, storageRoot, { recursive: true });
     await initPgBoss();
     await sleep(2000); // Wait for pg-boss table to be ready
@@ -528,7 +529,7 @@ describe('Soil Export Job Integration Test', () => {
     });
 
     it('should create one output file with several bands when several raster datasets requested with format GPKG', async () => {
-      const extra_raster_layer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif'), {
+      const extra_raster_layer = await addRasterData(writableAsset('raster/bdod_5-15cm_mean.tif'), {
         dataset: 'test-raster-ds-2',
         visibility: 'public',
         dataset_status: IngestionStatus.PUBLISHED,
@@ -992,7 +993,7 @@ describe('Soil Export Job Integration Test', () => {
 
     it('should export a raster with a custom, unregistered CRS via the mask path, with no target_crs', async () => {
       // epsg8807_1b_250m.tif's CRS is a Lambert Azimuthal Equal Area with no EPSG code
-      const customCrsPath = path.join(__dirname, '../../assets/raster/epsg8807_1b_250m.tif');
+      const customCrsPath = writableAsset('raster/epsg8807_1b_250m.tif');
       await ensureFileWithRealCrsMetadata(customCrsPath);
       const customCrsLayer = await addRasterData(customCrsPath, {
         dataset: 'custom-crs-lambert-azimuthal',
@@ -1222,7 +1223,7 @@ describe('Soil Export Job Integration Test', () => {
         // A distinct source file: raster_layers upserts on (file_id, band), so reusing the
         // default source tif here would update raster_layer's own row instead of creating a
         // second, independent layer.
-        const secondLayer = await addRasterData(path.join(__dirname, '../../assets/raster/bdod_5-15cm_mean.tif'), {
+        const secondLayer = await addRasterData(writableAsset('raster/bdod_5-15cm_mean.tif'), {
           dataset: 'shared-asset-second-ds',
           soilProperty: 'Second Property',
           dataset_status: IngestionStatus.PUBLISHED,

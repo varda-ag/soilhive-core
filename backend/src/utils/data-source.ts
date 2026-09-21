@@ -44,14 +44,24 @@ const createDataSource = async (schema: string, includeEntities = true): Promise
   return dataSource;
 };
 
-export const initializeSchema = async () => {
+/**
+ * Creates `schema` if it does not exist and brings it up to date with the migrations.
+ */
+export const initializeSchema = async (schema: string = process.env.POSTGRES_SCHEMA!) => {
   // Connect to "public" schema to create desired schema
   const dataSourcePublic = await createDataSource('public', false);
-  const escapedSchema = `"${process.env.POSTGRES_SCHEMA}"`;
-  await dataSourcePublic.query(`CREATE SCHEMA IF NOT EXISTS ${escapedSchema}`);
+  try {
+    await dataSourcePublic.query(`CREATE SCHEMA IF NOT EXISTS "${schema}"`);
+  } finally {
+    await dataSourcePublic.destroy().catch(() => {});
+  }
   // Connect to custom schema to run migrations
-  const dataSource = await createDataSource(process.env.POSTGRES_SCHEMA!);
-  await runConditionalMigrations(dataSource);
+  const dataSource = await createDataSource(schema);
+  try {
+    await runConditionalMigrations(dataSource);
+  } finally {
+    await dataSource.destroy().catch(() => {});
+  }
 };
 
 /**

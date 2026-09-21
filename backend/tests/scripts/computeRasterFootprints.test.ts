@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import fs from 'fs/promises';
 import os from 'os';
-import path from 'path';
 import type { MultiPolygon } from 'geojson';
 import { streamRasterFootprints } from '../../src/scripts/computeRasterFootprints';
+import { writableAssets } from '../assets';
 
-const rasterAssetsPath = path.join(__dirname, '../assets/raster');
+const rasterAssetsPath = writableAssets('raster');
 // Float32 band whose GDAL_NODATA tag is the text "-3.4e+38"
 const NODATA_F32_FILE = 'nodata_34e38_f32.tif';
 // Lambert Azimuthal Equal Area, no EPSG code — exercises the srcSrs-detection path and
