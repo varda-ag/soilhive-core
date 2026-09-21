@@ -227,15 +227,15 @@ export const getJobGroupConcurrency = (): number => {
 };
 
 /**
- * Maximum Aggregation Units a soil-statistics job will report on.
+ * Maximum Aggregation Units a data-requests job will report on.
  */
-export const getSoilStatisticsMaxUnits = (): number => {
-  return Number(process.env['SOIL_STATISTICS_MAX_UNITS']) || 2000;
+export const getDataRequestsMaxUnits = (): number => {
+  return Number(process.env['DATA_REQUESTS_MAX_UNITS']) || 2000;
 };
 
 /** Upper bound on breakdown (per year and depth interval) cells before groups are dropped. */
-export const getSoilStatisticsMaxCells = (): number => {
-  return Number(process.env['SOIL_STATISTICS_MAX_CELLS']) || 200_000;
+export const getDataRequestsMaxCells = (): number => {
+  return Number(process.env['DATA_REQUESTS_MAX_CELLS']) || 200_000;
 };
 
 /**
@@ -243,8 +243,8 @@ export const getSoilStatisticsMaxCells = (): number => {
  * request paths - this is a batch job, not a request - and far below pg-boss's 24h job
  * expiry so a stuck query fails the job rather than occupying a worker for a day.
  */
-export const getSoilStatisticsStatementTimeoutMs = (): number => {
-  return Number(process.env['SOIL_STATISTICS_STATEMENT_TIMEOUT_MS']) || 30 * 60 * 1000;
+export const getDataRequestsStatementTimeoutMs = (): number => {
+  return Number(process.env['DATA_REQUESTS_STATEMENT_TIMEOUT_MS']) || 30 * 60 * 1000;
 };
 
 export const getLoopbackUrl = (): string => {

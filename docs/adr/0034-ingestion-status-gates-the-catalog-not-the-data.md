@@ -31,7 +31,7 @@ Entitlement exactly as before.
 - **The status filter made `DatasetService.getDataset` privilege-sensitive**, and that method is
   also how the bulk-load, raster-load, bulk-delete and export processors reach their dataset —
   always one that is not `PUBLISHED`. Those processors therefore now inherit the submitter's
-  `isDataAdmin`/`isSuperAdmin` from the job payload (as the export and soil-statistics processors
+  `isDataAdmin`/`isSuperAdmin` from the job payload (as the export and data-requests processors
   already did), and `JobService.createJob` restricts those queues to privileged submitters so the
   inheritance always yields one. Without both halves, a load would die on a 404 in a worker log.
 - **`Dataset.status` stays `enum: [PUBLISHED]` in the spec.** It reads like a description of what

@@ -1,7 +1,7 @@
 import type { StatisticsType } from '../types/enums';
-import type { AggregationUnit } from '../jobs/soil-statistics/types';
+import type { AggregationUnit } from '../jobs/data-requests/types';
 
-export type AnyJob = BulkLoadJob | RasterLoadJob | ExportJob | FileToDbJob | BulkDeleteJob | RefreshDaiStatsJob | SoilStatisticsJob;
+export type AnyJob = BulkLoadJob | RasterLoadJob | ExportJob | FileToDbJob | BulkDeleteJob | RefreshDaiStatsJob | DataRequestJob;
 
 export interface Job {
   id: string | null;
@@ -71,7 +71,7 @@ export interface RefreshDaiStatsJob extends CommonJobData {
   dataset_ids: string[];
 }
 
-export interface SoilStatisticsJobParameters {
+export interface DataRequestJobParameters {
   /**
    * Which product to compute over the Aggregation Units. Absent means `descriptive`.
    * The parameters a type does not use are rejected at enqueue time, not ignored:
@@ -92,7 +92,7 @@ export interface SoilStatisticsJobParameters {
   label_field?: string;
 }
 
-export interface SoilStatisticsJob extends SoilStatisticsJobParameters, CommonJobData {
+export interface DataRequestJob extends DataRequestJobParameters, CommonJobData {
   /** Filter holding the Aggregation Units; null when they are filter_id's own geometries. */
   derived_filter_id: string | null;
   unit_count: number;

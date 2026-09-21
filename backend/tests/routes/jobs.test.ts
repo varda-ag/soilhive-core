@@ -333,7 +333,7 @@ describe('Testing /jobs routes', () => {
     expect(restrictedRes.statusCode).toBe(400);
   });
 
-  describe('POST /jobs soil-statistics validation', () => {
+  describe('POST /jobs data-requests validation', () => {
     // Everything here is rejected at enqueue time on purpose: this is the only point at
     // which the caller's raw token exists (so external entitlements are visible), and a
     // synchronous 4xx beats a job that fails minutes later.
@@ -357,7 +357,7 @@ describe('Testing /jobs routes', () => {
 
     it('rejects an unknown filter with 404', async () => {
       const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_STATISTICS,
+        type: JobQueues.DATA_REQUESTS,
         filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
       });
       expect(res.statusCode).toBe(404);
@@ -365,7 +365,7 @@ describe('Testing /jobs routes', () => {
 
     it('rejects a filter with no geometries when no file_id is given', async () => {
       const filterId = await createFilter([]);
-      const res = await request(app).post('/jobs').send({ type: JobQueues.SOIL_STATISTICS, filter_id: filterId });
+      const res = await request(app).post('/jobs').send({ type: JobQueues.DATA_REQUESTS, filter_id: filterId });
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('no geometries');
     });
@@ -373,7 +373,7 @@ describe('Testing /jobs routes', () => {
     it('rejects label_field without file_id', async () => {
       const filterId = await createFilter([polygon]);
       const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_STATISTICS,
+        type: JobQueues.DATA_REQUESTS,
         filter_id: filterId,
         label_field: 'field_name',
       });
@@ -390,7 +390,7 @@ describe('Testing /jobs routes', () => {
       const res = await request(app)
         .post('/jobs')
         .send({
-          type: JobQueues.SOIL_STATISTICS,
+          type: JobQueues.DATA_REQUESTS,
           filter_id: filterId,
           dataset_ids: [dataset.slug],
         });
@@ -403,32 +403,32 @@ describe('Testing /jobs routes', () => {
       const res = await request(app)
         .post('/jobs')
         .send({
-          type: JobQueues.SOIL_STATISTICS,
+          type: JobQueues.DATA_REQUESTS,
           filter_id: filterId,
           dataset_ids: [dataset.slug],
           histogram_bins: 20,
         });
       expect(res.statusCode).toBe(201);
-      expect(res.body.queue).toBe(JobQueues.SOIL_STATISTICS);
+      expect(res.body.queue).toBe(JobQueues.DATA_REQUESTS);
       expect(res.body.data.histogram_bins).toBe(20);
     });
 
     it('accepts statistics_type crea-index and echoes it back', async () => {
       const filterId = await createFilter([polygon]);
       const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_STATISTICS,
+        type: JobQueues.DATA_REQUESTS,
         filter_id: filterId,
         statistics_type: StatisticsType.CREA_INDEX,
       });
       expect(res.statusCode).toBe(201);
-      expect(res.body.queue).toBe(JobQueues.SOIL_STATISTICS);
+      expect(res.body.queue).toBe(JobQueues.DATA_REQUESTS);
       expect(res.body.data.statistics_type).toBe(StatisticsType.CREA_INDEX);
     });
 
     it('rejects an unknown statistics_type', async () => {
       const filterId = await createFilter([polygon]);
       const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_STATISTICS,
+        type: JobQueues.DATA_REQUESTS,
         filter_id: filterId,
         statistics_type: 'not-a-type',
       });
@@ -440,7 +440,7 @@ describe('Testing /jobs routes', () => {
     it('rejects histogram_bins with statistics_type crea-index', async () => {
       const filterId = await createFilter([polygon]);
       const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_STATISTICS,
+        type: JobQueues.DATA_REQUESTS,
         filter_id: filterId,
         statistics_type: StatisticsType.CREA_INDEX,
         histogram_bins: 20,
@@ -455,7 +455,7 @@ describe('Testing /jobs routes', () => {
       const res = await request(app)
         .post('/jobs')
         .send({
-          type: JobQueues.SOIL_STATISTICS,
+          type: JobQueues.DATA_REQUESTS,
           filter_id: filterId,
           statistics_type: StatisticsType.CREA_INDEX,
           dataset_ids: [dataset.slug],
@@ -467,7 +467,7 @@ describe('Testing /jobs routes', () => {
     it('rejects a histogram_bins value outside the allowed range', async () => {
       const filterId = await createFilter([polygon]);
       const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_STATISTICS,
+        type: JobQueues.DATA_REQUESTS,
         filter_id: filterId,
         histogram_bins: 1,
       });

@@ -443,7 +443,7 @@ paths:
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
-                - $ref: '#/components/schemas/SoilStatisticsJob'
+                - $ref: '#/components/schemas/DataRequestJob'
               discriminator:
                 propertyName: type
                 mapping:
@@ -452,7 +452,7 @@ paths:
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
-                  soil-statistics: '#/components/schemas/SoilStatisticsJob'
+                  data-requests: '#/components/schemas/DataRequestJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1324,7 +1324,7 @@ paths:
       description: >-
         Returns the canonical stored geometries of the filter as a GeoJSON
         FeatureCollection, paginated with an opaque cursor. Each Feature id is the
-        geometry's identifier, which is what soil-statistics job output references as
+        geometry's identifier, which is what data-requests job output references as
         unit_id. For a filter derived from an uploaded file this is the only way to read
         its geometries, since the filter's own stored form does not contain them.
         Walk pages by passing the previous response's next_cursor; a null next_cursor
@@ -2208,7 +2208,7 @@ components:
 
     FilterGeometry:
       type: object
-      description: One stored filter geometry — one Aggregation Unit of soil-statistics output.
+      description: One stored filter geometry — one Aggregation Unit of data-requests output.
       properties:
         type:
           type: string
@@ -2216,7 +2216,7 @@ components:
         id:
           type: string
           format: uuid
-          description: Geometry identifier, referenced as unit_id in soil-statistics output
+          description: Geometry identifier, referenced as unit_id in data-requests output
         geometry:
           $ref: '#/components/schemas/Geometry'
         properties:
@@ -2986,7 +2986,7 @@ components:
             format: uri
           description: Optional mapping of dataset_id to metadata URL for Readme.PDF
 
-    SoilStatisticsJob:
+    DataRequestJob:
       type: object
       description: >-
         Computes an analytical product over the aggregation areas matching a filter. Which
@@ -2998,7 +2998,7 @@ components:
       properties:
         type:
           type: string
-          enum: [soil-statistics]
+          enum: [data-requests]
           description: Job type
         statistics_type:
           type: string

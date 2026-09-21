@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { AnyJob, ExportJob, Job, SoilStatisticsJob } from '../interfaces/Job';
+import { AnyJob, ExportJob, Job, DataRequestJob } from '../interfaces/Job';
 import { Capability, JobQueues, StatisticsType } from '../types/enums';
 import { EntitlementScope } from '../types/Entitlements';
 import { getPgBoss } from './PgBoss';
@@ -60,8 +60,8 @@ export default class JobService {
       );
     }
 
-    if (data.type === JobQueues.SOIL_STATISTICS) {
-      await this.validateSoilStatisticsJob(requestData, data as SoilStatisticsJob);
+    if (data.type === JobQueues.DATA_REQUESTS) {
+      await this.validateDataRequestJob(requestData, data as DataRequestJob);
     }
 
     // Set owner and enqueue the job. created_by holds the Subject, not the raw sub: it is
@@ -81,7 +81,7 @@ export default class JobService {
   }
 
   /**
-   * Enqueue-time validation for soil-statistics jobs.
+   * Enqueue-time validation for data-requests jobs.
    *
    * The PREVIEW check has to happen here, not only in the processor: this is the one
    * place a raw token exists, so it is the only place external entitlements are visible
@@ -98,7 +98,7 @@ export default class JobService {
    * Rejecting now also keeps the door open - accepting one of these for a future type is
    * an additive change, whereas silently ignoring it now and tightening later is breaking.
    */
-  private validateSoilStatisticsJob = async (requestData: RequestData, data: SoilStatisticsJob): Promise<void> => {
+  private validateDataRequestJob = async (requestData: RequestData, data: DataRequestJob): Promise<void> => {
     const filterService = new FilterService();
 
     const statisticsType = data.statistics_type ?? StatisticsType.DESCRIPTIVE;

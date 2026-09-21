@@ -1,5 +1,5 @@
 import { Job } from 'pg-boss';
-import { SoilStatisticsJob } from '../../interfaces/Job';
+import { DataRequestJob } from '../../interfaces/Job';
 import { RequestData } from '../../interfaces/RequestData';
 import { getEntityManager } from '../../utils/data-source';
 import { getPgBoss, PG_BOSS_SCHEMA, updateJobState } from '../../services/PgBoss';
@@ -21,13 +21,13 @@ const isJobCancelled = async (jobId: string): Promise<boolean> => {
   return result.rows[0]?.state === 'cancelled';
 };
 
-const PRODUCERS: Record<StatisticsType, (ctx: ProducerContext, data: SoilStatisticsJob) => Promise<void>> = {
+const PRODUCERS: Record<StatisticsType, (ctx: ProducerContext, data: DataRequestJob) => Promise<void>> = {
   [StatisticsType.DESCRIPTIVE]: runDescriptiveStatistics,
   [StatisticsType.CREA_INDEX]: runCreaIndex,
 };
 
 /**
- * Resolves the shared inputs of a soil-statistics run and hands off to the producer for its
+ * Resolves the shared inputs of a data-requests run and hands off to the producer for its
  * Statistics Type.
  *
  * One queue serves every Statistics Type rather than a queue per type, even though the
@@ -37,7 +37,7 @@ const PRODUCERS: Record<StatisticsType, (ctx: ProducerContext, data: SoilStatist
  * subtle half. A queue per type would duplicate it or force a shared library that is a
  * pipeline in all but name, and would make "the same areas, computed differently" look
  * like two unrelated features to every caller. The cost accepted in exchange: `job.data`
- * holds fields only one type populates (see the SoilStatisticsJob interface), and a client
+ * holds fields only one type populates (see the DataRequestJob interface), and a client
  * must read `statistics_type` to know which output key to expect.
  *
  * Scope of the two inputs, which is easy to get backwards: `filter_id` always supplies
@@ -50,7 +50,7 @@ const PRODUCERS: Record<StatisticsType, (ctx: ProducerContext, data: SoilStatist
  * endpoint; the authoritative check happens at enqueue time in JobService. What each
  * producer does with the result is its own business — see runDescriptiveStatistics.
  */
-export async function processSoilStatistics(job: Job<SoilStatisticsJob>): Promise<void> {
+export async function processDataRequest(job: Job<DataRequestJob>): Promise<void> {
   const { id: jobId, data } = job;
   const { filter_id, created_by } = data;
   const statisticsType = data.statistics_type ?? StatisticsType.DESCRIPTIVE;
@@ -60,7 +60,7 @@ export async function processSoilStatistics(job: Job<SoilStatisticsJob>): Promis
   // type would silently return the wrong product under a name the caller chose.
   const producer = PRODUCERS[statisticsType];
   if (!producer) {
-    throw new JobError('SST_UNKNOWN_STATISTICS_TYPE', {
+    throw new JobError('DR_UNKNOWN_STATISTICS_TYPE', {
       statistics_type: statisticsType,
       supported: Object.keys(PRODUCERS).join(', '),
     });
@@ -83,7 +83,7 @@ export async function processSoilStatistics(job: Job<SoilStatisticsJob>): Promis
   };
 
   const report = async (description: string, percentage: number) => {
-    await updateJobState(jobId!, { progress_percentage: percentage, progress_description: description } as Partial<SoilStatisticsJob>);
+    await updateJobState(jobId!, { progress_percentage: percentage, progress_description: description } as Partial<DataRequestJob>);
   };
 
   try {
@@ -93,7 +93,7 @@ export async function processSoilStatistics(job: Job<SoilStatisticsJob>): Promis
     await producer({ jobId: jobId!, entityManager, requestData, filter, report, assertNotCancelled }, data);
   } catch (error) {
     if (error instanceof JobCancelled) {
-      log.info('Soil statistics job cancelled', { job_id: jobId });
+      log.info('Data request job cancelled', { job_id: jobId });
       return;
     }
     throw error;

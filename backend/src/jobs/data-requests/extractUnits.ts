@@ -55,7 +55,7 @@ export const extractUnitsFromFile = async (
 
   const fileEntity = await fileService.getFile(requestData, fileId).catch(error => {
     if (error instanceof ErrorResponse && error.status === StatusCodes.NOT_FOUND) {
-      throw new JobError('SST_FILE_NOT_FOUND', { file_id: fileId });
+      throw new JobError('DR_FILE_NOT_FOUND', { file_id: fileId });
     }
     throw error;
   });
@@ -63,29 +63,29 @@ export const extractUnitsFromFile = async (
   // Absent metadata means the File was uploaded as non-spatial: nothing probed it, so it
   // has no CRS and no geometry to read (see CONTEXT.md — this is not "a failed upload").
   if (!fileEntity.metadata) {
-    throw new JobError('SST_FILE_NOT_SPATIAL', { file_id: fileId });
+    throw new JobError('DR_FILE_NOT_SPATIAL', { file_id: fileId });
   }
   if (fileEntity.metadata.is_raster) {
-    throw new JobError('SST_FILE_IS_RASTER', { file_id: fileId });
+    throw new JobError('DR_FILE_IS_RASTER', { file_id: fileId });
   }
   const metadata = fileEntity.metadata as VectorFileMetadata;
   if (!metadata.epsg) {
-    throw new JobError('SST_MISSING_EPSG', { file_id: fileId });
+    throw new JobError('DR_MISSING_EPSG', { file_id: fileId });
   }
   // Re-checked here even though the enqueue path validates it: a processor must not
   // trust job data, which outlives the request that produced it.
   if (labelField && !metadata.field_names.includes(labelField)) {
-    throw new JobError('SST_UNKNOWN_LABEL_FIELD', { label_field: labelField });
+    throw new JobError('DR_UNKNOWN_LABEL_FIELD', { label_field: labelField });
   }
 
   const { mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileEntity.file_path).catch(error => {
     if (error instanceof ErrorResponse && error.status === StatusCodes.NOT_FOUND) {
-      throw new JobError('SST_FILE_NOT_FOUND', { file_id: fileId });
+      throw new JobError('DR_FILE_NOT_FOUND', { file_id: fileId });
     }
     throw error;
   });
 
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'soil-statistics-'));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'data-requests-'));
   const outputPath = path.join(tempDir, 'units.geojson');
 
   let features: { geometry: Geometry | null; id?: string | number; properties: Record<string, unknown> | null }[];
@@ -117,14 +117,14 @@ export const extractUnitsFromFile = async (
   }
 
   if (features.length === 0) {
-    throw new JobError('SST_NO_UNITS', { file_id: fileId });
+    throw new JobError('DR_NO_UNITS', { file_id: fileId });
   }
   if (features.length > maxUnits) {
-    throw new JobError('SST_TOO_MANY_UNITS', { max_units: maxUnits });
+    throw new JobError('DR_TOO_MANY_UNITS', { max_units: maxUnits });
   }
   const nonPolygonCount = features.filter(feature => !isPolygonal(feature.geometry)).length;
   if (nonPolygonCount > 0) {
-    throw new JobError('SST_NON_POLYGON_GEOMETRY', { count: nonPolygonCount, file_id: fileId });
+    throw new JobError('DR_NON_POLYGON_GEOMETRY', { count: nonPolygonCount, file_id: fileId });
   }
 
   // Canonicalisation deduplicates: two rows whose geometries are equivalent resolve to
@@ -186,7 +186,7 @@ export const extractUnitsFromFile = async (
 /** No-file case: the Aggregation Units are the source Filter's own UserGeometries. */
 export const unitsFromFilter = async (requestData: RequestData, geometryIds: string[]): Promise<ExtractedUnits> => {
   if (geometryIds.length === 0) {
-    throw new JobError('SST_NO_GEOMETRIES');
+    throw new JobError('DR_NO_GEOMETRIES');
   }
   const schema = process.env.POSTGRES_SCHEMA;
   const rows: { id: string; area: string | null }[] = await requestData.entityManager.query(

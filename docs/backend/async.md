@@ -131,7 +131,7 @@ When the job is retrieved via `GET /jobs/{jobId}`, the `download_path` is return
 
 ---
 
-## `soil-statistics`
+## `data-requests`
 
 Computes an analytical product over the spatial areas matching a filter. `statistics_type` chooses which product; the areas are resolved identically for every type, and only what is computed over them differs.
 
@@ -146,7 +146,7 @@ Computes an analytical product over the spatial areas matching a filter. `statis
 ```json
 POST /jobs
 {
-  "type": "soil-statistics",
+  "type": "data-requests",
   "statistics_type": "descriptive",
   "filter_id": "<uuid>",
   "file_id": "<file_id>",
@@ -167,11 +167,11 @@ Statistics are grouped by **aggregation unit**, and each unit is one stored filt
 
 Either way the geometries are read back from `GET /data-filters/{filterId}/geometries`, which returns one GeoJSON Feature per unit whose `id` is the `unit_id` used throughout the output. A derived filter stores no geometries inline, so that endpoint is the only way to read them. It pages with an opaque `cursor`: pass the previous response's `next_cursor` until it comes back `null`.
 
-A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `SOIL_STATISTICS_MAX_UNITS` (default 2000) and the job fails above it rather than dropping areas silently.
+A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `DATA_REQUESTS_MAX_UNITS` (default 2000) and the job fails above it rather than dropping areas silently.
 
 All of the above holds for **every** `statistics_type`, cap included: the output of each type grows with the number of units, so the same ceiling applies. `derived_filter_id`, `unit_count` and `units[]` are likewise written by every type.
 
-## `soil-statistics` — `descriptive`
+## `data-requests` — `descriptive`
 
 ### Filtering
 
@@ -192,7 +192,7 @@ Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, 
 
 > **TODO**: to be implemented in a future release
 
-## `soil-statistics` — `crea-index`
+## `data-requests` — `crea-index`
 
 > **The values are currently mock data.**
 

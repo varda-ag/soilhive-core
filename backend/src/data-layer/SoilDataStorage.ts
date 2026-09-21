@@ -953,7 +953,7 @@ export interface ObservationCriteria {
 /**
  * Translates FilterCriteria into predicates for a query that reaches `observations`
  * through dataset_layers — extracted verbatim from buildRawSoilQuery so both it and
- * the soil-statistics job share one implementation of the null-vs-absent semantics
+ * the data-requests job share one implementation of the null-vs-absent semantics
  * (`min_depth: null` means "no recorded depth", an absent min_depth means
  * "unconstrained"; see the Flagged ambiguities in CONTEXT.md).
  *
@@ -1135,11 +1135,11 @@ export const buildDatasetFilterClauses = (
  * CTEs, and matching_features.
  *
  * Used by filterVectorDatasets (LATERAL pattern), buildRawSoilQuery (CTE join pattern)
- * and the soil-statistics job. Returns { ctes, usesMatchingFeatures } where ctes is a
+ * and the data-requests job. Returns { ctes, usesMatchingFeatures } where ctes is a
  * comma-joined string ready to insert after the aoi CTE. When usesMatchingFeatures is
  * false, ctes is empty and the caller handles its own spatial CTEs.
  *
- * Exported (rather than kept private) so the soil-statistics job gets raster-filter
+ * Exported (rather than kept private) so the data-requests job gets raster-filter
  * parity with coverage without duplicating the clip/ST_ValueCount logic. It reads only
  * the `aoi` CTE, so any caller whose aoi is the subdivision pieces of a geometry set —
  * which is every caller — can reuse it unchanged.

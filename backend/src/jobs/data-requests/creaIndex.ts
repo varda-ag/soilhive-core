@@ -1,7 +1,7 @@
-import { SoilStatisticsJob } from '../../interfaces/Job';
+import { DataRequestJob } from '../../interfaces/Job';
 import { updateJobState } from '../../services/PgBoss';
 import { JobQueues } from '../../types/enums';
-import { getSoilStatisticsMaxUnits, round3 } from '../../utils/utils';
+import { getDataRequestsMaxUnits, round3 } from '../../utils/utils';
 import { JobError } from '../../errors/JobError';
 import { log } from '../../utils/logger';
 import { extractUnitsFromFile, unitsFromFilter, ExtractedUnits } from './extractUnits';
@@ -52,17 +52,17 @@ const representativePoints = async (ctx: ProducerContext, unitIds: string[]): Pr
  * The `crea-index` Statistics Type: one scored Point per Aggregation Unit.
  * The scores are written to the `crea_index` table, one row per Point, under this job's id as the Run
  */
-export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob): Promise<void> {
+export async function runCreaIndex(ctx: ProducerContext, data: DataRequestJob): Promise<void> {
   const { jobId, entityManager, requestData, filter, report, assertNotCancelled } = ctx;
   const { file_id, label_field } = data;
 
-  const maxUnits = getSoilStatisticsMaxUnits();
+  const maxUnits = getDataRequestsMaxUnits();
   const extracted: ExtractedUnits = file_id
     ? await extractUnitsFromFile(requestData, { fileId: file_id, parameters: filter.parameters, labelField: label_field, maxUnits })
     : await unitsFromFilter(requestData, filter.geometryIds);
 
   if (extracted.unitIds.length > maxUnits) {
-    throw new JobError('SST_TOO_MANY_UNITS', { max_units: maxUnits });
+    throw new JobError('DR_TOO_MANY_UNITS', { max_units: maxUnits });
   }
 
   await updateJobState(jobId, {
@@ -71,7 +71,7 @@ export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob
     units: extracted.units,
     progress_percentage: 40,
     progress_description: `Computing the CREA index over ${extracted.units.length} area(s)...`,
-  } as Partial<SoilStatisticsJob>);
+  } as Partial<DataRequestJob>);
   await assertNotCancelled();
 
   await report('Locating areas...', 60);
@@ -108,11 +108,11 @@ export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob
   await updateJobState(jobId, {
     progress_percentage: 100,
     progress_description: `Completed: ${scored} scored area(s)`,
-  } as Partial<SoilStatisticsJob>);
+  } as Partial<DataRequestJob>);
 
-  log.info('Soil statistics job completed', {
+  log.info('Data request job completed', {
     job_id: jobId,
-    queue: JobQueues.SOIL_STATISTICS,
+    queue: JobQueues.DATA_REQUESTS,
     statistics_type: data.statistics_type,
     units: extracted.units.length,
     features: features.length,

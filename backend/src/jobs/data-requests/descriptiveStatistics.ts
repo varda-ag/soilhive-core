@@ -1,13 +1,13 @@
-import { SoilStatisticsJob } from '../../interfaces/Job';
+import { DataRequestJob } from '../../interfaces/Job';
 import { updateJobState } from '../../services/PgBoss';
 import EntitlementService from '../../services/EntitlementService';
 import FilterService from '../../services/FilterService';
 import { Capability, JobQueues } from '../../types/enums';
 import { EntitlementScope } from '../../types/Entitlements';
 import { GISDataType } from '../../types/data';
-import { computeSoilStatistics } from '../../data-layer/SoilStatistics';
+import { computeDataRequest } from '../../data-layer/DataRequests';
 import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
-import { getSoilStatisticsMaxCells, getSoilStatisticsMaxUnits, getSoilStatisticsStatementTimeoutMs } from '../../utils/utils';
+import { getDataRequestsMaxCells, getDataRequestsMaxUnits, getDataRequestsStatementTimeoutMs } from '../../utils/utils';
 import { JobError } from '../../errors/JobError';
 import { log } from '../../utils/logger';
 import { extractUnitsFromFile, unitsFromFilter, ExtractedUnits } from './extractUnits';
@@ -29,7 +29,7 @@ const WORK_MEM = '512MB';
  * unentitled datasets are skipped and listed — a user whose access comes only from the
  * external endpoint may therefore see fewer datasets in implicit mode than they hold.
  */
-export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilStatisticsJob): Promise<void> {
+export async function runDescriptiveStatistics(ctx: ProducerContext, data: DataRequestJob): Promise<void> {
   const { jobId, entityManager, requestData, filter, report, assertNotCancelled } = ctx;
   const { filter_id, file_id, dataset_ids, label_field } = data;
   const histogramBins = data.histogram_bins ?? DEFAULT_HISTOGRAM_BINS;
@@ -38,13 +38,13 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
   const filterService = new FilterService();
 
   // ── Aggregation Units ──────────────────────────────────────────────────────────────
-  const maxUnits = getSoilStatisticsMaxUnits();
+  const maxUnits = getDataRequestsMaxUnits();
   const extracted: ExtractedUnits = file_id
     ? await extractUnitsFromFile(requestData, { fileId: file_id, parameters: filter.parameters, labelField: label_field, maxUnits })
     : await unitsFromFilter(requestData, filter.geometryIds);
 
   if (extracted.unitIds.length > maxUnits) {
-    throw new JobError('SST_TOO_MANY_UNITS', { max_units: maxUnits });
+    throw new JobError('DR_TOO_MANY_UNITS', { max_units: maxUnits });
   }
 
   // Raster filters mask which Features count, but never clip a unit's geometry, so the
@@ -81,7 +81,7 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
       // Named datasets are rejected at enqueue time, so anything unentitled here came
       // from implicit selection and is skipped rather than failing the whole run.
       if (dataset_ids && dataset_ids.length > 0) {
-        throw new JobError('SST_DATASET_NOT_ENTITLED', { dataset_id: dataset.id });
+        throw new JobError('DR_DATASET_NOT_ENTITLED', { dataset_id: dataset.id });
       }
     }
   }
@@ -92,18 +92,18 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
     units,
     progress_percentage: 15,
     progress_description: `Aggregating ${permitted.length} dataset(s) over ${units.length} area(s)...`,
-  } as Partial<SoilStatisticsJob>);
+  } as Partial<DataRequestJob>);
   await assertNotCancelled();
 
   // ── statistics ─────────────────────────────────────────────────────────────────────
-  const { results, truncated } = await computeSoilStatistics(entityManager, {
+  const { results, truncated } = await computeDataRequest(entityManager, {
     filter: effectiveFilter,
     unitIds: extracted.unitIds,
     datasetSlugs: permitted,
     histogramBins,
-    maxCells: getSoilStatisticsMaxCells(),
+    maxCells: getDataRequestsMaxCells(),
     workMem: WORK_MEM,
-    statementTimeoutMs: getSoilStatisticsStatementTimeoutMs(),
+    statementTimeoutMs: getDataRequestsStatementTimeoutMs(),
     onPhase: report,
     assertNotCancelled,
   });
@@ -113,11 +113,11 @@ export async function runDescriptiveStatistics(ctx: ProducerContext, data: SoilS
     progress_description: truncated
       ? `Completed with a reduced breakdown: ${results.length} dataset/property group(s)`
       : `Completed: ${results.length} dataset/property group(s)`,
-  } as Partial<SoilStatisticsJob>);
+  } as Partial<DataRequestJob>);
 
-  log.info('Soil statistics job completed', {
+  log.info('Data request job completed', {
     job_id: jobId,
-    queue: JobQueues.SOIL_STATISTICS,
+    queue: JobQueues.DATA_REQUESTS,
     units: units.length,
     datasets: permitted.length,
     groups: results.length,

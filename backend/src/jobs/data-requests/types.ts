@@ -90,7 +90,7 @@ export interface UnitStatistics extends StatisticsCell {
   breakdown?: BreakdownCell[];
 }
 
-export interface SoilStatisticsResult {
+export interface DataRequestResult {
   /** Dataset slug (the public identifier). */
   dataset_id: string;
   /** Soil property slug. */
@@ -128,8 +128,8 @@ export interface DatasetNote<R extends string = string> {
   reason: R;
 }
 
-export interface SoilStatisticsOutput {
-  results: SoilStatisticsResult[];
+export interface DataRequestOutput {
+  results: DataRequestResult[];
   truncated: boolean;
 }
 

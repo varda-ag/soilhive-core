@@ -1,6 +1,6 @@
 import { EntityManager } from 'typeorm';
 import { validate } from 'uuid';
-import { CreaIndexFeature } from '../jobs/soil-statistics/types';
+import { CreaIndexFeature } from '../jobs/data-requests/types';
 
 /**
  * One partition per Run, named from the Run's uuid with the hyphens replaced by underscores:
