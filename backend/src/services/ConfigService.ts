@@ -6,8 +6,8 @@ import { AuthConfig, OIDCConfig } from '../interfaces/AuthConfig';
 import { StatusCodes } from 'http-status-codes';
 import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import assert from 'assert';
+import { FRONTEND_LOGO_CONFIG_ID } from '../constants/constants';
 
-const FRONTEND_LOGO = 'frontend-logo';
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
 const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
 const DEFAULT_S3_STORAGE_QUEUE_SIZE = 4;
@@ -55,7 +55,7 @@ export default class ConfigService {
   };
 
   async getLogoData(repo: Repository<JsonStorage>): Promise<LogoData | undefined> {
-    const row = await repo.findOneBy({ id: FRONTEND_LOGO });
+    const row = await repo.findOneBy({ id: FRONTEND_LOGO_CONFIG_ID });
     if (!row) {
       return undefined;
     }
@@ -63,11 +63,11 @@ export default class ConfigService {
   }
 
   setLogo = async (repo: Repository<JsonStorage>, data: LogoData): Promise<void> => {
-    await repo.upsert([{ id: FRONTEND_LOGO, data, deleted_at: null }], ['id']);
+    await repo.upsert([{ id: FRONTEND_LOGO_CONFIG_ID, data, deleted_at: null }], ['id']);
   };
 
   deleteLogo = async (repo: Repository<JsonStorage>): Promise<void> => {
-    await repo.softDelete({ id: FRONTEND_LOGO });
+    await repo.softDelete({ id: FRONTEND_LOGO_CONFIG_ID });
   };
 
   static getAuthConfig = (): AuthConfig => {
