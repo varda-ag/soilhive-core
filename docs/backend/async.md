@@ -139,8 +139,6 @@ Computes an analytical product over the spatial areas matching a filter. `statis
 |---|---|---|
 | `descriptive` | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | none — removed, pending tables of its own |
 
-> `crea-index` **is no longer a `statistics_type`** and is rejected with a `400` here. Soil indexes moved to the [`soil-indexes`](#soil-indexes) queue, because one index run is long enough to starve the short data requests queued behind it (ADR 0036).
-
 > Not to be confused with `GET /datasets/{datasetId}/dataset-file-mapping/{id}/soil-data/stats`, which returns an ingest **cleaning report** — how many raw cells and rows were rejected. The two are unrelated.
 
 **Trigger**

@@ -3092,12 +3092,7 @@ components:
           description: >-
             Which product to compute. `descriptive` gives descriptive statistics over the
             matching observations, per aggregation area, dataset, soil property, sampling
-            year and depth interval. Required: there is no default, and a request that does
-            not name its product is rejected with a 400.
-            Parameters that the chosen type does not use are rejected with a 400 rather than
-            ignored: histogram_bins and dataset_ids apply to `descriptive` only.
-            `crea-index` is no longer a statistics_type — soil indexes moved to the
-            `soil-indexes` job.
+            year and depth interval. Required.
         anonymous:
           type: boolean
           description: Set to true to allow access without authentication
