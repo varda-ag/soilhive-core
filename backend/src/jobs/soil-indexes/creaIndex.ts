@@ -1,13 +1,11 @@
-import { SoilStatisticsJob } from '../../interfaces/Job';
+import { SoilIndexJob } from '../../interfaces/Job';
 import { updateJobState } from '../../services/PgBoss';
 import { JobQueues } from '../../types/enums';
-import { getSoilStatisticsMaxUnits, round3 } from '../../utils/utils';
-import { JobError } from '../../errors/JobError';
+import { round3 } from '../../utils/utils';
 import { log } from '../../utils/logger';
-import { extractUnitsFromFile, unitsFromFilter, ExtractedUnits } from './extractUnits';
-import { CreaIndexFeature } from './types';
-import { ProducerContext } from './producer';
-import { writeCreaIndexRun } from '../../data-layer/CreaIndex';
+import { SoilIndexFeature } from './types';
+import { RunContext } from '../runs/runContext';
+import { writeSoilIndexRun } from '../../data-layer/SoilIndex';
 
 /**
  * MOCK — this is not the CREA index.
@@ -24,7 +22,7 @@ const mockIndexValue = (unitId: string): number => {
  * Representative Point for each Aggregation Unit: the centroid when it lies inside the
  * geometry, otherwise a guaranteed-interior point.
  */
-const representativePoints = async (ctx: ProducerContext, unitIds: string[]): Promise<Map<string, { lon: number; lat: number }>> => {
+const representativePoints = async (ctx: RunContext, unitIds: string[]): Promise<Map<string, { lon: number; lat: number }>> => {
   const schema = process.env.POSTGRES_SCHEMA;
   const rows: { id: string; lon: number | null; lat: number | null }[] = await ctx.entityManager.query(
     `SELECT ug.id, ST_X(p.pt) AS lon, ST_Y(p.pt) AS lat
@@ -49,38 +47,21 @@ const representativePoints = async (ctx: ProducerContext, unitIds: string[]): Pr
 };
 
 /**
- * The `crea-index` Statistics Type: one scored Point per Aggregation Unit.
- * The scores are written to the `crea_index` table, one row per Point, under this job's id as the Run
+ * The `crea-index` Soil Index Type: one scored Point per Aggregation Unit.
+ * The scores are written to the `soil_index` table, one row per Point, under this job's id as the Run.
  */
-export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob): Promise<void> {
-  const { jobId, entityManager, requestData, filter, report, assertNotCancelled } = ctx;
-  const { file_id, label_field } = data;
+export async function runCreaIndex(ctx: RunContext, data: SoilIndexJob): Promise<void> {
+  const { jobId, entityManager, units, unitIds, report, assertNotCancelled } = ctx;
 
-  const maxUnits = getSoilStatisticsMaxUnits();
-  const extracted: ExtractedUnits = file_id
-    ? await extractUnitsFromFile(requestData, { fileId: file_id, parameters: filter.parameters, labelField: label_field, maxUnits })
-    : await unitsFromFilter(requestData, filter.geometryIds);
-
-  if (extracted.unitIds.length > maxUnits) {
-    throw new JobError('SST_TOO_MANY_UNITS', { max_units: maxUnits });
-  }
-
-  await updateJobState(jobId, {
-    derived_filter_id: extracted.derivedFilterId,
-    unit_count: extracted.units.length,
-    units: extracted.units,
-    progress_percentage: 40,
-    progress_description: `Computing the CREA index over ${extracted.units.length} area(s)...`,
-  } as Partial<SoilStatisticsJob>);
-  await assertNotCancelled();
+  await report(`Computing the CREA index over ${units.length} area(s)...`, 40);
 
   await report('Locating areas...', 60);
-  const points = await representativePoints(ctx, extracted.unitIds);
+  const points = await representativePoints(ctx, unitIds);
 
   // Driven by unitIds, not by the query rows, so the Features come back in Unit order. A
   // Unit whose geometry yields no point is omitted rather than emitted with a null
   // geometry: a Feature that cannot be placed is not a scored location.
-  const features: CreaIndexFeature[] = extracted.unitIds.flatMap(unitId => {
+  const features: SoilIndexFeature[] = unitIds.flatMap(unitId => {
     const point = points.get(unitId);
     if (!point) {
       log.warn('Aggregation unit produced no representative point', { job_id: jobId, unit_id: unitId });
@@ -100,21 +81,21 @@ export async function runCreaIndex(ctx: ProducerContext, data: SoilStatisticsJob
   await assertNotCancelled();
 
   await report('Storing scored areas...', 80);
-  const scored = await writeCreaIndexRun(entityManager, jobId, features);
+  const scored = await writeSoilIndexRun(entityManager, jobId, data.soil_index_type, features);
 
-  // Nothing of the output goes into job data: the scores are rows in `crea_index` keyed by
+  // Nothing of the output goes into job data: the scores are rows in `soil_index` keyed by
   // this job's id as the Run, and the caller is already holding that id to poll with. The
   // count reaches it only as prose, in the progress description below.
   await updateJobState(jobId, {
     progress_percentage: 100,
     progress_description: `Completed: ${scored} scored area(s)`,
-  } as Partial<SoilStatisticsJob>);
+  } as Partial<SoilIndexJob>);
 
-  log.info('Soil statistics job completed', {
+  log.info('Soil index job completed', {
     job_id: jobId,
-    queue: JobQueues.SOIL_STATISTICS,
-    statistics_type: data.statistics_type,
-    units: extracted.units.length,
+    queue: JobQueues.SOIL_INDEXES,
+    soil_index_type: data.soil_index_type,
+    units: units.length,
     features: features.length,
   });
 }

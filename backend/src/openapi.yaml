@@ -443,7 +443,8 @@ paths:
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
-                - $ref: '#/components/schemas/SoilStatisticsJob'
+                - $ref: '#/components/schemas/DataRequestJob'
+                - $ref: '#/components/schemas/SoilIndexJob'
               discriminator:
                 propertyName: type
                 mapping:
@@ -452,7 +453,8 @@ paths:
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
-                  soil-statistics: '#/components/schemas/SoilStatisticsJob'
+                  data-requests: '#/components/schemas/DataRequestJob'
+                  soil-indexes: '#/components/schemas/SoilIndexJob'
       responses:
         '201':
           description: Async job started successfull
@@ -1407,7 +1409,7 @@ paths:
       description: >-
         Returns the canonical stored geometries of the filter as a GeoJSON
         FeatureCollection, paginated with an opaque cursor. Each Feature id is the
-        geometry's identifier, which is what soil-statistics job output references as
+        geometry's identifier, which is what data-requests job output references as
         unit_id. For a filter derived from an uploaded file this is the only way to read
         its geometries, since the filter's own stored form does not contain them.
         Walk pages by passing the previous response's next_cursor; a null next_cursor
@@ -2291,7 +2293,7 @@ components:
 
     FilterGeometry:
       type: object
-      description: One stored filter geometry — one Aggregation Unit of soil-statistics output.
+      description: One stored filter geometry — one Aggregation Unit of data-requests output.
       properties:
         type:
           type: string
@@ -2299,7 +2301,7 @@ components:
         id:
           type: string
           format: uuid
-          description: Geometry identifier, referenced as unit_id in soil-statistics output
+          description: Geometry identifier, referenced as unit_id in data-requests output
         geometry:
           $ref: '#/components/schemas/Geometry'
         properties:
@@ -3069,7 +3071,7 @@ components:
             format: uri
           description: Optional mapping of dataset_id to metadata URL for Readme.PDF
 
-    SoilStatisticsJob:
+    DataRequestJob:
       type: object
       description: >-
         Computes an analytical product over the aggregation areas matching a filter. Which
@@ -3077,22 +3079,20 @@ components:
         type, and only what is computed over them differs.
       required:
         - type
+        - statistics_type
         - filter_id
       properties:
         type:
           type: string
-          enum: [soil-statistics]
+          enum: [data-requests]
           description: Job type
         statistics_type:
           type: string
-          enum: [descriptive, crea-index]
-          default: descriptive
+          enum: [descriptive]
           description: >-
             Which product to compute. `descriptive` gives descriptive statistics over the
             matching observations, per aggregation area, dataset, soil property, sampling
-            year and depth interval. `crea-index` gives one scored GeoJSON Point per aggregation area.
-            Parameters that the chosen type does not use are rejected with a 400 rather than
-            ignored: histogram_bins and dataset_ids apply to `descriptive` only.
+            year and depth interval. Required.
         anonymous:
           type: boolean
           description: Set to true to allow access without authentication
@@ -3126,6 +3126,46 @@ components:
             Number of equal-width histogram bins spanning each cell's min-max range.
             Applies to statistics_type `descriptive` only; sending it with another type is
             a 400.
+        label_field:
+          type: string
+          description: >-
+            Optional field of file_id whose value labels each aggregation area. Must name
+            an existing field of that file.
+
+    SoilIndexJob:
+      type: object
+      description: >-
+        Computes a soil index — a single score per aggregation area, from a named
+        methodology — over the areas matching a filter.
+      required:
+        - type
+        - soil_index_type
+        - filter_id
+      properties:
+        type:
+          type: string
+          enum: [soil-indexes]
+          description: Job type
+        soil_index_type:
+          type: string
+          enum: [crea-index]
+          description: >-
+            Which soil index to compute. `crea-index` gives one scored GeoJSON Point per
+            aggregation area; the scores are rows in the soil_index table.
+        anonymous:
+          type: boolean
+          description: Set to true to allow access without authentication
+        filter_id:
+          type: string
+          format: uuid
+          description: >-
+            Filter supplying the criteria. Also supplies the aggregation areas, unless
+            file_id is given — in which case the filter's own geometries are not used.
+        file_id:
+          type: string
+          description: >-
+            Optional spatial file whose geometries each become one aggregation area. Must
+            be a vector file with a known EPSG code and only polygon or multipolygon geometries.
         label_field:
           type: string
           description: >-

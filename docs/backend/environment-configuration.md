@@ -44,7 +44,14 @@ Per-upload memory use is bounded by `queueSize × partSize`; size these together
 
 More information is available in `pg-boss` website.
 
-The `soil-statistics` job runs one at a time per node regardless of `JOB_LOCAL_CONCURRENCY`, and has its own limits:
-- `SOIL_STATISTICS_MAX_UNITS` (default `2000`): most aggregation areas a single job will report on. The job fails above this rather than dropping areas
-- `SOIL_STATISTICS_MAX_CELLS` (default `200000`): budget for the per-year/per-depth breakdown. Above it, whole dataset/soil-property groups lose their breakdown; headline statistics are unaffected.
-- `SOIL_STATISTICS_STATEMENT_TIMEOUT_MS` (default `1800000`, 30 minutes): statement timeout for the aggregation queries.
+The `data-requests` and `soil-indexes` jobs ignore `JOB_LOCAL_CONCURRENCY` and set their own:
+- `DATA_REQUESTS_CONCURRENCY` (default `5`): `data-requests` jobs per node. **Read this together with `DATA_REQUESTS_WORK_MEM`** — each concurrent job asks Postgres for that much sort memory, several times over, so raising one without lowering the other multiplies the database's memory use. Per node: nothing sets a pg-boss group key, so `JOB_GROUP_CONCURRENCY` does not bound the total across pods.
+- `DATA_REQUESTS_WORK_MEM` (default `128MB`): `work_mem` for the descriptive aggregation queries. Lower values spill to disk sooner but let more jobs run at once.
+- `SOIL_INDEXES_CONCURRENCY` (default `1`): `soil-indexes` jobs per node. One at a time until a real soil index exists and its cost is known.
+
+Shared by both, since both resolve their aggregation areas the same way:
+- `MAX_AGGREGATION_UNITS` (default `2000`): most aggregation areas a single job will report on. The job fails above this rather than dropping areas. `DATA_REQUESTS_MAX_UNITS` is the deprecated former name and is still honoured.
+
+`data-requests` only:
+- `DATA_REQUESTS_MAX_CELLS` (default `200000`): budget for the per-year/per-depth breakdown. Above it, whole dataset/soil-property groups lose their breakdown; headline statistics are unaffected.
+- `DATA_REQUESTS_STATEMENT_TIMEOUT_MS` (default `1800000`, 30 minutes): statement timeout for the aggregation queries.

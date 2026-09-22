@@ -11,7 +11,7 @@ XLSX now runs the batch loop against a staging GPKG (one layer per Soil Property
 - **Stage to per-property CSV** — rejected. Cheaper on temp disk than GPKG, but the final step is still one `ogr2ogr -update` call per Soil Property into a growing workbook, so the quadratic remains, merely with a smaller exponent base.
 - **Stream XLSX from JS (`exceljs` `WorkbookWriter`)** — rejected, though it is the only option with genuinely constant memory and would remove the need for a cap. It puts a second XLSX implementation beside the system GDAL that ADR 0004 deliberately standardised on, for one format on one code path. Worth revisiting if the cap proves too tight in practice.
 - **Chunk into multiple XLSX files** — rejected. Removes the size ceiling but changes what the user downloads, and the readme and file manifest would have to explain a split that exists for an internal reason.
-- **Enqueue-time rejection instead of in-job** — rejected. It would match the precedent set by `validateSoilStatisticsJob`, but the filter-scoped count runs with a 60s statement timeout and no HTTP endpoint pays for it today; the job already computes the same number for free before writing anything.
+- **Enqueue-time rejection instead of in-job** — rejected. It would match the precedent set by `validateDataRequestJob`, but the filter-scoped count runs with a 60s statement timeout and no HTTP endpoint pays for it today; the job already computes the same number for free before writing anything.
 
 ## Consequences
 

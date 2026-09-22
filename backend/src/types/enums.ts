@@ -34,21 +34,24 @@ export enum JobQueues {
   BULK_DELETE = 'bulk-delete',
   CLEANUP_ORPHAN_FILES = 'cleanup-orphan-files',
   REFRESH_DAI_STATS = 'refresh-dai-stats',
-  // Named "soil-statistics", not "soil-data-stats": the latter already means the ingest
-  // Cleaning Report served by getSoilDataStats (see the Flagged ambiguities in CONTEXT.md).
-  SOIL_STATISTICS = 'soil-statistics',
+  // Named for the Data Request it produces, not for any one product
+  DATA_REQUESTS = 'data-requests',
+  // Soil Indexes are a second family of product over the same Aggregation Units, on their own queue
+  // because one Run of them costs far more than a Data Request
+  SOIL_INDEXES = 'soil-indexes',
 }
 
 /**
- * Which analytical product a soil-statistics run computes over its Aggregation Units.
- *
- * Every type resolves the same Units from the same Filter and differs only in what it
- * computes for them, so a type is a choice of *product* — never of area, criteria or
- * entitlement. DESCRIPTIVE is the default and is the one that yields Soil Statistics in
- * the CONTEXT.md sense; the queue name is therefore broader than that term.
+ * Which analytical product a data-requests run computes over its Aggregation Units.
  */
 export enum StatisticsType {
   DESCRIPTIVE = 'descriptive',
+}
+
+/**
+ * Which Soil Index a `soil-indexes` Run computes over its Aggregation Units.
+ */
+export enum SoilIndexType {
   CREA_INDEX = 'crea-index',
 }
 

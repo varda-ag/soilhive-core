@@ -14,7 +14,7 @@ import {
   addSoilProperty,
   addVocabulary,
 } from '../../src/utils/mock';
-import { computeSoilStatistics } from '../../src/data-layer/SoilStatistics';
+import { computeDataRequest } from '../../src/data-layer/DataRequests';
 import FilterService from '../../src/services/FilterService';
 import ProcedureEntity from '../../src/entities/Procedure';
 import { GISDataType, VocabularyType } from '../../src/types/data';
@@ -81,7 +81,7 @@ const OVER_THRESHOLD = Array.from({ length: 101 }, (_, i) => i);
 const runStatistics = async (unitIds: string[], datasetSlugs: string[], parameters: FilterCriteria = {}, histogramBins = 10) => {
   const entityManager = await getEntityManager();
   const filter: DataFilter = { geometryIds: unitIds, parameters, area: 0 };
-  return computeSoilStatistics(entityManager, {
+  return computeDataRequest(entityManager, {
     filter,
     unitIds,
     datasetSlugs,
@@ -111,7 +111,7 @@ const seedSingleGroup = async (
   return { dataset, soilProperty, feature };
 };
 
-describe('computeSoilStatistics — metric correctness', () => {
+describe('computeDataRequest — metric correctness', () => {
   it('computes every statistic exactly for values 1..10', async () => {
     const { dataset, soilProperty } = await seedSingleGroup([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     const unitId = await bboxUnit([0, 0, 2, 2]);
@@ -183,7 +183,7 @@ describe('computeSoilStatistics — metric correctness', () => {
   });
 });
 
-describe('computeSoilStatistics — histogram', () => {
+describe('computeDataRequest — histogram', () => {
   it('bins every value and clamps the maximum into the top bin', async () => {
     const { dataset } = await seedSingleGroup(OVER_THRESHOLD);
     const unitId = await bboxUnit([0, 0, 2, 2]);
@@ -252,7 +252,7 @@ describe('computeSoilStatistics — histogram', () => {
   });
 });
 
-describe('computeSoilStatistics — time and depth breakdown', () => {
+describe('computeDataRequest — time and depth breakdown', () => {
   it('keeps undated and undepthed layers in their own buckets', async () => {
     const dataset = await addDataset('breakdown-ds', DATASET_BBOX, GISDataType.POINT);
     const category = await addCategory('breakdown-cat');
@@ -360,7 +360,7 @@ describe('computeSoilStatistics — time and depth breakdown', () => {
 
     const unitId = await bboxUnit([0, 0, 2, 2]);
     const entityManager = await getEntityManager();
-    const { results, truncated } = await computeSoilStatistics(entityManager, {
+    const { results, truncated } = await computeDataRequest(entityManager, {
       filter: { geometryIds: [unitId], parameters: {}, area: 0 },
       unitIds: [unitId],
       datasetSlugs: [dataset.slug],
@@ -425,7 +425,7 @@ describe('computeSoilStatistics — time and depth breakdown', () => {
   });
 });
 
-describe('computeSoilStatistics — spatial semantics', () => {
+describe('computeDataRequest — spatial semantics', () => {
   it('counts a shared Feature in both overlapping units but once overall', async () => {
     const dataset = await addDataset('overlap-ds', DATASET_BBOX, GISDataType.POINT);
     const category = await addCategory('overlap-cat');
@@ -503,7 +503,7 @@ describe('computeSoilStatistics — spatial semantics', () => {
   });
 });
 
-describe('computeSoilStatistics — filtering', () => {
+describe('computeDataRequest — filtering', () => {
   it('excludes datasets that are not published and applies the visibility criterion', async () => {
     const { dataset } = await seedSingleGroup([1, 2, 3]);
     const unitId = await bboxUnit([0, 0, 2, 2]);
