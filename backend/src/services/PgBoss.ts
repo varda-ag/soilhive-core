@@ -255,6 +255,23 @@ export const stopPgBoss = async () => {
   await boss.stop();
 };
 
+/**
+ * When a job was enqueued.
+ */
+export async function getJobCreatedOn(jobId: string): Promise<Date> {
+  try {
+    const result = await getPgBoss().getDb().executeSql(`SELECT created_on FROM ${PG_BOSS_SCHEMA}.job WHERE id = $1`, [jobId]);
+    const createdOn = result.rows[0]?.created_on;
+    if (createdOn) {
+      return new Date(createdOn);
+    }
+    log.warn('Job row not found when reading created_on', { job_id: jobId });
+  } catch (error) {
+    log.warn('Failed to read job created_on', { job_id: jobId, error: getErrorMessage(error) });
+  }
+  return new Date();
+}
+
 export async function updateJobState(jobId: string, update: Partial<ExportJob>): Promise<void> {
   const boss = getPgBoss();
   const db = boss.getDb();

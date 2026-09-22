@@ -93,8 +93,10 @@ COPY --from=deps --chown=nodejs:nodejs /app/package*.json ./
 COPY --from=build --chown=nodejs:nodejs /app/dist ./dist
 
 # Copy static assets
-COPY src/GeoJSON-OAS3.yaml ./src/GeoJSON-OAS3.yaml
-COPY src/openapi.yaml ./src/openapi.yaml
+# The API spec and every file it $refs. They stay under src/ rather than moving into dist/
+# because the refs are written as ../src/<name>.yaml, which resolves from src/openapi.yaml in
+# development and from dist/openapi.yaml here - so a new fragment needs no change to this line.
+COPY src/*.yaml ./src/
 COPY src/assets ./src/assets
 # Copy vocabulary CSVs read by --sync-vocabularies (see src/scripts/syncVocabularies.ts)
 COPY docs/data-model ./docs/data-model

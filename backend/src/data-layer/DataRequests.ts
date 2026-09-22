@@ -13,6 +13,9 @@ import {
 } from '../jobs/data-requests/types';
 import { log, timed } from '../utils/logger';
 import { round3 } from '../utils/utils';
+import DataRequestEntity from '../entities/DataRequest';
+import { DataRequestStatus } from '../types/enums';
+import { DataRequestParameters } from '../interfaces/DataRequest';
 
 export interface DataRequestOptions {
   filter: DataFilter;
@@ -585,3 +588,50 @@ export const computeDataRequest = async (entityManager: EntityManager, options: 
 
 export const computeDataRequestTimed = (entityManager: EntityManager, options: DataRequestOptions) =>
   timed('dataRequest.compute', () => computeDataRequest(entityManager, options));
+
+// ── the record ───────────────────────────────────────────────────────────────────────────
+//
+// Everything above computes a Data Request's payload; everything below stores the Data
+// Request itself. They share this module and nothing else — the compute half never reads the
+// table, and the storage half never looks inside `data`.
+
+/** One `data_requests` row: a Run that reached an outcome (docs/adr/0037). */
+export interface DataRequestRecord {
+  /** The Run's id — the pg-boss job id, never generated here. */
+  id: string;
+  status: DataRequestStatus.COMPLETED | DataRequestStatus.FAILED;
+  request: DataRequestParameters;
+  /** Null exactly when the Run failed. */
+  data: DataRequestOutput | null;
+  message: string | null;
+  created_at: Date;
+  completed_at: Date;
+}
+
+/**
+ * Writes the outcome of one Run. Called once, from `processDataRequest` and nowhere else.
+ *
+ * `orIgnore` rather than an upsert: the id is the job's, so a second insert can only mean the
+ * same Run wrote twice, and the first write is the one that saw the outcome. Silently keeping
+ * it is safer than overwriting an answer with whatever a duplicate carried.
+ */
+export const insertDataRequest = async (entityManager: EntityManager, record: DataRequestRecord): Promise<void> => {
+  await entityManager.getRepository(DataRequestEntity).createQueryBuilder().insert().values(record).orIgnore().execute();
+};
+
+/**
+ * Reads one Data Request by its Run's id, or null.
+ *
+ * `data` is unbounded, so this pays for the whole payload — there is no metadata-only read,
+ * and callers that only need to know whether the row exists should not use it.
+ */
+export const findDataRequest = async (entityManager: EntityManager, id: string): Promise<DataRequestRecord | null> => {
+  const row = await entityManager.getRepository(DataRequestEntity).findOne({ where: { id } });
+  return row ? (row as unknown as DataRequestRecord) : null;
+};
+
+/** Destroys one Data Request. Returns whether a row was there to destroy. */
+export const deleteDataRequest = async (entityManager: EntityManager, id: string): Promise<boolean> => {
+  const result = await entityManager.getRepository(DataRequestEntity).delete({ id });
+  return (result.affected ?? 0) > 0;
+};

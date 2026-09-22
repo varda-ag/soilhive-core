@@ -49,6 +49,19 @@ export enum StatisticsType {
 }
 
 /**
+ * The outcome of a Data Request, as `/data-requests` reports it.
+ * `pending` and `running` exist only while the job does; the table stores the terminal two.
+ * There is no `cancelled`: cancelling destroys the Data Request, so a cancelled Run reads as
+ * 404 rather than as a state (docs/adr/0037).
+ */
+export enum DataRequestStatus {
+  PENDING = 'pending',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed',
+}
+
+/**
  * Which Soil Index a `soil-indexes` Run computes over its Aggregation Units.
  */
 export enum SoilIndexType {

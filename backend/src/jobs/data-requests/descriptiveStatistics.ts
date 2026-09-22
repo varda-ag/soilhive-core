@@ -10,6 +10,7 @@ import { getDataRequestsMaxCells, getDataRequestsStatementTimeoutMs, getDataRequ
 import { JobError } from '../../errors/JobError';
 import { log } from '../../utils/logger';
 import { RunContext } from '../runs/runContext';
+import { DataRequestOutput } from './types';
 
 const DEFAULT_HISTOGRAM_BINS = 10;
 
@@ -26,7 +27,7 @@ const DEFAULT_HISTOGRAM_BINS = 10;
  * unentitled datasets are skipped and listed — a user whose access comes only from the
  * external endpoint may therefore see fewer datasets in implicit mode than they hold.
  */
-export async function runDescriptiveStatistics(ctx: RunContext, data: DataRequestJob): Promise<void> {
+export async function runDescriptiveStatistics(ctx: RunContext, data: DataRequestJob): Promise<DataRequestOutput> {
   const { jobId, entityManager, requestData, filter, units, unitIds, derivedFilterId, report, assertNotCancelled } = ctx;
   const { filter_id, dataset_ids } = data;
   const histogramBins = data.histogram_bins ?? DEFAULT_HISTOGRAM_BINS;
@@ -100,4 +101,9 @@ export async function runDescriptiveStatistics(ctx: RunContext, data: DataReques
     groups: results.length,
     truncated,
   });
+
+  // Handed up rather than written here: the Data Request row is written by
+  // processDataRequest, which is also where a failure is recorded, so one record has one
+  // author (docs/adr/0037).
+  return { results, truncated };
 }
