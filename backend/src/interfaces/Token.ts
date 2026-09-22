@@ -6,6 +6,7 @@ export interface Token extends JwtPayload {
   scope: string;
   email?: string;
   client_id?: string;
+  gty?: string; // OAuth grant type (optional)
   isSuperAdmin: boolean;
   isDataAdmin: boolean;
   isInternalRequest: boolean;

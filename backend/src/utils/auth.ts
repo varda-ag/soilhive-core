@@ -35,9 +35,22 @@ export const requireSub = (requestData: RequestData): string => {
   return sub;
 };
 
+/**
+ * The grant that marks a Machine caller.
+ */
+const CLIENT_CREDENTIALS_GRANT = 'client_credentials';
+
+/**
+ * Resolves the caller's Subject: Entitlements and every `created_by` will take this value:
+ * - A **Machine caller** (`gty` equals client-credentials grant) is its `client_id`.
+ * - Everyone else is their `email`, else `sub`.
+ * Note the ordering: `requireSub` runs first, so a token carrying `client_id` but no `sub` is
+ * still a 401 rather than resolving to the client.
+ */
 export const getSubject = (requestData: RequestData): string => {
   const sub = requireSub(requestData);
-  const email = requestData.token?.email;
-  const client_id = requestData.token?.client_id;
-  return email ?? client_id ?? sub; // Prefer email, then client_id, then sub as a fallback
+  if (requestData.token?.gty === CLIENT_CREDENTIALS_GRANT) {
+    return requestData.token.client_id ?? sub;
+  }
+  return requestData.token?.email ?? sub;
 };
