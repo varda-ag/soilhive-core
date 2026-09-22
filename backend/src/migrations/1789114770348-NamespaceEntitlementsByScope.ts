@@ -1,4 +1,5 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
+import { grantEveryoneSystemConfigReads, revokeEveryoneSystemConfigReads } from '../utils/entitlementsMigrations';
 
 export class NamespaceEntitlementsByScope1789114770348 implements MigrationInterface {
   name = 'NamespaceEntitlementsByScope1789114770348';
@@ -16,9 +17,13 @@ export class NamespaceEntitlementsByScope1789114770348 implements MigrationInter
     await queryRunner.query(`DROP INDEX "idx_entitlements_data_gin"`);
     await queryRunner.query(`CREATE INDEX "idx_entitlements_data_datasets_gin" ON "entitlements" USING GIN (("data"->'datasets'))`);
     await queryRunner.query(`CREATE INDEX "idx_entitlements_data_configs_gin" ON "entitlements" USING GIN (("data"->'configs'))`);
+
+    await grantEveryoneSystemConfigReads(queryRunner);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await revokeEveryoneSystemConfigReads(queryRunner);
+
     await queryRunner.query(`DROP INDEX "idx_entitlements_data_datasets_gin"`);
     await queryRunner.query(`DROP INDEX "idx_entitlements_data_configs_gin"`);
     await queryRunner.query(`CREATE INDEX "idx_entitlements_data_gin" ON "entitlements" USING GIN ("data")`);
