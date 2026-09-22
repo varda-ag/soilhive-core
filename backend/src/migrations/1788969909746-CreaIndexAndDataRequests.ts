@@ -4,16 +4,17 @@ export class CreaIndexAndDataRequests1788969909746 implements MigrationInterface
   name = 'CreaIndexAndDataRequests1788969909746';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // ── crea_index ────────────────────────────────────────────────────────────
+    // ── soil_index ────────────────────────────────────────────────────────────
     //
-    // The scored output of a `crea-index` Run, one row per scored geometry.
+    // The scored output of a Soil Index Run, one row per scored geometry.
     // Partitioned BY LIST on `run` with one partition per Run, created and ATTACHed by the job.
     // No primary key. Rows are anonymous facts read back in bulk by Run and geometry.
     // `geometry` is left unconstrained in type: a scored unit is a Point for some products and a
     // Polygon/MultiPolygon for others.
     await queryRunner.query(
-      `CREATE TABLE "crea_index" (
+      `CREATE TABLE "soil_index" (
          "run" uuid NOT NULL,
+         "soil_index_type" text NOT NULL,
          "geometry" geometry(Geometry,4326) NOT NULL,
          "value" double precision NOT NULL,
          "metadata" jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -22,9 +23,9 @@ export class CreaIndexAndDataRequests1788969909746 implements MigrationInterface
     );
 
     // Declared on the parent so Postgres propagates a matching index to every partition.
-    await queryRunner.query(`CREATE INDEX "IDX_crea_index_geometry" ON "crea_index" USING GIST ("geometry")`);
+    await queryRunner.query(`CREATE INDEX "IDX_soil_index_geometry" ON "soil_index" USING GIST ("geometry")`);
 
-    await queryRunner.query(`CREATE INDEX "IDX_crea_index_year" ON "crea_index" ("year")`);
+    await queryRunner.query(`CREATE INDEX "IDX_soil_index_year" ON "soil_index" ("year")`);
 
     // ── data_requests ─────────────────────────────────────────────────────────
     //
@@ -47,6 +48,6 @@ export class CreaIndexAndDataRequests1788969909746 implements MigrationInterface
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE IF EXISTS "data_requests"`);
     // Drops every attached partition with it.
-    await queryRunner.query(`DROP TABLE IF EXISTS "crea_index"`);
+    await queryRunner.query(`DROP TABLE IF EXISTS "soil_index"`);
   }
 }

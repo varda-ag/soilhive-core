@@ -7,10 +7,18 @@ import {
   BulkDeleteJob,
   RefreshDaiStatsJob,
   RasterLoadJob,
-  SoilStatisticsJob,
+  DataRequestJob,
+  SoilIndexJob,
 } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
-import { getJobGroupConcurrency, getJobLocalConcurrency, isJest, setupEnv } from '../utils/utils';
+import {
+  getDataRequestsConcurrency,
+  getJobGroupConcurrency,
+  getJobLocalConcurrency,
+  getSoilIndexesConcurrency,
+  isJest,
+  setupEnv,
+} from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
@@ -25,7 +33,8 @@ import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import { processRefreshDaiStats } from '../jobs/refresh-dai-stats/RefreshDaiStatsJob';
-import { processSoilStatistics } from '../jobs/soil-statistics/SoilStatisticsJob';
+import { processDataRequest } from '../jobs/data-requests/DataRequestJob';
+import { processSoilIndex } from '../jobs/soil-indexes/SoilIndexJob';
 import { getEntity } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
@@ -193,15 +202,27 @@ const setupWorkers = async () => {
       await runJob(JobQueues.REFRESH_DAI_STATS, job, processRefreshDaiStats);
     }
   });
-  // Capped at one per node: each run holds two staging tables and sorts them with
-  // work_mem = 512MB for the percentile aggregates, so concurrent runs would multiply
-  // that. Same per-node caveat as RASTER_LOAD - several nodes each run one.
-  await boss.work<SoilStatisticsJob>(
-    JobQueues.SOIL_STATISTICS,
-    { ...options, localConcurrency: 1 },
-    async (jobs: Job<SoilStatisticsJob>[]) => {
+  // Each run holds two staging tables and sorts them with work_mem for the percentile aggregates,
+  // so concurrent runs multiply that. This is therefore a memory setting as much as a throughput
+  // one and must be read together with getDataRequestsWorkMem, which comes down as this goes up
+  // (ADR 0036). Same per-node caveat as RASTER_LOAD - several nodes each run this many.
+  await boss.work<DataRequestJob>(
+    JobQueues.DATA_REQUESTS,
+    { ...options, localConcurrency: getDataRequestsConcurrency() },
+    async (jobs: Job<DataRequestJob>[]) => {
       for (const job of jobs) {
-        await runJob(JobQueues.SOIL_STATISTICS, job, processSoilStatistics);
+        await runJob(JobQueues.DATA_REQUESTS, job, processDataRequest);
+      }
+    },
+  );
+  // Soil Indexes are on their own queue precisely because one Run of them is long: at one per node
+  // a slow index Run can no longer starve the short Data Requests that used to queue behind it.
+  await boss.work<SoilIndexJob>(
+    JobQueues.SOIL_INDEXES,
+    { ...options, localConcurrency: getSoilIndexesConcurrency() },
+    async (jobs: Job<SoilIndexJob>[]) => {
+      for (const job of jobs) {
+        await runJob(JobQueues.SOIL_INDEXES, job, processSoilIndex);
       }
     },
   );

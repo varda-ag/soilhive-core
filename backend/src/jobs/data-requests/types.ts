@@ -90,7 +90,7 @@ export interface UnitStatistics extends StatisticsCell {
   breakdown?: BreakdownCell[];
 }
 
-export interface SoilStatisticsResult {
+export interface DataRequestResult {
   /** Dataset slug (the public identifier). */
   dataset_id: string;
   /** Soil property slug. */
@@ -103,22 +103,6 @@ export interface SoilStatisticsResult {
   units: UnitStatistics[];
 }
 
-/** An Aggregation Unit: one UserGeometry, plus how to recognise it. */
-export interface AggregationUnit {
-  unit_id: string;
-  /** Value of `label_field` for the source row, when given. */
-  label: string | null;
-  /** Source rows that resolved to this unit — several when the file repeats a geometry. */
-  record_ids: number[];
-  /** Rounded to 3 decimals, as everywhere in this output. */
-  area_m2: number | null;
-  /**
-   * True when raster filters applied: the unit's geometry and area are unchanged by
-   * them, so the effective area the statistics cover is smaller than `area_m2`.
-   */
-  raster_filtered: boolean;
-}
-
 export type DatasetSkipReason = 'no_preview_entitlement';
 export type DatasetExcludeReason = 'raster';
 
@@ -128,25 +112,7 @@ export interface DatasetNote<R extends string = string> {
   reason: R;
 }
 
-export interface SoilStatisticsOutput {
-  results: SoilStatisticsResult[];
+export interface DataRequestOutput {
+  results: DataRequestResult[];
   truncated: boolean;
-}
-
-/**
- * One Aggregation Unit's CREA index, in flight between scoring and its `crea_index` row.
- */
-export interface CreaIndexFeature {
-  type: 'Feature';
-  /** The Aggregation Unit's `unit_id`. */
-  id: string;
-  geometry: {
-    type: 'Point';
-    /** [longitude, latitude] in EPSG:4326. */
-    coordinates: [number, number];
-  };
-  properties: {
-    /** The index, in [0, 1], rounded to 3 decimals as everywhere in this output. */
-    value: number;
-  };
 }

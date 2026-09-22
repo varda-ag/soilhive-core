@@ -131,14 +131,13 @@ When the job is retrieved via `GET /jobs/{jobId}`, the `download_path` is return
 
 ---
 
-## `soil-statistics`
+## `data-requests`
 
 Computes an analytical product over the spatial areas matching a filter. `statistics_type` chooses which product; the areas are resolved identically for every type, and only what is computed over them differs.
 
 | `statistics_type` | Product | Output key |
 |---|---|---|
-| `descriptive` (default) | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | none — removed, pending tables of its own |
-| `crea-index` | One scored GeoJSON Point per area | none — the scores are rows in the `crea_index` table |
+| `descriptive` | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | none — removed, pending tables of its own |
 
 > Not to be confused with `GET /datasets/{datasetId}/dataset-file-mapping/{id}/soil-data/stats`, which returns an ingest **cleaning report** — how many raw cells and rows were rejected. The two are unrelated.
 
@@ -146,7 +145,7 @@ Computes an analytical product over the spatial areas matching a filter. `statis
 ```json
 POST /jobs
 {
-  "type": "soil-statistics",
+  "type": "data-requests",
   "statistics_type": "descriptive",
   "filter_id": "<uuid>",
   "file_id": "<file_id>",
@@ -156,9 +155,11 @@ POST /jobs
 }
 ```
 
-Only `filter_id` is required. Parameters the chosen type does not use are **rejected with a `400`, not ignored** — `histogram_bins` and `dataset_ids` apply to `descriptive` only. An unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor with one fails rather than falling back to `descriptive`.
+`statistics_type` and `filter_id` are required — there is **no default**, and a request that does not name its product is a `400`. Parameters the chosen type does not use are **rejected with a `400`, not ignored** — `histogram_bins` and `dataset_ids` apply to `descriptive` only. A missing or unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor without a usable one fails rather than falling back to `descriptive`.
 
 ### Aggregation areas
+
+> This section applies to **`soil-indexes` as well as `data-requests`**: both are *runs*, and a run resolves its areas the same way whichever product it computes.
 
 Statistics are grouped by **aggregation unit**, and each unit is one stored filter geometry:
 
@@ -167,11 +168,11 @@ Statistics are grouped by **aggregation unit**, and each unit is one stored filt
 
 Either way the geometries are read back from `GET /data-filters/{filterId}/geometries`, which returns one GeoJSON Feature per unit whose `id` is the `unit_id` used throughout the output. A derived filter stores no geometries inline, so that endpoint is the only way to read them. It pages with an opaque `cursor`: pass the previous response's `next_cursor` until it comes back `null`.
 
-A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `SOIL_STATISTICS_MAX_UNITS` (default 2000) and the job fails above it rather than dropping areas silently.
+A file supplying units must be a spatial vector file with a known EPSG code and only polygon or multipolygon geometries; a multipolygon counts as **one** unit. Equivalent geometries collapse into one unit that keeps every source `record_id`. The number of units is capped by `MAX_AGGREGATION_UNITS` (default 2000; `DATA_REQUESTS_MAX_UNITS` is the deprecated former name, still honoured) and the job fails above it rather than dropping areas silently.
 
-All of the above holds for **every** `statistics_type`, cap included: the output of each type grows with the number of units, so the same ceiling applies. `derived_filter_id`, `unit_count` and `units[]` are likewise written by every type.
+All of the above holds for **every** product on **either** queue, cap included: the output of each grows with the number of units, so the same ceiling applies. `derived_filter_id`, `unit_count` and `units[]` are likewise always written — by the shared run machinery, before the product runs, so no product can omit them.
 
-## `soil-statistics` — `descriptive`
+## `data-requests` — `descriptive`
 
 ### Filtering
 
@@ -192,17 +193,42 @@ Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, 
 
 > **TODO**: to be implemented in a future release
 
-## `soil-statistics` — `crea-index`
+## `soil-indexes`
 
-> **The values are currently mock data.**
+Computes a **soil index** — a single score per aggregation area, from a named methodology — over the areas matching a filter. The areas are resolved exactly as for `data-requests`; only the product differs.
+
+| `soil_index_type` | Product | Output key |
+|---|---|---|
+| `crea-index` | One scored GeoJSON Point per area | none — the scores are rows in the `soil_index` table, keyed by the job id as the run |
+
+> Not to be confused with the **DAI**, which is also an index but scores *data availability* per map cell and is computed by the `refresh-dai-stats` job. The two share nothing.
+
+**Trigger**
+```json
+POST /jobs
+{
+  "type": "soil-indexes",
+  "soil_index_type": "crea-index",
+  "filter_id": "<uuid>",
+  "file_id": "<file_id>",
+  "label_field": "field_name"
+}
+```
+
+`soil_index_type` and `filter_id` are required, and there is **no default**: omitting the type is a `400`, not an implicit `crea-index`. Same rule as `statistics_type` — a run names the product it computes. `dataset_ids` and `histogram_bins` do not exist on this queue.
+
+This queue runs **one job at a time per node** (`SOIL_INDEXES_CONCURRENCY`), which is the reason it exists: an index run is long, and while it shared the `data-requests` queue every data request behind it waited.
+
+> **The CREA values are currently mock data.**
 
 **Sequence of operations**
 
-1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given.
-2. Write `derived_filter_id`, `unit_count` and `units[]`.
-3. Resolve one representative point per unit.
-4. Score each point, write the rows into a fresh partition for the run, and attach it.
-5. Mark the job complete.
+1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given, and write `derived_filter_id`, `unit_count` and `units[]`.
+2. Resolve one representative point per unit.
+3. Score each point, write the rows into a fresh partition for the run, and attach it.
+4. Mark the job complete.
+
+Every row carries its own `soil_index_type`. A run's pg-boss record is deleted after 30 days while its partition is permanent, so without it an old score would be a number with no methodology attached.
 
 ---
 

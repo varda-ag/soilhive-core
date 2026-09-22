@@ -6,15 +6,15 @@ import {
   BreakdownCell,
   Histogram,
   MIN_HISTOGRAM_COUNT,
-  SoilStatisticsOutput,
-  SoilStatisticsResult,
+  DataRequestOutput,
+  DataRequestResult,
   StatisticsCell,
   UnitStatistics,
-} from '../jobs/soil-statistics/types';
+} from '../jobs/data-requests/types';
 import { log, timed } from '../utils/logger';
 import { round3 } from '../utils/utils';
 
-export interface SoilStatisticsOptions {
+export interface DataRequestOptions {
   filter: DataFilter;
   /** UserGeometry ids that are the Aggregation Units. */
   unitIds: string[];
@@ -223,7 +223,8 @@ const groupHistogramRows = (rows: any[], keyCols: string[]): Map<string, Map<num
 };
 
 /**
- * Computes Soil Statistics for one Filter over a set of Aggregation Units.
+ * Computes Soil Statistics — the `descriptive` product of a Data Request — for one Filter
+ * over a set of Aggregation Units.
  *
  * Runs in three stages so the tuned access path survives (see the SP-5492 notes in
  * SoilDataStorage): the units are resolved to Features first, the Observations are
@@ -241,10 +242,7 @@ const groupHistogramRows = (rows: any[], keyCols: string[]): Map<string, Map<num
  * computation therefore sees a single snapshot, and the session settings are SET LOCAL
  * so they cannot leak back into the connection pool.
  */
-export const computeSoilStatistics = async (
-  entityManager: EntityManager,
-  options: SoilStatisticsOptions,
-): Promise<SoilStatisticsOutput> => {
+export const computeDataRequest = async (entityManager: EntityManager, options: DataRequestOptions): Promise<DataRequestOutput> => {
   const { filter, unitIds, datasetSlugs, histogramBins, maxCells } = options;
   const schema = process.env.POSTGRES_SCHEMA;
   const progress = options.onPhase ?? (async () => undefined);
@@ -560,7 +558,7 @@ export const computeSoilStatistics = async (
       else unitsByGroup.set(groupKey, [unit]);
     }
 
-    const results: SoilStatisticsResult[] = overallRows
+    const results: DataRequestResult[] = overallRows
       .map(row => {
         const groupKey = keyOf(row.dataset_slug, row.soil_property_slug);
         return {
@@ -585,5 +583,5 @@ export const computeSoilStatistics = async (
   });
 };
 
-export const computeSoilStatisticsTimed = (entityManager: EntityManager, options: SoilStatisticsOptions) =>
-  timed('soilStatistics.compute', () => computeSoilStatistics(entityManager, options));
+export const computeDataRequestTimed = (entityManager: EntityManager, options: DataRequestOptions) =>
+  timed('dataRequest.compute', () => computeDataRequest(entityManager, options));

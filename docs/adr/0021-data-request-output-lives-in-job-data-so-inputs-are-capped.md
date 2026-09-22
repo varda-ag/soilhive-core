@@ -1,6 +1,6 @@
-# Soil Statistics output lives in job data, so the input is capped and the breakdown is truncatable
+# Data Request output lives in job data, so the input is capped and the breakdown is truncatable
 
-Soil Statistics are returned inside the pg-boss `job.data` jsonb and read back through `GET /jobs/{jobId}`, so the whole result has to stay small enough to be a column value and a single HTTP response. The output is a cross product — Aggregation Units × Datasets × Soil Properties × sampling years × depth intervals — so nothing about the *query* bounds it; only the inputs do. We therefore cap the number of Aggregation Units (env-configurable, default 200) and fail the job above it, and we truncate the finest output level rather than the headline one.
+A Data Request's payload — Soil Statistics for the `descriptive` Statistics Type — is returned inside the pg-boss `job.data` jsonb and read back through `GET /jobs/{jobId}`, so the whole result has to stay small enough to be a column value and a single HTTP response. The output is a cross product — Aggregation Units × Datasets × Soil Properties × sampling years × depth intervals — so nothing about the *query* bounds it; only the inputs do. We therefore cap the number of Aggregation Units (env-configurable, default 200) and fail the job above it, and we truncate the finest output level rather than the headline one.
 
 ## Consequences
 
