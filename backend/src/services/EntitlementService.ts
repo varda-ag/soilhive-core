@@ -384,18 +384,36 @@ export default class EntitlementService {
    * Called by `ConfigService.putConfig` after a caller wins the first-access race on a fresh
    * `plugin:` config id (see the `PLUGIN_CONFIG_ID_PATTERN` bootstrap there); runs inside that
    * same request transaction, so the row write and the grant are atomic as a unit.
+   *
+   * An atomic `INSERT ... ON CONFLICT (id) DO UPDATE`, not a `findOneBy` + `save` pair: the same
+   * subject can win first access on several distinct keys concurrently (several
+   * `PUT /config/plugin:{pluginId}:{id}` requests in flight at once, each its own transaction),
+   * all targeting this one row. A read-modify-write has no lock held across the gap and loses all
+   * but the last writer's key; `ON CONFLICT DO UPDATE` takes the row lock atomically, so each
+   * concurrent caller serializes against the row's latest committed `data` instead of a stale read.
    */
   grantSelfConfigWrite = async (requestData: RequestData, key: string): Promise<void> => {
     const subject = getSubject(requestData);
-    const repo = requestData.entityManager.getRepository(EntitlementsEntity);
-    const entity = await repo.findOneBy({ id: subject });
-    if (!entity) {
-      await repo.save(repo.create({ id: subject, data: { ...emptyEntitlements(), configs: { [key]: [Capability.WRITE] } } }));
-      return;
-    }
-    const configs = entity.data.configs ?? {};
-    entity.data = { ...entity.data, configs: { ...configs, [key]: mergeCapabilities(configs[key], [Capability.WRITE]) } };
-    await repo.save(entity);
+    await requestData.entityManager.query(
+      `
+      INSERT INTO "entitlements" ("id", "data")
+      VALUES ($1, jsonb_build_object('configs', jsonb_build_object($2::text, '["write"]'::jsonb)))
+      ON CONFLICT ("id") DO UPDATE SET "data" = jsonb_set(
+        "entitlements"."data",
+        '{configs}',
+        COALESCE("entitlements"."data"->'configs', '{}'::jsonb) || jsonb_build_object(
+          $2::text,
+          (
+            SELECT jsonb_agg(DISTINCT capability ORDER BY capability)
+            FROM jsonb_array_elements_text(
+              COALESCE("entitlements"."data"->'configs'->$2::text, '[]'::jsonb) || '["write"]'::jsonb
+            ) AS capability
+          )
+        )
+      )
+      `,
+      [subject, key],
+    );
   };
 
   /**

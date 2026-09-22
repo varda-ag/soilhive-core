@@ -732,6 +732,20 @@ describe('EntitlementService', () => {
         [callerSubject]: [Capability.WRITE],
       });
     });
+
+    // Reproduces a real race: the same subject winning first access on several distinct fresh
+    // plugin: ids concurrently (e.g. several PUT /config/plugin:{pluginId}:{id} requests in
+    // flight at once). Each request is its own transaction/connection, all targeting the same
+    // EntitlementsEntity row (keyed by subject) but different keys within its `configs` object —
+    // a non-atomic read-modify-write (findOneBy + save) loses all but the last writer's key.
+    it('does not lose grants when the same subject wins first access on several distinct keys concurrently', async () => {
+      const keys = Array.from({ length: 8 }, (_, i) => `plugin:acme:item-${i}`);
+
+      await Promise.all(keys.map(key => service.grantSelfConfigWrite(requestData, key)));
+
+      const [row] = await entityManager.query(`SELECT data->'configs' AS configs FROM entitlements WHERE id = $1`, [callerSubject]);
+      expect(row.configs).toEqual(Object.fromEntries(keys.map(key => [key, [Capability.WRITE]])));
+    });
   });
 
   describe('setConfigEntitlement', () => {
