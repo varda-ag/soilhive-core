@@ -6,38 +6,31 @@ import StatusCodes from 'http-status-codes';
 const configService = new ConfigService();
 
 export const putConfig = async (req: Request, res: Response) => {
-  const { repo, id } = getRepoAndId(req);
-  const data = await configService.putConfig(repo, id as string, req.body);
+  const id = req.params['configId']! as string;
+  const data = await configService.putConfig(req.customData, id, req.body);
   res.json(data);
 };
 
 export const getConfig = async (req: Request, res: Response) => {
-  const { repo, id } = getRepoAndId(req);
-  const data = await configService.getConfig(repo, id as string);
+  const id = req.params['configId']! as string;
+  const data = await configService.getConfig(req.customData, id);
   res.json(data);
 };
 
 export const deleteConfig = async (req: Request, res: Response) => {
-  const { repo, id } = getRepoAndId(req);
-  await configService.deleteConfig(repo, id as string);
+  const id = req.params['configId']! as string;
+  await configService.deleteConfig(req.customData, id);
   res.sendStatus(StatusCodes.NO_CONTENT);
 };
 
 export const getConfigs = async (req: Request, res: Response) => {
-  const repo = req.customData.entityManager.getRepository(JsonStorage);
   const ids = req.query['ids'] as string[];
-  const data = await configService.getConfigs(repo, ids);
+  const data = await configService.getConfigs(req.customData, ids);
   res.json(data);
 };
 
 export const exportConfigs = async (req: Request, res: Response) => {
-  const { repo } = getRepoAndId(req);
+  const repo = req.customData.entityManager.getRepository(JsonStorage);
   const data = await configService.exportConfigs(repo);
   res.json(data);
-};
-
-const getRepoAndId = (req: Request) => {
-  const repo = req.customData.entityManager.getRepository(JsonStorage);
-  const id = req.params['configId']!;
-  return { repo, id };
 };
