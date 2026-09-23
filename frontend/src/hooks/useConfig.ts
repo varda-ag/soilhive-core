@@ -3,14 +3,9 @@ import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
 import { useEntitlements } from './useEntitlementsHook';
 import { Capability, EntitlementScope } from 'types/backend';
+import { PLUGIN_CONFIG_ID_PATTERN } from './pluginConfigId';
 
 const getConfigEndpoint = (id: string) => `/config/${id}`;
-
-// Mirrors the backend's PLUGIN_CONFIG_ID_PATTERN (backend/src/constants/constants.ts) — the only
-// namespace a non-admin caller may self-claim on first access (see ConfigService.putConfig / ADR
-// 0037). Duplicated here rather than shared (no package straddles frontend/backend) — keep both
-// in sync if the convention ever changes.
-const PLUGIN_CONFIG_ID_PATTERN = /^plugin:([^:]+):(.+)$/;
 
 const useConfig = <T>(id: string, defaultConfig?: T) => {
   const { can } = useEntitlements(EntitlementScope.CONFIGS);
