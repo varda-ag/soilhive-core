@@ -10,7 +10,9 @@ We decided `GET` now requires `read` and `PUT`/`DELETE` require `write` on
 previously wide open, with no gate at all). Privileged callers keep bypassing entitlement checks,
 same as everywhere else. First access — self-claiming a fresh `plugin:{pluginId}:{id}` — moves off
 `PUT /config/{configId}/entitlements` and onto `PUT /config/{configId}` itself: the config row's
-own insert (`INSERT ... ON CONFLICT (id) DO NOTHING`, checked by affected row count) is the atomic
+own insert (`INSERT ... ON CONFLICT (id) DO NOTHING`, checked via `RETURNING id` — an empty result
+means the row was lost to the conflict; affected-row-count-style signals like `identifiers` are
+unreliable here since `id` is a caller-supplied, not DB-generated, primary key) is the atomic
 gate, and the caller who wins it is self-granted `write` in the same request transaction.
 `PUT /config/{configId}/entitlements`'s own first-access bypass is removed — it now always
 requires an existing `write` grant, closing the race ADR 0035 documented instead of leaving two
