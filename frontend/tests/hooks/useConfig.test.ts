@@ -3,22 +3,20 @@ import { useApiQuery } from 'hooks/useApiQuery';
 import { useApiMutation } from 'hooks/useApiMutation';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, EntitlementScope } from 'types/backend';
-import { queryClient } from '../../src/App';
 import useConfig from 'hooks/useConfig';
 
 jest.mock('hooks/useApiQuery', () => ({ useApiQuery: jest.fn() }));
 jest.mock('hooks/useApiMutation', () => ({ useApiMutation: jest.fn() }));
 jest.mock('hooks/useEntitlementsHook', () => ({ useEntitlements: jest.fn() }));
-jest.mock('../../src/App', () => ({
-  queryClient: {
-    invalidateQueries: jest.fn(),
-  },
+
+const invalidateQueries = jest.fn();
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: jest.fn(() => ({ invalidateQueries })),
 }));
 
 const useApiQueryMock = useApiQuery as jest.Mock;
 const useApiMutationMock = useApiMutation as jest.Mock;
 const useEntitlementsMock = useEntitlements as jest.Mock;
-const invalidateQueries = queryClient.invalidateQueries as jest.Mock;
 
 describe('useConfig', () => {
   const configId = 'plugin:acme:widget';

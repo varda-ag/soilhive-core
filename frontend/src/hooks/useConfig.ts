@@ -1,6 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useApiQuery } from './useApiQuery';
 import { useApiMutation } from './useApiMutation';
-import { queryClient } from '../App';
 import { useEntitlements } from './useEntitlementsHook';
 import { Capability, EntitlementScope } from 'types/backend';
 
@@ -14,6 +14,7 @@ const PLUGIN_CONFIG_ID_PATTERN = /^plugin:([^:]+):(.+)$/;
 
 const useConfig = <T>(id: string, defaultConfig?: T) => {
   const { can } = useEntitlements(EntitlementScope.CONFIGS);
+  const queryClient = useQueryClient();
   const endpoint = getConfigEndpoint(id);
   const saveMutation = useApiMutation<{ id: string }, unknown>({
     endpoint,
