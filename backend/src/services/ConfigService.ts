@@ -71,10 +71,15 @@ export default class ConfigService {
     return this.readConfigRow(repo, id);
   };
 
+  // Existence before entitlement: a missing id 404s for every caller, not 403 first. The
+  // frontend's notFoundAsNull only maps 404 to a graceful null — a 403 isn't special-cased and
+  // gets retried by React Query's default retry, which a fresh, not-yet-created plugin: config
+  // (the common case, since nobody holds a grant on it yet) would otherwise hit on every load.
   getConfig = async (requestData: RequestData, id: string): Promise<any> => {
-    await entitlementService.assertCanReadConfigEntitlement(requestData, id);
     const repo = requestData.entityManager.getRepository(JsonStorage);
-    return this.readConfigRow(repo, id);
+    const data = await this.readConfigRow(repo, id);
+    await entitlementService.assertCanReadConfigEntitlement(requestData, id);
+    return data;
   };
 
   deleteConfig = async (requestData: RequestData, id: string): Promise<void> => {

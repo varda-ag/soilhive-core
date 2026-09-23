@@ -199,10 +199,14 @@ describe('ConfigService config value entitlements', () => {
       await expect(service.getConfig(rd, configKey)).rejects.toMatchObject({ status: 404 });
     });
 
-    it('rejects a non-privileged caller before checking existence: 403, not 404, for an unentitled missing id', async () => {
+    // Existence is checked before entitlement: a missing id 404s for any caller, entitled or
+    // not, rather than 403ing first. A fresh plugin: config (nobody holds a grant on it yet) is
+    // the common case here — 403 isn't special-cased by the frontend's notFoundAsNull and gets
+    // retried by React Query's default retry, while 404 resolves to null in one request.
+    it('throws 404, not 403, for a missing id, even for a non-privileged caller with no entitlement', async () => {
       const rd = buildRequestData();
 
-      await expect(service.getConfig(rd, 'missing-and-unentitled')).rejects.toMatchObject({ status: 403 });
+      await expect(service.getConfig(rd, 'missing-and-unentitled')).rejects.toMatchObject({ status: 404 });
     });
   });
 
