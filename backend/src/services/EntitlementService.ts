@@ -342,12 +342,14 @@ export default class EntitlementService {
   }
 
   /**
-   * Domain-level read gate for `GET /config/{configId}/entitlements`: the response is the full
-   * multi-subject grants map (every subject's email/id and their capabilities for the config), so
-   * only a privileged caller or someone who already holds `READ` or `WRITE` on the config gets to
-   * see it. Unlike the write gate, there is no "first access" bypass: if nobody holds a grant yet,
-   * a non-privileged caller by definition holds neither capability either, so this falls out of
-   * the same capability check without a separate branch.
+   * Domain-level read gate, shared by every route that reads a config: `GET
+   * /config/{configId}/entitlements` (where the response is the full multi-subject grants map —
+   * every subject's email/id and their capabilities for the config), and the config *value*
+   * routes `GET /config/{configId}` and `GET /config` (`ConfigService.getConfig`/`getConfigs`).
+   * Only a privileged caller or someone who already holds `READ` or `WRITE` on the config passes.
+   * Unlike the write gate, there is no "first access" bypass: if nobody holds a grant yet, a
+   * non-privileged caller by definition holds neither capability either, so this falls out of the
+   * same capability check without a separate branch.
    */
   assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
     if (isPrivilegedCaller(requestData.token)) {
@@ -361,11 +363,16 @@ export default class EntitlementService {
   };
 
   /**
-   * Domain-level write gate for `PUT /config/{configId}/entitlements`, distinct from
-   * `enforceEntitlements`: that method carries dataset-visibility filtering that has no analogue
-   * here. A non-admin caller may write a config's entitlements only if they already hold `WRITE`
-   * on it — there is no "first access" bootstrap here (see `ConfigService.putConfig`, which is
-   * where first access on the config *value* now lives, via `grantSelfConfigWrite`).
+   * Domain-level write gate, distinct from `enforceEntitlements`: that method carries
+   * dataset-visibility filtering that has no analogue here. Called directly by `PUT
+   * /config/{configId}/entitlements` (`setConfigEntitlement`, below) and by the config *value*'s
+   * `DELETE /config/{configId}` (`ConfigService.deleteConfig`); `PUT /config/{configId}`
+   * (`ConfigService.putConfig`) doesn't call this directly but mirrors the same check as a
+   * boolean via `hasExistingConfigWriteGrant`, since it needs to branch into first-access
+   * bootstrap rather than reject outright. A non-admin caller may write a config's entitlements
+   * only if they already hold `WRITE` on it — there is no "first access" bootstrap here (see
+   * `ConfigService.putConfig`, which is where first access on the config *value* now lives, via
+   * `grantSelfConfigWrite`).
    */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
     if (isPrivilegedCaller(requestData.token)) {
