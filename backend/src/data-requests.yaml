@@ -18,11 +18,13 @@ components:
       properties:
         statistics_type:
           type: string
-          enum: [descriptive]
+          enum: [descriptive, class-distribution]
           description: >-
             Which product to compute. `descriptive` gives descriptive statistics over the
             matching observations, per aggregation area, dataset, soil property, sampling
-            year and depth interval. Required, and never defaulted.
+            year and depth interval. `class-distribution` gives the percentage of one soil
+            property's observations in each of the given classes, per dataset, aggregation
+            area, year window and depth bucket. Required, and never defaulted.
         filter_id:
           type: string
           format: uuid
@@ -53,6 +55,36 @@ components:
             Number of equal-width histogram bins spanning each cell's min-max range.
             Applies to statistics_type `descriptive` only; sending it with another type is
             a 400.
+        variable:
+          $ref: '#/components/schemas/ClassDistributionVariable'
+        classes:
+          type: array
+          minItems: 1
+          maxItems: 20
+          description: >-
+            Required for, and only accepted with, statistics_type `class-distribution`. The
+            classes the variable's values are sorted into, in the order the output reports them.
+            Each class includes its min and excludes its max; classes must not overlap (touching
+            bounds are fine), names must be unique, and `unclassified` is reserved.
+          items:
+            $ref: '#/components/schemas/ClassDefinition'
+        time_aggregation:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: >-
+            Only accepted with statistics_type `class-distribution`. Size of each year window, in
+            years; windows are aligned to multiples of it (for 3: 2016-2018, 2019-2021), so a year
+            always falls in the same window. Defaults to 1, a single calendar year.
+        depth_ranges:
+          type: string
+          enum: [none, standard]
+          description: >-
+            Only accepted with statistics_type `class-distribution`. `none` (the default) pools
+            every depth into one bucket, which mixes horizons. `standard` sorts each observation
+            into the GlobalSoilMap range (0-5, 5-15, 15-30, 30-60, 60-100, 100-200 cm, and deeper
+            than 200) holding its layer's depth midpoint, so a 0-30 cm composite is reported at
+            15-30 cm.
         label_field:
           type: string
           description: >-
@@ -74,7 +106,7 @@ components:
       properties:
         statistics_type:
           type: string
-          enum: [descriptive]
+          enum: [descriptive, class-distribution]
         filter_id:
           type: string
           format: uuid
@@ -86,6 +118,17 @@ components:
             type: string
         histogram_bins:
           type: integer
+        variable:
+          $ref: '#/components/schemas/ClassDistributionVariable'
+        classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassDefinition'
+        time_aggregation:
+          type: integer
+        depth_ranges:
+          type: string
+          enum: [none, standard]
         label_field:
           type: string
         derived_filter_id:
@@ -179,7 +222,144 @@ components:
         request:
           $ref: '#/components/schemas/DataRequestParameters'
         data:
-          $ref: '#/components/schemas/SoilStatistics'
+          description: >-
+            The result, whose shape is chosen by request.statistics_type. Absent until the request
+            completes, and never present for a failed one.
+          oneOf:
+            - $ref: '#/components/schemas/SoilStatistics'
+            - $ref: '#/components/schemas/ClassDistribution'
+
+    ClassDistributionVariable:
+      type: object
+      description: >-
+        Required for, and only accepted with, statistics_type `class-distribution`: what the
+        distribution is computed for. The soil property must exist and be admitted by the
+        filter's own soil property criterion, if it has one.
+      additionalProperties: false
+      required:
+        - type
+        - id
+      properties:
+        type:
+          type: string
+          enum: [soil-property]
+        id:
+          type: string
+          description: ID of the soil property.
+
+    ClassDefinition:
+      type: object
+      description: >-
+        One class, in the soil property's standard unit. At least one bound is required; an
+        absent bound is unbounded on that side.
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+        min:
+          type: number
+          description: Included in the class.
+        max:
+          type: number
+          description: Excluded from the class.
+
+    ClassDistribution:
+      type: object
+      description: >-
+        The result of a `class-distribution` data request: one row per dataset, aggregation area,
+        year window and depth bucket that holds any observations. A missing row means no
+        observations, never a small or empty one: every row is emitted, however few observations
+        it holds, so check count before trusting a distribution.
+      required:
+        - soil_property
+        - standard_unit
+        - results
+      properties:
+        soil_property:
+          type: string
+        standard_unit:
+          type: string
+          nullable: true
+          description: The unit the class bounds are expressed in.
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClassDistributionRow'
+
+    ClassDistributionRow:
+      type: object
+      description: >-
+        One distribution, ready to chart. Observations are counted once per area they fall in, so
+        an observation inside two overlapping areas counts in both.
+      required:
+        - dataset_id
+        - unit_id
+        - year_start
+        - year_end
+        - count
+        - n_features
+        - classes
+      properties:
+        dataset_id:
+          type: string
+        unit_id:
+          type: string
+          format: uuid
+          description: The aggregation area, as reported in request.units.
+        year_start:
+          type: integer
+          nullable: true
+          description: First year of the window; null for observations with no recorded year.
+        year_end:
+          type: integer
+          nullable: true
+          description: Last year of the window; null for observations with no recorded year.
+        depth_start:
+          type: integer
+          nullable: true
+          description: >-
+            Present only when depth_ranges is `standard`: the shallow edge of the standard range,
+            in cm, included. Null, together with depth_end, for layers with no recorded depth.
+        depth_end:
+          type: integer
+          nullable: true
+          description: >-
+            Present only when depth_ranges is `standard`: the deep edge of the standard range, in
+            cm, excluded. Null on its own for the range deeper than 200 cm.
+        depth_min:
+          type: integer
+          description: >-
+            Shallowest depth covered by the layers behind this row, in cm; absent when none
+            records a depth. Tells a 15-30 cm row built from 0-30 cm composites apart from true
+            15-30 cm samples.
+        depth_max:
+          type: integer
+          description: Deepest depth covered by the layers behind this row, in cm.
+        count:
+          type: integer
+          description: Observations behind this row.
+        n_features:
+          type: integer
+          description: Distinct sampling locations behind count.
+        classes:
+          type: array
+          description: >-
+            Every requested class in request order, each with the percentage of count in it
+            (rounded to 3 decimals), then `unclassified` when any observation fell in no class.
+            The values sum to 100, so the array can be charted as is.
+          items:
+            type: object
+            required:
+              - name
+              - value
+            properties:
+              name:
+                type: string
+              value:
+                type: number
 
     SoilStatistics:
       type: object

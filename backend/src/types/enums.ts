@@ -46,6 +46,24 @@ export enum JobQueues {
  */
 export enum StatisticsType {
   DESCRIPTIVE = 'descriptive',
+  CLASS_DISTRIBUTION = 'class-distribution',
+}
+
+/**
+ * What a Class Distribution is computed for.
+ */
+export enum VariableType {
+  SOIL_PROPERTY = 'soil-property',
+  SOIL_INDEX = 'soil-index',
+}
+
+/**
+ * How a Class Distribution aggregates depths: `none` pools every depth into one bucket, `standard`
+ * sorts each Observation into the Standard Depth Range holding its Layer's midpoint.
+ */
+export enum DepthRanges {
+  NONE = 'none',
+  STANDARD = 'standard',
 }
 
 /**

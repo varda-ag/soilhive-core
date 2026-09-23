@@ -263,6 +263,15 @@ export const getDataRequestsMaxCells = (): number => {
 };
 
 /**
+ * Upper bound on a Class Distribution's size, in class entries: rows × (classes + 1). Above it the
+ * Run fails before aggregating rather than truncating (docs/adr/0038). Separate from
+ * DATA_REQUESTS_MAX_CELLS because a descriptive cell and a class-distribution row are unrelated in size.
+ */
+export const getDataRequestsMaxClassEntries = (): number => {
+  return Number(process.env['DATA_REQUESTS_MAX_CLASS_ENTRIES']) || 1_000_000;
+};
+
+/**
  * Statement timeout for the aggregation queries. Deliberately far above the 60s used on
  * request paths - this is a batch job, not a request - and far below pg-boss's 24h job
  * expiry so a stuck query fails the job rather than occupying a worker for a day.

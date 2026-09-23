@@ -21,7 +21,7 @@ import { GISDataType, VocabularyType } from '../../src/types/data';
 import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { DataRequestJob } from '../../src/interfaces/Job';
-import { JobQueues, StatisticsType } from '../../src/types/enums';
+import { DepthRanges, JobQueues, StatisticsType, VariableType } from '../../src/types/enums';
 
 const DATASET_BBOX = [-1, -1, 5, 5];
 
@@ -656,6 +656,29 @@ describe('toDataRequestParameters', () => {
       derived_filter_id: 'derived-1',
       unit_count: 1,
       units,
+    });
+  });
+
+  it('keeps the class-distribution parameters, so the row says what the percentages are of', () => {
+    const classes = [
+      { name: 'Acid', max: 6.5 },
+      { name: 'Alkaline', min: 6.5 },
+    ];
+    const result = toDataRequestParameters(
+      baseJob({
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        variable: { type: VariableType.SOIL_PROPERTY, id: 'ph' },
+        classes,
+        time_aggregation: 3,
+        depth_ranges: DepthRanges.STANDARD,
+      }),
+    );
+    expect(result).toMatchObject({
+      statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+      variable: { type: VariableType.SOIL_PROPERTY, id: 'ph' },
+      classes,
+      time_aggregation: 3,
+      depth_ranges: DepthRanges.STANDARD,
     });
   });
 });

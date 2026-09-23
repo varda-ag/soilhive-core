@@ -10,6 +10,9 @@ import { createSignedPath } from '../utils/presigned-url';
 import EntitlementService from './EntitlementService';
 import FilterService from './FilterService';
 import FileService from './FileService';
+import SoilPropertyService from './SoilPropertyService';
+import { DataFilter } from '../interfaces/DatasetFilter';
+import { CLASS_DISTRIBUTION_ONLY_PARAMETERS, classDistributionProblem } from '../jobs/data-requests/classDistributionParameters';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
@@ -123,19 +126,48 @@ export default class JobService {
         StatusCodes.BAD_REQUEST,
       );
     }
-    if (statisticsType !== StatisticsType.DESCRIPTIVE) {
-      if (data.histogram_bins !== undefined) {
-        throw new ErrorResponse(`Parameter histogram_bins does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
+    if (statisticsType !== StatisticsType.DESCRIPTIVE && data.histogram_bins !== undefined) {
+      throw new ErrorResponse(`Parameter histogram_bins does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
+    }
+    if (statisticsType !== StatisticsType.CLASS_DISTRIBUTION) {
+      const misplaced = CLASS_DISTRIBUTION_ONLY_PARAMETERS.find(name => data[name] !== undefined);
+      if (misplaced) {
+        throw new ErrorResponse(`Parameter ${misplaced} does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
       }
-      if (data.dataset_ids && data.dataset_ids.length > 0) {
-        throw new ErrorResponse(`Parameter dataset_ids does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
+    }
+    if (statisticsType === StatisticsType.CLASS_DISTRIBUTION) {
+      const problem = classDistributionProblem(data);
+      if (problem) {
+        throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
       }
     }
 
-    await this.validateRunJob(requestData, data);
+    const filter = await this.validateRunJob(requestData, data);
+
+    if (statisticsType === StatisticsType.CLASS_DISTRIBUTION) {
+      await this.validateClassDistributionVariable(requestData, data, filter);
+    }
 
     if (data.dataset_ids && data.dataset_ids.length > 0) {
       await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, data.dataset_ids, Capability.PREVIEW);
+    }
+  };
+
+  private validateClassDistributionVariable = async (requestData: RequestData, data: DataRequestJob, filter: DataFilter): Promise<void> => {
+    const { id } = data.variable!;
+    let slug: string;
+    try {
+      ({ slug } = await new SoilPropertyService().getSoilProperty(requestData, id));
+    } catch {
+      throw new ErrorResponse(`Parameter variable.id '${id}' is not a soil property`, StatusCodes.BAD_REQUEST);
+    }
+
+    const admitted = filter.parameters.soil_properties;
+    if (admitted && admitted.length > 0 && !admitted.includes(slug)) {
+      throw new ErrorResponse(
+        `Soil property '${id}' is excluded by filter '${data.filter_id}', which admits only: ${admitted.join(', ')}`,
+        StatusCodes.BAD_REQUEST,
+      );
     }
   };
 
@@ -159,8 +191,11 @@ export default class JobService {
     await this.validateRunJob(requestData, data);
   };
 
-  /** The spatial scope every Run takes, checked identically whichever queue will compute it. */
-  private validateRunJob = async (requestData: RequestData, data: RunJobData): Promise<void> => {
+  /**
+   * The spatial scope every Run takes, checked identically whichever queue will compute it.
+   * Resolves with the Filter, for checks a product makes against its criteria.
+   */
+  private validateRunJob = async (requestData: RequestData, data: RunJobData): Promise<DataFilter> => {
     const filterService = new FilterService();
 
     // Throws 404 when the filter does not exist.
@@ -186,6 +221,8 @@ export default class JobService {
         throw new ErrorResponse(`File '${data.file_id}' has no field named '${data.label_field}'`, StatusCodes.BAD_REQUEST);
       }
     }
+
+    return filter;
   };
 
   /**

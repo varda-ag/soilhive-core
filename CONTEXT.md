@@ -148,8 +148,24 @@ _Avoid_: Feature (a sampling location), AOI (the whole spatial scope, not one bu
 Descriptive statistics — count, min, max, mean, median, spread, and a value histogram — computed over the **Observations** matching a **Filter**, reported per **Aggregation Unit**, **Dataset**, **Soil Property**, sampling year and depth interval. Raster **Datasets** never contribute, because their measurements are pixels rather than Observations. This is the `descriptive` **Statistics Type**, and it is not the only product computed over Aggregation Units — so "Soil Statistics" names *this* product, never whatever a **Run** happens to have produced. It is a *payload*, not a record: what persists it is the **Data Request** the Run answers.
 _Avoid_: Soil data stats (already means the ingest **Cleaning Report** — see Flagged ambiguities), summary, metrics, aggregates, **Data Request** (the record that carries this payload, and carries the other Statistics Types too), "the data-requests output" (which Statistics Type?)
 
+**Class**:
+A named numeric interval (`min`, `max`) supplied by the caller of a **Class Distribution**, into which the values of one **Soil Property** are sorted. A Class belongs to one request only — it is not a stored vocabulary, and the same name may mean a different interval in the next request. Classes are ordered, never overlap, include their lower bound and exclude their upper one, and may be open-ended on either side; a value in no Class is **unclassified**, and still counts towards the whole.
+_Avoid_: Bin (the equal-width, system-chosen buckets of a **Soil Statistics** histogram), category, range, bucket, texture class (one use, not the concept)
+
+**Class Distribution**:
+The share of **Observations** of one **Soil Property** that falls in each caller-supplied **Class**, computed over the Observations matching a **Filter** and reported per **Aggregation Unit** and **Dataset** — never pooled across Datasets, whose methods and sampling densities differ. The count is of Observations, not of **Features** or area, so a location sampled several times weighs several times. Raster **Datasets** never contribute. This is the `class-distribution` **Statistics Type**, and — like **Soil Statistics** — a payload carried by a **Data Request**, not a record.
+_Avoid_: Histogram (system-chosen bins, not caller-named Classes), classification, breakdown, variable distribution ("variable" is the parameter's name, not a domain term)
+
+**Year Window**:
+A run of N consecutive sampling years aligned to multiples of N (for N = 3: 2016–2018, 2019–2021), so a given year falls in the same Year Window whatever the data, Dataset or request. Observations with no recorded year form their own bucket and are never dropped. N = 1 is a single calendar year.
+_Avoid_: Period, epoch, time bucket, time aggregation (the parameter that sets N, not the window)
+
+**Standard Depth Range**:
+One of the fixed GlobalSoilMap depth ranges — 0–5, 5–15, 15–30, 30–60, 60–100, 100–200 cm, plus everything deeper than 200 cm — that a **Class Distribution** can sort Observations into instead of pooling every depth together. A property of the reporting scheme, not of any **Layer**: a Layer's own depth interval rarely coincides with one, so an Observation belongs to the single Standard Depth Range containing its Layer's depth midpoint. A 0–30 cm composite is therefore reported at 15–30 cm, not spread over the ranges it spans; a Layer with no recorded depth forms its own bucket.
+_Avoid_: Depth interval (a Layer's own `min_depth`–`max_depth`), horizon (a pedological layer, not a fixed range), depth bucket, depth aggregation
+
 **Statistics Type** (`statistics_type`):
-Which analytical product is computed over a run's **Aggregation Units**. Every type resolves the same Aggregation Units from the same **Filter**, and differs only in what it computes for them and in the shape of what it returns — so a type is a choice of *product*, never a choice of area, criteria or entitlement. `descriptive` yields **Soil Statistics**; the parameters a type does not use are rejected rather than ignored, so a type is answerable for exactly the inputs it names. Always named explicitly and never defaulted, as a **Soil Index** type is — a Run that could not say which product it computed would be answerable for nothing. A **Soil Index** is *not* a Statistics Type — it is the same kind of choice made on a different queue, for a reason that is operational rather than conceptual (see ADR 0036).
+Which analytical product is computed over a run's **Aggregation Units**. Every type resolves the same Aggregation Units from the same **Filter**, and differs only in what it computes for them and in the shape of what it returns — so a type is a choice of *product*, never a choice of area, criteria or entitlement. `descriptive` yields **Soil Statistics** and `class-distribution` yields a **Class Distribution**; the parameters a type does not use are rejected rather than ignored, so a type is answerable for exactly the inputs it names. Always named explicitly and never defaulted, as a **Soil Index** type is — a Run that could not say which product it computed would be answerable for nothing. A **Soil Index** is *not* a Statistics Type — it is the same kind of choice made on a different queue, for a reason that is operational rather than conceptual (see ADR 0036).
 _Avoid_: Mode, algorithm, variant, "generic" (says nothing about what is computed), stat kind
 
 **Soil Index**:
@@ -232,6 +248,7 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
 - An **Aggregation Unit** *is* one **UserGeometry**; a **Derived Filter** has one Aggregation Unit per geometry of its source file, and equivalent geometries in that file collapse to a single Unit
 - A data-requests run has exactly one **Statistics Type** and one set of **Aggregation Units**; the Units are resolved identically for every type, and only what is computed over them differs
+- A **Class Distribution** is computed for exactly one **Soil Property**, which the **Filter**'s criteria must already admit — choosing it narrows within the Filter and never widens it; it has one or more ordered **Classes**, and one distribution per **Dataset**, **Aggregation Unit**, **Year Window** and depth bucket (all depths pooled, or one **Standard Depth Range**)
 - A **Run** computes either one **Statistics Type** or one **Soil Index**, never both; either way it resolves its **Aggregation Units** from one **Filter** and at most one source file, and scores or summarises exactly those Units
 - An **Entitlement** grants one **Capability** over one **Dataset** or config item to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s
 - Every caller is either a person or a **Machine caller**, and the kind decides which claim supplies its **Subject**; the kind is independent of whether the caller is **Privileged**, and a caller of unknown kind is treated as a person
@@ -259,6 +276,12 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 
 > **Dev:** "Two of my fields overlap, and there's one sampling point in the overlap. Does it count once or twice?"
 > **Domain expert:** "Twice — once in each **Aggregation Unit**. 'Mean pH in this field' has to be the mean pH in that field, whatever else it overlaps. But the `overall` figure counts that **Observation** once, so don't expect the per-unit counts to add up to it."
+
+> **Dev:** "The farm only ever sampled 0–30 cm, yet the **Class Distribution** with **Standard Depth Ranges** shows nothing at 0–5 or 5–15. Is data missing?"
+> **Domain expert:** "No — each **Observation** goes to the one range holding its Layer's midpoint, and a 0–30 composite's midpoint is 15, so it all lands in 15–30. The cell's `depth_min`/`depth_max` say 0–30, which is how you tell a composite from a true 15–30 sample."
+
+> **Dev:** "My three pH **Classes** add up to 94% in this field. Where is the rest?"
+> **Domain expert:** "In the `unclassified` slice — values below your lowest bound, above your highest, or in a gap between Classes. It is counted in the whole on purpose: a field where most values fall outside your Classes must not look the same as one where none do."
 
 **Preprocessing Steps** (`preprocessing_steps`):
 An optional free-text field on a Dataset that documents the data cleaning and transformation steps applied to the raw source data prior to ingestion. Set by data admins; not computed by the system.

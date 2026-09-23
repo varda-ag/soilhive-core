@@ -8,6 +8,7 @@ import {
   MIN_HISTOGRAM_COUNT,
   DataRequestOutput,
   DataRequestResult,
+  SoilStatisticsOutput,
   StatisticsCell,
   UnitStatistics,
 } from '../jobs/data-requests/types';
@@ -227,6 +228,143 @@ const groupHistogramRows = (rows: any[], keyCols: string[]): Map<string, Map<num
   return out;
 };
 
+export interface StageObservationsOptions {
+  filter: DataFilter;
+  /** UserGeometry ids that are the Aggregation Units. */
+  unitIds: string[];
+  /** Dataset slugs to aggregate: already entitlement-filtered and raster-free. */
+  datasetSlugs: string[];
+  /**
+   * Narrows the staged Observations to one Soil Property, on top of the Filter's own criteria —
+   * never instead of them, so a property the Filter excludes stages nothing.
+   */
+  soilPropertySlug?: string;
+  onPhase: (description: string, percentage: number) => Promise<void>;
+  assertNotCancelled: () => Promise<void>;
+}
+
+/**
+ * Stages 1 and 2 of every Statistics Type: resolves the units to the Features intersecting them
+ * (`sst_unit_features`), then collects the matching Observations once each (`sst_obs`).
+ *
+ * Shared because which Observations are in scope is never a choice of product. Must run inside
+ * the caller's transaction: both tables are TEMP ... ON COMMIT DROP.
+ */
+export const stageObservations = async (
+  em: EntityManager,
+  options: StageObservationsOptions,
+): Promise<{ usesMatchingFeatures: boolean }> => {
+  const { filter, unitIds, datasetSlugs, soilPropertySlug } = options;
+  const schema = process.env.POSTGRES_SCHEMA;
+  const progress = options.onPhase;
+  const checkCancelled = options.assertNotCancelled;
+
+  // ── stage 1: units → Features ────────────────────────────────────────────────
+  // DISTINCT is mandatory: a Feature intersects several subdivision pieces of the
+  // same unit (docs/adr/0006), which would otherwise multiply its Observations.
+  // Raster-filter parity with coverage comes free: buildRasterSql reads only the `aoi`
+  // CTE, and matching_features ⊆ candidate_features = features ∩ aoi, so restricting
+  // stage 1 to it is exact and still lets the unit_id be attached by the aoi join.
+  const enabledRasterFilterTables = hasRasterFilters(filter.parameters) ? await getEnabledRasterFilterTables() : [];
+  const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
+  const featureSource = usesMatchingFeatures ? 'matching_features' : `${schema}.features`;
+
+  await em.query(`CREATE TEMP TABLE sst_unit_features (unit_id uuid NOT NULL, feature_id uuid NOT NULL) ON COMMIT DROP`);
+  await em.query(
+    `WITH aoi AS MATERIALIZED (
+       SELECT ugs.user_geometry_id AS unit_id, ugs.geom
+       FROM ${schema}.user_geometry_subdivisions ugs
+       WHERE ugs.user_geometry_id = ANY($1::uuid[])
+     )${usesMatchingFeatures ? `,\n       ${rasterCtes}` : ''}
+     INSERT INTO sst_unit_features (unit_id, feature_id)
+     SELECT DISTINCT aoi.unit_id, f.id
+     FROM ${featureSource} f
+     JOIN aoi ON ST_Intersects(f.geom, aoi.geom)`,
+    [unitIds],
+  );
+  await em.query('CREATE INDEX ON sst_unit_features (feature_id)');
+  await em.query('ANALYZE sst_unit_features');
+  await progress('Resolved sampling locations', 20);
+  await checkCancelled();
+
+  // ── stage 2: Features → Observations (pre-fan-out, one row per Observation) ───
+  const params: any[] = [];
+  const p = (val: any) => {
+    params.push(val);
+    return `$${params.length}`;
+  };
+  const slugPlaceholders = datasetSlugs.map(s => p(s)).join(', ');
+  // Coverage parity: filterVector applies status and visibility, which the
+  // /soil-data path does not (see buildObservationCriteria). Both are added here.
+  const { whereClauses } = buildObservationCriteria(
+    filter.parameters,
+    p,
+    { dataset: 'ds', layer: 'layer', soilProperty: 'sp', license: 'license' },
+    { includeVisibility: true },
+  );
+  if (soilPropertySlug !== undefined) {
+    whereClauses.push(`sp.slug = ${p(soilPropertySlug)}`);
+  }
+
+  await em.query(`CREATE TEMP TABLE sst_obs (
+      feature_id uuid NOT NULL,
+      layer_id uuid NOT NULL,
+      dataset_slug text NOT NULL,
+      soil_property_slug text NOT NULL,
+      standard_unit text,
+      year int,
+      min_depth int,
+      max_depth int,
+      horizon text,
+      sampling_date text,
+      laboratory_method text,
+      value double precision NOT NULL
+    ) ON COMMIT DROP`);
+
+  await em.query(
+    `INSERT INTO sst_obs (feature_id, layer_id, dataset_slug, soil_property_slug, standard_unit, year,
+                          min_depth, max_depth, horizon, sampling_date, laboratory_method, value)
+     SELECT
+       dl.feature_id,
+       dl.layer_id,
+       ds.slug,
+       sp.slug,
+       sp.standard_unit,
+       -- sampling_date is free text: anything not starting with four digits becomes
+       -- the null year bucket rather than aborting the job on a failed cast.
+       CASE WHEN layer.sampling_date ~ '^[0-9]{4}' THEN LEFT(layer.sampling_date, 4)::int END,
+       layer.min_depth,
+       layer.max_depth,
+       layer.horizon,
+       layer.sampling_date,
+       lab_method.name,
+       obs.value::float8
+     FROM ${schema}.dataset_layers dl
+     INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+     INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
+     INNER JOIN ${schema}.soil_properties sp ON sp.id = dl.soil_property_id AND sp.deleted_at IS NULL
+     LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL
+     INNER JOIN ${schema}.observations obs ON obs.dataset_layer_id = dl.id
+     LEFT JOIN ${schema}.procedures procedure ON procedure.id = obs.procedure_id AND procedure.deleted_at IS NULL
+     LEFT JOIN ${schema}.vocabulary lab_method ON lab_method.id = procedure.laboratory_method_id
+       AND lab_method.category = 'laboratory_method' AND lab_method.deleted_at IS NULL
+     WHERE dl.feature_id = ANY(ARRAY(SELECT DISTINCT feature_id FROM sst_unit_features)::uuid[])
+       AND ds.deleted_at IS NULL
+       AND ds.status = 'PUBLISHED'
+       AND ds.gis_datatype <> '${GISDataType.RASTER}'
+       AND ds.slug IN (${slugPlaceholders})
+       ${whereClauses.length > 0 ? `AND ${whereClauses.join('\n         AND ')}` : ''}`,
+    params,
+  );
+  await em.query('CREATE INDEX ON sst_obs (feature_id)');
+  await em.query('CREATE INDEX ON sst_obs (dataset_slug, soil_property_slug)');
+  await em.query('ANALYZE sst_obs');
+  await progress('Collected observations', 45);
+  await checkCancelled();
+
+  return { usesMatchingFeatures };
+};
+
 /**
  * Computes Soil Statistics — the `descriptive` product of a Data Request — for one Filter
  * over a set of Aggregation Units.
@@ -247,9 +385,8 @@ const groupHistogramRows = (rows: any[], keyCols: string[]): Map<string, Map<num
  * computation therefore sees a single snapshot, and the session settings are SET LOCAL
  * so they cannot leak back into the connection pool.
  */
-export const computeDataRequest = async (entityManager: EntityManager, options: DataRequestOptions): Promise<DataRequestOutput> => {
+export const computeDataRequest = async (entityManager: EntityManager, options: DataRequestOptions): Promise<SoilStatisticsOutput> => {
   const { filter, unitIds, datasetSlugs, histogramBins, maxCells } = options;
-  const schema = process.env.POSTGRES_SCHEMA;
   const progress = options.onPhase ?? (async () => undefined);
   const checkCancelled = options.assertNotCancelled ?? (async () => undefined);
 
@@ -261,105 +398,13 @@ export const computeDataRequest = async (entityManager: EntityManager, options: 
     await em.query(`SET LOCAL work_mem = '${options.workMem}'`);
     await em.query(`SET LOCAL statement_timeout = ${Math.trunc(options.statementTimeoutMs)}`);
 
-    // ── stage 1: units → Features ────────────────────────────────────────────────
-    // DISTINCT is mandatory: a Feature intersects several subdivision pieces of the
-    // same unit (docs/adr/0006), which would otherwise multiply its Observations.
-    // Raster-filter parity with coverage comes free: buildRasterSql reads only the `aoi`
-    // CTE, and matching_features ⊆ candidate_features = features ∩ aoi, so restricting
-    // stage 1 to it is exact and still lets the unit_id be attached by the aoi join.
-    const enabledRasterFilterTables = hasRasterFilters(filter.parameters) ? await getEnabledRasterFilterTables() : [];
-    const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
-    const featureSource = usesMatchingFeatures ? 'matching_features' : `${schema}.features`;
-
-    await em.query(`CREATE TEMP TABLE sst_unit_features (unit_id uuid NOT NULL, feature_id uuid NOT NULL) ON COMMIT DROP`);
-    await em.query(
-      `WITH aoi AS MATERIALIZED (
-         SELECT ugs.user_geometry_id AS unit_id, ugs.geom
-         FROM ${schema}.user_geometry_subdivisions ugs
-         WHERE ugs.user_geometry_id = ANY($1::uuid[])
-       )${usesMatchingFeatures ? `,\n       ${rasterCtes}` : ''}
-       INSERT INTO sst_unit_features (unit_id, feature_id)
-       SELECT DISTINCT aoi.unit_id, f.id
-       FROM ${featureSource} f
-       JOIN aoi ON ST_Intersects(f.geom, aoi.geom)`,
-      [unitIds],
-    );
-    await em.query('CREATE INDEX ON sst_unit_features (feature_id)');
-    await em.query('ANALYZE sst_unit_features');
-    await progress('Resolved sampling locations', 20);
-    await checkCancelled();
-
-    // ── stage 2: Features → Observations (pre-fan-out, one row per Observation) ───
-    const params: any[] = [];
-    const p = (val: any) => {
-      params.push(val);
-      return `$${params.length}`;
-    };
-    const slugPlaceholders = datasetSlugs.map(s => p(s)).join(', ');
-    // Coverage parity: filterVector applies status and visibility, which the
-    // /soil-data path does not (see buildObservationCriteria). Both are added here.
-    const { whereClauses } = buildObservationCriteria(
-      filter.parameters,
-      p,
-      { dataset: 'ds', layer: 'layer', soilProperty: 'sp', license: 'license' },
-      { includeVisibility: true },
-    );
-
-    await em.query(`CREATE TEMP TABLE sst_obs (
-        feature_id uuid NOT NULL,
-        layer_id uuid NOT NULL,
-        dataset_slug text NOT NULL,
-        soil_property_slug text NOT NULL,
-        standard_unit text,
-        year int,
-        min_depth int,
-        max_depth int,
-        horizon text,
-        sampling_date text,
-        laboratory_method text,
-        value double precision NOT NULL
-      ) ON COMMIT DROP`);
-
-    await em.query(
-      `INSERT INTO sst_obs (feature_id, layer_id, dataset_slug, soil_property_slug, standard_unit, year,
-                            min_depth, max_depth, horizon, sampling_date, laboratory_method, value)
-       SELECT
-         dl.feature_id,
-         dl.layer_id,
-         ds.slug,
-         sp.slug,
-         sp.standard_unit,
-         -- sampling_date is free text: anything not starting with four digits becomes
-         -- the null year bucket rather than aborting the job on a failed cast.
-         CASE WHEN layer.sampling_date ~ '^[0-9]{4}' THEN LEFT(layer.sampling_date, 4)::int END,
-         layer.min_depth,
-         layer.max_depth,
-         layer.horizon,
-         layer.sampling_date,
-         lab_method.name,
-         obs.value::float8
-       FROM ${schema}.dataset_layers dl
-       INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
-       INNER JOIN ${schema}.layers layer ON layer.id = dl.layer_id
-       INNER JOIN ${schema}.soil_properties sp ON sp.id = dl.soil_property_id AND sp.deleted_at IS NULL
-       LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL
-       INNER JOIN ${schema}.observations obs ON obs.dataset_layer_id = dl.id
-       LEFT JOIN ${schema}.procedures procedure ON procedure.id = obs.procedure_id AND procedure.deleted_at IS NULL
-       LEFT JOIN ${schema}.vocabulary lab_method ON lab_method.id = procedure.laboratory_method_id
-         AND lab_method.category = 'laboratory_method' AND lab_method.deleted_at IS NULL
-       WHERE dl.feature_id = ANY(ARRAY(SELECT DISTINCT feature_id FROM sst_unit_features)::uuid[])
-         AND ds.deleted_at IS NULL
-         AND ds.status = 'PUBLISHED'
-         AND ds.gis_datatype <> '${GISDataType.RASTER}'
-         AND ds.slug IN (${slugPlaceholders})
-         ${whereClauses.length > 0 ? `AND ${whereClauses.join('\n         AND ')}` : ''}`,
-      params,
-    );
-    await em.query('CREATE INDEX ON sst_obs (feature_id)');
-    await em.query('CREATE INDEX ON sst_obs (dataset_slug, soil_property_slug)');
-    await em.query('ANALYZE sst_obs');
-    await progress('Collected observations', 45);
-    await checkCancelled();
+    const { usesMatchingFeatures } = await stageObservations(em, {
+      filter,
+      unitIds,
+      datasetSlugs,
+      onPhase: progress,
+      assertNotCancelled: checkCancelled,
+    });
 
     // ── stage 3a: overall, per (dataset, soil property), Observations counted once ──
     const overallRows: (RawCell & { dataset_slug: string; soil_property_slug: string; standard_unit: string | null })[] = await em.query(`
@@ -619,6 +664,10 @@ export const toDataRequestParameters = (data: DataRequestJob): DataRequestParame
   ...(data.label_field !== undefined ? { label_field: data.label_field } : {}),
   ...(data.dataset_ids !== undefined ? { dataset_ids: data.dataset_ids } : {}),
   ...(data.histogram_bins !== undefined ? { histogram_bins: data.histogram_bins } : {}),
+  ...(data.variable !== undefined ? { variable: data.variable } : {}),
+  ...(data.classes !== undefined ? { classes: data.classes } : {}),
+  ...(data.time_aggregation !== undefined ? { time_aggregation: data.time_aggregation } : {}),
+  ...(data.depth_ranges !== undefined ? { depth_ranges: data.depth_ranges } : {}),
   derived_filter_id: data.derived_filter_id ?? null,
   unit_count: data.unit_count ?? 0,
   units: data.units ?? [],

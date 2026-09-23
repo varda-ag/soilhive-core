@@ -7,7 +7,7 @@ import { DataRequestJob } from '../../../src/interfaces/Job';
 import { processDataRequest } from '../../../src/jobs/data-requests/DataRequestJob';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { Capability, DataRequestStatus, JobQueues, StatisticsType } from '../../../src/types/enums';
+import { Capability, DataRequestStatus, JobQueues, StatisticsType, VariableType } from '../../../src/types/enums';
 import { insertDataRequest } from '../../../src/data-layer/DataRequests';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
@@ -652,6 +652,69 @@ describe('processDataRequest', () => {
       // The payload goes to the `data_requests` row, not into job data, so the completion line
       // is what says the descriptive producer ran here: it counts dataset/property groups.
       expect(stored.progress_description).toContain('dataset/property group(s)');
+    });
+
+    it('computes and records a class distribution when that is the named type', async () => {
+      const { dataset, soilProperty } = await seedDataset('type-class-distribution', [3, 7, 12]);
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
+        classes: [
+          { name: 'Acid', max: 6.5 },
+          { name: 'Neutral', min: 6.5, max: 7.5 },
+        ],
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.request.classes).toHaveLength(2);
+      expect(record.data.soil_property).toBe(soilProperty.slug);
+      expect(record.data.standard_unit).toBe('mg/kg');
+      // UNIT_B holds no Observations, so it has no row: absent means no data.
+      expect(record.data.results).toHaveLength(1);
+      expect(record.data.results[0]).toMatchObject({
+        dataset_id: dataset.slug,
+        year_start: 2020,
+        year_end: 2020,
+        count: 3,
+        classes: [
+          { name: 'Acid', value: 33.333 },
+          { name: 'Neutral', value: 33.333 },
+          { name: 'unclassified', value: 33.333 },
+        ],
+      });
+      expect(record.data).not.toHaveProperty('truncated');
+    });
+
+    it('fails a class distribution whose soil property was deleted after submission', async () => {
+      await seedDataset('type-class-distribution-gone', [1]);
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        variable: { type: VariableType.SOIL_PROPERTY, id: 'no-such-property' },
+        classes: [{ name: 'All', min: 0 }],
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_UNKNOWN_SOIL_PROPERTY' });
+    });
+
+    it('re-checks class-distribution parameters rather than trusting job data', async () => {
+      await seedDataset('type-class-distribution-invalid', [1]);
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        variable: { type: VariableType.SOIL_PROPERTY, id: 'anything' },
+        classes: [{ name: 'Unbounded' }],
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_INVALID_PARAMETERS' });
     });
 
     it('fails rather than assuming descriptive when the type is absent', async () => {

@@ -112,7 +112,73 @@ export interface DatasetNote<R extends string = string> {
   reason: R;
 }
 
-export interface DataRequestOutput {
+/** The `descriptive` payload: Soil Statistics. */
+export interface SoilStatisticsOutput {
   results: DataRequestResult[];
   truncated: boolean;
 }
+
+/** Caps the number of Classes per request: each one widens every row of the output (docs/adr/0038). */
+export const MAX_CLASSES = 20;
+
+/** Reserved Class name */
+export const UNCLASSIFIED = 'unclassified';
+
+/** Default Year Window size in years. */
+export const DEFAULT_TIME_AGGREGATION = 1;
+
+/**
+ * The GlobalSoilMap Standard Depth Ranges, in cm, each `[start, end)`; the last is open-ended.
+ */
+export const STANDARD_DEPTH_RANGES: { start: number; end: number | null }[] = [
+  { start: 0, end: 5 },
+  { start: 5, end: 15 },
+  { start: 15, end: 30 },
+  { start: 30, end: 60 },
+  { start: 60, end: 100 },
+  { start: 100, end: 200 },
+  { start: 200, end: null },
+];
+
+/** One slice of a row: a Class name and the percentage of the row's Observations in it. */
+export interface ClassShare {
+  name: string;
+  /** Percentage of `count`, rounded to 3 decimals. */
+  value: number;
+}
+
+/**
+ * One distribution: one (Dataset, Aggregation Unit, Year Window, depth bucket) — one pie chart.
+ */
+export interface ClassDistributionRow {
+  /** Dataset slug (the public identifier). */
+  dataset_id: string;
+  unit_id: string;
+  /** First and last year of the Year Window; both null for Observations with no recorded year. */
+  year_start: number | null;
+  year_end: number | null;
+  /** The Standard Depth Range, present only when `depth_ranges` is `standard`. */
+  depth_start?: number | null;
+  depth_end?: number | null;
+  /**
+   * The span actually covered by the Layers behind this row — how a 15–30 cm row built from 0–30
+   * composites, or a pooled 0–200 cm mix, shows for what it is. Absent when no Layer records a depth.
+   */
+  depth_min?: number;
+  depth_max?: number;
+  count: number;
+  /** Distinct Features (sampling locations) behind `count`. */
+  n_features: number;
+  /** Every requested Class in request order, then `unclassified` when above 0. */
+  classes: ClassShare[];
+}
+
+/** The `class-distribution` payload. */
+export interface ClassDistributionOutput {
+  soil_property: string;
+  standard_unit: string | null;
+  results: ClassDistributionRow[];
+}
+
+/** What a Data Request's `data` holds; which one is told by `request.statistics_type`. */
+export type DataRequestOutput = SoilStatisticsOutput | ClassDistributionOutput;

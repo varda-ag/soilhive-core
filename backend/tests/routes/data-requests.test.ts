@@ -7,7 +7,7 @@ import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { sleep } from '../../src/utils/utils';
 import { getDataAdminToken, getUserToken } from '../helper';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
-import { addDataset } from '../../src/utils/mock';
+import { addCategory, addDataset, addSoilProperty } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
 
 const polygon = {
@@ -140,6 +140,141 @@ describe('Testing /data-requests routes', () => {
       const filterId = await createFilter([polygon]);
       const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, histogram_bins: 1 });
       expect(res.statusCode).toBe(400);
+    });
+  });
+
+  describe('POST /data-requests — class-distribution', () => {
+    const PH_CLASSES = [
+      { name: 'Acid', max: 6.5 },
+      { name: 'Neutral', min: 6.5, max: 7.5 },
+      { name: 'Alkaline', min: 7.5 },
+    ];
+
+    let propertyCounter = 0;
+    const addProperty = async () => {
+      const category = await addCategory(`cd-route-cat-${propertyCounter}`);
+      return addSoilProperty(`cd-route-ph-${propertyCounter++}`, category.id, 'pH');
+    };
+
+    const submitClassDistribution = async (overrides: Record<string, unknown> = {}, filterParameters: object = {}) => {
+      const property = await addProperty();
+      const filterId = await createFilter([polygon], filterParameters);
+      return submit({
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        filter_id: filterId,
+        variable: { type: 'soil-property', id: property.slug },
+        classes: PH_CLASSES,
+        ...overrides,
+      });
+    };
+
+    it('accepts a valid request and echoes every parameter back', async () => {
+      const res = await submitClassDistribution({ time_aggregation: 3, depth_ranges: 'standard' });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.request.statistics_type).toBe(StatisticsType.CLASS_DISTRIBUTION);
+      expect(res.body.request.variable.type).toBe('soil-property');
+      expect(res.body.request.classes).toEqual(PH_CLASSES);
+      expect(res.body.request.time_aggregation).toBe(3);
+      expect(res.body.request.depth_ranges).toBe('standard');
+    });
+
+    it('accepts a property the filter admits', async () => {
+      const property = await addProperty();
+      const filterId = await createFilter([polygon], { soil_properties: [property.slug] });
+      const res = await submit({
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        filter_id: filterId,
+        variable: { type: 'soil-property', id: property.slug },
+        classes: PH_CLASSES,
+      });
+      expect(res.statusCode).toBe(201);
+    });
+
+    // The variable narrows within the Filter and never widens it.
+    it('rejects a property the filter excludes', async () => {
+      const other = await addProperty();
+      const res = await submitClassDistribution({}, { soil_properties: [other.slug] });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('is excluded by filter');
+    });
+
+    it('rejects a missing variable or missing classes', async () => {
+      expect((await submitClassDistribution({ variable: undefined })).body.detail).toContain('variable is required');
+      expect((await submitClassDistribution({ classes: undefined })).body.detail).toContain('classes is required');
+    });
+
+    it('rejects a variable that is not a soil property', async () => {
+      expect((await submitClassDistribution({ variable: { type: 'soil-index', id: 'crea-index' } })).statusCode).toBe(400);
+      const unknown = await submitClassDistribution({ variable: { type: 'soil-property', id: 'no-such-property' } });
+      expect(unknown.statusCode).toBe(400);
+      expect(unknown.body.detail).toContain('is not a soil property');
+    });
+
+    it.each([
+      [
+        'overlapping classes',
+        [
+          { name: 'A', min: 0, max: 5 },
+          { name: 'B', min: 4, max: 9 },
+        ],
+        'overlap',
+      ],
+      [
+        'two classes open below',
+        [
+          { name: 'A', max: 5 },
+          { name: 'B', max: 9 },
+        ],
+        'overlap',
+      ],
+      ['a class with no bound', [{ name: 'A' }], 'needs a min, a max, or both'],
+      ['min not below max', [{ name: 'A', min: 5, max: 5 }], 'needs min below max'],
+      [
+        'a duplicate name',
+        [
+          { name: 'A', max: 5 },
+          { name: 'A', min: 5 },
+        ],
+        'used more than once',
+      ],
+      ['the reserved name', [{ name: 'unclassified', min: 0 }], 'reserved'],
+    ])('rejects %s', async (_label, classes, detail) => {
+      const res = await submitClassDistribution({ classes });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain(detail);
+    });
+
+    it('accepts classes that touch without overlapping, in any order', async () => {
+      const res = await submitClassDistribution({
+        classes: [
+          { name: 'High', min: 7.5 },
+          { name: 'Low', max: 6.5 },
+          { name: 'Mid', min: 6.5, max: 7.5 },
+        ],
+      });
+      expect(res.statusCode).toBe(201);
+    });
+
+    it('rejects more than 20 classes and a time_aggregation outside 1-10', async () => {
+      const many = Array.from({ length: 21 }, (_, i) => ({ name: `C${i}`, min: i, max: i + 1 }));
+      expect((await submitClassDistribution({ classes: many })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ time_aggregation: 0 })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ time_aggregation: 11 })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ depth_ranges: 'harmonised' })).statusCode).toBe(400);
+    });
+
+    it('rejects histogram_bins, which is descriptive-only', async () => {
+      const res = await submitClassDistribution({ histogram_bins: 10 });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('histogram_bins does not apply');
+    });
+
+    it('rejects class-distribution parameters sent with descriptive', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, time_aggregation: 2 });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('time_aggregation does not apply');
     });
   });
 
