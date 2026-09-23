@@ -1,9 +1,9 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
-import { DataRequest, DataRequestParameters } from '../interfaces/DataRequest';
+import { DataRequest } from '../interfaces/DataRequest';
 import { DataRequestJob, DataRequestJobParameters, Job } from '../interfaces/Job';
 import { DataRequestOutput } from '../jobs/data-requests/types';
-import { DataRequestRecord, deleteDataRequest, findDataRequest } from '../data-layer/DataRequests';
+import { DataRequestRecord, deleteDataRequest, findDataRequest, toDataRequestParameters } from '../data-layer/DataRequests';
 import { DataRequestStatus, JobQueues } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
 import { log } from '../utils/logger';
@@ -117,23 +117,6 @@ export default class DataRequestService {
   };
 
   /**
-   * Assembled field by field rather than by spreading `job.data`, for the same reason the record's
-   * `request` is: `created_by`, `isDataAdmin` and `isSuperAdmin` sit on that object and must never
-   * reach a caller. A spread plus deletions would leak the next field anyone adds.
-   */
-  private toParameters = (data: DataRequestJob): DataRequestParameters => ({
-    statistics_type: data.statistics_type,
-    filter_id: data.filter_id,
-    ...(data.file_id !== undefined ? { file_id: data.file_id } : {}),
-    ...(data.label_field !== undefined ? { label_field: data.label_field } : {}),
-    ...(data.dataset_ids !== undefined ? { dataset_ids: data.dataset_ids } : {}),
-    ...(data.histogram_bins !== undefined ? { histogram_bins: data.histogram_bins } : {}),
-    derived_filter_id: data.derived_filter_id ?? null,
-    unit_count: data.unit_count ?? 0,
-    units: data.units ?? [],
-  });
-
-  /**
    * A live job as a Data Request, with the payload taken from `record` when the Run has finished.
    *
    * The payload always comes from the row, never from the job: the job has not carried it since
@@ -153,7 +136,7 @@ export default class DataRequestService {
       ...(data.progress_percentage !== undefined ? { progress_percentage: data.progress_percentage } : {}),
       ...(data.progress_description !== undefined ? { progress_description: data.progress_description } : {}),
       message: record?.message ?? job.message ?? null,
-      request: this.toParameters(data),
+      request: toDataRequestParameters(data),
       ...(record?.data ? { data: record.data as DataRequestOutput } : {}),
     };
   };

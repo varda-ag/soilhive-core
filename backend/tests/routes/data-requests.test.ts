@@ -1,11 +1,12 @@
-import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
+import { describe, expect, it, beforeAll, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
 import { DataRequestStatus, JobQueues, StatisticsType } from '../../src/types/enums';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { sleep } from '../../src/utils/utils';
-import { getUserToken } from '../helper';
+import { getDataAdminToken, getUserToken } from '../helper';
+import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import { addDataset } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
 
@@ -38,6 +39,7 @@ describe('Testing /data-requests routes', () => {
   });
 
   afterAll(async () => {
+    jest.restoreAllMocks();
     await stopPgBoss();
   });
 
@@ -188,6 +190,29 @@ describe('Testing /data-requests routes', () => {
 
       // And the request itself is untouched by the refused delete.
       await request(app).get(`/data-requests/${created.body.id}`).expect(200);
+    });
+
+    it('does not list a data request in GET /jobs, even to its submitter', async () => {
+      jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
+      const filterId = await createFilter([polygon]);
+      const token = await getDataAdminToken();
+      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+        .set('Authorization', `Bearer ${token}`)
+        .expect(201);
+
+      // A job on a served queue from the same caller, so an empty list cannot pass for a filter
+      // that dropped everything.
+      const bulk = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ type: JobQueues.BULK_LOAD, dataset_id: 'dr-jobs-list-dataset' })
+        .expect(201);
+
+      const res = await request(app).get('/jobs').set('Authorization', `Bearer ${token}`).expect(200);
+      const ids = res.body.map((job: { id: string }) => job.id);
+      expect(ids).toContain(bulk.body.id);
+      expect(ids).not.toContain(created.body.id);
+      expect(res.body.some((job: { queue: string }) => job.queue === JobQueues.DATA_REQUESTS)).toBe(false);
     });
   });
 

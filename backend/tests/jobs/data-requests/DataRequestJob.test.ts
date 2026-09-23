@@ -531,17 +531,10 @@ describe('processDataRequest', () => {
       expect(data.created_by).toBe(CALLER_EMAIL);
       expect(data.progress_percentage).toBe(100);
 
-      // The same Subject decides job ownership, so the caller must find the job the API just
-      // created for them in their own list. Asserted through GET /jobs rather than
-      // GET /jobs/{jobId}, which no longer serves this queue at all: the list is where a
-      // Subject-keyed filter is still observable (getJobs keeps `created_by === subject`).
-      const listResponse = await request(app).get('/jobs').set('Authorization', `Bearer ${token}`);
-      expect(listResponse.statusCode).toBe(200);
-      const listed = (listResponse.body as { id: string; data: DataRequestJob }[]).find(job => job.id === jobId);
-      expect(listed?.data.created_by).toBe(CALLER_EMAIL);
-
-      // And the Data Request itself is readable with no token at all: the id is the permission,
-      // and the Subject that decided the job's ownership decides nothing here.
+      // Neither /jobs nor /jobs/{jobId} serves this queue (docs/adr/0037), so the Subject has no
+      // ownership left to observe through the API; that exclusion is asserted in
+      // routes/data-requests.test.ts. The Data Request itself is readable with no token at all:
+      // the id is the permission, and the Subject decides nothing here.
       const anonymous = await request(app).get(`/data-requests/${jobId}`);
       expect(anonymous.statusCode).toBe(200);
     });

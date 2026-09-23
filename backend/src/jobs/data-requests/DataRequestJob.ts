@@ -1,10 +1,9 @@
 import { Job } from 'pg-boss';
 import { DataRequestJob } from '../../interfaces/Job';
-import { DataRequestParameters } from '../../interfaces/DataRequest';
 import { DataRequestStatus, StatisticsType } from '../../types/enums';
 import { JobError } from '../../errors/JobError';
 import { translateJobError, UNEXPECTED_JOB_ERROR_CODE } from '../../errors/jobErrorMessages';
-import { insertDataRequest } from '../../data-layer/DataRequests';
+import { insertDataRequest, toDataRequestParameters } from '../../data-layer/DataRequests';
 import { getJobCreatedOn } from '../../services/PgBoss';
 import { getEntityManager } from '../../utils/data-source';
 import { getErrorMessage } from '../../utils/error';
@@ -31,29 +30,6 @@ const PRODUCERS: Record<StatisticsType, RunProduct<DataRequestJob, DataRequestOu
 };
 
 /**
- * What a caller reads back, assembled from job data.
- *
- * Deliberately field-by-field rather than by spreading `data` and deleting keys: `created_by`,
- * `isDataAdmin` and `isSuperAdmin` live on the same object, this value is returned verbatim, and
- * the row it lands in has no owner to scope a leak to (docs/adr/0037). A spread would leak them
- * the first time anyone adds a field to CommonJobData.
- *
- * The resolved half defaults rather than being assumed: a Run can fail before its Units exist —
- * RUN_TOO_MANY_UNITS throws during resolution, an unknown filter_id before it.
- */
-const toRequest = (data: DataRequestJob): DataRequestParameters => ({
-  statistics_type: data.statistics_type,
-  filter_id: data.filter_id,
-  ...(data.file_id !== undefined ? { file_id: data.file_id } : {}),
-  ...(data.label_field !== undefined ? { label_field: data.label_field } : {}),
-  ...(data.dataset_ids !== undefined ? { dataset_ids: data.dataset_ids } : {}),
-  ...(data.histogram_bins !== undefined ? { histogram_bins: data.histogram_bins } : {}),
-  derived_filter_id: data.derived_filter_id ?? null,
-  unit_count: data.unit_count ?? 0,
-  units: data.units ?? [],
-});
-
-/**
  * Display-ready failure copy, classified exactly as `runJob` classifies the same error into
  * `data.errors`, so the row and the job say the same thing for the whole time both are readable.
  */
@@ -74,7 +50,7 @@ const recordOutcome = async (
   await insertDataRequest(entityManager, {
     id: jobId,
     status: outcome.status,
-    request: toRequest(data),
+    request: toDataRequestParameters(data),
     data: outcome.status === DataRequestStatus.COMPLETED ? outcome.data : null,
     message: outcome.status === DataRequestStatus.FAILED ? outcome.message : null,
     created_at: createdAt,

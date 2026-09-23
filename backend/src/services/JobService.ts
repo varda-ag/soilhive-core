@@ -188,12 +188,20 @@ export default class JobService {
     }
   };
 
+  /**
+   * Queues not served by `/jobs` or `/jobs/{jobId}`: their jobs have their own endpoints, whose
+   * rules contradict these (docs/adr/0037).
+   */
+  private static readonly QUEUES_NOT_SERVED: string[] = [JobQueues.DATA_REQUESTS];
+
   getJobs = async (requestData: RequestData): Promise<Job[]> => {
     const subject = subjectOf(requestData);
     if (!subject) {
       throw new ErrorResponse('Authentication required to list jobs', StatusCodes.UNAUTHORIZED);
     }
-    const promises = Object.values(JobQueues).map(async queue => await this.boss.findJobs(queue));
+    const promises = Object.values(JobQueues)
+      .filter(queue => !JobService.QUEUES_NOT_SERVED.includes(queue))
+      .map(async queue => await this.boss.findJobs(queue));
     const results = await Promise.all(promises);
     const jobs: JobWithMetadata<unknown>[] = results.flat();
 
@@ -206,11 +214,6 @@ export default class JobService {
     log.info('Jobs listed', { count: userJobs.length, user: subject });
     return userJobs.map(job => this.prepareJobForResponse(job));
   };
-
-  /**
-   * Queues not served by `/jobs/{jobId}`.
-   */
-  private static readonly QUEUES_NOT_SERVED: string[] = [JobQueues.DATA_REQUESTS];
 
   /**
    * One job by id, as `/jobs/{jobId}` sees it: owned by the caller, and on a queue served by this API.
