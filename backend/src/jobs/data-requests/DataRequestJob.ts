@@ -3,7 +3,7 @@ import { DataRequestJob } from '../../interfaces/Job';
 import { DataRequestParameters } from '../../interfaces/DataRequest';
 import { DataRequestStatus, StatisticsType } from '../../types/enums';
 import { JobError } from '../../errors/JobError';
-import { translateJobError, translateQueueMessage } from '../../errors/jobErrorMessages';
+import { translateJobError, UNEXPECTED_JOB_ERROR_CODE } from '../../errors/jobErrorMessages';
 import { insertDataRequest } from '../../data-layer/DataRequests';
 import { getJobCreatedOn } from '../../services/PgBoss';
 import { getEntityManager } from '../../utils/data-source';
@@ -54,17 +54,14 @@ const toRequest = (data: DataRequestJob): DataRequestParameters => ({
 });
 
 /**
- * Display-ready failure copy, resolved the same way JobService resolves a job's `message` so the
- * two agree while both are readable. A JobError's raw message is only its code, so it is
- * translated and its remedies folded in; anything else keeps its own message, passed through the
- * queue-reap translation for the cases where the text came from pg-boss rather than from us.
+ * Display-ready failure copy, classified exactly as `runJob` classifies the same error into
+ * `data.errors`, so the row and the job say the same thing for the whole time both are readable.
  */
 const failureMessage = (error: unknown): string => {
-  if (JobError.isJobError(error)) {
-    const { message, actions } = translateJobError(error.code, error.params);
-    return [message, ...actions].join(' ');
-  }
-  return translateQueueMessage(getErrorMessage(error));
+  const { message, actions } = JobError.isJobError(error)
+    ? translateJobError(error.code, error.params)
+    : translateJobError(UNEXPECTED_JOB_ERROR_CODE);
+  return [message, ...actions].join(' ');
 };
 
 const recordOutcome = async (

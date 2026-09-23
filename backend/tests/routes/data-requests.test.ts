@@ -225,5 +225,54 @@ describe('Testing /data-requests routes', () => {
       await request(app).delete(`/data-requests/${created.body.id}`).expect(204);
       await request(app).delete(`/data-requests/${created.body.id}`).expect(404);
     });
+
+    /**
+     * The case the tests above cannot reach, and the one where DELETE is easiest to get wrong.
+     * Every other test here destroys a Run that is still cancellable; pg-boss's `cancel` only
+     * updates jobs below `completed`, so on a Run that already finished it matches nothing and the
+     * job goes on answering for a request the caller destroyed. The Run is driven to `completed`
+     * by hand rather than by a worker so that the state under test is the point of the test, not a
+     * race with one.
+     */
+    const finishRun = async (id: string): Promise<void> => {
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET state = 'completed', completed_on = now() WHERE id = $1`, [id]);
+      await entityManager.query(
+        `INSERT INTO data_requests ("id", "status", "request", "data", "message", "created_at", "completed_at")
+         VALUES ($1, 'completed', $2::jsonb, $3::jsonb, NULL, now(), now())`,
+        [
+          id,
+          JSON.stringify({ statistics_type: 'descriptive', filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] }),
+          JSON.stringify({ results: [], truncated: false }),
+        ],
+      );
+    };
+
+    it('destroys a request whose run already completed', async () => {
+      const filterId = await createFilter([polygon]);
+      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      await finishRun(created.body.id);
+
+      // Readable first, so the 404 below is this DELETE's doing and not a request that was never there.
+      await request(app).get(`/data-requests/${created.body.id}`).expect(200);
+
+      await request(app).delete(`/data-requests/${created.body.id}`).expect(204);
+      await request(app).get(`/data-requests/${created.body.id}`).expect(404);
+      await request(app).delete(`/data-requests/${created.body.id}`).expect(404);
+    });
+
+    it('leaves no job behind for a completed run it destroyed', async () => {
+      const filterId = await createFilter([polygon]);
+      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      await finishRun(created.body.id);
+
+      await request(app).delete(`/data-requests/${created.body.id}`).expect(204);
+
+      // Not merely hidden: a terminated job cannot be cancelled, so the row itself is removed.
+      // Left standing, it would also be the one thing that could resurrect the record.
+      const entityManager = await getEntityManager();
+      const rows = await entityManager.query(`SELECT state FROM ${PG_BOSS_SCHEMA}.job WHERE id = $1`, [created.body.id]);
+      expect(rows).toHaveLength(0);
+    });
   });
 });

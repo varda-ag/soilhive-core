@@ -7,7 +7,8 @@ import { DataRequestJob } from '../../../src/interfaces/Job';
 import { processDataRequest } from '../../../src/jobs/data-requests/DataRequestJob';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { Capability, JobQueues, StatisticsType } from '../../../src/types/enums';
+import { Capability, DataRequestStatus, JobQueues, StatisticsType } from '../../../src/types/enums';
+import { insertDataRequest } from '../../../src/data-layer/DataRequests';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
@@ -387,6 +388,72 @@ describe('processDataRequest', () => {
       // No row: cancelling is how a Data Request is destroyed, so writing one here would
       // resurrect what the caller deleted.
       expect(await readRecord(jobId)).toBeUndefined();
+    });
+
+    /**
+     * The cancellation checkpoints are not the last thing a Run does, so a DELETE landing after
+     * the final one leaves the processor about to write a row for a request that no longer
+     * exists - and that row would be permanent, because the job is `cancelled` and reads
+     * therefore fall through to the record with nothing left to sweep it. The write itself
+     * carries the check, so the two cases below are the write refusing rather than the Run
+     * noticing.
+     */
+    it('refuses to write a record once the job has been cancelled', async () => {
+      const { jobId } = await createActiveJob({ filter_id: await createFilter([UNIT_A]) });
+      const entityManager = await getEntityManager();
+      await setJobState(jobId, 'cancelled');
+
+      await insertDataRequest(entityManager, {
+        id: jobId,
+        status: DataRequestStatus.COMPLETED,
+        request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
+        data: { results: [], truncated: false },
+        message: null,
+        created_at: new Date(),
+        completed_at: new Date(),
+      });
+
+      expect(await readRecord(jobId)).toBeUndefined();
+    });
+
+    it('refuses to write a record once the job row is gone', async () => {
+      const { jobId } = await createActiveJob({ filter_id: await createFilter([UNIT_A]) });
+      const entityManager = await getEntityManager();
+      // How DELETE disposes of a Run that had already terminated: cancel cannot touch it, so the
+      // job row is removed outright.
+      await getPgBoss().deleteJob(JobQueues.DATA_REQUESTS, jobId);
+
+      await insertDataRequest(entityManager, {
+        id: jobId,
+        status: DataRequestStatus.COMPLETED,
+        request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
+        data: { results: [], truncated: false },
+        message: null,
+        created_at: new Date(),
+        completed_at: new Date(),
+      });
+
+      expect(await readRecord(jobId)).toBeUndefined();
+    });
+
+    /**
+     * A failure that is not a JobError carries internal text - a statement timeout's own words, a
+     * constraint violation naming a column. `runJob` records those as `UNEXPECTED_ERROR` with the
+     * raw text as `detail`, so the job reports generic copy; this column has to say the same
+     * thing, and for a stronger reason: it is read by any bearer of the id and, unlike a job row,
+     * it is never reaped.
+     */
+    it('records a non-JobError failure as generic copy, never its own message', async () => {
+      const unknownFilter = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+      const { jobId, job } = await createActiveJob({ filter_id: unknownFilter });
+
+      // FilterService throws an ErrorResponse, not a JobError - the message names the filter.
+      await expect(processDataRequest(job)).rejects.toThrow(unknownFilter);
+
+      const record = await readRecord(jobId);
+      expect(record.status).toBe('failed');
+      expect(record.message).toBe('An unexpected error occurred during processing. Try again. If the problem persists, contact support.');
+      expect(record.message).not.toContain(unknownFilter);
     });
   });
 

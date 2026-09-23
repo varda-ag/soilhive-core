@@ -10,13 +10,12 @@ import { log } from '../utils/logger';
 import JobService from './JobService';
 
 /**
- * Job states that mean "this Run is not a Data Request any caller may see".
+ * Job states that mean "this Data Request must be hidden".
  *
- * `cancelled` is the load-bearing one. DELETE destroys the record but leaves the pg-boss row
- * behind in `cancelled` state until retention, so a read that trusted the job would keep
- * answering 200 for a resource the caller has already destroyed. Treating it as absent is the
- * only reading consistent with DELETE, and it is why `cancelled` is a state no client can
- * observe (docs/adr/0037).
+ * DELETE destroys the record but leaves the pg-boss row behind in `cancelled` state until
+ * retention, so a read that trusted the job would keep answering 200 for a resource the caller has
+ * already destroyed. Treating it as absent is the only reading consistent with DELETE, and it is
+ * why `cancelled` is a state no client can observe (docs/adr/0037).
  */
 const GONE_JOB_STATES = ['cancelled'];
 
@@ -90,18 +89,17 @@ export default class DataRequestService {
   };
 
   /**
-   * Destroys a Data Request: cancels the Run if one is still cancellable, and deletes the record
-   * if one was written. 204 when either happened, 404 when neither was there.
-   *
-   * Both halves run, never one or the other: a Run that completed seconds ago has both a job and a
-   * row, and cancelling without deleting would leave the answer standing. Idempotent by
-   * construction, which also sweeps up the row a Run may have written between a DELETE cancelling
-   * it and the processor noticing.
+   * Destroys a Data Request: disposes of the Run if one is still there, and deletes the record if
+   * one was written. 204 when either happened, 404 when neither was there.
    */
   deleteDataRequest = async (requestData: RequestData, id: string): Promise<void> => {
     const job = await this.findLiveJob(id);
     if (job) {
-      await this.jobService.cancelJobInQueue(JobQueues.DATA_REQUESTS, id);
+      if (TERMINAL_JOB_STATES.includes(job.status)) {
+        await this.jobService.deleteJobInQueue(JobQueues.DATA_REQUESTS, id);
+      } else {
+        await this.jobService.cancelJobInQueue(JobQueues.DATA_REQUESTS, id);
+      }
     }
 
     const deleted = await deleteDataRequest(requestData.entityManager, id);
@@ -109,7 +107,7 @@ export default class DataRequestService {
       throw new ErrorResponse(`Data request '${id}' not found`, StatusCodes.NOT_FOUND);
     }
 
-    log.info('Data request destroyed', { id, cancelled_job: Boolean(job), deleted_record: deleted });
+    log.info('Data request destroyed', { id, disposed_job: Boolean(job), deleted_record: deleted });
   };
 
   /** The job, unless it is in a state that reads as gone. */

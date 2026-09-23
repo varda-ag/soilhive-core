@@ -256,6 +256,13 @@ export default class JobService {
   };
 
   /**
+   * Removes a job row
+   */
+  deleteJobInQueue = async (queue: JobQueues, jobId: string): Promise<void> => {
+    await this.boss.deleteJob(queue, jobId);
+  };
+
+  /**
    * A failure can reach here three different ways, and `message` has to be readable from all of
    * them - for an Export it is the *only* channel, since ErrorService.getDatasetErrors covers the
    * dataset-scoped queues and an Export has no dataset_id to be found by.

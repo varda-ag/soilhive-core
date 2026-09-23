@@ -14,7 +14,8 @@ import {
 import { log, timed } from '../utils/logger';
 import { round3 } from '../utils/utils';
 import DataRequestEntity from '../entities/DataRequest';
-import { DataRequestStatus } from '../types/enums';
+import { DataRequestStatus, JobQueues } from '../types/enums';
+import { PG_BOSS_SCHEMA } from '../services/PgBoss';
 import { DataRequestParameters } from '../interfaces/DataRequest';
 
 export interface DataRequestOptions {
@@ -610,13 +611,30 @@ export interface DataRequestRecord {
 
 /**
  * Writes the outcome of one Run. Called once, from `processDataRequest` and nowhere else.
- *
- * `orIgnore` rather than an upsert: the id is the job's, so a second insert can only mean the
- * same Run wrote twice, and the first write is the one that saw the outcome. Silently keeping
- * it is safer than overwriting an answer with whatever a duplicate carried.
+ * Raw SQL rather than TypeORM repository to support `WHERE EXISTS`.
+ * DELETE /data-requests destroys a Run by cancelling its job and deleting any row; a Run that is
+ * past its last cancellation checkpoint has neither seen the cancellation nor left a row to
+ * delete, and would write one *after* the DELETE returned.
  */
 export const insertDataRequest = async (entityManager: EntityManager, record: DataRequestRecord): Promise<void> => {
-  await entityManager.getRepository(DataRequestEntity).createQueryBuilder().insert().values(record).orIgnore().execute();
+  await entityManager.query(
+    `INSERT INTO data_requests ("id", "status", "request", "data", "message", "created_at", "completed_at")
+     SELECT $1::uuid, $2::text, $3::jsonb, $4::jsonb, $5::text, $6::timestamptz, $7::timestamptz
+     WHERE EXISTS (
+       SELECT 1 FROM ${PG_BOSS_SCHEMA}.job WHERE "name" = $8::text AND "id" = $1::uuid AND "state" <> 'cancelled'
+     )
+     ON CONFLICT DO NOTHING`,
+    [
+      record.id,
+      record.status,
+      JSON.stringify(record.request),
+      record.data === null ? null : JSON.stringify(record.data),
+      record.message,
+      record.created_at,
+      record.completed_at,
+      JobQueues.DATA_REQUESTS,
+    ],
+  );
 };
 
 /**
