@@ -15,6 +15,7 @@ import AvailabilityModule from './modules/AvailabilityModule';
 import TermsOfUse from './pages/TermsOfUse';
 import Metadata from './pages/Metadata';
 import PrivacyPolicy from 'pages/PrivacyPolicy';
+import type { SinglePagePlugin } from './types/plugins';
 import { isSinglePageModule } from './utilities/moduleFederation';
 import './utilities/i18n';
 
@@ -22,12 +23,25 @@ import './App.module.scss';
 
 export const queryClient = new QueryClient();
 
+// Reads PluginContext at render time, inside the route tree, instead of the router baking in a
+// snapshot captured when `router` was built. `usePluginContext()`'s return value changes identity
+// often (e.g. map selection state); if that identity fed the `router` useMemo below, react-router's
+// `RouterProvider` would be handed a brand-new router instance on every such change. RouterProvider
+// only resyncs its internal state on a router *identity* change, so swapping instances mid-flight —
+// most visibly during the cascade of state updates right after the initial loading gate opens —
+// leaves route elements (like this one, which renders its own nested <Routes>) briefly rendered
+// against a router whose context hasn't caught up, throwing "useRoutes() may be used only in the
+// context of a <Router> component".
+function PluginPage({ Page }: { Page: SinglePagePlugin['Page'] }) {
+  const pluginContext = usePluginContext();
+  return <Page context={pluginContext} />;
+}
+
 function AppRoutes() {
   const { t } = useTranslation('common');
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const { plugins, isLoadingRemotes } = useRemotes();
   const pluginRoutes = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
-  const pluginContext = usePluginContext();
 
   const router = useMemo(() => {
     if (isLoadingThemeConfig || isLoadingRemotes) return null;
@@ -68,13 +82,17 @@ function AppRoutes() {
               }
             />
             {pluginRoutes.map(({ name, route, Page }) => (
+              // Trailing "/*" delegates matching of every nested path (e.g. `/dashboards/list`,
+              // `/dashboards/:id`) to the plugin's own router. Without it, react-router only
+              // matches the exact `/${route}` URL, so any deeper/direct-linked plugin URL falls
+              // through to the host's catch-all and gets redirected to "/".
               <Route
-                key={`/${route}`}
-                path={`/${route}`}
+                key={`/${route}/*`}
+                path={`/${route}/*`}
                 element={
                   <>
                     <PageTitle title={`SoilHive - ${name}`} />
-                    <Page context={pluginContext} />
+                    <PluginPage Page={Page} />
                   </>
                 }
               />
@@ -86,15 +104,7 @@ function AppRoutes() {
         </>,
       ),
     );
-  }, [
-    isLoadingThemeConfig,
-    isLoadingRemotes,
-    pluginContext,
-    pluginRoutes,
-    t,
-    themeConfig.termsAndConditionsHtml,
-    themeConfig.privacyPolicyHtml,
-  ]);
+  }, [isLoadingThemeConfig, isLoadingRemotes, pluginRoutes, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 
   if (!router) return <div />;
   return <RouterProvider router={router} />;
