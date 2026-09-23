@@ -398,6 +398,11 @@ export default class EntitlementService {
    * all targeting this one row. A read-modify-write has no lock held across the gap and loses all
    * but the last writer's key; `ON CONFLICT DO UPDATE` takes the row lock atomically, so each
    * concurrent caller serializes against the row's latest committed `data` instead of a stale read.
+   *
+   * Assumes `requestData.token` is set — unguarded here because its one caller is only ever
+   * reached through `PUT /config/{configId}`, which has mandatory `bearerAuth`. A future caller
+   * off an unauthenticated path would get `getSubject`'s generic "Token subject is missing" 401
+   * rather than an error naming this precondition specifically.
    */
   grantSelfConfigWrite = async (requestData: RequestData, key: string): Promise<void> => {
     const subject = getSubject(requestData);
