@@ -16,11 +16,8 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     method: 'PUT',
   });
 
-  // GET is entitlements-gated on the backend (READ/WRITE, or EVERYONE's grant), and the backend
-  // validates an Authorization header whenever one is sent, security block or not — so this must
-  // NOT force authenticate: false. Omitting it sends the caller's token when they're logged in
-  // (needed to read their own WRITE-held plugin config, or as an admin), while still sending none
-  // when they're not (ThemeContext/logo must still render before login — see ADR-0037).
+  // Must not force authenticate: false — GET is entitlements-gated now, so a logged-in caller's
+  // token needs to be sent when present (see ADR 0037).
   const { data, isLoading, isError } = useApiQuery<T>({
     endpoint,
     method: 'GET',
@@ -38,13 +35,8 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
 
   const saveConfig = async (newConfig: unknown): Promise<void> => {
     const hasWrite = can(Capability.WRITE, id);
-    // A caller with no WRITE grant yet may still be the id's rightful first claimant: for a
-    // plugin: id, the backend runs an atomic first-access bootstrap (ConfigService.putConfig)
-    // that self-grants WRITE to whoever wins it. Attempt the PUT and let the backend decide —
-    // no-opping here on a pure client-side read of grants (which, by definition, can't exist yet
-    // for an unclaimed id) would make that bootstrap unreachable from the UI (see ADR 0037). A
-    // non-plugin (system) id has no such bootstrap, so there's nothing to gain from a PUT the
-    // backend can only ever 403 — skip it rather than surface a doomed request.
+    // Attempt plugin: ids even without a grant yet — first access is claimed by PUT itself, and
+    // no-opping here would make that bootstrap unreachable from the UI (see ADR 0037).
     if (!hasWrite && !PLUGIN_CONFIG_ID_PATTERN.test(id)) {
       return;
     }
@@ -52,9 +44,8 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     await saveMutation.mutateAsync(newConfig);
     await queryClient.invalidateQueries({ queryKey: [endpoint] });
     if (!hasWrite) {
-      // First-access bootstrap just succeeded: the caller now holds a real WRITE grant the
-      // cached CONFIGS entitlements (fetched once and reused by `can`) don't know about yet —
-      // refetch so `can` reflects it without a full page reload.
+      // First-access bootstrap just succeeded — refresh the cached CONFIGS entitlements so `can`
+      // reflects the new grant.
       await queryClient.invalidateQueries({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
     }
   };

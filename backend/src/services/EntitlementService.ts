@@ -341,14 +341,7 @@ export default class EntitlementService {
     }
   }
 
-  /**
-   * Boolean core of the read gate: whether `key` may be read — a privileged caller, or one
-   * already holding `READ` or `WRITE` on it. Synchronous: reads only `requestData.entitlements`
-   * (already loaded by the auth middleware before the handler runs), no DB access. Used directly
-   * wherever a caller needs a boolean instead of a throw — `ConfigService.getConfigs` filters a
-   * batch of rows with it via `rows.filter(...)`, no try/catch needed since there's nothing to
-   * throw. `assertCanReadConfigEntitlement` wraps it for the single-id, throw-on-deny path.
-   */
+  /** Boolean core of the read gate (see ADR 0037). Synchronous, no DB access — lets `ConfigService.getConfigs` filter with a plain `.filter()`. */
   canReadConfig = (requestData: RequestData, key: string): boolean => {
     if (isPrivilegedCaller(requestData.token)) {
       return true;
@@ -357,43 +350,19 @@ export default class EntitlementService {
     return Boolean(callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE));
   };
 
-  /**
-   * Domain-level read gate, shared by every route that reads a config: `GET
-   * /config/{configId}/entitlements` (where the response is the full multi-subject grants map —
-   * every subject's email/id and their capabilities for the config), and the config *value*
-   * routes `GET /config/{configId}` and `GET /config` (`ConfigService.getConfig`/`getConfigs`).
-   * Unlike the write gate, there is no "first access" bypass: if nobody holds a grant yet, a
-   * non-privileged caller by definition holds neither capability either, so this falls out of the
-   * same capability check without a separate branch.
-   */
+  /** Read gate for `GET /config/{configId}(/entitlements)` and `GET /config` (see ADR 0037). */
   assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
     if (!this.canReadConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have read entitlement for config ${key}`, StatusCodes.FORBIDDEN);
     }
   };
 
-  /**
-   * Boolean core of the write gate: whether `key` may be written — a privileged caller, or one
-   * already holding `WRITE` on it. Synchronous, same reasoning as `canReadConfig`. Used directly
-   * by `ConfigService.putConfig`, which needs to branch into first-access bootstrap on `false`
-   * rather than reject outright; `assertCanWriteConfigEntitlement` wraps it for the
-   * throw-on-deny path.
-   */
+  /** Boolean core of the write gate (see ADR 0037). `ConfigService.putConfig` calls this directly to branch into first-access bootstrap on `false`. */
   canWriteConfig = (requestData: RequestData, key: string): boolean =>
     isPrivilegedCaller(requestData.token) ||
     (requestData.entitlements[EntitlementScope.CONFIGS]?.[key]?.includes(Capability.WRITE) ?? false);
 
-  /**
-   * Domain-level write gate, distinct from `enforceEntitlements`: that method carries
-   * dataset-visibility filtering that has no analogue here. Called directly by `PUT
-   * /config/{configId}/entitlements` (`setConfigEntitlement`, below) and by the config *value*'s
-   * `DELETE /config/{configId}` (`ConfigService.deleteConfig`); `PUT /config/{configId}`
-   * (`ConfigService.putConfig`) doesn't call this directly but calls `canWriteConfig` itself,
-   * since it needs to branch into first-access bootstrap rather than reject outright. A non-admin
-   * caller may write a config's entitlements only if they already hold `WRITE` on it — there is
-   * no "first access" bootstrap here (see `ConfigService.putConfig`, which is where first access
-   * on the config *value* now lives, via `grantSelfConfigWrite`).
-   */
+  /** Write gate for `PUT /config/{configId}/entitlements` and `DELETE /config/{configId}` (see ADR 0037). */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
     if (!this.canWriteConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
@@ -401,23 +370,13 @@ export default class EntitlementService {
   };
 
   /**
-   * Grants `WRITE` on a config key to the caller's own subject only, merging into whatever
-   * grants that subject already holds (idempotent — a repeat call is a no-op, not a duplicate).
-   * Called by `ConfigService.putConfig` after a caller wins the first-access race on a fresh
-   * `plugin:` config id (see the `PLUGIN_CONFIG_ID_PATTERN` bootstrap there); runs inside that
-   * same request transaction, so the row write and the grant are atomic as a unit.
+   * Self-grants `WRITE` on `key` after `ConfigService.putConfig` wins a first-access race (ADR
+   * 0037). An atomic `INSERT ... ON CONFLICT DO UPDATE`, not `findOneBy` + `save`: the same
+   * subject can win several distinct ids concurrently, each its own transaction, all targeting
+   * this one row — a read-modify-write would lose all but the last writer's key.
    *
-   * An atomic `INSERT ... ON CONFLICT (id) DO UPDATE`, not a `findOneBy` + `save` pair: the same
-   * subject can win first access on several distinct keys concurrently (several
-   * `PUT /config/plugin:{pluginId}:{id}` requests in flight at once, each its own transaction),
-   * all targeting this one row. A read-modify-write has no lock held across the gap and loses all
-   * but the last writer's key; `ON CONFLICT DO UPDATE` takes the row lock atomically, so each
-   * concurrent caller serializes against the row's latest committed `data` instead of a stale read.
-   *
-   * Assumes `requestData.token` is set — unguarded here because its one caller is only ever
-   * reached through `PUT /config/{configId}`, which has mandatory `bearerAuth`. A future caller
-   * off an unauthenticated path would get `getSubject`'s generic "Token subject is missing" 401
-   * rather than an error naming this precondition specifically.
+   * Assumes `requestData.token` is set; unguarded because its one caller sits behind mandatory
+   * `bearerAuth`.
    */
   grantSelfConfigWrite = async (requestData: RequestData, key: string): Promise<void> => {
     const subject = getSubject(requestData);
