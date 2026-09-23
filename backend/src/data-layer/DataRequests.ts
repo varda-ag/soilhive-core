@@ -13,6 +13,11 @@ import {
 } from '../jobs/data-requests/types';
 import { log, timed } from '../utils/logger';
 import { round3 } from '../utils/utils';
+import DataRequestEntity from '../entities/DataRequest';
+import { DataRequestStatus, JobQueues } from '../types/enums';
+import { PG_BOSS_SCHEMA } from '../services/PgBoss';
+import { DataRequestParameters } from '../interfaces/DataRequest';
+import { DataRequestJob } from '../interfaces/Job';
 
 export interface DataRequestOptions {
   filter: DataFilter;
@@ -585,3 +590,73 @@ export const computeDataRequest = async (entityManager: EntityManager, options: 
 
 export const computeDataRequestTimed = (entityManager: EntityManager, options: DataRequestOptions) =>
   timed('dataRequest.compute', () => computeDataRequest(entityManager, options));
+
+// ── the record ───────────────────────────────────────────────────────────────────────────
+//
+// Everything above computes a Data Request's payload; everything below stores the Data Request itself.
+
+/** One `data_requests` row: a Run that reached an outcome (docs/adr/0037). */
+export interface DataRequestRecord {
+  /** The Run's id — the pg-boss job id, never generated here. */
+  id: string;
+  status: DataRequestStatus.COMPLETED | DataRequestStatus.FAILED;
+  request: DataRequestParameters;
+  /** Null exactly when the Run failed. */
+  data: DataRequestOutput | null;
+  message: string | null;
+  created_at: Date;
+  completed_at: Date;
+}
+
+/**
+ * The `request` half of a Data Request, taken from its job data — what the row stores and what a
+ * caller reads back while the job still lives, so both say the same thing.
+ */
+export const toDataRequestParameters = (data: DataRequestJob): DataRequestParameters => ({
+  statistics_type: data.statistics_type,
+  filter_id: data.filter_id,
+  ...(data.file_id !== undefined ? { file_id: data.file_id } : {}),
+  ...(data.label_field !== undefined ? { label_field: data.label_field } : {}),
+  ...(data.dataset_ids !== undefined ? { dataset_ids: data.dataset_ids } : {}),
+  ...(data.histogram_bins !== undefined ? { histogram_bins: data.histogram_bins } : {}),
+  derived_filter_id: data.derived_filter_id ?? null,
+  unit_count: data.unit_count ?? 0,
+  units: data.units ?? [],
+});
+
+/**
+ * Writes the outcome of one Run. Called once, from `processDataRequest` and nowhere else.
+ * Raw SQL rather than TypeORM repository to support `WHERE EXISTS`.
+ */
+export const insertDataRequest = async (entityManager: EntityManager, record: DataRequestRecord): Promise<void> => {
+  await entityManager.query(
+    `INSERT INTO data_requests ("id", "status", "request", "data", "message", "created_at", "completed_at")
+     SELECT $1::uuid, $2::text, $3::jsonb, $4::jsonb, $5::text, $6::timestamptz, $7::timestamptz
+     WHERE EXISTS (
+       SELECT 1 FROM ${PG_BOSS_SCHEMA}.job WHERE "name" = $8::text AND "id" = $1::uuid AND "state" <> 'cancelled'
+     )
+     ON CONFLICT DO NOTHING`,
+    [
+      record.id,
+      record.status,
+      JSON.stringify(record.request),
+      record.data === null ? null : JSON.stringify(record.data),
+      record.message,
+      record.created_at,
+      record.completed_at,
+      JobQueues.DATA_REQUESTS,
+    ],
+  );
+};
+
+/** Reads one Data Request by its Run's id, or null. */
+export const findDataRequest = async (entityManager: EntityManager, id: string): Promise<DataRequestRecord | null> => {
+  const row = await entityManager.getRepository(DataRequestEntity).findOne({ where: { id } });
+  return row ? (row as unknown as DataRequestRecord) : null;
+};
+
+/** Destroys one Data Request. Returns whether a row was there to destroy. */
+export const deleteDataRequest = async (entityManager: EntityManager, id: string): Promise<boolean> => {
+  const result = await entityManager.getRepository(DataRequestEntity).delete({ id });
+  return (result.affected ?? 0) > 0;
+};
