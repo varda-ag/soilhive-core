@@ -1,4 +1,4 @@
-import { AuthModes, Capability, StorageModes } from '../types/enums';
+import { AuthModes, StorageModes } from '../types/enums';
 import { JsonStorage } from '../entities/JsonStorage';
 import { ErrorResponse } from '../utils/error';
 import { In, Repository } from 'typeorm';
@@ -8,8 +8,6 @@ import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig'
 import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
-import { EntitlementScope } from '../types/Entitlements';
-import { isPrivilegedCaller } from '../utils/auth';
 import EntitlementService from './EntitlementService';
 
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
@@ -25,16 +23,6 @@ export interface LogoData {
 }
 
 export default class ConfigService {
-  /**
-   * Whether the caller may write `id` without going through first-access bootstrap: either a
-   * privileged caller, or one already holding `WRITE` — the same check
-   * `EntitlementService.assertCanWriteConfigEntitlement` makes, but as a boolean rather than a
-   * throw, since `putConfig` needs to branch on it rather than reject on it.
-   */
-  private hasExistingConfigWriteGrant = (requestData: RequestData, id: string): boolean =>
-    isPrivilegedCaller(requestData.token) ||
-    (requestData.entitlements[EntitlementScope.CONFIGS]?.[id]?.includes(Capability.WRITE) ?? false);
-
   private readConfigRow = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
     const row = await repo.findOneBy({ id });
     if (!row) {
@@ -54,7 +42,7 @@ export default class ConfigService {
   putConfig = async (requestData: RequestData, id: string, data: any): Promise<any> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
 
-    if (this.hasExistingConfigWriteGrant(requestData, id)) {
+    if (entitlementService.canWriteConfig(requestData, id)) {
       await repo.upsert([{ id, data, deleted_at: null }], ['id']);
       return this.readConfigRow(repo, id);
     }
@@ -102,15 +90,7 @@ export default class ConfigService {
   getConfigs = async (requestData: RequestData, ids: string[]): Promise<any> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
-    const readableRows: JsonStorage[] = [];
-    for (const row of rows) {
-      try {
-        await entitlementService.assertCanReadConfigEntitlement(requestData, row.id);
-        readableRows.push(row);
-      } catch {
-        // Caller lacks READ/WRITE on this id — omit it, don't fail the whole batch.
-      }
-    }
+    const readableRows = rows.filter(row => entitlementService.canReadConfig(requestData, row.id));
     return this.mapRowsById(readableRows);
   };
 

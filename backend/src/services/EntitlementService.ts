@@ -342,45 +342,60 @@ export default class EntitlementService {
   }
 
   /**
+   * Boolean core of the read gate: whether `key` may be read — a privileged caller, or one
+   * already holding `READ` or `WRITE` on it. Synchronous: reads only `requestData.entitlements`
+   * (already loaded by the auth middleware before the handler runs), no DB access. Used directly
+   * wherever a caller needs a boolean instead of a throw — `ConfigService.getConfigs` filters a
+   * batch of rows with it via `rows.filter(...)`, no try/catch needed since there's nothing to
+   * throw. `assertCanReadConfigEntitlement` wraps it for the single-id, throw-on-deny path.
+   */
+  canReadConfig = (requestData: RequestData, key: string): boolean => {
+    if (isPrivilegedCaller(requestData.token)) {
+      return true;
+    }
+    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
+    return Boolean(callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE));
+  };
+
+  /**
    * Domain-level read gate, shared by every route that reads a config: `GET
    * /config/{configId}/entitlements` (where the response is the full multi-subject grants map —
    * every subject's email/id and their capabilities for the config), and the config *value*
    * routes `GET /config/{configId}` and `GET /config` (`ConfigService.getConfig`/`getConfigs`).
-   * Only a privileged caller or someone who already holds `READ` or `WRITE` on the config passes.
    * Unlike the write gate, there is no "first access" bypass: if nobody holds a grant yet, a
    * non-privileged caller by definition holds neither capability either, so this falls out of the
    * same capability check without a separate branch.
    */
   assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
-    if (isPrivilegedCaller(requestData.token)) {
-      return;
-    }
-
-    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
-    if (!callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE)) {
+    if (!this.canReadConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have read entitlement for config ${key}`, StatusCodes.FORBIDDEN);
     }
   };
+
+  /**
+   * Boolean core of the write gate: whether `key` may be written — a privileged caller, or one
+   * already holding `WRITE` on it. Synchronous, same reasoning as `canReadConfig`. Used directly
+   * by `ConfigService.putConfig`, which needs to branch into first-access bootstrap on `false`
+   * rather than reject outright; `assertCanWriteConfigEntitlement` wraps it for the
+   * throw-on-deny path.
+   */
+  canWriteConfig = (requestData: RequestData, key: string): boolean =>
+    isPrivilegedCaller(requestData.token) ||
+    (requestData.entitlements[EntitlementScope.CONFIGS]?.[key]?.includes(Capability.WRITE) ?? false);
 
   /**
    * Domain-level write gate, distinct from `enforceEntitlements`: that method carries
    * dataset-visibility filtering that has no analogue here. Called directly by `PUT
    * /config/{configId}/entitlements` (`setConfigEntitlement`, below) and by the config *value*'s
    * `DELETE /config/{configId}` (`ConfigService.deleteConfig`); `PUT /config/{configId}`
-   * (`ConfigService.putConfig`) doesn't call this directly but mirrors the same check as a
-   * boolean via `hasExistingConfigWriteGrant`, since it needs to branch into first-access
-   * bootstrap rather than reject outright. A non-admin caller may write a config's entitlements
-   * only if they already hold `WRITE` on it — there is no "first access" bootstrap here (see
-   * `ConfigService.putConfig`, which is where first access on the config *value* now lives, via
-   * `grantSelfConfigWrite`).
+   * (`ConfigService.putConfig`) doesn't call this directly but calls `canWriteConfig` itself,
+   * since it needs to branch into first-access bootstrap rather than reject outright. A non-admin
+   * caller may write a config's entitlements only if they already hold `WRITE` on it — there is
+   * no "first access" bootstrap here (see `ConfigService.putConfig`, which is where first access
+   * on the config *value* now lives, via `grantSelfConfigWrite`).
    */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
-    if (isPrivilegedCaller(requestData.token)) {
-      return;
-    }
-
-    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
-    if (!callerCapabilities?.includes(Capability.WRITE)) {
+    if (!this.canWriteConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
     }
   };

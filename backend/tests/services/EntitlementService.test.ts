@@ -519,6 +519,38 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('canReadConfig', () => {
+    const configKey = 'test-config-key';
+
+    it('returns false for a non-privileged caller with no capability for the config', () => {
+      expect(service.canReadConfig(requestData, configKey)).toBe(false);
+    });
+
+    it('returns true for a non-privileged caller holding READ for the config', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+      expect(service.canReadConfig(rd, configKey)).toBe(true);
+    });
+
+    it('returns true for a non-privileged caller holding WRITE for the config', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+      expect(service.canReadConfig(rd, configKey)).toBe(true);
+    });
+
+    it('returns false for a non-privileged caller holding an unrelated capability only', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [] } } };
+      expect(service.canReadConfig(rd, configKey)).toBe(false);
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('returns true for a privileged caller regardless of capability', additionalData => {
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+      expect(service.canReadConfig(rd, configKey)).toBe(true);
+    });
+  });
+
   describe('assertCanReadConfigEntitlement', () => {
     const configKey = 'test-config-key';
 
@@ -614,6 +646,33 @@ describe('EntitlementService', () => {
       };
 
       await expect(service.getConfigEntitlement(rd, configKey)).resolves.toEqual({ [EVERYONE]: [Capability.READ] });
+    });
+  });
+
+  describe('canWriteConfig', () => {
+    const configKey = 'test-config-key';
+
+    it('returns false for a non-privileged caller with no existing WRITE grant, even for a fresh plugin: id', () => {
+      expect(service.canWriteConfig(requestData, 'plugin:my-plugin:settings')).toBe(false);
+    });
+
+    it('returns true for a non-privileged caller holding an existing WRITE grant', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+      expect(service.canWriteConfig(rd, configKey)).toBe(true);
+    });
+
+    it('returns false for a non-privileged caller holding READ only', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+      expect(service.canWriteConfig(rd, configKey)).toBe(false);
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('returns true for a privileged caller regardless of existing grants', additionalData => {
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+      expect(service.canWriteConfig(rd, configKey)).toBe(true);
     });
   });
 
