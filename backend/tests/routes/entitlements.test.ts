@@ -180,52 +180,30 @@ describe('Testing entitlements routes', () => {
       },
     );
 
-    it('allows a non-admin caller to PUT on first access of a plugin-owned config (nobody holds a grant yet)', async () => {
-      const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
+    it('rejects a non-admin caller with no existing WRITE grant, even for a fresh plugin-owned config (no more self-service first access on this endpoint — see PUT /config/{configId})', async () => {
+      const callerToken = getUserToken('first-access-id', 'first-access@example.com');
       const pluginConfigId = 'plugin:my-plugin:settings';
 
       const res = await request(app)
         .put(`/config/${pluginConfigId}/entitlements`)
-        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .set('Authorization', `Bearer ${callerToken}`)
         .send({ 'first-access@example.com': [Capability.WRITE] });
 
-      expect(res.statusCode).toBe(StatusCodes.OK);
-    });
-
-    it('rejects a non-admin caller squatting another plugin config id on first access by naming a different subject', async () => {
-      const squatterToken = getUserToken('squatter-id', 'squatter@example.com');
-
-      const res = await request(app)
-        .put('/config/plugin:someone-elses-plugin:settings/entitlements')
-        .set('Authorization', `Bearer ${squatterToken}`)
-        .send({ 'not-the-caller@example.com': [Capability.WRITE] });
-
       expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
 
-    it('rejects a non-admin caller planting an extra grant (e.g. everyone) alongside their own on first access', async () => {
-      const squatterToken = getUserToken('squatter-id', 'squatter@example.com');
-
-      const res = await request(app)
-        .put('/config/plugin:someone-elses-plugin:settings/entitlements')
-        .set('Authorization', `Bearer ${squatterToken}`)
-        .send({ 'squatter@example.com': [Capability.WRITE], everyone: [Capability.READ] });
-
-      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
-    });
-
-    it('rejects a non-admin caller on first access of a non-plugin config id, even with no grants or row yet', async () => {
-      const firstAccessToken = getUserToken('first-access-id', 'first-access@example.com');
+    it('rejects a non-admin caller with no grant on a non-plugin config id, even with no row yet', async () => {
+      const callerToken = getUserToken('first-access-id', 'first-access@example.com');
 
       const res = await request(app)
         .put(`/config/${configId}/entitlements`)
-        .set('Authorization', `Bearer ${firstAccessToken}`)
+        .set('Authorization', `Bearer ${callerToken}`)
         .send({ 'first-access@example.com': [Capability.WRITE] });
 
       expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
 
-    it('rejects a non-admin caller on first access when the config already exists but has no grants yet', async () => {
+    it('rejects a non-admin caller on a config that already exists but has no grants yet', async () => {
       const entityManager = await getEntityManager();
       await entityManager.getRepository('JsonStorage').save({ id: configId, data: { some: 'value' } });
       const nonAdminToken = getUserToken('existing-config-id', 'existing-config@example.com');
