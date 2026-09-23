@@ -14,6 +14,11 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     method: 'PUT',
   });
 
+  // GET is entitlements-gated on the backend (READ/WRITE, or EVERYONE's grant), and the backend
+  // validates an Authorization header whenever one is sent, security block or not — so this must
+  // NOT force authenticate: false. Omitting it sends the caller's token when they're logged in
+  // (needed to read their own WRITE-held plugin config, or as an admin), while still sending none
+  // when they're not (ThemeContext/logo must still render before login — see ADR-0037).
   const { data, isLoading, isError } = useApiQuery<T>({
     endpoint,
     method: 'GET',
@@ -21,7 +26,6 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     enabled: !!id,
     showErrorNotification: false,
     notFoundAsNull: true,
-    authenticate: false,
   });
 
   // Backfill top-level keys that are missing in fetched data, keeping stored values

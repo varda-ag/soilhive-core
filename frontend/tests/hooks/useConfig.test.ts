@@ -61,7 +61,7 @@ describe('useConfig', () => {
     expect(mutateAsync).not.toHaveBeenCalled();
   });
 
-  it('fetches GET /config/{id} anonymously', () => {
+  it('fetches GET /config/{id} with the token when one exists, so an anonymous visit stays anonymous but a caller does not lose access to their own entitled configs', () => {
     useEntitlementsMock.mockReturnValue({ can: jest.fn().mockReturnValue(false) });
 
     renderHook(() => useConfig(configId));
@@ -70,9 +70,11 @@ describe('useConfig', () => {
       expect.objectContaining({
         endpoint: `/config/${configId}`,
         method: 'GET',
-        authenticate: false,
         notFoundAsNull: true,
       }),
     );
+    // authenticate must not be forced false — GET is entitlements-gated, so a logged-in caller
+    // (WRITE holder, or an admin) needs their token sent, not just EVERYONE's grants.
+    expect(useApiQuery).not.toHaveBeenCalledWith(expect.objectContaining({ authenticate: false }));
   });
 });

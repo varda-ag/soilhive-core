@@ -24,9 +24,11 @@ describe('useConfigs', () => {
         parameters: [['ids', 'a,b']],
         queryKey: ['/config', ['a', 'b']],
         enabled: true,
-        authenticate: false,
       }),
     );
+    // authenticate must not be forced false — GET /config is entitlements-gated, so a logged-in
+    // caller's token must be sent or their own entitled (non-EVERYONE) configs get silently omitted.
+    expect(useApiQuery).not.toHaveBeenCalledWith(expect.objectContaining({ authenticate: false }));
     expect(result.current.data).toBe(data);
   });
 
