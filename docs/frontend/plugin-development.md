@@ -236,6 +236,22 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
 export { pluginId, name, route, type, Page };
 ```
 
+#### Config ownership and sharing
+
+A `plugin:{pluginId}:{id}` config isn't shared by every user of your plugin by default: only the first `saveConfig` call to a fresh id claims it, granting `write` (which implies `read`) to that one caller only. Every other user gets `403` on both `saveConfig` and the config's `GET`, until someone with access grants them capabilities explicitly.
+
+To share a config — e.g. one set of team-wide settings for every user of your plugin — the owner grants access via `context.usePluginConfigEntitlementsMutation`. This call **replaces** the whole grant list for that id, so always include the owner's own subject or the call revokes their own `write`:
+
+```tsx
+const { data: entitlements } = context.usePluginConfigEntitlements(pluginId, 'settings');
+const { mutateAsync: setEntitlements } = context.usePluginConfigEntitlementsMutation(pluginId, 'settings');
+
+// Keep every existing grant, add read for everyone
+await setEntitlements({ ...entitlements, everyone: ['read'] });
+```
+
+Use `['read', 'write']` instead of `['read']` if every user should be able to edit the config, not just view it.
+
 ### Batch-fetching multiple config ids
 
 Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map:
