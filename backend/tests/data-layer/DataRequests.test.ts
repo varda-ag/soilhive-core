@@ -14,12 +14,14 @@ import {
   addSoilProperty,
   addVocabulary,
 } from '../../src/utils/mock';
-import { computeDataRequest } from '../../src/data-layer/DataRequests';
+import { computeDataRequest, toDataRequestParameters } from '../../src/data-layer/DataRequests';
 import FilterService from '../../src/services/FilterService';
 import ProcedureEntity from '../../src/entities/Procedure';
 import { GISDataType, VocabularyType } from '../../src/types/data';
 import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { RequestData } from '../../src/interfaces/RequestData';
+import { DataRequestJob } from '../../src/interfaces/Job';
+import { JobQueues, StatisticsType } from '../../src/types/enums';
 
 const DATASET_BBOX = [-1, -1, 5, 5];
 
@@ -593,6 +595,67 @@ describe('computeDataRequest — filtering', () => {
     expect(cell.count).toBe(2);
     expect(cell.horizons).toEqual(['A']);
     // Two analytical methods behind one mean — the flag that makes it reviewable.
-    expect(cell.laboratory_methods.sort()).toEqual(['Dumas combustion', 'Walkley-Black']);
+    expect(cell.laboratory_methods?.sort()).toEqual(['Dumas combustion', 'Walkley-Black']);
+  });
+});
+
+// The one mapping from job data to what a caller reads back, shared by the row the processor writes
+// and the response served while the job lives (docs/adr/0037).
+describe('toDataRequestParameters', () => {
+  const baseJob = (overrides: Partial<DataRequestJob> = {}): DataRequestJob =>
+    ({
+      type: JobQueues.DATA_REQUESTS,
+      statistics_type: StatisticsType.DESCRIPTIVE,
+      filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
+      created_by: 'someone@example.com',
+      isDataAdmin: true,
+      isSuperAdmin: true,
+      anonymous: true,
+      progress_percentage: 42,
+      progress_description: 'Computing',
+      ...overrides,
+    }) as DataRequestJob;
+
+  it('never carries the submitter, their privilege, or job bookkeeping', () => {
+    const keys = Object.keys(toDataRequestParameters(baseJob()));
+    for (const key of ['type', 'created_by', 'isDataAdmin', 'isSuperAdmin', 'anonymous', 'progress_percentage', 'progress_description']) {
+      expect(keys).not.toContain(key);
+    }
+  });
+
+  it('defaults the resolved half when no unit has been resolved yet', () => {
+    expect(toDataRequestParameters(baseJob())).toEqual({
+      statistics_type: StatisticsType.DESCRIPTIVE,
+      filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
+      derived_filter_id: null,
+      unit_count: 0,
+      units: [],
+    });
+  });
+
+  it('keeps every optional parameter that was given and the resolved units', () => {
+    const units = [{ unit_id: 'u1', label: 'A', area_m2: 1, raster_filtered: false }] as unknown as DataRequestJob['units'];
+    const result = toDataRequestParameters(
+      baseJob({
+        file_id: 'file-1',
+        label_field: 'name',
+        dataset_ids: ['ds-a'],
+        histogram_bins: 20,
+        derived_filter_id: 'derived-1',
+        unit_count: 1,
+        units,
+      }),
+    );
+    expect(result).toEqual({
+      statistics_type: StatisticsType.DESCRIPTIVE,
+      filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
+      file_id: 'file-1',
+      label_field: 'name',
+      dataset_ids: ['ds-a'],
+      histogram_bins: 20,
+      derived_filter_id: 'derived-1',
+      unit_count: 1,
+      units,
+    });
   });
 });
