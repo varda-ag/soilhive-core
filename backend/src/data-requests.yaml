@@ -2,20 +2,7 @@ openapi: 3.0.0
 info:
   version: 1.0.0
   title: Data requests
-  description: >
-    Schemas for the /data-requests endpoints: what a caller submits, what is reported back, and
-    the soil statistics a `descriptive` request produces.
-
-
-    They live outside openapi.yaml because they are the largest single block of schemas in the
-    API - the statistics payload alone is six of them - and because they describe one coherent
-    resource rather than being spread across the endpoints that happen to use them.
-
-
-    Referenced from openapi.yaml as `../src/data-requests.yaml#/...`, the same form
-    GeoJSON-OAS3.yaml uses: that path resolves from src/openapi.yaml and from dist/openapi.yaml
-    alike, which is why the Dockerfile copies this file into the image alongside the spec.
-
+  description: Schemas for the /data-requests endpoints
 components:
   schemas:
     DataRequestSubmission:

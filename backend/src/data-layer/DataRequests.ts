@@ -593,9 +593,7 @@ export const computeDataRequestTimed = (entityManager: EntityManager, options: D
 
 // ── the record ───────────────────────────────────────────────────────────────────────────
 //
-// Everything above computes a Data Request's payload; everything below stores the Data
-// Request itself. They share this module and nothing else — the compute half never reads the
-// table, and the storage half never looks inside `data`.
+// Everything above computes a Data Request's payload; everything below stores the Data Request itself.
 
 /** One `data_requests` row: a Run that reached an outcome (docs/adr/0037). */
 export interface DataRequestRecord {
@@ -629,9 +627,6 @@ export const toDataRequestParameters = (data: DataRequestJob): DataRequestParame
 /**
  * Writes the outcome of one Run. Called once, from `processDataRequest` and nowhere else.
  * Raw SQL rather than TypeORM repository to support `WHERE EXISTS`.
- * DELETE /data-requests destroys a Run by cancelling its job and deleting any row; a Run that is
- * past its last cancellation checkpoint has neither seen the cancellation nor left a row to
- * delete, and would write one *after* the DELETE returned.
  */
 export const insertDataRequest = async (entityManager: EntityManager, record: DataRequestRecord): Promise<void> => {
   await entityManager.query(
@@ -654,12 +649,7 @@ export const insertDataRequest = async (entityManager: EntityManager, record: Da
   );
 };
 
-/**
- * Reads one Data Request by its Run's id, or null.
- *
- * `data` is unbounded, so this pays for the whole payload — there is no metadata-only read,
- * and callers that only need to know whether the row exists should not use it.
- */
+/** Reads one Data Request by its Run's id, or null. */
 export const findDataRequest = async (entityManager: EntityManager, id: string): Promise<DataRequestRecord | null> => {
   const row = await entityManager.getRepository(DataRequestEntity).findOne({ where: { id } });
   return row ? (row as unknown as DataRequestRecord) : null;
