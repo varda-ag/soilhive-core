@@ -9,6 +9,7 @@ import { JsonStorage } from '../entities/JsonStorage';
 import ConfigService from '../services/ConfigService';
 import { VocabularyType } from '../types/data';
 import { CSV_HASHES_CONFIG_ID } from '../constants/constants';
+import { RequestData } from '../interfaces/RequestData';
 
 /**
  * Syncs vocabulary tables from the CSVs in backend/docs/data-model/, automatically on every boot (app.ts).
@@ -512,6 +513,15 @@ export async function syncVocabularies(dryRun: boolean = false): Promise<void> {
 async function runSync(manager: EntityManager, dryRun: boolean): Promise<void> {
   const label = dryRun ? 'would sync' : 'synced';
   const configService = new ConfigService();
+  // This script runs outside any HTTP request (cron/manual), so it builds its own Token by hand
+  // rather than deriving one from a request — same pattern background jobs use (see JobService).
+  // isInternalRequest: true makes it a privileged caller, bypassing the CONFIGS entitlement gate
+  // now on ConfigService.putConfig.
+  const requestData: RequestData = {
+    entityManager: manager,
+    token: { sub: 'sync-vocabularies-script', raw: '', scope: '', isSuperAdmin: false, isDataAdmin: false, isInternalRequest: true },
+    entitlements: {},
+  };
 
   const hashRepo = manager.getRepository(JsonStorage);
   const storedHashesRow = await hashRepo.findOneBy({ id: CSV_HASHES_CONFIG_ID });
@@ -520,7 +530,7 @@ async function runSync(manager: EntityManager, dryRun: boolean): Promise<void> {
   const persistHash = async (key: keyof csvHashes, hash: string): Promise<void> => {
     currentHashes[key] = hash;
     if (!dryRun) {
-      await configService.putConfig(hashRepo, CSV_HASHES_CONFIG_ID, currentHashes);
+      await configService.putConfig(requestData, CSV_HASHES_CONFIG_ID, currentHashes);
     }
   };
 

@@ -6,11 +6,15 @@ import { AuthConfig, OIDCConfig } from '../interfaces/AuthConfig';
 import { StatusCodes } from 'http-status-codes';
 import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import assert from 'assert';
-import { FRONTEND_LOGO_CONFIG_ID } from '../constants/constants';
+import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
+import { RequestData } from '../interfaces/RequestData';
+import EntitlementService from './EntitlementService';
 
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
 const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
 const DEFAULT_S3_STORAGE_QUEUE_SIZE = 4;
+
+const entitlementService = new EntitlementService();
 
 export interface LogoData {
   fileKey: string;
@@ -19,12 +23,7 @@ export interface LogoData {
 }
 
 export default class ConfigService {
-  putConfig = async (repo: Repository<JsonStorage>, id: string, data: any): Promise<any> => {
-    await repo.upsert([{ id, data, deleted_at: null }], ['id']);
-    return await this.getConfig(repo, id);
-  };
-
-  getConfig = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
+  private readConfigRow = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
     const row = await repo.findOneBy({ id });
     if (!row) {
       throw new ErrorResponse('Configuration not found', StatusCodes.NOT_FOUND);
@@ -32,13 +31,72 @@ export default class ConfigService {
     return row.data;
   };
 
-  deleteConfig = async (repo: Repository<JsonStorage>, id: string): Promise<void> => {
+  /**
+   * `PUT /config/{configId}`. A caller who already holds `WRITE` (or is privileged) upserts as
+   * before. Otherwise, only a fresh `plugin:` id is eligible for first access: a conflict-
+   * detecting insert (`ON CONFLICT DO NOTHING`, not `upsert`, which would let a concurrent racer
+   * silently overwrite the winner) either claims the id — granting the caller `WRITE` on it in
+   * the same transaction — or loses the race/finds it already taken (including soft-deleted,
+   * since the row's PK still exists) and 403s without writing anything. See ADR 0037.
+   */
+  putConfig = async (requestData: RequestData, id: string, data: any): Promise<any> => {
+    const repo = requestData.entityManager.getRepository(JsonStorage);
+
+    if (entitlementService.canWriteConfig(requestData, id)) {
+      await repo.upsert([{ id, data, deleted_at: null }], ['id']);
+      return this.readConfigRow(repo, id);
+    }
+
+    if (!PLUGIN_CONFIG_ID_PATTERN.test(id)) {
+      throw new ErrorResponse(`User does not have write entitlement for config ${id}`, StatusCodes.FORBIDDEN);
+    }
+
+    // `id` is a caller-supplied (not DB-generated) primary key, so `insertResult.identifiers`
+    // is populated from the values given regardless of whether ON CONFLICT DO NOTHING actually
+    // skipped the row — it is not a reliable "did I win the race" signal here. `.returning('id')`
+    // is: Postgres only returns rows RETURNING actually inserted, so an empty `raw` means lost.
+    const insertResult = await repo
+      .createQueryBuilder()
+      .insert()
+      .into(JsonStorage)
+      .values({ id, data, deleted_at: null })
+      .orIgnore()
+      .returning('id')
+      .execute();
+    if (insertResult.raw.length === 0) {
+      throw new ErrorResponse(`User does not have write entitlement for config ${id}`, StatusCodes.FORBIDDEN);
+    }
+
+    await entitlementService.grantSelfConfigWrite(requestData, id);
+    return this.readConfigRow(repo, id);
+  };
+
+  // Existence before entitlement: a missing id 404s for every caller, not 403 first. The
+  // frontend's notFoundAsNull only maps 404 to a graceful null — a 403 isn't special-cased and
+  // gets retried by React Query's default retry, which a fresh, not-yet-created plugin: config
+  // (the common case, since nobody holds a grant on it yet) would otherwise hit on every load.
+  getConfig = async (requestData: RequestData, id: string): Promise<any> => {
+    const repo = requestData.entityManager.getRepository(JsonStorage);
+    const data = await this.readConfigRow(repo, id);
+    await entitlementService.assertCanReadConfigEntitlement(requestData, id);
+    return data;
+  };
+
+  deleteConfig = async (requestData: RequestData, id: string): Promise<void> => {
+    await entitlementService.assertCanWriteConfigEntitlement(requestData, id);
+    const repo = requestData.entityManager.getRepository(JsonStorage);
     await repo.softDelete({ id });
   };
 
-  getConfigs = async (repo: Repository<JsonStorage>, ids: string[]): Promise<any> => {
+  /**
+   * Silently omits ids the caller can't read from the result map — the same precedent
+   * `getConfigs` already sets for ids that don't exist at all (see ADR 0037).
+   */
+  getConfigs = async (requestData: RequestData, ids: string[]): Promise<any> => {
+    const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
-    return this.mapRowsById(rows);
+    const readableRows = rows.filter(row => entitlementService.canReadConfig(requestData, row.id));
+    return this.mapRowsById(readableRows);
   };
 
   exportConfigs = async (repo: Repository<JsonStorage>): Promise<any> => {
