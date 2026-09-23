@@ -39,6 +39,13 @@ divergent bootstrap paths open at once.
   to one plugin's own config namespace and nothing else, and no registry of legitimate plugin ids
   exists to check ownership against (same reasoning ADR 0035 used to reject building one). Revisit
   if squatting is ever observed to cause real harm.
+- `ConfigItem` (`openapi.yaml`) is a bare `type: object` — no shape or size constraint of its own,
+  only the app-wide `JSON_PAYLOAD_LIMIT` body-size cap — and self-access is now open to any
+  authenticated non-admin, not just admins. There is also no limit on how many distinct
+  `plugin:{pluginId}:{id}` rows one subject can claim. A logged-in caller can therefore create an
+  unbounded number of config rows, each up to `JSON_PAYLOAD_LIMIT` of arbitrary JSON. Accepted for
+  this ticket, same reasoning as plugin-id squatting above: revisit (a per-subject row quota, or a
+  tighter `ConfigItem` schema) if abuse is observed.
 - `ConfigService.deleteConfig`'s soft delete still does not clear a config id's Entitlements grant,
   and — as a side effect of using `ON CONFLICT (id)` for the bootstrap check — a soft-deleted row
   still blocks a new first-access claim on the same id (the row's primary key still exists). A
