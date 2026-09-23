@@ -2,14 +2,17 @@ import { QueryRunner } from 'typeorm';
 
 // Ids are spelled out literally here, not imported from constants.ts — a migration must stay
 // self-contained and reproduce the exact historical statement even if the app constants change.
-const SYSTEM_CONFIG_IDS = ['frontend-logo', 'theme', 'ingestion-status', 'vocabulary-csv-hashes'] as const;
+// `ingestion-status` is deliberately excluded: every reader of it lives behind AdminPortalGuard
+// (data-admin/super-admin only), so unlike the other three it has no anonymous or regular-user
+// caller to preserve access for.
+const SYSTEM_CONFIG_IDS = ['frontend-logo', 'theme', 'vocabulary-csv-hashes'] as const;
 
 /**
- * Grants EVERYONE `read` on the four known system config ids, so GET /config/{configId} on them
+ * Grants EVERYONE `read` on the known public system config ids, so GET /config/{configId} on them
  * keeps working anonymously now that it's entitlements-gated (see ADR-0037).
  *
  * A live 'everyone' row may already exist (e.g. a dataset grant made via the API), so this
- * merges into data->'configs' rather than overwriting the row: `||` only replaces the 4 named
+ * merges into data->'configs' rather than overwriting the row: `||` only replaces the 3 named
  * keys within 'configs', leaving 'datasets' and any other 'configs' entries untouched.
  *
  * Lives outside `src/migrations/` on purpose: TypeORM's migration glob loader treats every export
@@ -30,7 +33,7 @@ export const grantEveryoneSystemConfigReads = async (queryRunner: QueryRunner): 
 };
 
 /**
- * Strips exactly the 4 keys `grantEveryoneSystemConfigReads` granted from EVERYONE's
+ * Strips exactly the 3 keys `grantEveryoneSystemConfigReads` granted from EVERYONE's
  * data->'configs', not the whole row — any other grant EVERYONE has (datasets, or other
  * configs) must survive.
  */
