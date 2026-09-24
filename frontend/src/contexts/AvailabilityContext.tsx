@@ -23,6 +23,7 @@ import useAvailabilityMap from '../hooks/useAvailabilityMap';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
+import { SPLIT_FILTERING_QUERIES } from 'utilities/environmentVariables';
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
@@ -160,8 +161,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [searchValue, allDatasets, datasetFrontendFilters]);
 
   const isDatasetsLoading = useMemo(() => {
-    return isFullDatasetsLoading || isLoadingFullFilter;
-  }, [isLoadingFullFilter, isFullDatasetsLoading]);
+    return isLoadingFullFilter || (SPLIT_FILTERING_QUERIES ? isFullDatasetsLoading : isFullCoverageLoading);
+  }, [isLoadingFullFilter, isFullDatasetsLoading, isFullCoverageLoading]);
 
   const isCoverageLoading = useMemo(() => {
     return isLoadingFullFilter || isFullCoverageLoading || isPartialCoverageLoading;
@@ -172,8 +173,8 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [isCoverageLoading, isLoadingSoilProperties, isLoadingCategories]);
 
   const isNoFilteredData = useMemo(() => {
-    return !!Object.keys(datasetFilters).length && fullFilterDatasets?.length === 0;
-  }, [fullFilterDatasets, datasetFilters]);
+    return !!Object.keys(datasetFilters).length && (fullFilterDatasets ?? fullFilterResults?.datasets)?.length === 0;
+  }, [fullFilterDatasets, fullFilterResults, datasetFilters]);
 
   const isNoData = useMemo(() => {
     return geometryFilterResults?.datasets.length === 0;
