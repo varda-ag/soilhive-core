@@ -18,6 +18,25 @@ export interface PluginSoilPropertyCategory {
   description?: string;
 }
 
+export interface PluginDatasetProperties {
+  points?: number;
+  layers?: number;
+  minDepth?: number;
+  maxDepth?: number;
+  dateStart?: number;
+  dateEnd?: number;
+}
+
+export interface PluginDataset {
+  id: string;
+  name: string;
+  views: string;
+  tags: string[];
+  dataType?: string;
+  visibility?: string;
+  properties: PluginDatasetProperties;
+}
+
 export interface PluginRasterFilterCategory {
   id: string;
   name: string;

@@ -1,4 +1,4 @@
-import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useState, type ReactNode, useCallback, useEffect, useMemo } from 'react';
 
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetSummaryToAvailabilityDataset, mapFilteredDatasetToAvailabilityDataset } from '../adapters';
@@ -23,6 +23,7 @@ import useAvailabilityMap from '../hooks/useAvailabilityMap';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
+import useAvailabilityData from '../hooks/useAvailabilityData';
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
@@ -72,6 +73,7 @@ type AvailabilityProviderProps = {
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
   const { geometryFilter } = useAvailabilityMap();
+  const { setAvailabilityData } = useAvailabilityData();
   const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState<string>('');
   const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
@@ -190,6 +192,29 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
       .forEach(dataset => dataset.soil_properties?.forEach(prop => properties.add(prop)));
     return allSoilProperties?.filter(prop => properties.has(prop.id)) ?? [];
   }, [allSoilProperties, geometryFilterResults, datasetFrontendFilters]);
+
+  useEffect(() => {
+    setAvailabilityData({
+      soilProperties: filteredSoilProperties,
+      isLoadingSoilProperties,
+      categories: categories || [],
+      isLoadingCategories,
+      rasterCategories: allRasterCategories || [],
+      isLoadingRasterCategories,
+      visibleDatasets: datasets,
+      isLoadingVisibleDatasets: isDatasetsLoading,
+    });
+  }, [
+    filteredSoilProperties,
+    isLoadingSoilProperties,
+    categories,
+    isLoadingCategories,
+    allRasterCategories,
+    isLoadingRasterCategories,
+    datasets,
+    isDatasetsLoading,
+    setAvailabilityData,
+  ]);
 
   const appliedFiltersCount = useMemo<number>(() => {
     return (
