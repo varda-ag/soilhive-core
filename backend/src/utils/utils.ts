@@ -262,11 +262,7 @@ export const getDataRequestsMaxCells = (): number => {
   return Number(process.env['DATA_REQUESTS_MAX_CELLS']) || 200_000;
 };
 
-/**
- * Upper bound on a Class Distribution's size, in class entries: rows × (classes + 1). Above it the
- * Run fails before aggregating rather than truncating (docs/adr/0038). Separate from
- * DATA_REQUESTS_MAX_CELLS because a descriptive cell and a class-distribution row are unrelated in size.
- */
+/** Class Distribution size limit, in rows × (classes + 1); exceeding it fails the Run (docs/adr/0038). */
 export const getDataRequestsMaxClassEntries = (): number => {
   return Number(process.env['DATA_REQUESTS_MAX_CLASS_ENTRIES']) || 1_000_000;
 };

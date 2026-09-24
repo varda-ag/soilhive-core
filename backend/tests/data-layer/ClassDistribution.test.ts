@@ -18,11 +18,10 @@ import { GISDataType } from '../../src/types/data';
 import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { ClassDefinition } from '../../src/interfaces/Job';
 import { RequestData } from '../../src/interfaces/RequestData';
-import { DepthRanges } from '../../src/types/enums';
+import { ClassMethod, DepthRanges, ValueType } from '../../src/types/enums';
 
 const DATASET_BBOX = [-1, -1, 5, 5];
 
-/** Units go in through the real insertUserGeometry, exactly as in the job. */
 const addUnit = async (geometry: Polygon): Promise<string> => {
   const entityManager = await getEntityManager();
   const { id } = await new FilterService().insertUserGeometry({ entityManager, entitlements: {} } as RequestData, geometry);
@@ -37,16 +36,22 @@ const PH_CLASSES: ClassDefinition[] = [
   { name: 'Alkaline', min: 7.5 },
 ];
 
-const run = async (
-  options: Pick<ClassDistributionOptions, 'unitIds' | 'datasetSlugs' | 'soilPropertySlug'> &
-    Partial<Omit<ClassDistributionOptions, 'filter'>> & { parameters?: FilterCriteria },
-) => {
+type RunOptions = Pick<ClassDistributionOptions, 'unitIds' | 'datasetSlugs'> &
+  Partial<Omit<ClassDistributionOptions, 'filter' | 'variable'>> & {
+    soilPropertySlug: string;
+    parameters?: FilterCriteria;
+    classes?: ClassDefinition[];
+  };
+
+const runResult = async ({ parameters, classes, soilPropertySlug, ...options }: RunOptions) => {
   const entityManager = await getEntityManager();
   return computeClassDistribution(entityManager, {
-    filter: { geometryIds: options.unitIds, parameters: options.parameters ?? {}, area: 0 },
-    classes: PH_CLASSES,
+    filter: { geometryIds: options.unitIds, parameters: parameters ?? {}, area: 0 },
+    variable: { soilPropertySlug },
+    classSource: { classes: classes ?? PH_CLASSES },
     timeAggregation: 1,
     depthRanges: DepthRanges.NONE,
+    valueType: ValueType.PERCENTAGE,
     maxClassEntries: 1_000_000,
     workMem: '64MB',
     statementTimeoutMs: 120_000,
@@ -54,14 +59,12 @@ const run = async (
   });
 };
 
+const run = async (options: RunOptions) => (await runResult(options)).rows;
+
 let fixtureCounter = 0;
 const unique = (prefix: string) => `${prefix}-${fixtureCounter++}`;
 
-/**
- * One Dataset and Soil Property, with one Feature per call to `sample`. `layers` is UNIQUE NULLS
- * NOT DISTINCT on (license, sampling_date, min_depth, max_depth, horizon), so each sample's layer
- * carries a unique horizon unless the test is about what the layer holds.
- */
+/** One Feature per `sample`; each layer gets a unique horizon, as `layers` is deduplicated by content. */
 const seed = async () => {
   const dataset = await addDataset(unique('cd-ds'), DATASET_BBOX, GISDataType.POINT);
   const category = await addCategory(unique('cd-cat'));
@@ -108,7 +111,7 @@ describe('computeClassDistribution — classes', () => {
     expect(row.unit_id).toBe(unitId);
     expect(row.count).toBe(10);
     expect(row.n_features).toBe(1);
-    // An empty Class is still there at 0, so legends stay stable; 9 and 10 fall in no Class.
+    // Empty Classes stay at 0; 9 and 10 fall in no Class.
     expect(row.classes).toEqual([
       { name: 'Low', value: 30 },
       { name: 'Mid', value: 40 },
@@ -120,13 +123,12 @@ describe('computeClassDistribution — classes', () => {
 
   it('includes the lower bound, excludes the upper one, and leaves an absent bound open', async () => {
     const { dataset, soilProperty, sample } = await seed();
-    // 6.5 and 7.5 sit exactly on a boundary; 3 and 12 are only reachable through the open ends.
+    // 6.5 and 7.5 are on boundaries; 3 and 12 only fit the open ends.
     await sample([3, 6.5, 7.5, 12]);
     const unitId = await bboxUnit([0, 0, 2, 2]);
 
     const [row] = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
-    // Nothing is unclassified, so no unclassified entry at all rather than one at 0.
     expect(row!.classes).toEqual([
       { name: 'Acid', value: 25 },
       { name: 'Neutral', value: 25 },
@@ -134,7 +136,7 @@ describe('computeClassDistribution — classes', () => {
     ]);
   });
 
-  it('rounds shares to 3 decimals', async () => {
+  it('rounds percentages to 3 decimals', async () => {
     const { dataset, soilProperty, sample } = await seed();
     await sample([5, 7, 8]);
     const unitId = await bboxUnit([0, 0, 2, 2]);
@@ -142,6 +144,34 @@ describe('computeClassDistribution — classes', () => {
     const [row] = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
     expect(row!.classes.map(share => share.value)).toEqual([33.333, 33.333, 33.333]);
+  });
+
+  it('reports exact counts that sum to the row count when value_type is count', async () => {
+    const { dataset, soilProperty, sample } = await seed();
+    // 3 and 12 fall outside these bounded classes, so unclassified carries them.
+    await sample([3, 5, 6, 7, 12]);
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const [row] = await run({
+      unitIds: [unitId],
+      datasetSlugs: [dataset.slug],
+      soilPropertySlug: soilProperty.slug,
+      classes: [
+        { name: 'Acid', min: 4, max: 6.5 },
+        { name: 'Neutral', min: 6.5, max: 7.5 },
+        { name: 'Alkaline', min: 7.5, max: 9 },
+      ],
+      valueType: ValueType.COUNT,
+    });
+
+    expect(row!.count).toBe(5);
+    expect(row!.classes).toEqual([
+      { name: 'Acid', value: 2 },
+      { name: 'Neutral', value: 1 },
+      { name: 'Alkaline', value: 0 },
+      { name: 'unclassified', value: 2 },
+    ]);
+    expect(row!.classes.reduce((total, entry) => total + entry.value, 0)).toBe(row!.count);
   });
 });
 
@@ -156,7 +186,7 @@ describe('computeClassDistribution — Year Windows', () => {
 
     const rows = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug, timeAggregation: 3 });
 
-    // 2016 and 2018 share 2016–2018; 2019 opens the next window even though it is the latest year.
+    // 2016 and 2018 share 2016–2018; 2019 opens the next window.
     expect(rows.map(row => [row.year_start, row.year_end, row.count])).toEqual([
       [2016, 2018, 2],
       [2019, 2021, 1],
@@ -208,11 +238,10 @@ describe('computeClassDistribution — depth', () => {
       [200, null, 1],
       [null, null, 1],
     ]);
-    // A 0–30 composite lands whole in 15–30, and says so through the span it actually covers.
+    // A 0–30 composite lands in 15–30, and its span says so.
     const composite = rows.find(row => row.depth_start === 15)!;
     expect(composite.depth_min).toBe(0);
     expect(composite.depth_max).toBe(30);
-    // The no-depth bucket has no span to report, and says so by absence.
     const undepthed = rows.find(row => row.depth_start === null)!;
     expect(undepthed).not.toHaveProperty('depth_min');
     expect(undepthed).not.toHaveProperty('depth_max');
@@ -237,7 +266,6 @@ describe('computeClassDistribution — scope', () => {
   it('reports one row per Dataset, never pooled across them', async () => {
     const { dataset, soilProperty, sample } = await seed();
     await sample([5, 6]);
-    // A second Dataset measuring the same Soil Property inside the same unit.
     const second = await addDataset(unique('cd-ds'), DATASET_BBOX, GISDataType.POINT);
     await addDatasetLayerFor(second.id, soilProperty.id, [1.8, 1.8], [7]);
     const unitId = await bboxUnit([0, 0, 2, 2]);
@@ -263,7 +291,6 @@ describe('computeClassDistribution — scope', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.count).toBe(1);
 
-    // The variable narrows within the Filter; it never overrides a Filter that excludes it.
     const excluded = await run({
       unitIds: [unitId],
       datasetSlugs: [dataset.slug],
@@ -287,6 +314,109 @@ describe('computeClassDistribution — scope', () => {
   });
 });
 
+describe('computeClassDistribution — generated classes', () => {
+  it('generates equal-interval classes over the 1st-99th percentile range, shared by every row', async () => {
+    const { dataset, soilProperty, sample } = await seed();
+    // p01 = 1, p99 = 99: five inner classes of width 20 from 0.
+    await sample(Array.from({ length: 101 }, (_, i) => i));
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const result = await runResult({
+      unitIds: [unitId],
+      datasetSlugs: [dataset.slug],
+      soilPropertySlug: soilProperty.slug,
+      classSource: { method: ClassMethod.EQUAL_INTERVAL, count: 7 },
+      valueType: ValueType.COUNT,
+    });
+
+    expect(result.classes.map(definition => definition.name)).toEqual(['< 0', '0–20', '20–40', '40–60', '60–80', '80–100', '≥ 100']);
+    expect(result.observedMin).toBe(0);
+    expect(result.observedMax).toBe(100);
+    expect(result.rows[0]!.classes).toEqual([
+      { name: '< 0', value: 0 },
+      { name: '0–20', value: 20 },
+      { name: '20–40', value: 20 },
+      { name: '40–60', value: 20 },
+      { name: '60–80', value: 20 },
+      { name: '80–100', value: 20 },
+      { name: '≥ 100', value: 1 },
+    ]);
+  });
+
+  it('merges quantile classes whose edges coincide, returning fewer than asked for', async () => {
+    const { dataset, soilProperty, sample } = await seed();
+    // p25 = p50 = 1, p75 = 1.25.
+    for (const value of [1, 1, 1, 1, 1, 1, 2, 3]) {
+      await sample([value]);
+    }
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const result = await runResult({
+      unitIds: [unitId],
+      datasetSlugs: [dataset.slug],
+      soilPropertySlug: soilProperty.slug,
+      classSource: { method: ClassMethod.QUANTILE, count: 4 },
+      valueType: ValueType.COUNT,
+    });
+
+    expect(result.classes).toEqual([
+      { name: '< 1', max: 1 },
+      { name: '1–1.25', min: 1, max: 1.25 },
+      { name: '≥ 1.25', min: 1.25 },
+    ]);
+    expect(result.rows[0]!.classes.map(entry => entry.value)).toEqual([0, 6, 2]);
+  });
+
+  it('generates from each Observation once, however many overlapping units it falls in', async () => {
+    const { dataset, soilProperty, sample } = await seed();
+    // 10 is in both units: counted once the median is 3, counted twice it would be 3.5.
+    for (const value of [1, 2, 3, 4]) {
+      await sample([value], {}, { coordinates: [0.2 + value * 0.1, 0.2] });
+    }
+    await sample([10], {}, { coordinates: [1.5, 1.5] });
+    const unitA = await bboxUnit([0, 0, 2, 2]);
+    const unitB = await bboxUnit([1, 1, 3, 3]);
+
+    const result = await runResult({
+      unitIds: [unitA, unitB],
+      datasetSlugs: [dataset.slug],
+      soilPropertySlug: soilProperty.slug,
+      classSource: { method: ClassMethod.QUANTILE, count: 2 },
+    });
+
+    expect(result.classes).toEqual([
+      { name: '< 3', max: 3 },
+      { name: '≥ 3', min: 3 },
+    ]);
+  });
+
+  it('echoes the caller classes and the observed extremes', async () => {
+    const { dataset, soilProperty, sample } = await seed();
+    await sample([3.9, 8.4]);
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const result = await runResult({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
+
+    expect(result.classes).toEqual(PH_CLASSES);
+    expect(result.observedMin).toBe(3.9);
+    expect(result.observedMax).toBe(8.4);
+  });
+
+  it('generates no classes when no Observation matches', async () => {
+    const { dataset, soilProperty } = await seed();
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const result = await runResult({
+      unitIds: [unitId],
+      datasetSlugs: [dataset.slug],
+      soilPropertySlug: soilProperty.slug,
+      classSource: { method: ClassMethod.EQUAL_INTERVAL, count: 5 },
+    });
+
+    expect(result).toEqual({ classes: [], observedMin: null, observedMax: null, rows: [] });
+  });
+});
+
 describe('computeClassDistribution — budget', () => {
   it('fails before aggregating when rows × (classes + 1) exceeds the budget, and never truncates', async () => {
     const { dataset, soilProperty, sample } = await seed();
@@ -306,12 +436,10 @@ describe('computeClassDistribution — budget', () => {
       params: { rows: 2, entries: 4, max_entries: 3 },
     });
     expect(await run({ ...base, maxClassEntries: 4 })).toHaveLength(2);
-    // The lever the error names works: one wider window is one row.
     expect(await run({ ...base, maxClassEntries: 3, timeAggregation: 2 })).toHaveLength(1);
   });
 });
 
-/** A second Soil Property sample in an existing Dataset, at its own location. */
 const addDatasetLayerFor = async (datasetId: string, soilPropertyId: string, coordinates: [number, number], values: number[]) => {
   const [feature] = await addFeatures(GISDataType.POINT, [coordinates]);
   const layer = await addLayer(undefined, undefined, undefined, undefined, unique('h'));

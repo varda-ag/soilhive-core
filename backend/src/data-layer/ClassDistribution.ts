@@ -1,12 +1,13 @@
 import { EntityManager } from 'typeorm';
 import { DataFilter } from '../interfaces/DatasetFilter';
 import { ClassDefinition } from '../interfaces/Job';
-import { ClassDistributionRow, ClassShare, STANDARD_DEPTH_RANGES, UNCLASSIFIED } from '../jobs/data-requests/types';
-import { DepthRanges } from '../types/enums';
+import { ClassDistributionRow, ClassValue, STANDARD_DEPTH_RANGES, UNCLASSIFIED } from '../jobs/data-requests/types';
+import { ClassMethod, DepthRanges, ValueType } from '../types/enums';
 import { JobError } from '../errors/JobError';
 import { log } from '../utils/logger';
 import { round3 } from '../utils/utils';
-import { stageObservations } from './DataRequests';
+import { nothingToStage, StagedVariable, stageVariable } from './DataRequests';
+import { generateClasses, percentilesFor } from '../jobs/data-requests/generateClasses';
 
 export interface ClassDistributionOptions {
   filter: DataFilter;
@@ -14,20 +15,29 @@ export interface ClassDistributionOptions {
   unitIds: string[];
   /** Dataset slugs to aggregate: already entitlement-filtered and raster-free. */
   datasetSlugs: string[];
-  /** Current slug of the one Soil Property distributed. */
-  soilPropertySlug: string;
-  /** Already validated: ordered, non-overlapping, each with at least one bound. */
-  classes: ClassDefinition[];
+  /** A Soil Property's Observations or a Soil Index Run's scores. */
+  variable: StagedVariable;
+  /** The caller's (validated) Classes, or how many to generate and how. */
+  classSource: { classes: ClassDefinition[] } | { method: ClassMethod; count: number };
   /** Year Window size in years. */
   timeAggregation: number;
   depthRanges: DepthRanges;
-  /** Upper bound on rows × (classes + 1), checked before anything is aggregated (docs/adr/0038). */
+  valueType: ValueType;
+  /** Limit on rows × (classes + 1); see docs/adr/0038. */
   maxClassEntries: number;
   workMem: string;
   statementTimeoutMs: number;
   onPhase?: (description: string, percentage: number) => Promise<void>;
   /** Throws to abort between phases. */
   assertNotCancelled?: () => Promise<void>;
+}
+
+export interface ClassDistributionResult {
+  classes: ClassDefinition[];
+  /** Null when no Observation is in scope. */
+  observedMin: number | null;
+  observedMax: number | null;
+  rows: ClassDistributionRow[];
 }
 
 interface RawRow {
@@ -43,17 +53,11 @@ interface RawRow {
   class_counts: number[];
 }
 
-/**
- * Year Window start: years are aligned to multiples of N, so a year lands in the same window
- * whatever the data. FLOOR rather than integer division, which truncates towards zero.
- */
+/** Year Windows are aligned to multiples of N, so a year always lands in the same one. */
 const yearStartSql = (timeAggregation: number): string =>
   `CASE WHEN o.year IS NULL THEN NULL ELSE (FLOOR(o.year::numeric / ${timeAggregation}) * ${timeAggregation})::int END`;
 
-/**
- * Standard Depth Range start, by the Layer's depth midpoint; null when either bound is missing.
- * Pooled depths group everything under one constant key, Layers without a depth included.
- */
+/** Standard Depth Range holding the Layer's midpoint; `none` pools every depth under one key. */
 const depthStartSql = (depthRanges: DepthRanges): string => {
   if (depthRanges === DepthRanges.NONE) {
     return 'NULL::int';
@@ -70,23 +74,27 @@ const depthStartSql = (depthRanges: DepthRanges): string => {
 
 const DEPTH_END_BY_START = new Map(STANDARD_DEPTH_RANGES.map(range => [range.start, range.end]));
 
-/**
- * Computes a Class Distribution — the `class-distribution` product of a Data Request — for one
- * Soil Property over a set of Aggregation Units: per (Dataset, Unit, Year Window, depth bucket),
- * the share of Observations in each Class.
- */
+/** The `class-distribution` product: per (Dataset, unit, Year Window, depth), values per Class. */
 export const computeClassDistribution = async (
   entityManager: EntityManager,
   options: ClassDistributionOptions,
-): Promise<ClassDistributionRow[]> => {
-  const { filter, unitIds, datasetSlugs, soilPropertySlug, classes, timeAggregation, depthRanges, maxClassEntries } = options;
+): Promise<ClassDistributionResult> => {
+  const { filter, unitIds, datasetSlugs, variable, classSource, timeAggregation, depthRanges, maxClassEntries } = options;
   const progress = options.onPhase ?? (async () => undefined);
   const checkCancelled = options.assertNotCancelled ?? (async () => undefined);
+  const nothing: ClassDistributionResult = {
+    classes: 'classes' in classSource ? classSource.classes : [],
+    observedMin: null,
+    observedMax: null,
+    rows: [],
+  };
+  // Generation can only yield fewer Classes, so size by what was asked for.
+  const requestedClasses = 'classes' in classSource ? classSource.classes.length : classSource.count;
 
-  if (unitIds.length === 0 || datasetSlugs.length === 0) {
-    return [];
+  if (nothingToStage(variable, unitIds, datasetSlugs)) {
+    return nothing;
   }
-  // Inlined into the SQL below, so asserted here rather than trusted.
+  // Interpolated into SQL below.
   if (!Number.isInteger(timeAggregation) || timeAggregation < 1) {
     throw new Error(`Invalid time aggregation: ${timeAggregation}`);
   }
@@ -95,11 +103,11 @@ export const computeClassDistribution = async (
     await em.query(`SET LOCAL work_mem = '${options.workMem}'`);
     await em.query(`SET LOCAL statement_timeout = ${Math.trunc(options.statementTimeoutMs)}`);
 
-    await stageObservations(em, {
+    await stageVariable(em, {
       filter,
       unitIds,
       datasetSlugs,
-      soilPropertySlug,
+      variable,
       onPhase: progress,
       assertNotCancelled: checkCancelled,
     });
@@ -120,25 +128,43 @@ export const computeClassDistribution = async (
       )`;
 
     // ── size ─────────────────────────────────────────────────────────────────────────
-    // Counted over exactly the keys the aggregate below groups by, or the check would approve a
-    // result that is then too large, or reject one that would have fitted.
+    // Must group by the same keys as the aggregate below.
     const sized: { row_count: number }[] = await em.query(`
       WITH ${bucketed}
       SELECT COUNT(*)::int AS row_count
       FROM (SELECT 1 FROM bucketed GROUP BY unit_id, dataset_slug, year_start, depth_start) g`);
     const rows = sized[0]?.row_count ?? 0;
 
-    const entries = rows * (classes.length + 1);
+    const entries = rows * (requestedClasses + 1);
     if (entries > maxClassEntries) {
-      log.warn('Class distribution over budget', { rows, classes: classes.length, entries, max_class_entries: maxClassEntries });
+      log.warn('Class distribution over budget', { rows, classes: requestedClasses, entries, max_class_entries: maxClassEntries });
       throw new JobError('DR_CLASS_DISTRIBUTION_TOO_LARGE', { rows, entries, max_entries: maxClassEntries });
     }
     await progress(`Sized the distribution: ${rows} row(s)`, 55);
     await checkCancelled();
 
+    // ── classes ──────────────────────────────────────────────────────────────────────
+    // Pre-fan-out, so overlapping units don't count an Observation twice.
+    const percentiles = 'method' in classSource ? percentilesFor(classSource.method, classSource.count) : [];
+    const [extremes]: { min: number | null; max: number | null; percentiles: number[] | null }[] = await em.query(
+      `SELECT MIN(value) AS min, MAX(value) AS max,
+              percentile_cont($1::float8[]) WITHIN GROUP (ORDER BY value) AS percentiles
+       FROM sst_obs`,
+      [percentiles],
+    );
+    if (!extremes || extremes.min === null || extremes.max === null) {
+      return nothing;
+    }
+    const classes =
+      'classes' in classSource
+        ? classSource.classes
+        : generateClasses(classSource.method, classSource.count, (extremes.percentiles ?? []).map(Number));
+    if ('method' in classSource && classes.length < classSource.count) {
+      log.info('Fewer classes generated than requested', { requested: classSource.count, generated: classes.length });
+    }
+
     // ── distribute ───────────────────────────────────────────────────────────────────
-    // One pass: a FILTERed count per Class, `[min, max)`, an absent bound left unconstrained.
-    // Unclassified is not counted here; it is whatever the Classes leave of `count`.
+    // One FILTERed count per Class, `[min, max)`; unclassified is the remainder of `count`.
     const params: number[] = [];
     const p = (val: number) => {
       params.push(val);
@@ -175,22 +201,28 @@ export const computeClassDistribution = async (
     );
     await progress('Computed class distribution', 90);
 
-    const results = rawRows.map(raw => toRow(raw, classes, timeAggregation, depthRanges));
+    const results = rawRows.map(raw => toRow(raw, classes, options));
     log.info('Class distribution computed', { rows: results.length, units: unitIds.length, classes: classes.length });
-    return results;
+    return { classes, observedMin: round3(extremes.min), observedMax: round3(extremes.max), rows: results };
   });
 };
 
-const toRow = (raw: RawRow, classes: ClassDefinition[], timeAggregation: number, depthRanges: DepthRanges): ClassDistributionRow => {
-  const share = (n: number) => round3((100 * n) / raw.count);
-  const shares: ClassShare[] = classes.map((definition, index) => ({ name: definition.name, value: share(raw.class_counts[index] ?? 0) }));
+const toRow = (raw: RawRow, classes: ClassDefinition[], options: ClassDistributionOptions): ClassDistributionRow => {
+  const { timeAggregation, depthRanges, valueType } = options;
+  // Scores have no Dataset and no Feature.
+  const scores = 'soilIndexRun' in options.variable;
+  const valueOf = (n: number) => (valueType === ValueType.COUNT ? n : round3((100 * n) / raw.count));
+  const values: ClassValue[] = classes.map((definition, index) => ({
+    name: definition.name,
+    value: valueOf(raw.class_counts[index] ?? 0),
+  }));
   const unclassified = raw.count - raw.class_counts.reduce((total, n) => total + n, 0);
   if (unclassified > 0) {
-    shares.push({ name: UNCLASSIFIED, value: share(unclassified) });
+    values.push({ name: UNCLASSIFIED, value: valueOf(unclassified) });
   }
 
   return {
-    dataset_id: raw.dataset_slug,
+    ...(scores ? {} : { dataset_id: raw.dataset_slug }),
     unit_id: raw.unit_id,
     year_start: raw.year_start,
     year_end: raw.year_start === null ? null : raw.year_start + timeAggregation - 1,
@@ -200,7 +232,7 @@ const toRow = (raw: RawRow, classes: ClassDefinition[], timeAggregation: number,
     ...(raw.depth_min !== null ? { depth_min: raw.depth_min } : {}),
     ...(raw.depth_max !== null ? { depth_max: raw.depth_max } : {}),
     count: raw.count,
-    n_features: raw.n_features,
-    classes: shares,
+    ...(scores ? {} : { n_features: raw.n_features }),
+    classes: values,
   };
 };

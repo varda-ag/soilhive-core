@@ -11,6 +11,7 @@ import { log } from '../../utils/logger';
 import { processRun, RunProduct } from '../runs/runContext';
 import { runDescriptiveStatistics } from './descriptiveStatistics';
 import { runClassDistribution } from './classDistribution';
+import { runValueRange } from './valueRange';
 import { DataRequestOutput } from './types';
 
 /**
@@ -29,6 +30,7 @@ import { DataRequestOutput } from './types';
 const PRODUCERS: Record<StatisticsType, RunProduct<DataRequestJob, DataRequestOutput>> = {
   [StatisticsType.DESCRIPTIVE]: { appliesRasterMask: true, run: runDescriptiveStatistics },
   [StatisticsType.CLASS_DISTRIBUTION]: { appliesRasterMask: true, run: runClassDistribution },
+  [StatisticsType.VALUE_RANGE]: { appliesRasterMask: true, run: runValueRange },
 };
 
 /**

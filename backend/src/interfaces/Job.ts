@@ -1,4 +1,4 @@
-import type { StatisticsType, SoilIndexType, VariableType, DepthRanges } from '../types/enums';
+import type { StatisticsType, SoilIndexType, VariableType, DepthRanges, ValueType, ClassMethod } from '../types/enums';
 import type { AggregationUnit } from '../jobs/runs/types';
 
 export type AnyJob =
@@ -112,26 +112,29 @@ export interface DataRequestJobParameters extends RunJobParameters {
   dataset_ids?: string[];
   /** `descriptive` only. */
   histogram_bins?: number;
-  /** `class-distribution` only (required there): what the distribution is computed for. */
+  /** `class-distribution` and `value-range` (required there). */
   variable?: ClassDistributionVariable;
-  /** `class-distribution` only (required there): ordered, non-overlapping. */
+  /** `class-distribution` only; exclusive with `class_count`. */
   classes?: ClassDefinition[];
-  /** `class-distribution` only: Year Window size in years, 1-10. Absent means 1. */
+  /** `class-distribution` only: total Classes to generate, 3-20. */
+  class_count?: number;
+  /** `class-distribution` only; required with `class_count`. */
+  class_method?: ClassMethod;
+  /** `class-distribution` only: Year Window in years, 1-10, default 1. */
   time_aggregation?: number;
-  /** `class-distribution` only. Absent means `none`. */
+  /** `class-distribution` only, default `none`. */
   depth_ranges?: DepthRanges;
+  /** `class-distribution` only (required there). */
+  value_type?: ValueType;
 }
 
 export interface ClassDistributionVariable {
   type: VariableType;
-  /** Public identifier of the Soil Property (its slug). */
+  /** Soil Property slug, or Soil Index Run id. */
   id: string;
 }
 
-/**
- * One Class: `[min, max)` in the Soil Property's standard unit. An absent bound is unbounded on
- * that side; at least one is always present.
- */
+/** `[min, max)`; an absent bound is open. At least one is present. */
 export interface ClassDefinition {
   name: string;
   min?: number;

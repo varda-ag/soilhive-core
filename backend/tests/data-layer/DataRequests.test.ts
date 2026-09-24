@@ -21,7 +21,7 @@ import { GISDataType, VocabularyType } from '../../src/types/data';
 import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { DataRequestJob } from '../../src/interfaces/Job';
-import { DepthRanges, JobQueues, StatisticsType, VariableType } from '../../src/types/enums';
+import { ClassMethod, DepthRanges, JobQueues, StatisticsType, ValueType, VariableType } from '../../src/types/enums';
 
 const DATASET_BBOX = [-1, -1, 5, 5];
 
@@ -659,6 +659,14 @@ describe('toDataRequestParameters', () => {
     });
   });
 
+  it('keeps a generated-classes request as submitted', () => {
+    const result = toDataRequestParameters(
+      baseJob({ statistics_type: StatisticsType.CLASS_DISTRIBUTION, class_count: 8, class_method: ClassMethod.QUANTILE }),
+    );
+    expect(result).toMatchObject({ class_count: 8, class_method: ClassMethod.QUANTILE });
+    expect(result).not.toHaveProperty('classes');
+  });
+
   it('keeps the class-distribution parameters, so the row says what the percentages are of', () => {
     const classes = [
       { name: 'Acid', max: 6.5 },
@@ -671,6 +679,7 @@ describe('toDataRequestParameters', () => {
         classes,
         time_aggregation: 3,
         depth_ranges: DepthRanges.STANDARD,
+        value_type: ValueType.COUNT,
       }),
     );
     expect(result).toMatchObject({
@@ -679,6 +688,7 @@ describe('toDataRequestParameters', () => {
       classes,
       time_aggregation: 3,
       depth_ranges: DepthRanges.STANDARD,
+      value_type: ValueType.COUNT,
     });
   });
 });

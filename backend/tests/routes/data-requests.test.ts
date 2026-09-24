@@ -2,7 +2,9 @@ import { describe, expect, it, beforeAll, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
-import { DataRequestStatus, JobQueues, StatisticsType } from '../../src/types/enums';
+import { DataRequestStatus, JobQueues, SoilIndexType, StatisticsType } from '../../src/types/enums';
+import { v4 as uuidv4 } from 'uuid';
+import { writeSoilIndexRun } from '../../src/data-layer/SoilIndex';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { sleep } from '../../src/utils/utils';
 import { getDataAdminToken, getUserToken } from '../helper';
@@ -164,6 +166,7 @@ describe('Testing /data-requests routes', () => {
         filter_id: filterId,
         variable: { type: 'soil-property', id: property.slug },
         classes: PH_CLASSES,
+        value_type: 'percentage',
         ...overrides,
       });
     };
@@ -177,6 +180,7 @@ describe('Testing /data-requests routes', () => {
       expect(res.body.request.classes).toEqual(PH_CLASSES);
       expect(res.body.request.time_aggregation).toBe(3);
       expect(res.body.request.depth_ranges).toBe('standard');
+      expect(res.body.request.value_type).toBe('percentage');
     });
 
     it('accepts a property the filter admits', async () => {
@@ -187,11 +191,11 @@ describe('Testing /data-requests routes', () => {
         filter_id: filterId,
         variable: { type: 'soil-property', id: property.slug },
         classes: PH_CLASSES,
+        value_type: 'count',
       });
       expect(res.statusCode).toBe(201);
     });
 
-    // The variable narrows within the Filter and never widens it.
     it('rejects a property the filter excludes', async () => {
       const other = await addProperty();
       const res = await submitClassDistribution({}, { soil_properties: [other.slug] });
@@ -199,9 +203,42 @@ describe('Testing /data-requests routes', () => {
       expect(res.body.detail).toContain('is excluded by filter');
     });
 
+    it('accepts generated classes in place of classes, and echoes them back as submitted', async () => {
+      const res = await submitClassDistribution({ classes: undefined, class_count: 8, class_method: 'equal-interval' });
+      expect(res.statusCode).toBe(201);
+      expect(res.body.request.class_count).toBe(8);
+      expect(res.body.request.class_method).toBe('equal-interval');
+      expect(res.body.request).not.toHaveProperty('classes');
+    });
+
+    it.each([
+      ['both classes and class_count', { class_count: 5, class_method: 'quantile' }, 'not both'],
+      ['class_count without class_method', { classes: undefined, class_count: 5 }, 'class_count requires class_method'],
+      ['class_method without class_count', { classes: undefined, class_method: 'quantile' }, 'class_method requires class_count'],
+    ])('rejects %s', async (_label, overrides, detail) => {
+      const res = await submitClassDistribution(overrides);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain(detail);
+    });
+
+    it('rejects a class_count outside 3-20 and an unknown class_method', async () => {
+      expect((await submitClassDistribution({ classes: undefined, class_count: 2, class_method: 'quantile' })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ classes: undefined, class_count: 21, class_method: 'quantile' })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ classes: undefined, class_count: 5, class_method: 'jenks' })).statusCode).toBe(400);
+    });
+
     it('rejects a missing variable or missing classes', async () => {
       expect((await submitClassDistribution({ variable: undefined })).body.detail).toContain('variable is required');
-      expect((await submitClassDistribution({ classes: undefined })).body.detail).toContain('classes is required');
+      expect((await submitClassDistribution({ classes: undefined })).body.detail).toContain(
+        'Parameter classes, or class_count with class_method, is required',
+      );
+    });
+
+    it('rejects a missing or unknown value_type', async () => {
+      const missing = await submitClassDistribution({ value_type: undefined });
+      expect(missing.statusCode).toBe(400);
+      expect(missing.body.detail).toContain('value_type is required');
+      expect((await submitClassDistribution({ value_type: 'ratio' })).statusCode).toBe(400);
     });
 
     it('rejects a variable that is not a soil property', async () => {
@@ -275,6 +312,129 @@ describe('Testing /data-requests routes', () => {
       const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, time_aggregation: 2 });
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('time_aggregation does not apply');
+
+      const withValueType = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, value_type: 'count' });
+      expect(withValueType.statusCode).toBe(400);
+      expect(withValueType.body.detail).toContain('value_type does not apply');
+
+      const withClassCount = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, class_count: 5 });
+      expect(withClassCount.statusCode).toBe(400);
+      expect(withClassCount.body.detail).toContain('class_count does not apply');
+    });
+  });
+
+  describe('POST /data-requests — value-range', () => {
+    let propertyCounter = 0;
+    const addProperty = async () => {
+      const category = await addCategory(`vr-route-cat-${propertyCounter}`);
+      return addSoilProperty(`vr-route-ph-${propertyCounter++}`, category.id, 'pH');
+    };
+
+    const submitValueRange = async (overrides: Record<string, unknown> = {}, filterParameters: object = {}) => {
+      const property = await addProperty();
+      const filterId = await createFilter([polygon], filterParameters);
+      return submit({
+        statistics_type: StatisticsType.VALUE_RANGE,
+        filter_id: filterId,
+        variable: { type: 'soil-property', id: property.slug },
+        ...overrides,
+      });
+    };
+
+    it('accepts a variable alone and echoes it back', async () => {
+      const res = await submitValueRange();
+      expect(res.statusCode).toBe(201);
+      expect(res.body.request.statistics_type).toBe(StatisticsType.VALUE_RANGE);
+      expect(res.body.request.variable.type).toBe('soil-property');
+    });
+
+    it('rejects a missing variable, an unknown soil property, and one the filter excludes', async () => {
+      const missing = await submitValueRange({ variable: undefined });
+      expect(missing.statusCode).toBe(400);
+      expect(missing.body.detail).toContain('variable is required for statistics_type value-range');
+
+      const unknown = await submitValueRange({ variable: { type: 'soil-property', id: 'no-such-property' } });
+      expect(unknown.statusCode).toBe(400);
+      expect(unknown.body.detail).toContain('is not a soil property');
+
+      const other = await addProperty();
+      const excluded = await submitValueRange({}, { soil_properties: [other.slug] });
+      expect(excluded.statusCode).toBe(400);
+      expect(excluded.body.detail).toContain('is excluded by filter');
+    });
+
+    it.each([
+      ['histogram_bins', { histogram_bins: 10 }],
+      ['classes', { classes: [{ name: 'All', min: 0 }] }],
+      ['class_count', { class_count: 5, class_method: 'quantile' }],
+      ['value_type', { value_type: 'count' }],
+      ['time_aggregation', { time_aggregation: 2 }],
+      ['depth_ranges', { depth_ranges: 'standard' }],
+    ])('rejects %s, which value-range does not use', async (name, overrides) => {
+      const res = await submitValueRange(overrides);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain(`${name} does not apply to statistics_type 'value-range'`);
+    });
+  });
+
+  describe('POST /data-requests — soil-index variables', () => {
+    const writeRun = async (): Promise<string> => {
+      const run = uuidv4();
+      await writeSoilIndexRun(await getEntityManager(), run, SoilIndexType.CREA_INDEX, [
+        { type: 'Feature', id: uuidv4(), geometry: { type: 'Point', coordinates: [1, 1] }, properties: { value: 0.5 } },
+      ]);
+      return run;
+    };
+
+    const submitOverRun = async (run: string, overrides: Record<string, unknown> = {}, filterParameters: object = {}) => {
+      const filterId = await createFilter([polygon], filterParameters);
+      return submit({
+        statistics_type: StatisticsType.VALUE_RANGE,
+        filter_id: filterId,
+        variable: { type: 'soil-index', id: run },
+        ...overrides,
+      });
+    };
+
+    it('accepts a completed soil index run for value-range and class-distribution', async () => {
+      const run = await writeRun();
+      expect((await submitOverRun(run)).statusCode).toBe(201);
+      const distribution = await submitOverRun(run, {
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        class_count: 4,
+        class_method: 'equal-interval',
+        value_type: 'count',
+      });
+      expect(distribution.statusCode).toBe(201);
+    });
+
+    it('rejects an id that is not a completed soil index run', async () => {
+      const res = await submitOverRun(uuidv4());
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('is not a completed soil index run');
+    });
+
+    it('rejects a filter that carries any criteria', async () => {
+      const res = await submitOverRun(await writeRun(), {}, { min_depth: 0, max_depth: 30 });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('do not apply to soil index scores');
+    });
+
+    it('rejects dataset_ids and depth_ranges, which scores have no use for', async () => {
+      const run = await writeRun();
+      const withDatasets = await submitOverRun(run, { dataset_ids: ['any'] });
+      expect(withDatasets.statusCode).toBe(400);
+      expect(withDatasets.body.detail).toContain('dataset_ids does not apply to a soil-index variable');
+
+      const withDepths = await submitOverRun(run, {
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        class_count: 4,
+        class_method: 'quantile',
+        value_type: 'count',
+        depth_ranges: 'standard',
+      });
+      expect(withDepths.statusCode).toBe(400);
+      expect(withDepths.body.detail).toContain('depth_ranges does not apply to a soil-index variable');
     });
   });
 

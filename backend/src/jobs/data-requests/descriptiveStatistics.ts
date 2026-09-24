@@ -14,9 +14,6 @@ const DEFAULT_HISTOGRAM_BINS = 10;
  * The `descriptive` Statistics Type: Soil Statistics in the CONTEXT.md sense — count, min,
  * max, mean, median, spread and a histogram over the matching Observations, per
  * (Aggregation Unit, Dataset, Soil Property) and, one level finer, per year and depth.
- *
- * Which Datasets are in scope, and how entitlements gate them, is shared with every other
- * Statistics Type — see selectPermittedDatasets.
  */
 export async function runDescriptiveStatistics(ctx: RunContext, data: DataRequestJob): Promise<SoilStatisticsOutput> {
   const { jobId, entityManager, units, unitIds, report, assertNotCancelled } = ctx;

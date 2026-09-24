@@ -204,6 +204,10 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "Soil property '{soil_property}' no longer exists.",
     actions: ['Submit the request again with a soil property that exists.'],
   },
+  DR_UNKNOWN_SOIL_INDEX_RUN: {
+    message: "Soil index run '{run}' no longer has any scores to read.",
+    actions: ['Run the soil index again, then submit the request with the new run id.'],
+  },
   DR_CLASS_DISTRIBUTION_TOO_LARGE: {
     message: 'This class distribution would have {rows} rows ({entries} class values), more than the {max_entries} this server returns.',
     actions: [

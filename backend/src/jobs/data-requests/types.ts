@@ -1,3 +1,5 @@
+import type { ClassDefinition } from '../../interfaces/Job';
+
 /** Cells at or below this count carry no histogram — see `StatisticsCell.histogram`. */
 export const MIN_HISTOGRAM_COUNT = 100;
 
@@ -118,8 +120,11 @@ export interface SoilStatisticsOutput {
   truncated: boolean;
 }
 
-/** Caps the number of Classes per request: each one widens every row of the output (docs/adr/0038). */
+/** Each Class widens every row (docs/adr/0038). */
 export const MAX_CLASSES = 20;
+
+/** Open first and last Class, plus one between. */
+export const MIN_CLASS_COUNT = 3;
 
 /** Reserved Class name */
 export const UNCLASSIFIED = 'unclassified';
@@ -127,9 +132,7 @@ export const UNCLASSIFIED = 'unclassified';
 /** Default Year Window size in years. */
 export const DEFAULT_TIME_AGGREGATION = 1;
 
-/**
- * The GlobalSoilMap Standard Depth Ranges, in cm, each `[start, end)`; the last is open-ended.
- */
+/** GlobalSoilMap ranges in cm, `[start, end)`; the last is open-ended. */
 export const STANDARD_DEPTH_RANGES: { start: number; end: number | null }[] = [
   { start: 0, end: 5 },
   { start: 5, end: 15 },
@@ -140,45 +143,79 @@ export const STANDARD_DEPTH_RANGES: { start: number; end: number | null }[] = [
   { start: 200, end: null },
 ];
 
-/** One slice of a row: a Class name and the percentage of the row's Observations in it. */
-export interface ClassShare {
+export interface ClassValue {
   name: string;
-  /** Percentage of `count`, rounded to 3 decimals. */
+  /** Percentage of `count` (3 decimals) or a count, per `value_type`. */
   value: number;
 }
 
-/**
- * One distribution: one (Dataset, Aggregation Unit, Year Window, depth bucket) — one pie chart.
- */
+/** One (Dataset, unit, Year Window, depth bucket): one pie chart. */
 export interface ClassDistributionRow {
-  /** Dataset slug (the public identifier). */
-  dataset_id: string;
+  /** Absent for a Soil Index variable. */
+  dataset_id?: string;
   unit_id: string;
-  /** First and last year of the Year Window; both null for Observations with no recorded year. */
+  /** Both null for the no-year bucket. */
   year_start: number | null;
   year_end: number | null;
-  /** The Standard Depth Range, present only when `depth_ranges` is `standard`. */
+  /** Only with `depth_ranges: standard`. */
   depth_start?: number | null;
   depth_end?: number | null;
-  /**
-   * The span actually covered by the Layers behind this row — how a 15–30 cm row built from 0–30
-   * composites, or a pooled 0–200 cm mix, shows for what it is. Absent when no Layer records a depth.
-   */
+  /** Depth span of the Layers actually behind this row. */
   depth_min?: number;
   depth_max?: number;
   count: number;
-  /** Distinct Features (sampling locations) behind `count`. */
-  n_features: number;
-  /** Every requested Class in request order, then `unclassified` when above 0. */
-  classes: ClassShare[];
+  /** Absent for a Soil Index variable. */
+  n_features?: number;
+  /** In Class order, then `unclassified` when above 0. */
+  classes: ClassValue[];
 }
 
-/** The `class-distribution` payload. */
-export interface ClassDistributionOutput {
+export interface SoilPropertyVariableHeader {
   soil_property: string;
   standard_unit: string | null;
+}
+
+export interface SoilIndexVariableHeader {
+  run: string;
+  /** Absent when the Run scored nothing. */
+  soil_index_type?: string;
+}
+
+export type ClassDistributionOutput = ClassDistributionBody & (SoilPropertyVariableHeader | SoilIndexVariableHeader);
+
+export interface ClassDistributionBody {
+  /** The request's Classes, or the generated ones. */
+  classes: ClassDefinition[];
+  /** Request-wide extremes; absent when nothing matched. */
+  observed_min?: number;
+  observed_max?: number;
   results: ClassDistributionRow[];
 }
 
-/** What a Data Request's `data` holds; which one is told by `request.statistics_type`. */
-export type DataRequestOutput = SoilStatisticsOutput | ClassDistributionOutput;
+/** `min` and `max` are absent when `count` is 0. */
+export interface ValueRangeCounts {
+  count: number;
+  min?: number;
+  max?: number;
+}
+
+export interface ValueRangeFigures extends ValueRangeCounts {
+  n_features: number;
+}
+
+export interface DatasetValueRange extends ValueRangeFigures {
+  dataset_id: string;
+}
+
+/** Request-wide figures (each Observation once), then per Dataset. */
+export interface SoilPropertyValueRange extends ValueRangeFigures, SoilPropertyVariableHeader {
+  datasets: DatasetValueRange[];
+}
+
+/** Request-wide only: scores have no Dataset or Feature. */
+export interface SoilIndexValueRange extends ValueRangeCounts, SoilIndexVariableHeader {}
+
+export type ValueRangeOutput = SoilPropertyValueRange | SoilIndexValueRange;
+
+/** Which one is told by `request.statistics_type`. */
+export type DataRequestOutput = SoilStatisticsOutput | ClassDistributionOutput | ValueRangeOutput;

@@ -228,28 +228,35 @@ const groupHistogramRows = (rows: any[], keyCols: string[]): Map<string, Map<num
   return out;
 };
 
+/** One row per Observation (or score), before any fan-out across units. */
+const SST_OBS_DDL = `CREATE TEMP TABLE sst_obs (
+    feature_id uuid NOT NULL,
+    layer_id uuid NOT NULL,
+    dataset_slug text NOT NULL,
+    soil_property_slug text NOT NULL,
+    standard_unit text,
+    year int,
+    min_depth int,
+    max_depth int,
+    horizon text,
+    sampling_date text,
+    laboratory_method text,
+    value double precision NOT NULL
+  ) ON COMMIT DROP`;
+
 export interface StageObservationsOptions {
   filter: DataFilter;
   /** UserGeometry ids that are the Aggregation Units. */
   unitIds: string[];
   /** Dataset slugs to aggregate: already entitlement-filtered and raster-free. */
   datasetSlugs: string[];
-  /**
-   * Narrows the staged Observations to one Soil Property, on top of the Filter's own criteria —
-   * never instead of them, so a property the Filter excludes stages nothing.
-   */
+  /** Narrows to one Soil Property, in addition to the Filter's own criteria. */
   soilPropertySlug?: string;
   onPhase: (description: string, percentage: number) => Promise<void>;
   assertNotCancelled: () => Promise<void>;
 }
 
-/**
- * Stages 1 and 2 of every Statistics Type: resolves the units to the Features intersecting them
- * (`sst_unit_features`), then collects the matching Observations once each (`sst_obs`).
- *
- * Shared because which Observations are in scope is never a choice of product. Must run inside
- * the caller's transaction: both tables are TEMP ... ON COMMIT DROP.
- */
+/** Fills `sst_unit_features` and `sst_obs`. Must run inside the caller's transaction (ON COMMIT DROP). */
 export const stageObservations = async (
   em: EntityManager,
   options: StageObservationsOptions,
@@ -306,20 +313,7 @@ export const stageObservations = async (
     whereClauses.push(`sp.slug = ${p(soilPropertySlug)}`);
   }
 
-  await em.query(`CREATE TEMP TABLE sst_obs (
-      feature_id uuid NOT NULL,
-      layer_id uuid NOT NULL,
-      dataset_slug text NOT NULL,
-      soil_property_slug text NOT NULL,
-      standard_unit text,
-      year int,
-      min_depth int,
-      max_depth int,
-      horizon text,
-      sampling_date text,
-      laboratory_method text,
-      value double precision NOT NULL
-    ) ON COMMIT DROP`);
+  await em.query(SST_OBS_DDL);
 
   await em.query(
     `INSERT INTO sst_obs (feature_id, layer_id, dataset_slug, soil_property_slug, standard_unit, year,
@@ -364,6 +358,83 @@ export const stageObservations = async (
 
   return { usesMatchingFeatures };
 };
+
+export interface StageScoresOptions {
+  run: string;
+  /** UserGeometry ids that are the Aggregation Units. */
+  unitIds: string[];
+  onPhase: (description: string, percentage: number) => Promise<void>;
+  assertNotCancelled: () => Promise<void>;
+}
+
+/**
+ * Like stageObservations, but with a Soil Index Run's scores: each gets a synthetic Feature/Layer id
+ * and belongs to the units containing its representative point (docs/adr/0039).
+ */
+export const stageScores = async (em: EntityManager, options: StageScoresOptions): Promise<void> => {
+  const { run, unitIds } = options;
+  const schema = process.env.POSTGRES_SCHEMA;
+
+  await em.query(
+    `CREATE TEMP TABLE sst_scores ON COMMIT DROP AS
+     SELECT gen_random_uuid() AS score_id, s.value, s.year, s.soil_index_type, ST_PointOnSurface(s.geometry) AS pt
+     FROM ${schema}.soil_index s
+     WHERE s.run = $1::uuid`,
+    [run],
+  );
+  await em.query('CREATE INDEX ON sst_scores USING GIST (pt)');
+  await em.query('ANALYZE sst_scores');
+
+  // DISTINCT: a point on a seam between subdivision pieces would join twice.
+  await em.query(`CREATE TEMP TABLE sst_unit_features (unit_id uuid NOT NULL, feature_id uuid NOT NULL) ON COMMIT DROP`);
+  await em.query(
+    `INSERT INTO sst_unit_features (unit_id, feature_id)
+     SELECT DISTINCT ugs.user_geometry_id, s.score_id
+     FROM sst_scores s
+     JOIN ${schema}.user_geometry_subdivisions ugs
+       ON ugs.user_geometry_id = ANY($1::uuid[]) AND ST_Intersects(s.pt, ugs.geom)`,
+    [unitIds],
+  );
+  await em.query('CREATE INDEX ON sst_unit_features (feature_id)');
+  await em.query('ANALYZE sst_unit_features');
+  await options.onPhase('Located scores', 20);
+  await options.assertNotCancelled();
+
+  await em.query(SST_OBS_DDL);
+  await em.query(`
+    INSERT INTO sst_obs (feature_id, layer_id, dataset_slug, soil_property_slug, year, value)
+    SELECT s.score_id, s.score_id, '', s.soil_index_type, s.year, s.value
+    FROM sst_scores s
+    WHERE s.score_id IN (SELECT feature_id FROM sst_unit_features)`);
+  await em.query('CREATE INDEX ON sst_obs (feature_id)');
+  await em.query('ANALYZE sst_obs');
+  await options.onPhase('Collected scores', 45);
+  await options.assertNotCancelled();
+};
+
+export type StagedVariable = { soilPropertySlug: string } | { soilIndexRun: string };
+
+export interface StageVariableOptions {
+  filter: DataFilter;
+  unitIds: string[];
+  /** Ignored for a Soil Index Run. */
+  datasetSlugs: string[];
+  variable: StagedVariable;
+  onPhase: (description: string, percentage: number) => Promise<void>;
+  assertNotCancelled: () => Promise<void>;
+}
+
+export const stageVariable = async (em: EntityManager, options: StageVariableOptions): Promise<void> => {
+  const { variable, unitIds, onPhase, assertNotCancelled } = options;
+  if ('soilIndexRun' in variable) {
+    await stageScores(em, { run: variable.soilIndexRun, unitIds, onPhase, assertNotCancelled });
+    return;
+  }
+  await stageObservations(em, { ...options, soilPropertySlug: variable.soilPropertySlug });
+};
+
+export const nothingToStage = (variable: StagedVariable, unitIds: string[], datasetSlugs: string[]): boolean =>
+  unitIds.length === 0 || ('soilPropertySlug' in variable && datasetSlugs.length === 0);
 
 /**
  * Computes Soil Statistics — the `descriptive` product of a Data Request — for one Filter
@@ -666,8 +737,11 @@ export const toDataRequestParameters = (data: DataRequestJob): DataRequestParame
   ...(data.histogram_bins !== undefined ? { histogram_bins: data.histogram_bins } : {}),
   ...(data.variable !== undefined ? { variable: data.variable } : {}),
   ...(data.classes !== undefined ? { classes: data.classes } : {}),
+  ...(data.class_count !== undefined ? { class_count: data.class_count } : {}),
+  ...(data.class_method !== undefined ? { class_method: data.class_method } : {}),
   ...(data.time_aggregation !== undefined ? { time_aggregation: data.time_aggregation } : {}),
   ...(data.depth_ranges !== undefined ? { depth_ranges: data.depth_ranges } : {}),
+  ...(data.value_type !== undefined ? { value_type: data.value_type } : {}),
   derived_filter_id: data.derived_filter_id ?? null,
   unit_count: data.unit_count ?? 0,
   units: data.units ?? [],

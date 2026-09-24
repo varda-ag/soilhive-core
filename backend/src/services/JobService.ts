@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { AnyJob, ExportJob, Job, DataRequestJob, SoilIndexJob, RunJobData } from '../interfaces/Job';
-import { Capability, JobQueues, SoilIndexType, StatisticsType } from '../types/enums';
+import { Capability, JobQueues, SoilIndexType, StatisticsType, VariableType } from '../types/enums';
 import { EntitlementScope } from '../types/Entitlements';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
@@ -12,7 +12,8 @@ import FilterService from './FilterService';
 import FileService from './FileService';
 import SoilPropertyService from './SoilPropertyService';
 import { DataFilter } from '../interfaces/DatasetFilter';
-import { CLASS_DISTRIBUTION_ONLY_PARAMETERS, classDistributionProblem } from '../jobs/data-requests/classDistributionParameters';
+import { misplacedParameter, notASoilIndexRun, parametersProblem, soilIndexFilterProblem } from '../jobs/data-requests/parameters';
+import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
@@ -126,26 +127,19 @@ export default class JobService {
         StatusCodes.BAD_REQUEST,
       );
     }
-    if (statisticsType !== StatisticsType.DESCRIPTIVE && data.histogram_bins !== undefined) {
-      throw new ErrorResponse(`Parameter histogram_bins does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
+    const misplaced = misplacedParameter(data, statisticsType);
+    if (misplaced) {
+      throw new ErrorResponse(`Parameter ${misplaced} does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
     }
-    if (statisticsType !== StatisticsType.CLASS_DISTRIBUTION) {
-      const misplaced = CLASS_DISTRIBUTION_ONLY_PARAMETERS.find(name => data[name] !== undefined);
-      if (misplaced) {
-        throw new ErrorResponse(`Parameter ${misplaced} does not apply to statistics_type '${statisticsType}'`, StatusCodes.BAD_REQUEST);
-      }
-    }
-    if (statisticsType === StatisticsType.CLASS_DISTRIBUTION) {
-      const problem = classDistributionProblem(data);
-      if (problem) {
-        throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
-      }
+    const problem = parametersProblem(data);
+    if (problem) {
+      throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
     }
 
     const filter = await this.validateRunJob(requestData, data);
 
-    if (statisticsType === StatisticsType.CLASS_DISTRIBUTION) {
-      await this.validateClassDistributionVariable(requestData, data, filter);
+    if (data.variable) {
+      await this.validateVariable(requestData, data, filter);
     }
 
     if (data.dataset_ids && data.dataset_ids.length > 0) {
@@ -153,8 +147,21 @@ export default class JobService {
     }
   };
 
-  private validateClassDistributionVariable = async (requestData: RequestData, data: DataRequestJob, filter: DataFilter): Promise<void> => {
-    const { id } = data.variable!;
+  private validateVariable = async (requestData: RequestData, data: DataRequestJob, filter: DataFilter): Promise<void> => {
+    const { id, type } = data.variable!;
+
+    // Needs an attached partition and a criteria-free Filter (docs/adr/0039).
+    if (type === VariableType.SOIL_INDEX) {
+      if (!(await soilIndexRunExists(requestData.entityManager, id))) {
+        throw new ErrorResponse(notASoilIndexRun(id), StatusCodes.BAD_REQUEST);
+      }
+      const problem = soilIndexFilterProblem(data.filter_id, filter.parameters);
+      if (problem) {
+        throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
+      }
+      return;
+    }
+
     let slug: string;
     try {
       ({ slug } = await new SoilPropertyService().getSoilProperty(requestData, id));
@@ -191,10 +198,7 @@ export default class JobService {
     await this.validateRunJob(requestData, data);
   };
 
-  /**
-   * The spatial scope every Run takes, checked identically whichever queue will compute it.
-   * Resolves with the Filter, for checks a product makes against its criteria.
-   */
+  /** The spatial scope every Run takes, checked identically whichever queue will compute it. */
   private validateRunJob = async (requestData: RequestData, data: RunJobData): Promise<DataFilter> => {
     const filterService = new FilterService();
 

@@ -7,8 +7,19 @@ import { DataRequestJob } from '../../../src/interfaces/Job';
 import { processDataRequest } from '../../../src/jobs/data-requests/DataRequestJob';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { Capability, DataRequestStatus, JobQueues, StatisticsType, VariableType } from '../../../src/types/enums';
+import {
+  Capability,
+  ClassMethod,
+  DataRequestStatus,
+  JobQueues,
+  SoilIndexType,
+  StatisticsType,
+  ValueType,
+  VariableType,
+} from '../../../src/types/enums';
+import { v4 as uuidv4 } from 'uuid';
 import { insertDataRequest } from '../../../src/data-layer/DataRequests';
+import { writeSoilIndexRun } from '../../../src/data-layer/SoilIndex';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
@@ -661,6 +672,7 @@ describe('processDataRequest', () => {
       const { jobId, job } = await createActiveJob({
         filter_id: filterId,
         statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.PERCENTAGE,
         variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
         classes: [
           { name: 'Acid', max: 6.5 },
@@ -675,7 +687,7 @@ describe('processDataRequest', () => {
       expect(record.request.classes).toHaveLength(2);
       expect(record.data.soil_property).toBe(soilProperty.slug);
       expect(record.data.standard_unit).toBe('mg/kg');
-      // UNIT_B holds no Observations, so it has no row: absent means no data.
+      // UNIT_B has no Observations, so no row.
       expect(record.data.results).toHaveLength(1);
       expect(record.data.results[0]).toMatchObject({
         dataset_id: dataset.slug,
@@ -691,12 +703,108 @@ describe('processDataRequest', () => {
       expect(record.data).not.toHaveProperty('truncated');
     });
 
+    it('generates classes and records them in the payload, not in the request', async () => {
+      const { soilProperty } = await seedDataset('type-class-distribution-generated', [3, 7, 12]);
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.COUNT,
+        variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
+        class_count: 3,
+        class_method: ClassMethod.EQUAL_INTERVAL,
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.request).toMatchObject({ class_count: 3, class_method: ClassMethod.EQUAL_INTERVAL });
+      expect(record.request).not.toHaveProperty('classes');
+      // p01 = 3.08, p99 = 11.9: one inner class of width 12 from 0.
+      expect(record.data.classes.map((definition: { name: string }) => definition.name)).toEqual(['< 0', '0–12', '≥ 12']);
+      expect(record.data.observed_min).toBe(3);
+      expect(record.data.observed_max).toBe(12);
+      expect(record.data.results[0].classes.map((entry: { value: number }) => entry.value)).toEqual([0, 2, 1]);
+    });
+
+    it('computes and records a value range when that is the named type', async () => {
+      const { dataset, soilProperty } = await seedDataset('type-value-range', [3, 7, 12]);
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.VALUE_RANGE,
+        variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.data).toEqual({
+        soil_property: soilProperty.slug,
+        standard_unit: 'mg/kg',
+        count: 3,
+        n_features: 1,
+        min: 3,
+        max: 12,
+        datasets: [{ dataset_id: dataset.slug, count: 3, n_features: 1, min: 3, max: 12 }],
+      });
+    });
+
+    it('distributes a soil index run over the units, heading the payload with the run', async () => {
+      const run = uuidv4();
+      await writeSoilIndexRun(await getEntityManager(), run, SoilIndexType.CREA_INDEX, [
+        { type: 'Feature', id: uuidv4(), geometry: { type: 'Point', coordinates: [1, 1] }, properties: { value: 0.2 } },
+        { type: 'Feature', id: uuidv4(), geometry: { type: 'Point', coordinates: [1.2, 1.2] }, properties: { value: 0.8 } },
+      ]);
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.COUNT,
+        variable: { type: VariableType.SOIL_INDEX, id: run },
+        classes: [
+          { name: 'Low', max: 0.5 },
+          { name: 'High', min: 0.5 },
+        ],
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.data).toMatchObject({ run, soil_index_type: SoilIndexType.CREA_INDEX, observed_min: 0.2, observed_max: 0.8 });
+      expect(record.data).not.toHaveProperty('soil_property');
+      expect(record.data.results).toHaveLength(1);
+      expect(record.data.results[0]).not.toHaveProperty('dataset_id');
+      expect(record.data.results[0].classes).toEqual([
+        { name: 'Low', value: 1 },
+        { name: 'High', value: 1 },
+      ]);
+    });
+
+    it('fails when the soil index run named has no partition by the time it runs', async () => {
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.VALUE_RANGE,
+        variable: { type: VariableType.SOIL_INDEX, id: uuidv4() },
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_UNKNOWN_SOIL_INDEX_RUN' });
+    });
+
     it('fails a class distribution whose soil property was deleted after submission', async () => {
       await seedDataset('type-class-distribution-gone', [1]);
       const filterId = await createFilter([UNIT_A]);
       const { job } = await createActiveJob({
         filter_id: filterId,
         statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.PERCENTAGE,
         variable: { type: VariableType.SOIL_PROPERTY, id: 'no-such-property' },
         classes: [{ name: 'All', min: 0 }],
       });
@@ -710,6 +818,7 @@ describe('processDataRequest', () => {
       const { job } = await createActiveJob({
         filter_id: filterId,
         statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.PERCENTAGE,
         variable: { type: VariableType.SOIL_PROPERTY, id: 'anything' },
         classes: [{ name: 'Unbounded' }],
       });

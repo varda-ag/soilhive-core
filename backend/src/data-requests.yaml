@@ -18,13 +18,15 @@ components:
       properties:
         statistics_type:
           type: string
-          enum: [descriptive, class-distribution]
+          enum: [descriptive, class-distribution, value-range]
           description: >-
             Which product to compute. `descriptive` gives descriptive statistics over the
             matching observations, per aggregation area, dataset, soil property, sampling
-            year and depth interval. `class-distribution` gives the percentage of one soil
-            property's observations in each of the given classes, per dataset, aggregation
-            area, year window and depth bucket. Required, and never defaulted.
+            year and depth interval. `class-distribution` gives the percentage or number of one
+            soil property's observations in each of the given classes, per dataset, aggregation
+            area, year window and depth bucket. `value-range` gives just how many observations
+            of one soil property match, at how many locations, and their lowest and highest
+            values, for the whole request and per dataset. Required, and never defaulted.
         filter_id:
           type: string
           format: uuid
@@ -62,12 +64,31 @@ components:
           minItems: 1
           maxItems: 20
           description: >-
-            Required for, and only accepted with, statistics_type `class-distribution`. The
-            classes the variable's values are sorted into, in the order the output reports them.
-            Each class includes its min and excludes its max; classes must not overlap (touching
-            bounds are fine), names must be unique, and `unclassified` is reserved.
+            Only accepted with statistics_type `class-distribution`, which needs either this or
+            class_count with class_method, never both. The classes the variable's values are
+            sorted into, in the order the output reports them. Each class includes its min and
+            excludes its max; classes must not overlap (touching bounds are fine), names must be
+            unique, and `unclassified` is reserved.
           items:
             $ref: '#/components/schemas/ClassDefinition'
+        class_count:
+          type: integer
+          minimum: 3
+          maximum: 20
+          description: >-
+            Only accepted with statistics_type `class-distribution`, instead of classes: how many
+            classes to generate from the matching observations, in total. Requires class_method.
+            The classes are generated once for the whole request, each observation counted once,
+            so every row shares them; the first is open below and the last open above, so nothing
+            is unclassified. Repeated values can yield fewer classes than asked for, never more.
+        class_method:
+          type: string
+          enum: [equal-interval, quantile]
+          description: >-
+            Required with class_count, and rejected without it. `equal-interval` gives equal-width
+            classes over the 1st-99th percentile range, rounded to readable edges (for histograms),
+            with anything beyond it in the open first and last class. `quantile` gives each class
+            about the same number of observations, with edges rounded to 3 decimals.
         time_aggregation:
           type: integer
           minimum: 1
@@ -85,6 +106,14 @@ components:
             into the GlobalSoilMap range (0-5, 5-15, 15-30, 30-60, 60-100, 100-200 cm, and deeper
             than 200) holding its layer's depth midpoint, so a 0-30 cm composite is reported at
             15-30 cm.
+        value_type:
+          type: string
+          enum: [percentage, count]
+          description: >-
+            Required for, and only accepted with, statistics_type `class-distribution`: what each
+            class value in the output holds. `percentage` is the share of the row's observations,
+            rounded to 3 decimals, so a row's values sum to 100; `count` is the number of
+            observations, so they sum to the row's count. Never defaulted.
         label_field:
           type: string
           description: >-
@@ -106,7 +135,7 @@ components:
       properties:
         statistics_type:
           type: string
-          enum: [descriptive, class-distribution]
+          enum: [descriptive, class-distribution, value-range]
         filter_id:
           type: string
           format: uuid
@@ -124,11 +153,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ClassDefinition'
+        class_count:
+          type: integer
+        class_method:
+          type: string
+          enum: [equal-interval, quantile]
         time_aggregation:
           type: integer
         depth_ranges:
           type: string
           enum: [none, standard]
+        value_type:
+          type: string
+          enum: [percentage, count]
         label_field:
           type: string
         derived_filter_id:
@@ -228,13 +265,75 @@ components:
           oneOf:
             - $ref: '#/components/schemas/SoilStatistics'
             - $ref: '#/components/schemas/ClassDistribution'
+            - $ref: '#/components/schemas/ValueRange'
+
+    ValueRangeFigures:
+      type: object
+      required:
+        - count
+      properties:
+        count:
+          type: integer
+          description: Matching observations, or scores for a soil index; 0 when there are none.
+        n_features:
+          type: integer
+          description: Distinct sampling locations behind count. Absent for a soil index, whose scores have none.
+        min:
+          type: number
+          description: Lowest value, in standard_unit. Absent when count is 0.
+        max:
+          type: number
+          description: Highest value, in standard_unit. Absent when count is 0.
+
+    ValueRange:
+      description: >-
+        The result of a `value-range` data request. The top-level figures cover the whole request,
+        each observation (or score) counted once however many aggregation areas it falls in. For a
+        soil property, datasets gives the same figures per dataset, listing only datasets with at
+        least one matching observation; for a soil index there is no datasets, since scores belong
+        to no dataset.
+      allOf:
+        - $ref: '#/components/schemas/ValueRangeFigures'
+        - type: object
+          properties:
+            soil_property:
+              type: string
+              description: Present when variable.type is `soil-property`.
+            standard_unit:
+              type: string
+              nullable: true
+              description: Present when variable.type is `soil-property`. The unit values and class bounds are in.
+            run:
+              type: string
+              format: uuid
+              description: Present when variable.type is `soil-index`. The soil index run whose scores were read.
+            soil_index_type:
+              type: string
+              description: >-
+                Present when variable.type is `soil-index` and the run scored anything. Scores have no
+                unit of measure.
+            datasets:
+              type: array
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/ValueRangeFigures'
+                  - type: object
+                    required:
+                      - dataset_id
+                    properties:
+                      dataset_id:
+                        type: string
 
     ClassDistributionVariable:
       type: object
       description: >-
-        Required for, and only accepted with, statistics_type `class-distribution`: what the
-        distribution is computed for. The soil property must exist and be admitted by the
-        filter's own soil property criterion, if it has one.
+        Required for, and only accepted with, statistics_types `class-distribution` and
+        `value-range`: what they are computed for. A `soil-property` must exist and be admitted by
+        the filter's own soil property criterion, if it has one. A `soil-index` names a completed
+        soil index run, whose scores are read in place of observations: each score belongs to the
+        areas containing its representative point, the filter must carry no criteria at all (it
+        supplies only the area), and dataset_ids and depth_ranges are rejected. Holding the run id
+        is the whole of the permission to read its scores.
       additionalProperties: false
       required:
         - type
@@ -242,10 +341,10 @@ components:
       properties:
         type:
           type: string
-          enum: [soil-property]
+          enum: [soil-property, soil-index]
         id:
           type: string
-          description: ID of the soil property.
+          description: ID of the soil property, or the id of the soil index run.
 
     ClassDefinition:
       type: object
@@ -274,16 +373,44 @@ components:
         observations, never a small or empty one: every row is emitted, however few observations
         it holds, so check count before trusting a distribution.
       required:
-        - soil_property
-        - standard_unit
+        - classes
         - results
       properties:
         soil_property:
           type: string
+          description: Present when variable.type is `soil-property`.
         standard_unit:
           type: string
           nullable: true
-          description: The unit the class bounds are expressed in.
+          description: Present when variable.type is `soil-property`. The unit values and class bounds are in.
+        run:
+          type: string
+          format: uuid
+          description: Present when variable.type is `soil-index`. The soil index run whose scores were read.
+        soil_index_type:
+          type: string
+          description: >-
+            Present when variable.type is `soil-index` and the run scored anything. Scores have no
+            unit of measure.
+        classes:
+          type: array
+          description: >-
+            The classes every row's class names refer to, in order: the request's own, or those
+            generated from class_count and class_method. Generated classes depend on the data at
+            the time of the run, so two runs of the same request can differ. Empty when classes
+            were to be generated and no observation matched.
+          items:
+            $ref: '#/components/schemas/ClassDefinition'
+        observed_min:
+          type: number
+          description: >-
+            Lowest observation value across the whole request, for labelling the open first
+            class. Absent when no observation matched.
+        observed_max:
+          type: number
+          description: >-
+            Highest observation value across the whole request, for labelling the open last
+            class. Absent when no observation matched.
         results:
           type: array
           items:
@@ -295,16 +422,15 @@ components:
         One distribution, ready to chart. Observations are counted once per area they fall in, so
         an observation inside two overlapping areas counts in both.
       required:
-        - dataset_id
         - unit_id
         - year_start
         - year_end
         - count
-        - n_features
         - classes
       properties:
         dataset_id:
           type: string
+          description: Absent for a soil index, whose scores belong to no dataset.
         unit_id:
           type: string
           format: uuid
@@ -343,13 +469,14 @@ components:
           description: Observations behind this row.
         n_features:
           type: integer
-          description: Distinct sampling locations behind count.
+          description: Distinct sampling locations behind count. Absent for a soil index, where count is of scores.
         classes:
           type: array
           description: >-
-            Every requested class in request order, each with the percentage of count in it
-            (rounded to 3 decimals), then `unclassified` when any observation fell in no class.
-            The values sum to 100, so the array can be charted as is.
+            Every class of the top-level classes, in order, then `unclassified` when any observation
+            fell in no class. Each value is what request.value_type says: the percentage of count in
+            the class (rounded to 3 decimals, summing to 100) or the number of observations in it
+            (summing to count). Either way the array can be charted as is.
           items:
             type: object
             required:
