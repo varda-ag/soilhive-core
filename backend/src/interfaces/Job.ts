@@ -110,9 +110,7 @@ export interface DataRequestJobParameters extends RunJobParameters {
   statistics_type: StatisticsType;
   /** Dataset slugs. Absent means every dataset the filter matches that the caller can preview. */
   dataset_ids?: string[];
-  /** `descriptive` only. */
-  histogram_bins?: number;
-  /** `class-distribution` and `value-range` (required there). */
+  /** Required by every Statistics Type. */
   variable?: ClassDistributionVariable;
   /** `class-distribution` only; exclusive with `class_count`. */
   classes?: ClassDefinition[];
@@ -120,13 +118,15 @@ export interface DataRequestJobParameters extends RunJobParameters {
   class_count?: number;
   /** `class-distribution` only; required with `class_count`. */
   class_method?: ClassMethod;
-  /** `class-distribution` only: Year Window in years, 1-10, default 1. */
-  time_aggregation?: number;
-  /** `class-distribution` only, default `none`. */
+  /** Required by every Statistics Type: Year Window in years (1-10), or `none`. */
+  time_aggregation?: TimeAggregation;
+  /** `descriptive` and `class-distribution`, default `none`. */
   depth_ranges?: DepthRanges;
   /** `class-distribution` only (required there). */
   value_type?: ValueType;
 }
+
+export type TimeAggregation = number | 'none';
 
 export interface ClassDistributionVariable {
   type: VariableType;

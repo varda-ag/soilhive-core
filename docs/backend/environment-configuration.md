@@ -53,6 +53,6 @@ Shared by both, since both resolve their aggregation areas the same way:
 - `MAX_AGGREGATION_UNITS` (default `2000`): most aggregation areas a single job will report on. The job fails above this rather than dropping areas. `DATA_REQUESTS_MAX_UNITS` is the deprecated former name and is still honoured.
 
 `data-requests` only:
-- `DATA_REQUESTS_MAX_CELLS` (default `200000`): budget for the per-year/per-depth breakdown. Above it, whole dataset/soil-property groups lose their breakdown; headline statistics are unaffected.
+- `DATA_REQUESTS_MAX_CELLS` (default `200000`): budget for a `descriptive` result, in `overall` + `results` rows. Above it the job fails before aggregating.
 - `DATA_REQUESTS_MAX_CLASS_ENTRIES` (default `1000000`): budget for a `class-distribution` result, in rows × (classes + 1). Above it the job fails before aggregating; nothing is truncated.
 - `DATA_REQUESTS_STATEMENT_TIMEOUT_MS` (default `1800000`, 30 minutes): statement timeout for the aggregation queries.

@@ -1,12 +1,13 @@
 import { EntityManager } from 'typeorm';
 import { DataFilter } from '../interfaces/DatasetFilter';
-import { ClassDefinition } from '../interfaces/Job';
-import { ClassDistributionRow, ClassValue, STANDARD_DEPTH_RANGES, UNCLASSIFIED } from '../jobs/data-requests/types';
+import { ClassDefinition, TimeAggregation } from '../interfaces/Job';
+import { ClassDistributionRow, ClassValue, UNCLASSIFIED } from '../jobs/data-requests/types';
 import { ClassMethod, DepthRanges, ValueType } from '../types/enums';
 import { JobError } from '../errors/JobError';
 import { log } from '../utils/logger';
 import { round3 } from '../utils/utils';
 import { nothingToStage, StagedVariable, stageVariable } from './DataRequests';
+import { bucketKeys, depthStartSql, yearStartSql } from './Buckets';
 import { generateClasses, percentilesFor } from '../jobs/data-requests/generateClasses';
 
 export interface ClassDistributionOptions {
@@ -19,8 +20,7 @@ export interface ClassDistributionOptions {
   variable: StagedVariable;
   /** The caller's (validated) Classes, or how many to generate and how. */
   classSource: { classes: ClassDefinition[] } | { method: ClassMethod; count: number };
-  /** Year Window size in years. */
-  timeAggregation: number;
+  timeAggregation: TimeAggregation;
   depthRanges: DepthRanges;
   valueType: ValueType;
   /** Limit on rows × (classes + 1); see docs/adr/0038. */
@@ -53,27 +53,6 @@ interface RawRow {
   class_counts: number[];
 }
 
-/** Year Windows are aligned to multiples of N, so a year always lands in the same one. */
-const yearStartSql = (timeAggregation: number): string =>
-  `CASE WHEN o.year IS NULL THEN NULL ELSE (FLOOR(o.year::numeric / ${timeAggregation}) * ${timeAggregation})::int END`;
-
-/** Standard Depth Range holding the Layer's midpoint; `none` pools every depth under one key. */
-const depthStartSql = (depthRanges: DepthRanges): string => {
-  if (depthRanges === DepthRanges.NONE) {
-    return 'NULL::int';
-  }
-  const bounded = STANDARD_DEPTH_RANGES.filter(range => range.end !== null);
-  const last = STANDARD_DEPTH_RANGES[STANDARD_DEPTH_RANGES.length - 1]!;
-  const branches = bounded.map(range => `WHEN (o.min_depth + o.max_depth) / 2.0 < ${range.end} THEN ${range.start}`).join('\n        ');
-  return `CASE
-        WHEN o.min_depth IS NULL OR o.max_depth IS NULL THEN NULL
-        ${branches}
-        ELSE ${last.start}
-      END`;
-};
-
-const DEPTH_END_BY_START = new Map(STANDARD_DEPTH_RANGES.map(range => [range.start, range.end]));
-
 /** The `class-distribution` product: per (Dataset, unit, Year Window, depth), values per Class. */
 export const computeClassDistribution = async (
   entityManager: EntityManager,
@@ -93,10 +72,6 @@ export const computeClassDistribution = async (
 
   if (nothingToStage(variable, unitIds, datasetSlugs)) {
     return nothing;
-  }
-  // Interpolated into SQL below.
-  if (!Number.isInteger(timeAggregation) || timeAggregation < 1) {
-    throw new Error(`Invalid time aggregation: ${timeAggregation}`);
   }
 
   return entityManager.transaction(async em => {
@@ -224,11 +199,7 @@ const toRow = (raw: RawRow, classes: ClassDefinition[], options: ClassDistributi
   return {
     ...(scores ? {} : { dataset_id: raw.dataset_slug }),
     unit_id: raw.unit_id,
-    year_start: raw.year_start,
-    year_end: raw.year_start === null ? null : raw.year_start + timeAggregation - 1,
-    ...(depthRanges === DepthRanges.STANDARD
-      ? { depth_start: raw.depth_start, depth_end: raw.depth_start === null ? null : (DEPTH_END_BY_START.get(raw.depth_start) ?? null) }
-      : {}),
+    ...bucketKeys(raw.year_start, raw.depth_start, timeAggregation, depthRanges),
     ...(raw.depth_min !== null ? { depth_min: raw.depth_min } : {}),
     ...(raw.depth_max !== null ? { depth_max: raw.depth_max } : {}),
     count: raw.count,

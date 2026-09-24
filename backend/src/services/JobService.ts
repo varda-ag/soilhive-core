@@ -109,7 +109,7 @@ export default class JobService {
    *
    * Parameters that the requested statistics_type does not use are rejected rather than
    * ignored, following the same rule as `label_field` without `file_id`: a caller who set
-   * histogram_bins: 50 and got no histograms deserves to be told, not left guessing.
+   * value_type: 'count' on a descriptive request deserves to be told, not left guessing.
    * Rejecting now also keeps the door open - accepting one of these for a future type is
    * an additive change, whereas silently ignoring it now and tightening later is breaking.
    */

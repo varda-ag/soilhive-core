@@ -29,11 +29,13 @@ const run = async ({
   parameters,
   soilPropertySlug,
   ...options
-}: Pick<ValueRangeOptions, 'unitIds' | 'datasetSlugs'> & { soilPropertySlug: string; parameters?: FilterCriteria }) => {
+}: Pick<ValueRangeOptions, 'unitIds' | 'datasetSlugs'> &
+  Partial<Pick<ValueRangeOptions, 'timeAggregation'>> & { soilPropertySlug: string; parameters?: FilterCriteria }) => {
   const entityManager = await getEntityManager();
   return computeValueRange(entityManager, {
     filter: { geometryIds: options.unitIds, parameters: parameters ?? {}, area: 0 },
     variable: { soilPropertySlug },
+    timeAggregation: 'none',
     workMem: '64MB',
     statementTimeoutMs: 120_000,
     ...options,
@@ -81,6 +83,36 @@ describe('computeValueRange', () => {
         { dataset_id: farm.slug, count: 3, n_features: 2, min: 5.1, max: 41 },
       ].sort((a, b) => a.dataset_id.localeCompare(b.dataset_id)),
     );
+  });
+
+  it('adds request-wide and per-Dataset figures per Year Window, keeping the all-years total', async () => {
+    const soilProperty = await seedProperty();
+    const dataset = await addDataset(unique('vr-ds'), DATASET_BBOX, GISDataType.POINT);
+    const [early, late] = await addFeatures(GISDataType.POINT, [
+      [0.5, 0.5],
+      [0.6, 0.6],
+    ]);
+    for (const [feature, date, value] of [
+      [early!, '2018-05-01', 4],
+      [late!, '2021-05-01', 9],
+    ] as const) {
+      const layer = await addLayer(undefined, date, undefined, undefined, unique('h'));
+      const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, soilProperty.id);
+      await addObservations([value], (await addProcedure(unique('vr-proc'))).id, datasetLayer.id);
+    }
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const result = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug, timeAggregation: 1 });
+
+    expect(result.overall).toEqual({ count: 2, n_features: 2, min: 4, max: 9 });
+    expect(result.windows).toEqual([
+      { year_start: 2018, year_end: 2018, count: 1, n_features: 1, min: 4, max: 4 },
+      { year_start: 2021, year_end: 2021, count: 1, n_features: 1, min: 9, max: 9 },
+    ]);
+    expect(result.datasets.map(entry => [entry.dataset_id, entry.year_start])).toEqual([
+      [dataset.slug, 2018],
+      [dataset.slug, 2021],
+    ]);
   });
 
   it('counts an Observation once however many overlapping units it falls in', async () => {
@@ -134,7 +166,7 @@ describe('computeValueRange', () => {
       soilPropertySlug: soilProperty.slug,
       parameters: { soil_properties: [other.slug] },
     });
-    expect(excluded).toEqual({ overall: { count: 0, n_features: 0 }, datasets: [] });
+    expect(excluded).toEqual({ overall: { count: 0, n_features: 0 }, windows: [], datasets: [] });
   });
 
   it('answers zero, with no extremes, when nothing matches', async () => {
@@ -145,7 +177,7 @@ describe('computeValueRange', () => {
 
     const result = await run({ unitIds: [farAway], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
-    expect(result).toEqual({ overall: { count: 0, n_features: 0 }, datasets: [] });
+    expect(result).toEqual({ overall: { count: 0, n_features: 0 }, windows: [], datasets: [] });
     expect(result.overall).not.toHaveProperty('min');
     expect(result.overall).not.toHaveProperty('max');
   });

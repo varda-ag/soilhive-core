@@ -11,6 +11,7 @@ import { getDataAdminToken, getUserToken } from '../helper';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import { addCategory, addDataset, addSoilProperty } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
+import SoilPropertyEntity from '../../src/entities/SoilProperty';
 
 const polygon = {
   type: 'Polygon',
@@ -32,6 +33,21 @@ const createFilter = async (geometries: object[], parameters: object = {}): Prom
 
 const submit = (body: object) => request(app).post('/data-requests').send(body);
 
+/** A valid `descriptive` body over one shared Soil Property. */
+const descriptive = async (filterId: string, extra: object = {}) => {
+  const repo = (await getDataSource()).getRepository(SoilPropertyEntity);
+  const property =
+    (await repo.findOne({ where: { property_name: 'dr-route-prop' } })) ??
+    (await addSoilProperty('dr-route-prop', (await addCategory('dr-route-cat')).id, 'pH'));
+  return {
+    statistics_type: StatisticsType.DESCRIPTIVE,
+    filter_id: filterId,
+    variable: { type: 'soil-property', id: property.slug },
+    time_aggregation: 1,
+    ...extra,
+  };
+};
+
 describe('Testing /data-requests routes', () => {
   beforeAll(async () => {
     const dataSource = await getDataSource();
@@ -48,12 +64,12 @@ describe('Testing /data-requests routes', () => {
   describe('POST /data-requests', () => {
     it('accepts a request without a token and reports it as pending', async () => {
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, histogram_bins: 20 });
+      const res = await submit(await descriptive(filterId, { time_aggregation: 'none' }));
 
       expect(res.statusCode).toBe(201);
       expect(res.body.status).toBe(DataRequestStatus.PENDING);
       expect(res.body.id).toEqual(expect.any(String));
-      expect(res.body.request.histogram_bins).toBe(20);
+      expect(res.body.request.time_aggregation).toBe('none');
       expect(res.body.request.statistics_type).toBe(StatisticsType.DESCRIPTIVE);
       // Not yet computed, so no answer and no failure.
       expect(res.body.data).toBeUndefined();
@@ -65,7 +81,7 @@ describe('Testing /data-requests routes', () => {
     it('never returns the submitter, their privilege, or the queue', async () => {
       const filterId = await createFilter([polygon]);
       const token = getUserToken('dr-submitter-id', 'dr-submitter@example.com');
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const res = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -86,23 +102,20 @@ describe('Testing /data-requests routes', () => {
     });
 
     it('rejects an unknown filter with 404', async () => {
-      const res = await submit({
-        statistics_type: StatisticsType.DESCRIPTIVE,
-        filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
-      });
+      const res = await submit(await descriptive('960ee487-a6bd-4da8-8ef0-da6ef23d0e80'));
       expect(res.statusCode).toBe(404);
     });
 
     it('rejects a filter with no geometries when no file_id is given', async () => {
       const filterId = await createFilter([]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId });
+      const res = await submit(await descriptive(filterId));
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('no geometries');
     });
 
     it('rejects label_field without file_id', async () => {
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, label_field: 'field_name' });
+      const res = await submit(await descriptive(filterId, { label_field: 'field_name' }));
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('label_field requires file_id');
     });
@@ -113,7 +126,7 @@ describe('Testing /data-requests routes', () => {
       await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
 
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, dataset_ids: [dataset.slug] });
+      const res = await submit(await descriptive(filterId, { dataset_ids: [dataset.slug] }));
       expect(res.statusCode).toBe(403);
     });
 
@@ -138,10 +151,22 @@ describe('Testing /data-requests routes', () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it('rejects a histogram_bins value outside the allowed range', async () => {
+    it('rejects histogram_bins, which no type takes any more', async () => {
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, histogram_bins: 1 });
+      const res = await submit(await descriptive(filterId, { histogram_bins: 10 }));
       expect(res.statusCode).toBe(400);
+    });
+
+    it('rejects a request with no variable or no time_aggregation', async () => {
+      const filterId = await createFilter([polygon]);
+      const noVariable = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, time_aggregation: 1 });
+      expect(noVariable.statusCode).toBe(400);
+      expect(JSON.stringify(noVariable.body)).toContain('variable');
+
+      const { time_aggregation: _omitted, ...withoutTime } = await descriptive(filterId);
+      const noTime = await submit(withoutTime);
+      expect(noTime.statusCode).toBe(400);
+      expect(JSON.stringify(noTime.body)).toContain('time_aggregation');
     });
   });
 
@@ -167,6 +192,7 @@ describe('Testing /data-requests routes', () => {
         variable: { type: 'soil-property', id: property.slug },
         classes: PH_CLASSES,
         value_type: 'percentage',
+        time_aggregation: 1,
         ...overrides,
       });
     };
@@ -192,6 +218,7 @@ describe('Testing /data-requests routes', () => {
         variable: { type: 'soil-property', id: property.slug },
         classes: PH_CLASSES,
         value_type: 'count',
+        time_aggregation: 1,
       });
       expect(res.statusCode).toBe(201);
     });
@@ -228,7 +255,7 @@ describe('Testing /data-requests routes', () => {
     });
 
     it('rejects a missing variable or missing classes', async () => {
-      expect((await submitClassDistribution({ variable: undefined })).body.detail).toContain('variable is required');
+      expect(JSON.stringify((await submitClassDistribution({ variable: undefined })).body)).toContain('variable');
       expect((await submitClassDistribution({ classes: undefined })).body.detail).toContain(
         'Parameter classes, or class_count with class_method, is required',
       );
@@ -301,23 +328,21 @@ describe('Testing /data-requests routes', () => {
       expect((await submitClassDistribution({ depth_ranges: 'harmonised' })).statusCode).toBe(400);
     });
 
-    it('rejects histogram_bins, which is descriptive-only', async () => {
-      const res = await submitClassDistribution({ histogram_bins: 10 });
-      expect(res.statusCode).toBe(400);
-      expect(res.body.detail).toContain('histogram_bins does not apply');
+    it('accepts time_aggregation none', async () => {
+      expect((await submitClassDistribution({ time_aggregation: 'none' })).statusCode).toBe(201);
     });
 
     it('rejects class-distribution parameters sent with descriptive', async () => {
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, time_aggregation: 2 });
+      const res = await submit(await descriptive(filterId, { classes: [{ name: 'All', min: 0 }] }));
       expect(res.statusCode).toBe(400);
-      expect(res.body.detail).toContain('time_aggregation does not apply');
+      expect(res.body.detail).toContain('classes does not apply');
 
-      const withValueType = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, value_type: 'count' });
+      const withValueType = await submit(await descriptive(filterId, { value_type: 'count' }));
       expect(withValueType.statusCode).toBe(400);
       expect(withValueType.body.detail).toContain('value_type does not apply');
 
-      const withClassCount = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, class_count: 5 });
+      const withClassCount = await submit(await descriptive(filterId, { class_count: 5 }));
       expect(withClassCount.statusCode).toBe(400);
       expect(withClassCount.body.detail).toContain('class_count does not apply');
     });
@@ -337,6 +362,7 @@ describe('Testing /data-requests routes', () => {
         statistics_type: StatisticsType.VALUE_RANGE,
         filter_id: filterId,
         variable: { type: 'soil-property', id: property.slug },
+        time_aggregation: 'none',
         ...overrides,
       });
     };
@@ -351,7 +377,7 @@ describe('Testing /data-requests routes', () => {
     it('rejects a missing variable, an unknown soil property, and one the filter excludes', async () => {
       const missing = await submitValueRange({ variable: undefined });
       expect(missing.statusCode).toBe(400);
-      expect(missing.body.detail).toContain('variable is required for statistics_type value-range');
+      expect(JSON.stringify(missing.body)).toContain('variable');
 
       const unknown = await submitValueRange({ variable: { type: 'soil-property', id: 'no-such-property' } });
       expect(unknown.statusCode).toBe(400);
@@ -364,11 +390,9 @@ describe('Testing /data-requests routes', () => {
     });
 
     it.each([
-      ['histogram_bins', { histogram_bins: 10 }],
       ['classes', { classes: [{ name: 'All', min: 0 }] }],
       ['class_count', { class_count: 5, class_method: 'quantile' }],
       ['value_type', { value_type: 'count' }],
-      ['time_aggregation', { time_aggregation: 2 }],
       ['depth_ranges', { depth_ranges: 'standard' }],
     ])('rejects %s, which value-range does not use', async (name, overrides) => {
       const res = await submitValueRange(overrides);
@@ -392,6 +416,7 @@ describe('Testing /data-requests routes', () => {
         statistics_type: StatisticsType.VALUE_RANGE,
         filter_id: filterId,
         variable: { type: 'soil-index', id: run },
+        time_aggregation: 'none',
         ...overrides,
       });
     };
@@ -442,7 +467,7 @@ describe('Testing /data-requests routes', () => {
     it('is readable without a token by anyone holding the id', async () => {
       const filterId = await createFilter([polygon]);
       const token = getUserToken('dr-owner-id', 'dr-owner@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -456,7 +481,7 @@ describe('Testing /data-requests routes', () => {
       const filterId = await createFilter([polygon]);
       const submitter = getUserToken('dr-a-id', 'dr-a@example.com');
       const stranger = getUserToken('dr-b-id', 'dr-b@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${submitter}`)
         .expect(201);
 
@@ -474,7 +499,7 @@ describe('Testing /data-requests routes', () => {
     it('does not serve a data request through GET or DELETE /jobs/{jobId}', async () => {
       const filterId = await createFilter([polygon]);
       const token = getUserToken('dr-jobs-door-id', 'dr-jobs-door@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -491,7 +516,7 @@ describe('Testing /data-requests routes', () => {
       jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
       const filterId = await createFilter([polygon]);
       const token = await getDataAdminToken();
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -514,7 +539,7 @@ describe('Testing /data-requests routes', () => {
   describe('DELETE /data-requests/{id}', () => {
     it('destroys a request without a token and makes it unreadable', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
 
       await request(app).delete(`/data-requests/${created.body.id}`).expect(204);
       // Not "cancelled": the job survives in that state until retention, and reporting it would
@@ -526,7 +551,7 @@ describe('Testing /data-requests routes', () => {
       const filterId = await createFilter([polygon]);
       const submitter = getUserToken('dr-del-a-id', 'dr-del-a@example.com');
       const stranger = getUserToken('dr-del-b-id', 'dr-del-b@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${submitter}`)
         .expect(201);
 
@@ -540,7 +565,7 @@ describe('Testing /data-requests routes', () => {
 
     it('returns 404 on a second delete', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
 
       await request(app).delete(`/data-requests/${created.body.id}`).expect(204);
       await request(app).delete(`/data-requests/${created.body.id}`).expect(404);
@@ -570,7 +595,7 @@ describe('Testing /data-requests routes', () => {
 
     it('destroys a request whose run already completed', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
       await finishRun(created.body.id);
 
       // Readable first, so the 404 below is this DELETE's doing and not a request that was never there.
@@ -583,7 +608,7 @@ describe('Testing /data-requests routes', () => {
 
     it('leaves no job behind for a completed run it destroyed', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
       await finishRun(created.body.id);
 
       await request(app).delete(`/data-requests/${created.body.id}`).expect(204);

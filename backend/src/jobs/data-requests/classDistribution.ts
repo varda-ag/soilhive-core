@@ -8,7 +8,7 @@ import { log } from '../../utils/logger';
 import { RunContext } from '../runs/runContext';
 import { parametersProblem } from './parameters';
 import { effectiveFilterOf, resolveVariable } from './selectDatasets';
-import { ClassDistributionOutput, DEFAULT_TIME_AGGREGATION } from './types';
+import { ClassDistributionOutput } from './types';
 
 /** The `class-distribution` Statistics Type: a Class Distribution in the CONTEXT.md sense. */
 export async function runClassDistribution(ctx: RunContext, data: DataRequestJob): Promise<ClassDistributionOutput> {
@@ -21,7 +21,8 @@ export async function runClassDistribution(ctx: RunContext, data: DataRequestJob
   }
   const { value_type: valueType } = data as Required<Pick<DataRequestJob, 'value_type'>> & DataRequestJob;
   const classSource = data.classes ? { classes: data.classes } : { method: data.class_method!, count: data.class_count! };
-  const timeAggregation = data.time_aggregation ?? DEFAULT_TIME_AGGREGATION;
+  // Required, and checked above.
+  const timeAggregation = data.time_aggregation!;
   const depthRanges = data.depth_ranges ?? DepthRanges.NONE;
 
   await report('Selecting datasets...', 12);

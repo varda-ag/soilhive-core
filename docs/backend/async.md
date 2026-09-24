@@ -137,7 +137,7 @@ Computes an analytical product over the spatial areas matching a filter. `statis
 
 | `statistics_type` | Product | Output key |
 |---|---|---|
-| `descriptive` | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | `data` on `GET /data-requests/{id}` |
+| `descriptive` | Count, extremes, mean, spread and percentiles of one variable, per dataset, area, year window and depth bucket | `data` on `GET /data-requests/{id}` |
 | `class-distribution` | Percentage or number of one soil property's observations in each caller-supplied class, per dataset, area, year window and depth bucket | `data` on `GET /data-requests/{id}` |
 | `value-range` | How many observations of one soil property match, at how many locations, and their lowest and highest values, for the whole request and per dataset | `data` on `GET /data-requests/{id}` |
 
@@ -151,14 +151,15 @@ POST /data-requests
 {
   "statistics_type": "descriptive",
   "filter_id": "<uuid>",
+  "variable": { "type": "soil-property", "id": "ph" },
+  "time_aggregation": 1,
   "file_id": "<file_id>",
   "dataset_ids": ["<dataset_id>", "..."],
-  "histogram_bins": 10,
   "label_field": "field_name"
 }
 ```
 
-`statistics_type` and `filter_id` are required — there is **no default**, and a request that does not name its product is a `400`. Parameters the chosen type does not use are **rejected with a `400`, not ignored** — `histogram_bins` applies to `descriptive` only, `variable` to `class-distribution` and `value-range`, and `classes`, `class_count`, `class_method`, `value_type`, `time_aggregation` and `depth_ranges` to `class-distribution` only. `dataset_ids` applies to every type. Unknown properties are rejected by the same rule, which includes `type` and `anonymous`: both were `/jobs` concepts and neither has a meaning here. A missing or unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor without a usable one fails rather than falling back to `descriptive`.
+`statistics_type`, `filter_id`, `variable` and `time_aggregation` are required — there is **no default**. Parameters the chosen type does not use are **rejected with a `400`, not ignored**: `depth_ranges` applies to `descriptive` and `class-distribution`, and `classes`, `class_count`, `class_method` and `value_type` to `class-distribution` only. `dataset_ids` applies to every type. Unknown properties are rejected by the same rule, which includes `type` and `anonymous`: both were `/jobs` concepts and neither has a meaning here. A missing or unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor without a usable one fails rather than falling back to `descriptive`.
 
 **No token is required.** A token, if sent, decides only which datasets the run may read — without one it resolves public datasets only — and is never consulted again. It does not decide who may read or delete the result: the returned `id` is the whole of that permission, so passing it on passes on the data *and* the power to erase it.
 
@@ -179,6 +180,26 @@ All of the above holds for **every** product on **either** queue, cap included: 
 
 ## `data-requests` — `descriptive`
 
+Summary statistics for box plots and tiles, bucketed like `class-distribution` (`time_aggregation`, `depth_ranges`, including `"none"` to pool all years):
+
+```jsonc
+{
+  "soil_property": "ph", "standard_unit": "pH",
+  "overall": [ /* per dataset and bucket over the whole request, each observation once; no unit_id */ ],
+  "results": [
+    { "dataset_id": "lucas-2018", "unit_id": "…", "year_start": 2018, "year_end": 2018,
+      "count": 57, "n_features": 41,
+      "min": 4.1, "p05": 4.6, "p25": 5.4, "median": 6.1, "p75": 6.8, "p95": 7.5, "max": 8.2,
+      "mean": 6.052, "stddev": 0.874,
+      "depth_min": 0, "depth_max": 30, "laboratory_methods": ["pH in water (1:2.5)"] }
+  ]
+}
+```
+
+- Figures are rounded to 3 decimals; empty fields (`stddev` below 2 values, `horizons`, `laboratory_methods`, `depth_*`) are absent.
+- No histogram: use `class-distribution` with `class_count` + `equal-interval`.
+- The run fails if `overall` + `results` rows exceed `DATA_REQUESTS_MAX_CELLS`; nothing is truncated (docs/adr/0040).
+
 ### Filtering
 
 Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, dataset status and visibility.
@@ -191,7 +212,7 @@ Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, 
 2. Select the datasets the filter matches, applying `PREVIEW`.
 3. Resolve the units to sampling locations (features) intersecting them.
 4. Collect the matching observations into a staging table, one row per observation.
-5. Aggregate: `overall` per (dataset, soil property), then per unit, then per (unit, year, depth interval).
+5. Aggregate: `overall` per (dataset, bucket) over the whole request, then per (dataset, unit, bucket).
 6. Write progress into the job data.
 7. Record the outcome — the payload, or the reason there is none — as a `data_requests` row keyed by the job id.
 
@@ -211,7 +232,7 @@ GET /data-requests/{id}
   "progress_description": "…",     // likewise
   "message": null,                 // why it failed; null otherwise
   "request": { /* what was asked, plus the resolved units, derived_filter_id and unit_count */ },
-  "data": { "results": [ /* per dataset and soil property */ ], "truncated": false }
+  "data": { /* the Statistics Type's payload */ }
 }
 ```
 
@@ -253,7 +274,7 @@ Checked on submission (`400` on failure):
   - `classes`: `{ name, min?, max? }`, `[min, max)`, at least one bound, no overlaps, unique names, `unclassified` reserved.
   - `class_count` (3–20, total) + `class_method` generates them once per request from the matching observations (each counted once). The first and last classes are open-ended. `equal-interval` uses equal readable widths (`4.0–4.8`) over the 1st–99th percentile range, which suits histograms. `quantile` gives about equal counts per class. Equal edges merge, so fewer classes may come back.
 - **`value_type`** (required): `percentage` or `count`.
-- **`time_aggregation`** (1–10, default 1): years per window, aligned to multiples (with 3, 2019 is always in 2019–2021). Undated observations get `year_start`/`year_end` `null`.
+- **`time_aggregation`** (required, 1–10 or `"none"`): years per window, aligned to multiples (with 3, 2019 is always in 2019–2021). Undated observations get `year_start`/`year_end` `null`; `"none"` pools every year and drops the year keys.
 - **`depth_ranges`** (default `none`): `none` pools all depths. `standard` uses the GlobalSoilMap range holding each layer's depth midpoint, so a 0–30 cm composite lands in 15–30. Layers with no depth get their own bucket.
 
 **Output**: one flat row per distribution, with `classes` ready for recharts:
@@ -303,7 +324,8 @@ POST /data-requests
 {
   "statistics_type": "value-range",
   "filter_id": "<uuid>",
-  "variable": { "type": "soil-property", "id": "ph" }
+  "variable": { "type": "soil-property", "id": "ph" },
+  "time_aggregation": 1
 }
 ```
 
@@ -311,15 +333,20 @@ POST /data-requests
 {
   "soil_property": "ph",
   "standard_unit": "pH",
-  "count": 612, "n_features": 540, "min": 3.9, "max": 41.0,   // whole request, each observation once
-  "datasets": [
-    { "dataset_id": "farm-grid",  "count": 400, "n_features": 400, "min": 5.1, "max": 41.0 },
-    { "dataset_id": "lucas-2018", "count": 212, "n_features": 140, "min": 3.9, "max": 8.4 }
+  "count": 612, "n_features": 540, "min": 3.9, "max": 41.0,   // whole request, all years, each observation once
+  "windows": [                                                // absent with time_aggregation "none"
+    { "year_start": 2018, "year_end": 2018, "count": 212, "n_features": 140, "min": 3.9, "max": 8.4 },
+    { "year_start": 2021, "year_end": 2021, "count": 400, "n_features": 400, "min": 5.1, "max": 41.0 }
+  ],
+  "datasets": [                                               // per dataset and window; no year keys under "none"
+    { "dataset_id": "farm-grid",  "year_start": 2021, "year_end": 2021, "count": 400, "n_features": 400, "min": 5.1, "max": 41.0 },
+    { "dataset_id": "lucas-2018", "year_start": 2018, "year_end": 2018, "count": 212, "n_features": 140, "min": 3.9, "max": 8.4 }
   ]
 }
 ```
 
-- Only datasets with matches are listed. With none: `count: 0`, `n_features: 0`, no `min`/`max`, `datasets: []`.
+- The top-level figures always span all years: the same values generated classes come from.
+- Only datasets and windows with matches are listed. With no match: `count: 0`, `n_features: 0`, no `min`/`max`, empty lists.
 - No size limit, since output grows with datasets only.
 
 ## `data-requests` — over a soil index run's scores

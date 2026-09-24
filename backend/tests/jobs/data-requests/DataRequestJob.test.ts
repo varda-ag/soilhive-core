@@ -48,10 +48,25 @@ import {
   addVocabulary,
 } from '../../../src/utils/mock';
 import ProcedureEntity from '../../../src/entities/Procedure';
+import SoilPropertyEntity from '../../../src/entities/SoilProperty';
 import { getDataAdminToken, getUserToken } from '../../helper';
 
-const createActiveJob = (data: Partial<DataRequestJob>) =>
-  createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, { statistics_type: StatisticsType.DESCRIPTIVE, ...data });
+/** One Soil Property shared by every seeded Dataset, so a default job always has a variable. */
+const sharedProperty = async () => {
+  const repo = (await getDataSource()).getRepository(SoilPropertyEntity);
+  const existing = await repo.findOne({ where: { property_name: 'dr-shared-prop' } });
+  return existing ?? addSoilProperty('dr-shared-prop', (await addCategory('dr-shared-cat')).id, 'mg/kg');
+};
+
+const variableOf = async () => ({ type: VariableType.SOIL_PROPERTY, id: (await sharedProperty()).slug });
+
+const createActiveJob = async (data: Partial<DataRequestJob>) =>
+  createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
+    statistics_type: StatisticsType.DESCRIPTIVE,
+    variable: await variableOf(),
+    time_aggregation: 1,
+    ...data,
+  });
 
 /**
  * `features` is a global, content-addressed table: no dataset_id, and a UNIQUE geom_hash,
@@ -67,8 +82,7 @@ const nextCoordinates = (): [number, number] => {
 
 const seedDataset = async (name: string, values: number[], options: { coordinates?: [number, number]; gisDatatype?: GISDataType } = {}) => {
   const dataset = await addDataset(name, DATASET_BBOX, options.gisDatatype ?? GISDataType.POINT);
-  const category = await addCategory(`${name}-cat`);
-  const soilProperty = await addSoilProperty(`${name}-prop`, category.id, 'mg/kg');
+  const soilProperty = await sharedProperty();
   const [feature] = await addFeatures(GISDataType.POINT, [options.coordinates ?? nextCoordinates()]);
   // `layers` is likewise global and deduplicated — UNIQUE NULLS NOT DISTINCT over
   // (license, sampling_date, min_depth, max_depth, horizon) — so two datasets cannot each
@@ -313,7 +327,7 @@ describe('processDataRequest', () => {
       await seedDataset('record-completed-ds', [10, 20]);
       const filterId = await createFilter([UNIT_A, UNIT_B]);
 
-      const { jobId, job } = await createActiveJob({ filter_id: filterId, histogram_bins: 20 });
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, time_aggregation: 'none' });
       await processDataRequest(job);
 
       const record = await readRecord(jobId);
@@ -322,7 +336,7 @@ describe('processDataRequest', () => {
       expect(record.id).toBe(jobId);
       expect(record.status).toBe('completed');
       expect(record.message).toBeNull();
-      expect(record.data).toMatchObject({ truncated: expect.any(Boolean), results: expect.any(Array) });
+      expect(record.data).toMatchObject({ overall: expect.any(Array), results: expect.any(Array) });
       expect(record.created_at).toBeInstanceOf(Date);
       expect(record.completed_at).toBeInstanceOf(Date);
 
@@ -331,7 +345,7 @@ describe('processDataRequest', () => {
       expect(record.request).toMatchObject({
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterId,
-        histogram_bins: 20,
+        time_aggregation: 'none',
         unit_count: 2,
       });
       expect(record.request.units).toHaveLength(2);
@@ -418,7 +432,7 @@ describe('processDataRequest', () => {
         id: jobId,
         status: DataRequestStatus.COMPLETED,
         request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
-        data: { results: [], truncated: false },
+        data: { soil_property: 'p', standard_unit: null, overall: [], results: [] },
         message: null,
         created_at: new Date(),
         completed_at: new Date(),
@@ -438,7 +452,7 @@ describe('processDataRequest', () => {
         id: jobId,
         status: DataRequestStatus.COMPLETED,
         request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
-        data: { results: [], truncated: false },
+        data: { soil_property: 'p', standard_unit: null, overall: [], results: [] },
         message: null,
         created_at: new Date(),
         completed_at: new Date(),
@@ -536,6 +550,8 @@ describe('processDataRequest', () => {
       const { jobId, data } = await runAsCaller(token, {
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterResponse.body.id,
+        variable: await variableOf(),
+        time_aggregation: 1,
       });
 
       // The Subject, not the sub: this is the value the processor looks entitlements up by.
@@ -571,6 +587,8 @@ describe('processDataRequest', () => {
       const { data } = await runAsCaller(token, {
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterResponse.body.id,
+        variable: await variableOf(),
+        time_aggregation: 1,
         dataset_ids: [datasetA.slug, datasetB.slug],
       });
 
@@ -600,6 +618,8 @@ describe('processDataRequest', () => {
         .send({
           statistics_type: StatisticsType.DESCRIPTIVE,
           filter_id: filterResponse.body.id,
+          variable: await variableOf(),
+          time_aggregation: 1,
           dataset_ids: [dataset.slug],
         });
       expect(res.statusCode).toBe(403);
@@ -652,17 +672,31 @@ describe('processDataRequest', () => {
   });
 
   describe('statistics_type', () => {
-    it('computes descriptive statistics when that is the named type', async () => {
-      await seedDataset('type-descriptive', [1, 2, 3]);
+    it('computes and records descriptive statistics when that is the named type', async () => {
+      const { dataset, soilProperty } = await seedDataset('type-descriptive', [1, 2, 3]);
       const filterId = await createFilter([UNIT_A]);
 
       const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.DESCRIPTIVE });
       await processDataRequest(job);
-      const stored = await readJobData(jobId);
 
-      // The payload goes to the `data_requests` row, not into job data, so the completion line
-      // is what says the descriptive producer ran here: it counts dataset/property groups.
-      expect(stored.progress_description).toContain('dataset/property group(s)');
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.data.soil_property).toBe(soilProperty.slug);
+      expect(record.data.results).toHaveLength(1);
+      expect(record.data.results[0]).toMatchObject({ dataset_id: dataset.slug, year_start: 2020, year_end: 2020, count: 3, median: 2 });
+      expect(record.data.results[0]).not.toHaveProperty('histogram');
+      expect(record.data.overall[0]).not.toHaveProperty('unit_id');
+    });
+
+    it('fails a descriptive job with no variable', async () => {
+      await seedDataset('type-descriptive-no-variable', [1]);
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
+        statistics_type: StatisticsType.DESCRIPTIVE,
+        filter_id: filterId,
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_INVALID_PARAMETERS' });
     });
 
     it('computes and records a class distribution when that is the named type', async () => {
@@ -737,6 +771,7 @@ describe('processDataRequest', () => {
         filter_id: filterId,
         statistics_type: StatisticsType.VALUE_RANGE,
         variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
+        time_aggregation: 'none',
       });
       await processDataRequest(job);
 

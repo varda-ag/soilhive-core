@@ -8,13 +8,12 @@ export const MAX_TIME_AGGREGATION = 10;
 
 /** Types each type-specific parameter applies to; sent with another type it is rejected, not ignored. */
 const PARAMETER_TYPES: Record<string, StatisticsType[]> = {
-  histogram_bins: [StatisticsType.DESCRIPTIVE],
-  variable: [StatisticsType.CLASS_DISTRIBUTION, StatisticsType.VALUE_RANGE],
+  variable: [StatisticsType.DESCRIPTIVE, StatisticsType.CLASS_DISTRIBUTION, StatisticsType.VALUE_RANGE],
   classes: [StatisticsType.CLASS_DISTRIBUTION],
   class_count: [StatisticsType.CLASS_DISTRIBUTION],
   class_method: [StatisticsType.CLASS_DISTRIBUTION],
-  time_aggregation: [StatisticsType.CLASS_DISTRIBUTION],
-  depth_ranges: [StatisticsType.CLASS_DISTRIBUTION],
+  time_aggregation: [StatisticsType.DESCRIPTIVE, StatisticsType.CLASS_DISTRIBUTION, StatisticsType.VALUE_RANGE],
+  depth_ranges: [StatisticsType.DESCRIPTIVE, StatisticsType.CLASS_DISTRIBUTION],
   value_type: [StatisticsType.CLASS_DISTRIBUTION],
 };
 
@@ -26,10 +25,12 @@ export const misplacedParameter = (data: DataRequestJobParameters, statisticsTyp
 /** Database-free parameter rules, checked on submission and again in the processor. Null when fine. */
 export const parametersProblem = (data: DataRequestJobParameters): string | null => {
   switch (data.statistics_type) {
+    case StatisticsType.DESCRIPTIVE:
+      return variableProblem(data) ?? timeAggregationProblem(data) ?? depthRangesProblem(data);
     case StatisticsType.CLASS_DISTRIBUTION:
       return classDistributionProblem(data);
     case StatisticsType.VALUE_RANGE:
-      return variableProblem(data);
+      return variableProblem(data) ?? timeAggregationProblem(data);
     default:
       return null;
   }
@@ -88,8 +89,29 @@ export const soilIndexFilterProblem = (filterId: string, parameters: FilterCrite
     : null;
 };
 
+/** Required by every type: how years are bucketed. */
+const timeAggregationProblem = ({ time_aggregation, statistics_type }: DataRequestJobParameters): string | null => {
+  if (time_aggregation === undefined) {
+    return `Parameter time_aggregation is required for statistics_type ${statistics_type}: an integer from 1 to ${MAX_TIME_AGGREGATION}, or 'none'`;
+  }
+  if (
+    time_aggregation !== 'none' &&
+    (!Number.isInteger(time_aggregation) || time_aggregation < 1 || time_aggregation > MAX_TIME_AGGREGATION)
+  ) {
+    return `Parameter time_aggregation must be an integer from 1 to ${MAX_TIME_AGGREGATION}, or 'none'`;
+  }
+  return null;
+};
+
+const depthRangesProblem = ({ depth_ranges }: DataRequestJobParameters): string | null => {
+  if (depth_ranges !== undefined && !Object.values(DepthRanges).includes(depth_ranges)) {
+    return `Parameter depth_ranges '${depth_ranges}' is not supported: use one of ${Object.values(DepthRanges).join(', ')}`;
+  }
+  return null;
+};
+
 const classDistributionProblem = (data: DataRequestJobParameters): string | null => {
-  const { time_aggregation, depth_ranges, value_type } = data;
+  const { value_type } = data;
 
   const variableIssue = variableProblem(data);
   if (variableIssue) {
@@ -108,16 +130,7 @@ const classDistributionProblem = (data: DataRequestJobParameters): string | null
     return `Parameter value_type '${value_type}' is not supported: use one of ${Object.values(ValueType).join(', ')}`;
   }
 
-  if (
-    time_aggregation !== undefined &&
-    (!Number.isInteger(time_aggregation) || time_aggregation < 1 || time_aggregation > MAX_TIME_AGGREGATION)
-  ) {
-    return `Parameter time_aggregation must be an integer from 1 to ${MAX_TIME_AGGREGATION}`;
-  }
-  if (depth_ranges !== undefined && !Object.values(DepthRanges).includes(depth_ranges)) {
-    return `Parameter depth_ranges '${depth_ranges}' is not supported: use one of ${Object.values(DepthRanges).join(', ')}`;
-  }
-  return null;
+  return timeAggregationProblem(data) ?? depthRangesProblem(data);
 };
 
 /** Exactly one of `classes`, or `class_count` with `class_method`. */

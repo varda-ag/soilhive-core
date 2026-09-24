@@ -208,6 +208,13 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "Soil index run '{run}' no longer has any scores to read.",
     actions: ['Run the soil index again, then submit the request with the new run id.'],
   },
+  DR_SOIL_STATISTICS_TOO_LARGE: {
+    message: 'These statistics would have {rows} rows, more than the {max_rows} this server returns.',
+    actions: [
+      'Group more years per window with a larger time_aggregation or none, or pool depths with depth_ranges none.',
+      'Alternatively, use fewer areas or fewer datasets.',
+    ],
+  },
   DR_CLASS_DISTRIBUTION_TOO_LARGE: {
     message: 'This class distribution would have {rows} rows ({entries} class values), more than the {max_entries} this server returns.',
     actions: [

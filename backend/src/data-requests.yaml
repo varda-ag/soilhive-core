@@ -15,14 +15,16 @@ components:
       required:
         - statistics_type
         - filter_id
+        - variable
+        - time_aggregation
       properties:
         statistics_type:
           type: string
           enum: [descriptive, class-distribution, value-range]
           description: >-
-            Which product to compute. `descriptive` gives descriptive statistics over the
-            matching observations, per aggregation area, dataset, soil property, sampling
-            year and depth interval. `class-distribution` gives the percentage or number of one
+            Which product to compute, always for one variable. `descriptive` gives count,
+            extremes, mean, spread and percentiles per dataset, aggregation area, year window and
+            depth bucket, plus the same per dataset over the whole request. `class-distribution` gives the percentage or number of one
             soil property's observations in each of the given classes, per dataset, aggregation
             area, year window and depth bucket. `value-range` gives just how many observations
             of one soil property match, at how many locations, and their lowest and highest
@@ -49,14 +51,6 @@ components:
             on submission. When omitted, every dataset the filter matches is used and
             those without preview access are skipped. Which ones were skipped is no longer
             reported back — it reaches the server log only.
-        histogram_bins:
-          type: integer
-          minimum: 2
-          maximum: 100
-          description: >-
-            Number of equal-width histogram bins spanning each cell's min-max range.
-            Applies to statistics_type `descriptive` only; sending it with another type is
-            a 400.
         variable:
           $ref: '#/components/schemas/ClassDistributionVariable'
         classes:
@@ -90,18 +84,20 @@ components:
             with anything beyond it in the open first and last class. `quantile` gives each class
             about the same number of observations, with edges rounded to 3 decimals.
         time_aggregation:
-          type: integer
-          minimum: 1
-          maximum: 10
+          oneOf:
+            - type: integer
+              minimum: 1
+              maximum: 10
+            - type: string
+              enum: [none]
           description: >-
-            Only accepted with statistics_type `class-distribution`. Size of each year window, in
-            years; windows are aligned to multiples of it (for 3: 2016-2018, 2019-2021), so a year
-            always falls in the same window. Defaults to 1, a single calendar year.
+            Required. Year window size in years, aligned to multiples of it (for 3: 2016-2018,
+            2019-2021), or `none` to pool every year.
         depth_ranges:
           type: string
           enum: [none, standard]
           description: >-
-            Only accepted with statistics_type `class-distribution`. `none` (the default) pools
+            `descriptive` and `class-distribution` only. `none` (the default) pools
             every depth into one bucket, which mixes horizons. `standard` sorts each observation
             into the GlobalSoilMap range (0-5, 5-15, 15-30, 30-60, 60-100, 100-200 cm, and deeper
             than 200) holding its layer's depth midpoint, so a 0-30 cm composite is reported at
@@ -145,8 +141,6 @@ components:
           type: array
           items:
             type: string
-        histogram_bins:
-          type: integer
         variable:
           $ref: '#/components/schemas/ClassDistributionVariable'
         classes:
@@ -159,7 +153,10 @@ components:
           type: string
           enum: [equal-interval, quantile]
         time_aggregation:
-          type: integer
+          oneOf:
+            - type: integer
+            - type: string
+              enum: [none]
         depth_ranges:
           type: string
           enum: [none, standard]
@@ -287,8 +284,9 @@ components:
 
     ValueRange:
       description: >-
-        The result of a `value-range` data request. The top-level figures cover the whole request,
-        each observation (or score) counted once however many aggregation areas it falls in. For a
+        The result of a `value-range` data request. The top-level figures cover the whole request
+        and all years, each observation (or score) counted once however many aggregation areas it
+        falls in. For a
         soil property, datasets gives the same figures per dataset, listing only datasets with at
         least one matching observation; for a soil index there is no datasets, since scores belong
         to no dataset.
@@ -312,11 +310,20 @@ components:
               description: >-
                 Present when variable.type is `soil-index` and the run scored anything. Scores have no
                 unit of measure.
-            datasets:
+            windows:
               type: array
+              description: Whole request per year window. Absent when time_aggregation is none.
               items:
                 allOf:
                   - $ref: '#/components/schemas/ValueRangeFigures'
+                  - $ref: '#/components/schemas/YearKeys'
+            datasets:
+              type: array
+              description: Per dataset and year window; no year keys when time_aggregation is none.
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/ValueRangeFigures'
+                  - $ref: '#/components/schemas/YearKeys'
                   - type: object
                     required:
                       - dataset_id
@@ -324,11 +331,21 @@ components:
                       dataset_id:
                         type: string
 
+    YearKeys:
+      type: object
+      properties:
+        year_start:
+          type: integer
+          nullable: true
+          description: Null for the no-year bucket.
+        year_end:
+          type: integer
+          nullable: true
+
     ClassDistributionVariable:
       type: object
       description: >-
-        Required for, and only accepted with, statistics_types `class-distribution` and
-        `value-range`: what they are computed for. A `soil-property` must exist and be admitted by
+        Required by every statistics_type: what it is computed for. A `soil-property` must exist and be admitted by
         the filter's own soil property criterion, if it has one. A `soil-index` names a completed
         soil index run, whose scores are read in place of observations: each score belongs to the
         areas containing its representative point, the filter must carry no criteria at all (it
@@ -423,8 +440,6 @@ components:
         an observation inside two overlapping areas counts in both.
       required:
         - unit_id
-        - year_start
-        - year_end
         - count
         - classes
       properties:
@@ -438,7 +453,7 @@ components:
         year_start:
           type: integer
           nullable: true
-          description: First year of the window; null for observations with no recorded year.
+          description: First year of the window; null for the no-year bucket, absent when time_aggregation is none.
         year_end:
           type: integer
           nullable: true
@@ -491,182 +506,103 @@ components:
     SoilStatistics:
       type: object
       description: >-
-        The result of a `descriptive` data request: one group per dataset and soil property.
-        Absent until the request completes, and never present for a failed one.
+        The result of a `descriptive` data request. Opens with soil_property and standard_unit, or
+        run and soil_index_type for a soil index. Rows omit fields with no value.
       required:
-        - results
-        - truncated
-      properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/SoilStatisticsGroup'
-        truncated:
-          type: boolean
-          description: >-
-            True when at least one group's per-year/per-depth breakdown was dropped to fit the
-            output budget. The per-area figures are always complete.
-
-    SoilStatisticsGroup:
-      type: object
-      required:
-        - dataset_id
-        - soil_property
-        - standard_unit
-        - l4_included
         - overall
-        - units
+        - results
       properties:
-        dataset_id:
-          type: string
         soil_property:
           type: string
         standard_unit:
           type: string
           nullable: true
-        l4_included:
-          type: boolean
-          description: False when this group's per-year/per-depth breakdown was dropped to fit the output budget.
+        run:
+          type: string
+          format: uuid
+        soil_index_type:
+          type: string
         overall:
-          allOf:
-            - $ref: '#/components/schemas/SoilStatisticsCell'
-          description: >-
-            Computed before areas are fanned out, so an observation inside two overlapping areas is
-            counted once. It therefore does not equal the sum of the per-area counts.
-        units:
           type: array
+          description: Per dataset, year window and depth bucket over the whole request, each observation counted once.
           items:
-            $ref: '#/components/schemas/SoilStatisticsUnit'
+            $ref: '#/components/schemas/SoilStatisticsRow'
+        results:
+          type: array
+          description: Per dataset, aggregation area, year window and depth bucket.
+          items:
+            $ref: '#/components/schemas/SoilStatisticsRow'
 
-    SoilStatisticsCell:
+    SoilStatisticsRow:
       type: object
       description: >-
-        Descriptive statistics over one set of observation values, all in standard_unit. Every
-        non-integer statistic is rounded to 3 decimals, and a statistic with no value is absent
-        rather than null. Two figures are deliberately left out because they are derivable: the
-        interquartile range (p75 - p25) and the coefficient of variation (stddev / |mean|).
+        Statistics rounded to 3 decimals. Bucket keys follow class-distribution rows: absent for a
+        pooled dimension, null for the no-year or no-depth bucket.
       required:
         - count
-        - n_features
-        - n_layers
         - min
-        - max
-        - mean
-        - median
         - p05
         - p25
+        - median
         - p75
         - p95
+        - max
+        - mean
       properties:
+        dataset_id:
+          type: string
+          description: Absent for a soil index.
+        unit_id:
+          type: string
+          format: uuid
+          description: Absent on overall rows.
+        year_start:
+          type: integer
+          nullable: true
+        year_end:
+          type: integer
+          nullable: true
+        depth_start:
+          type: integer
+          nullable: true
+        depth_end:
+          type: integer
+          nullable: true
         count:
           type: integer
         n_features:
           type: integer
-          description: Distinct sampling locations behind count — the sample support.
-        n_layers:
-          type: integer
+          description: Distinct sampling locations behind count. Absent for a soil index.
         min:
           type: number
-        max:
-          type: number
-        mean:
-          type: number
-        median:
-          type: number
-        stddev:
-          type: number
-          description: Sample standard deviation. Absent when count is below 2.
         p05:
           type: number
         p25:
+          type: number
+        median:
           type: number
         p75:
           type: number
         p95:
           type: number
-        sampling_date_min:
-          type: string
-        sampling_date_max:
-          type: string
+        max:
+          type: number
+        mean:
+          type: number
+        stddev:
+          type: number
+          description: Sample standard deviation; absent below 2 values.
         depth_min:
           type: integer
+          description: Depth span of the layers behind this row.
         depth_max:
           type: integer
         horizons:
           type: array
           items:
             type: string
-          description: Distinct horizons mixed into this cell. Absent when none are recorded.
         laboratory_methods:
           type: array
           items:
             type: string
-          description: >-
-            Distinct laboratory methods mixed into this cell — more than one means the summary
-            spans methods. Absent when none are recorded.
-        histogram:
-          $ref: '#/components/schemas/Histogram'
-
-    Histogram:
-      type: object
-      description: >-
-        Bin counts over equal-width bins spanning [min, max]. Absent at or below 100 observations,
-        where the bins would describe the sample rather than the distribution. Bin boundaries are
-        not transmitted: they are min + i * bin_width, the last being exactly max. A single entry
-        in counts — not bin_width being 0 — is the signal that every value in the cell is
-        identical, because a genuine width below 0.0005 also rounds to 0.
-      required:
-        - bin_width
-        - counts
-      properties:
-        bin_width:
-          type: number
-        counts:
-          type: array
-          items:
-            type: integer
-
-    SoilStatisticsUnit:
-      description: One aggregation area's statistics, keyed by the unit_id reported in request.units.
-      allOf:
-        - $ref: '#/components/schemas/SoilStatisticsCell'
-        - type: object
-          required:
-            - unit_id
-          properties:
-            unit_id:
-              type: string
-              format: uuid
-            breakdown:
-              type: array
-              description: >-
-                Per sampling year and depth interval. Absent for two different reasons, told apart
-                by l4_included on the group: when false the breakdown was dropped to fit the output
-                budget; when true this area's observations all fall in one year and depth interval,
-                so the single cell would repeat the area's own statistics. Never an empty array.
-              items:
-                $ref: '#/components/schemas/SoilStatisticsBreakdownCell'
-
-    SoilStatisticsBreakdownCell:
-      description: >-
-        One (year, depth interval) slice. Unlike the statistics above, nulls here are spelled out
-        rather than omitted: a null is the bucket's identity ("no recorded year"), not a value that
-        happens to be missing. depth_min and depth_max are dropped because the grouping is by
-        min_depth and max_depth, which would repeat them.
-      allOf:
-        - $ref: '#/components/schemas/SoilStatisticsCell'
-        - type: object
-          required:
-            - year
-            - min_depth
-            - max_depth
-          properties:
-            year:
-              type: integer
-              nullable: true
-            min_depth:
-              type: integer
-              nullable: true
-            max_depth:
-              type: integer
-              nullable: true
+          description: More than one means the figures mix measurement methods.

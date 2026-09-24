@@ -1,8 +1,11 @@
 import { EntityManager } from 'typeorm';
 import { DataFilter } from '../interfaces/DatasetFilter';
-import { DatasetValueRange, ValueRangeFigures } from '../jobs/data-requests/types';
+import { TimeAggregation } from '../interfaces/Job';
+import { DatasetValueRange, ValueRangeFigures, WindowValueRange } from '../jobs/data-requests/types';
+import { DepthRanges } from '../types/enums';
 import { round3 } from '../utils/utils';
 import { nothingToStage, StagedVariable, stageVariable } from './DataRequests';
+import { bucketKeys, yearStartSql } from './Buckets';
 
 export interface ValueRangeOptions {
   filter: DataFilter;
@@ -12,6 +15,7 @@ export interface ValueRangeOptions {
   datasetSlugs: string[];
   /** A Soil Property's Observations or a Soil Index Run's scores. */
   variable: StagedVariable;
+  timeAggregation: TimeAggregation;
   workMem: string;
   statementTimeoutMs: number;
   onPhase?: (description: string, percentage: number) => Promise<void>;
@@ -20,21 +24,26 @@ export interface ValueRangeOptions {
 }
 
 export interface ValueRangeResult {
+  /** Whole request, all years. */
   overall: ValueRangeFigures;
+  /** Whole request per Year Window; empty under `none`. */
+  windows: WindowValueRange[];
   datasets: DatasetValueRange[];
 }
 
 interface RawFigures {
   dataset_slug: string | null;
-  /** 1 on the ROLLUP's grand-total row, 0 on a per-Dataset row. */
-  is_total: number;
+  year_start: number | null;
+  /** GROUPING() flags: 1 where the column is rolled up. */
+  all_datasets: number;
+  all_years: number;
   count: number;
   n_features: number;
   min: number | null;
   max: number | null;
 }
 
-const NONE: ValueRangeResult = { overall: { count: 0, n_features: 0 }, datasets: [] };
+const NONE: ValueRangeResult = { overall: { count: 0, n_features: 0 }, windows: [], datasets: [] };
 
 const toFigures = (raw: RawFigures): ValueRangeFigures => ({
   count: raw.count,
@@ -43,9 +52,9 @@ const toFigures = (raw: RawFigures): ValueRangeFigures => ({
   ...(raw.max !== null ? { max: round3(raw.max) } : {}),
 });
 
-/** The `value-range` product: count and extremes for the whole request and per Dataset, pre-fan-out. */
+/** The `value-range` product: count and extremes, request-wide, per Year Window and per Dataset, pre-fan-out. */
 export const computeValueRange = async (entityManager: EntityManager, options: ValueRangeOptions): Promise<ValueRangeResult> => {
-  const { filter, unitIds, datasetSlugs, variable } = options;
+  const { filter, unitIds, datasetSlugs, variable, timeAggregation } = options;
   const progress = options.onPhase ?? (async () => undefined);
   const checkCancelled = options.assertNotCancelled ?? (async () => undefined);
 
@@ -66,23 +75,36 @@ export const computeValueRange = async (entityManager: EntityManager, options: V
       assertNotCancelled: checkCancelled,
     });
 
-    // ROLLUP's total row counts a shared Feature once, and exists even when the table is empty.
+    // The () set counts a shared Feature once and exists even when the table is empty.
     const rows: RawFigures[] = await em.query(`
+      WITH pooled AS (SELECT o.*, ${yearStartSql(timeAggregation)} AS year_start FROM sst_obs o)
       SELECT dataset_slug,
-             GROUPING(dataset_slug) AS is_total,
+             year_start,
+             GROUPING(dataset_slug) AS all_datasets,
+             GROUPING(year_start) AS all_years,
              COUNT(*)::int AS count,
              COUNT(DISTINCT feature_id)::int AS n_features,
              MIN(value) AS min,
              MAX(value) AS max
-      FROM sst_obs
-      GROUP BY ROLLUP (dataset_slug)
-      ORDER BY is_total DESC, dataset_slug`);
+      FROM pooled
+      GROUP BY GROUPING SETS ((), (year_start), (dataset_slug, year_start))
+      ORDER BY dataset_slug NULLS FIRST, year_start NULLS LAST`);
     await progress('Computed value range', 90);
 
-    const total = rows.find(row => Number(row.is_total) === 1);
+    const keys = (raw: RawFigures) => bucketKeys(raw.year_start, null, timeAggregation, DepthRanges.NONE);
+    const total = rows.find(row => Number(row.all_datasets) === 1 && Number(row.all_years) === 1);
     return {
       overall: total ? toFigures(total) : NONE.overall,
-      datasets: rows.filter(row => Number(row.is_total) === 0).map(row => ({ dataset_id: row.dataset_slug!, ...toFigures(row) })),
+      // Under `none` the one window would repeat `overall`.
+      windows:
+        timeAggregation === 'none'
+          ? []
+          : rows
+              .filter(row => Number(row.all_datasets) === 1 && Number(row.all_years) === 0)
+              .map(row => ({ ...keys(row), ...toFigures(row) })),
+      datasets: rows
+        .filter(row => Number(row.all_datasets) === 0)
+        .map(row => ({ dataset_id: row.dataset_slug!, ...keys(row), ...toFigures(row) })),
     };
   });
 };

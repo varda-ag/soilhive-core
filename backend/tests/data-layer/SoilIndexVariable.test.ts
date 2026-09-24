@@ -131,6 +131,7 @@ describe('soil index runs as a variable', () => {
       unitIds: [unitA, unitB],
       datasetSlugs: [],
       variable: { soilIndexRun: run },
+      timeAggregation: 'none',
       workMem: '64MB',
       statementTimeoutMs: 120_000,
     });

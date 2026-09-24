@@ -30,11 +30,13 @@ export async function runValueRange(ctx: RunContext, data: DataRequestJob): Prom
   } as Partial<DataRequestJob>);
   await assertNotCancelled();
 
-  const { overall, datasets } = await computeValueRange(entityManager, {
+  const timeAggregation = data.time_aggregation!;
+  const { overall, windows, datasets } = await computeValueRange(entityManager, {
     filter: effectiveFilterOf(ctx),
     unitIds,
     datasetSlugs: variable.datasetSlugs,
     variable: variable.staged,
+    timeAggregation,
     workMem: getDataRequestsWorkMem(),
     statementTimeoutMs: getDataRequestsStatementTimeoutMs(),
     onPhase: report,
@@ -55,10 +57,15 @@ export async function runValueRange(ctx: RunContext, data: DataRequestJob): Prom
   });
 
   // processDataRequest writes the row (docs/adr/0037).
+  const windowsKey = timeAggregation === 'none' ? {} : { windows };
   if ('run' in variable.header) {
     // Scores have no Dataset or Feature (docs/adr/0039).
-    const { n_features: _nFeatures, ...counts } = overall;
-    return { ...variable.header, ...counts };
+    const withoutFeatures = <T extends { n_features: number }>({ n_features: _nFeatures, ...rest }: T) => rest;
+    return {
+      ...variable.header,
+      ...withoutFeatures(overall),
+      ...(timeAggregation === 'none' ? {} : { windows: windows.map(withoutFeatures) }),
+    };
   }
-  return { ...variable.header, ...overall, datasets };
+  return { ...variable.header, ...overall, ...windowsKey, datasets };
 }

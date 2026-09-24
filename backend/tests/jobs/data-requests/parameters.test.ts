@@ -14,14 +14,15 @@ const valueRange = (overrides: Partial<DataRequestJobParameters> = {}): DataRequ
   statistics_type: StatisticsType.VALUE_RANGE,
   filter_id: 'f',
   variable: { type: VariableType.SOIL_INDEX, id: RUN },
+  time_aggregation: 'none',
   ...overrides,
 });
 
 describe('misplacedParameter', () => {
   it('names the first parameter the type does not use, and accepts shared ones', () => {
-    expect(misplacedParameter(valueRange({ histogram_bins: 10 }), StatisticsType.VALUE_RANGE)).toBe('histogram_bins');
+    expect(misplacedParameter(valueRange({ depth_ranges: DepthRanges.STANDARD }), StatisticsType.VALUE_RANGE)).toBe('depth_ranges');
     expect(misplacedParameter(valueRange(), StatisticsType.VALUE_RANGE)).toBeUndefined();
-    expect(misplacedParameter(valueRange(), StatisticsType.DESCRIPTIVE)).toBe('variable');
+    expect(misplacedParameter(valueRange({ value_type: ValueType.COUNT }), StatisticsType.DESCRIPTIVE)).toBe('value_type');
   });
 });
 

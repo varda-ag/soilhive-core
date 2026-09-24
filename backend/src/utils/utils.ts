@@ -257,7 +257,7 @@ export const getSoilIndexesConcurrency = (): number => {
   return Number(process.env['SOIL_INDEXES_CONCURRENCY']) || 1;
 };
 
-/** Upper bound on breakdown (per year and depth interval) cells before groups are dropped. */
+/** `descriptive` size limit, in rows; exceeding it fails the Run (docs/adr/0040). */
 export const getDataRequestsMaxCells = (): number => {
   return Number(process.env['DATA_REQUESTS_MAX_CELLS']) || 200_000;
 };
