@@ -1,4 +1,5 @@
 import type { FilteredDataset } from 'types/backend';
+import { SPLIT_FILTERING_QUERIES } from 'utilities/environmentVariables';
 import { useApiQuery } from './useApiQuery';
 
 export function useFilteredDatasetsQuery(filterDataId: string | undefined) {
@@ -6,7 +7,7 @@ export function useFilteredDatasetsQuery(filterDataId: string | undefined) {
     endpoint: `/data-filters/${filterDataId}/datasets`,
     method: 'GET',
     queryKey: ['coverage-datasets', filterDataId],
-    enabled: !!filterDataId,
+    enabled: !!filterDataId && SPLIT_FILTERING_QUERIES,
     retry: false,
     abortOnNewQuery: true,
   });
