@@ -325,59 +325,70 @@ export default class SoilDataStorage {
     }
 
     const schema = process.env.POSTGRES_SCHEMA;
-    const params: any[] = [];
-    const p = (val: any) => {
-      params.push(val);
-      return `$${params.length}`;
-    };
-    const geometryIdsParam = p(geometryIds);
 
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
       ? await timed('filterRaster.vectorMaskCtes', () => getVectorMaskCtes(entityManager, filter))
       : [{ name: 'aoi', sql: selectGeometryPiecesByIds(), materialized: true }];
 
-    const cteStrings = aoiCtes.map(
-      cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParam)})`,
-    );
+    // candidate_layers (raster_layers/datasets/soil_properties, filtered by every
+    // non-spatial criterion) and layers-with-intersecting-footprints (raster_footprints
+    // alone, filtered only by the AOI) are fetched as two independent queries and
+    // intersected here in JS, rather than joined together in SQL. Joining them via
+    // raster_layer_id forces the planner to fetch every footprint row for each candidate
+    // layer (bounded per layer, but summing to millions of rows across all of them)
+    // before it can filter by the AOI, regardless of how selective the AOI actually is -
+    // confirmed via EXPLAIN ANALYZE across a range of real AOI scales. Fetching each side
+    // independently never gives the planner that join to make; the id lists intersected
+    // here are small (candidate_layers rarely exceeds a few hundred rows in practice).
+    const candidateLayersParams: any[] = [];
+    const pCandidate = (val: any) => {
+      candidateLayersParams.push(val);
+      return `$${candidateLayersParams.length}`;
+    };
+    const geometryIdsParamForCandidates = pCandidate(geometryIds);
 
     const candidateWhere: string[] = [
       'ds.deleted_at IS NULL',
       `ds.status = 'PUBLISHED'`,
-      `ds.gis_datatype = ${p(GISDataType.RASTER)}`,
+      `ds.gis_datatype = ${pCandidate(GISDataType.RASTER)}`,
       'ds.spatial_extent && aoi.geom',
     ];
     if (filters.min_depth === null) {
       candidateWhere.push('rl.min_depth IS NULL');
     } else if (filters.min_depth !== undefined) {
-      candidateWhere.push(`rl.max_depth >= ${p(filters.min_depth)}`);
+      candidateWhere.push(`rl.max_depth >= ${pCandidate(filters.min_depth)}`);
     }
     if (filters.max_depth === null) {
       candidateWhere.push('rl.max_depth IS NULL');
     } else if (filters.max_depth !== undefined) {
-      candidateWhere.push(`rl.min_depth <= ${p(filters.max_depth)}`);
+      candidateWhere.push(`rl.min_depth <= ${pCandidate(filters.max_depth)}`);
     }
     if (filters.min_sampling_date === null) {
       candidateWhere.push('rl.reference_period_start IS NULL');
     } else if (filters.min_sampling_date) {
-      candidateWhere.push(`rl.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+      candidateWhere.push(`rl.reference_period_stop >= ${pCandidate(filters.min_sampling_date)}`);
     }
     if (filters.max_sampling_date === null) {
       candidateWhere.push('rl.reference_period_stop IS NULL');
     } else if (filters.max_sampling_date) {
-      candidateWhere.push(`rl.reference_period_start <= ${p(filters.max_sampling_date)}`);
+      candidateWhere.push(`rl.reference_period_start <= ${pCandidate(filters.max_sampling_date)}`);
     }
     if (filters.soil_properties?.length) {
-      candidateWhere.push(`sp.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
+      candidateWhere.push(`sp.slug IN (${filters.soil_properties.map(v => pCandidate(v)).join(', ')})`);
     }
     if (filters.licenses?.length) {
-      candidateWhere.push(`ds.licenses && ARRAY[${filters.licenses.map(v => p(v)).join(', ')}]`);
+      candidateWhere.push(`ds.licenses && ARRAY[${filters.licenses.map(v => pCandidate(v)).join(', ')}]`);
     }
     if (filters.visibility) {
-      candidateWhere.push(`ds.visibility = ${p(filters.visibility)}`);
+      candidateWhere.push(`ds.visibility = ${pCandidate(filters.visibility)}`);
     }
 
-    const sql = `
-      WITH ${cteStrings.join(',\n      ')}
+    const candidateCteStrings = aoiCtes.map(
+      cte =>
+        `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParamForCandidates)})`,
+    );
+    const candidateLayersSql = `
+      WITH ${candidateCteStrings.join(',\n      ')}
       , candidate_layers AS MATERIALIZED (
         SELECT DISTINCT rl.id
         FROM ${schema}.raster_layers rl
@@ -386,20 +397,31 @@ export default class SoilDataStorage {
         INNER JOIN aoi ON rl.bbox && aoi.geom
         WHERE ${candidateWhere.join('\n          AND ')}
       )
-      -- Footprint ids intersecting the aoi, computed once via the GiST index on
-      -- raster_footprints.geom (this is the whole schema's footprints, not scoped to the
-      -- candidate layers — but only the id column is carried, so it stays narrow).
+      SELECT id FROM candidate_layers
+    `;
+
+    // Independent of candidate_layers: every footprint intersecting the AOI, and which
+    // layers own each one - not scoped to candidate_layers at all, but only the id
+    // columns are carried, so both sides of the JS intersection stay narrow.
+    const footprintsParams: any[] = [geometryIds];
+    const geometryIdsParamForFootprints = '$1';
+    const footprintsCteStrings = aoiCtes.map(
+      cte =>
+        `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParamForFootprints)})`,
+    );
+    const layersWithFootprintsSql = `
+      WITH ${footprintsCteStrings.join(',\n      ')}
       , aoi_footprints AS MATERIALIZED (
         SELECT DISTINCT rf.id
         FROM ${schema}.raster_footprints rf
         INNER JOIN aoi ON ST_Intersects(rf.geom, aoi.geom)
       )
-      , surviving_layers AS MATERIALIZED (
-        SELECT DISTINCT rlf.raster_layer_id AS id
-        FROM candidate_layers cl
-        INNER JOIN ${schema}.raster_layer_footprints rlf ON rlf.raster_layer_id = cl.id
-        INNER JOIN aoi_footprints af ON af.id = rlf.raster_footprint_id
-      )
+      SELECT DISTINCT rlf.raster_layer_id AS id
+      FROM ${schema}.raster_layer_footprints rlf
+      INNER JOIN aoi_footprints af ON af.id = rlf.raster_footprint_id
+    `;
+
+    const finalSql = `
       SELECT
         ds.slug AS id,
         ds.name AS name,
@@ -412,16 +434,31 @@ export default class SoilDataStorage {
         COALESCE(MIN(rl.reference_period_start), ds.reference_period_start) AS min_sampling_date,
         COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop) AS max_sampling_date,
         STRING_AGG(DISTINCT sp.slug, ',') AS soil_properties
-      FROM surviving_layers sl
-      INNER JOIN ${schema}.raster_layers rl ON rl.id = sl.id
+      FROM ${schema}.raster_layers rl
       INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
       INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
+      WHERE rl.id = ANY($1::uuid[])
       GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop
     `;
 
     const rows = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
-      return timed('filterRaster.query', () => cachedQuery<any>(transactionalEntityManager, sql, params, CACHE_TTL_SPATIAL_MS));
+      const [candidateLayerRows, layersWithFootprintsRows] = [
+        await timed('filterRaster.candidateLayers', () =>
+          cachedQuery<{ id: string }[]>(transactionalEntityManager, candidateLayersSql, candidateLayersParams, CACHE_TTL_SPATIAL_MS),
+        ),
+        await timed('filterRaster.layersWithFootprints', () =>
+          cachedQuery<{ id: string }[]>(transactionalEntityManager, layersWithFootprintsSql, footprintsParams, CACHE_TTL_SPATIAL_MS),
+        ),
+      ];
+      const layersWithFootprintsIds = new Set(layersWithFootprintsRows.map(row => row.id));
+      const survivingLayerIds = candidateLayerRows.map(row => row.id).filter(id => layersWithFootprintsIds.has(id));
+      if (survivingLayerIds.length === 0) {
+        return [];
+      }
+      return timed('filterRaster.finalQuery', () =>
+        cachedQuery<any>(transactionalEntityManager, finalSql, [survivingLayerIds], CACHE_TTL_SPATIAL_MS),
+      );
     });
 
     return rows.map(row => ({
@@ -1304,11 +1341,21 @@ const buildRawSoilQuery = (
     ? `INNER JOIN ${featureSourceCte} matching_features ON matching_features.id = dl.feature_id`
     : `INNER JOIN ${schema}.features matching_features ON matching_features.id = dl.feature_id`;
 
+  // Feature geometry is joined back in only where actually needed - the final
+  // projection (data mode always needs it for the `geometry` output column) and,
+  // when sorting/paginating by geometry specifically, inside `matched` too.
+  const featureGeomJoin = hasGeometry
+    ? `LEFT JOIN ${featureSourceCte} feature_source ON feature_source.id = dl.feature_id`
+    : `LEFT JOIN ${schema}.features feature_source ON feature_source.id = dl.feature_id`;
+
   const datasetSpatialFilter = hasGeometry ? `AND ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)` : '';
 
   // ── cursor / sort (data mode only) ──────────────────────────────────────────
   let cursorClause = '';
   let orderClause = 'ORDER BY obs.id ASC';
+  // Set whenever the sort or cursor column resolves to feature geometry, so `matched`
+  // (which otherwise never touches geometry) knows to join it in for that one case.
+  let needsFeatureGeomInMatched = false;
   // Raw sort expression + direction, surfaced for the keyset page CTE below.
   let sortExpr: string | null = null;
   let pageDir = 'ASC';
@@ -1323,7 +1370,7 @@ const buildRawSoilQuery = (
       soil_property: 'soil_property.slug',
       property_acronym: 'soil_property.property_acronym',
       standard_unit: 'soil_property.standard_unit',
-      geometry: 'dl.feature_geom',
+      geometry: 'feature_source.geom',
       license_name: 'license.name',
       sampling_date: 'layer.sampling_date',
       min_depth: 'layer.min_depth',
@@ -1348,6 +1395,7 @@ const buildRawSoilQuery = (
       orderClause = `ORDER BY ${qualifiedColumn} ${dir}, obs.id ${dir}`;
       sortExpr = qualifiedColumn;
       pageDir = dir;
+      if (qualifiedColumn === 'feature_source.geom') needsFeatureGeomInMatched = true;
     }
 
     if (options.cursor) {
@@ -1359,6 +1407,7 @@ const buildRawSoilQuery = (
         const isDesc = cursor.column.startsWith('-');
         const sortKey = isDesc ? cursor.column.substring(1) : cursor.column;
         const qualifiedColumn = sortFieldMapping[sortKey];
+        if (qualifiedColumn === 'feature_source.geom') needsFeatureGeomInMatched = true;
         if (cursor.value !== null && cursor.value !== undefined) {
           const operator = isDesc ? '<' : '>';
           cursorClause = `AND (${qualifiedColumn}, obs.id) ${operator} (${p(cursor.value)}, ${p(cursor.id)})`;
@@ -1387,7 +1436,7 @@ const buildRawSoilQuery = (
       soil_property.property_name,
       soil_property.standard_unit,
       obs.value,
-      ST_AsGeoJSON(dl.feature_geom)::json AS geometry,
+      ST_AsGeoJSON(feature_source.geom)::json AS geometry,
       COALESCE(license.name, license_fallback.name) AS license_name,
       layer.sampling_date,
       layer.min_depth,
@@ -1441,8 +1490,13 @@ const buildRawSoilQuery = (
     -- selective and can multiply row counts badly on large AOIs / broad date
     -- ranges (regression found via live EXPLAIN, SP-5492) if the planner is left
     -- free to choose it as the starting join instead.
+    -- Feature geometry is deliberately NOT carried here: it's only needed for the
+    -- final projection (and, rarely, for sorting by geometry - see featureGeomJoin),
+    -- not for any of the filtering that happens against this materialized set, so
+    -- joining it back in only for the rows that survive to the returned page avoids
+    -- materializing a full geometry per row for every candidate layer.
     target_layers_by_feature AS MATERIALIZED (
-      SELECT dl.*, matching_features.geom AS feature_geom
+      SELECT dl.*
       FROM ${schema}.dataset_layers dl
       INNER JOIN target_dataset td ON td.id = dl.dataset_id
       ${featureJoin}
@@ -1478,7 +1532,8 @@ const buildRawSoilQuery = (
   const matchedFrom = `FROM ${schema}.observations obs
     INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id
     INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
-    ${leftJoinBlock}`;
+    ${leftJoinBlock}
+    ${needsFeatureGeomInMatched ? featureGeomJoin : ''}`;
 
   let sql: string;
   if (options.mode === 'count') {
@@ -1517,6 +1572,7 @@ const buildRawSoilQuery = (
     INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id
     INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
     ${leftJoinBlock}
+    ${featureGeomJoin}
     ${orderClause}
   `;
   }
