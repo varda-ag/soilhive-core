@@ -3,7 +3,6 @@ import { StatusCodes } from 'http-status-codes';
 import { In } from 'typeorm';
 import { EVERYONE, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
-import { JsonStorage } from '../entities/JsonStorage';
 import { RequestData } from '../interfaces/RequestData';
 import { EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
@@ -342,87 +341,65 @@ export default class EntitlementService {
     }
   }
 
-  /**
-   * Domain-level read gate for `GET /config/{configId}/entitlements`: the response is the full
-   * multi-subject grants map (every subject's email/id and their capabilities for the config), so
-   * only a privileged caller or someone who already holds `READ` or `WRITE` on the config gets to
-   * see it. Unlike the write gate, there is no "first access" bypass: if nobody holds a grant yet,
-   * a non-privileged caller by definition holds neither capability either, so this falls out of
-   * the same capability check without a separate branch.
-   */
-  assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+  /** Boolean core of the read gate (see ADR 0037). Synchronous, no DB access — lets `ConfigService.getConfigs` filter with a plain `.filter()`. */
+  canReadConfig = (requestData: RequestData, key: string): boolean => {
     if (isPrivilegedCaller(requestData.token)) {
-      return;
+      return true;
     }
-
     const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
-    if (!callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE)) {
+    return Boolean(callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE));
+  };
+
+  /** Read gate for `GET /config/{configId}(/entitlements)` and `GET /config` (see ADR 0037). */
+  assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+    if (!this.canReadConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have read entitlement for config ${key}`, StatusCodes.FORBIDDEN);
     }
   };
 
-  /**
-   * Domain-level write gate for `PUT /config/{configId}/entitlements`, distinct from
-   * `enforceEntitlements`: that method always throws when the caller lacks the key outright, with
-   * no "first access" bypass, and carries dataset-visibility filtering that has no analogue here.
-   * A non-admin caller may write a config's entitlements only if it is a genuine first access
-   * (bootstrap) on a config id it is allowed to bootstrap, or if the caller already holds `WRITE`
-   * on it.
-   *
-   * "First access" requires no entitlement grant, no `ConfigItem` (see `configExists`), *and* a
-   * `PLUGIN_CONFIG_ID_PATTERN` match. Grant-and-existence alone would be insufficient: nothing
-   * about those two facts distinguishes a caller-owned plugin config from a system config
-   * (`frontend-logo`, `theme`, `ingestion-status`, `vocabulary-csv-hashes`, ...) that simply
-   * hasn't been created yet. Scoping bootstrap to the `plugin:` namespace closes
-   * this structurally: every system id is permanently ineligible for self-service, with nothing to
-   * maintain as new system configs are added, while `usePluginConfig`
-   * (frontend/src/hooks/usePluginConfig.ts) is the only caller that ever needs this bypass at all.
-   *
-   * Nothing about the `plugin:` namespace ties `pluginId` to the caller — any authenticated caller
-   * can be first to bootstrap any plugin's config id, not only the plugin's own users. A first
-   * access is therefore restricted to a payload that grants `WRITE` to the caller's own subject
-   * and nothing else: the claim stays attributable to a real, authenticated identity, and a
-   * bootstrap call can no longer also plant grants for other subjects (e.g. `everyone`) before
-   * anyone holds `WRITE`. Once the caller holds `WRITE` from that first call, a later call is no
-   * longer "first access" and goes through the ordinary `WRITE`-holder branch below, which is
-   * unrestricted in what it may grant.
-   */
-  assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<void> => {
-    if (isPrivilegedCaller(requestData.token)) {
-      return;
-    }
+  /** Boolean core of the write gate (see ADR 0037). `ConfigService.putConfig` calls this directly to branch into first-access bootstrap on `false`. */
+  canWriteConfig = (requestData: RequestData, key: string): boolean =>
+    isPrivilegedCaller(requestData.token) ||
+    (requestData.entitlements[EntitlementScope.CONFIGS]?.[key]?.includes(Capability.WRITE) ?? false);
 
-    const existingGrants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
-    const isFirstAccess =
-      Object.keys(existingGrants).length === 0 && PLUGIN_CONFIG_ID_PATTERN.test(key) && !(await this.configExists(requestData, key));
-    if (isFirstAccess) {
-      const subject = getSubject(requestData);
-      const grantedKeys = Object.keys(entitlements);
-      const isSelfOnlyWriteGrant =
-        grantedKeys.length === 1 && grantedKeys[0] === subject && entitlements[subject]?.includes(Capability.WRITE);
-      if (isSelfOnlyWriteGrant) {
-        return;
-      }
-      throw new ErrorResponse(`First access to config ${key} must grant WRITE to the caller's own subject only`, StatusCodes.FORBIDDEN);
-    }
-
-    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
-    if (!callerCapabilities?.includes(Capability.WRITE)) {
+  /** Write gate for `PUT /config/{configId}/entitlements` and `DELETE /config/{configId}` (see ADR 0037). */
+  assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
+    if (!this.canWriteConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
     }
   };
 
   /**
-   * Whether a `ConfigItem` has ever been stored under this id via `PUT /config/{configId}`,
-   * including one a super-admin has since removed via `DELETE /config/{configId}` (a soft
-   * delete, see `ConfigService.deleteConfig`). `withDeleted: true` is required for that: a plain
-   * `exists` excludes a soft-deleted row, which would make a deleted id look never-created and
-   * re-open first-access bootstrap for it to any non-admin caller — deleting a config is not the
-   * same fact as it never having existed.
+   * Self-grants `WRITE` on `key` after `ConfigService.putConfig` wins a first-access race (ADR
+   * 0037). An atomic `INSERT ... ON CONFLICT DO UPDATE`, not `findOneBy` + `save`: the same
+   * subject can win several distinct ids concurrently, each its own transaction, all targeting
+   * this one row — a read-modify-write would lose all but the last writer's key.
+   *
+   * Assumes `requestData.token` is set; unguarded because its one caller sits behind mandatory
+   * `bearerAuth`.
    */
-  private configExists = async (requestData: RequestData, key: string): Promise<boolean> => {
-    const repo = requestData.entityManager.getRepository(JsonStorage);
-    return repo.exists({ where: { id: key }, withDeleted: true });
+  grantSelfConfigWrite = async (requestData: RequestData, key: string): Promise<void> => {
+    const subject = getSubject(requestData);
+    await requestData.entityManager.query(
+      `
+      INSERT INTO "entitlements" ("id", "data")
+      VALUES ($1, jsonb_build_object('configs', jsonb_build_object($2::text, '["write"]'::jsonb)))
+      ON CONFLICT ("id") DO UPDATE SET "data" = jsonb_set(
+        "entitlements"."data",
+        '{configs}',
+        COALESCE("entitlements"."data"->'configs', '{}'::jsonb) || jsonb_build_object(
+          $2::text,
+          (
+            SELECT jsonb_agg(DISTINCT capability ORDER BY capability)
+            FROM jsonb_array_elements_text(
+              COALESCE("entitlements"."data"->'configs'->$2::text, '[]'::jsonb) || '["write"]'::jsonb
+            ) AS capability
+          )
+        )
+      )
+      `,
+      [subject, key],
+    );
   };
 
   /**
@@ -431,7 +408,7 @@ export default class EntitlementService {
    * running first — the gate has no other production caller to enforce that ordering itself.
    */
   setConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<CapabilityGrants> => {
-    await this.assertCanWriteConfigEntitlement(requestData, key, entitlements);
+    await this.assertCanWriteConfigEntitlement(requestData, key);
     return this.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, key, entitlements);
   };
 

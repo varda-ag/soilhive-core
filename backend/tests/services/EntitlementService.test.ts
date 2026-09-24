@@ -519,6 +519,38 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('canReadConfig', () => {
+    const configKey = 'test-config-key';
+
+    it('returns false for a non-privileged caller with no capability for the config', () => {
+      expect(service.canReadConfig(requestData, configKey)).toBe(false);
+    });
+
+    it('returns true for a non-privileged caller holding READ for the config', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+      expect(service.canReadConfig(rd, configKey)).toBe(true);
+    });
+
+    it('returns true for a non-privileged caller holding WRITE for the config', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+      expect(service.canReadConfig(rd, configKey)).toBe(true);
+    });
+
+    it('returns false for a non-privileged caller holding an unrelated capability only', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [] } } };
+      expect(service.canReadConfig(rd, configKey)).toBe(false);
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('returns true for a privileged caller regardless of capability', additionalData => {
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+      expect(service.canReadConfig(rd, configKey)).toBe(true);
+    });
+  });
+
   describe('assertCanReadConfigEntitlement', () => {
     const configKey = 'test-config-key';
 
@@ -617,48 +649,49 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('canWriteConfig', () => {
+    const configKey = 'test-config-key';
+
+    it('returns false for a non-privileged caller with no existing WRITE grant, even for a fresh plugin: id', () => {
+      expect(service.canWriteConfig(requestData, 'plugin:my-plugin:settings')).toBe(false);
+    });
+
+    it('returns true for a non-privileged caller holding an existing WRITE grant', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+      expect(service.canWriteConfig(rd, configKey)).toBe(true);
+    });
+
+    it('returns false for a non-privileged caller holding READ only', () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+      expect(service.canWriteConfig(rd, configKey)).toBe(false);
+    });
+
+    it.each([
+      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
+      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
+    ])('returns true for a privileged caller regardless of existing grants', additionalData => {
+      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+      expect(service.canWriteConfig(rd, configKey)).toBe(true);
+    });
+  });
+
   describe('assertCanWriteConfigEntitlement', () => {
     const configKey = 'test-config-key';
-    // `requestData` is only populated by the top-level `beforeAll`, so `getSubject` must run
-    // after that, not at `describe`-body evaluation time.
-    let callerSubject: string;
-    let selfOnlyWriteGrant: CapabilityGrants;
-    beforeEach(() => {
-      callerSubject = getSubject(requestData);
-      selfOnlyWriteGrant = { [callerSubject]: [Capability.WRITE] };
+
+    it('rejects a non-privileged caller with no existing WRITE grant, even for a fresh plugin: id (no more self-service first access)', async () => {
+      await expect(service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings')).rejects.toMatchObject({
+        status: 403,
+      });
     });
 
-    it('allows a non-privileged caller first access to a plugin-owned config, granting WRITE to their own subject only', async () => {
-      await expect(
-        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', selfOnlyWriteGrant),
-      ).resolves.toBeUndefined();
+    it('allows a non-privileged caller holding an existing WRITE grant on a plugin: id', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { 'plugin:my-plugin:settings': [Capability.WRITE] } } };
+      await expect(service.assertCanWriteConfigEntitlement(rd, 'plugin:my-plugin:settings')).resolves.toBeUndefined();
     });
 
-    it('rejects first access when the payload grants a different subject instead of the caller', async () => {
-      await expect(
-        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', {
-          'someone-else@example.com': [Capability.WRITE],
-        }),
-      ).rejects.toMatchObject({ status: 403 });
-    });
-
-    it('rejects first access when the payload grants the caller plus another subject', async () => {
-      await expect(
-        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', {
-          ...selfOnlyWriteGrant,
-          everyone: [Capability.READ],
-        }),
-      ).rejects.toMatchObject({ status: 403 });
-    });
-
-    it('rejects first access when the caller grants themselves a capability other than WRITE', async () => {
-      await expect(
-        service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings', { [callerSubject]: [Capability.READ] }),
-      ).rejects.toMatchObject({ status: 403 });
-    });
-
-    it('rejects a non-privileged caller first access to a non-plugin config id, even with no grant or row yet', async () => {
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey, selfOnlyWriteGrant)).rejects.toMatchObject({
+    it('rejects a non-privileged caller with no grant on a non-plugin config id, even with no row yet', async () => {
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({
         status: 403,
       });
     });
@@ -668,7 +701,7 @@ describe('EntitlementService', () => {
         INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
       `);
 
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey, selfOnlyWriteGrant)).rejects.toMatchObject({
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({
         status: 403,
       });
     });
@@ -679,16 +712,13 @@ describe('EntitlementService', () => {
       `);
       const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
 
-      // Once WRITE is already held, this is no longer "first access" — the payload can grant anyone.
-      await expect(
-        service.assertCanWriteConfigEntitlement(rd, configKey, { 'config-other@example.com': [Capability.READ] }),
-      ).resolves.toBeUndefined();
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
     });
 
-    it('rejects a non-privileged caller on an existing config with no grants yet — not a genuine first access', async () => {
+    it('rejects a non-privileged caller on an existing config with no grants yet', async () => {
       await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
 
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey, selfOnlyWriteGrant)).rejects.toMatchObject({
+      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({
         status: 403,
       });
     });
@@ -697,18 +727,16 @@ describe('EntitlementService', () => {
       await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
       const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
 
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey, { anyone: [Capability.WRITE] })).resolves.toBeUndefined();
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
     });
 
-    it('rejects a non-privileged caller from re-bootstrapping a plugin config id whose value was soft-deleted', async () => {
+    it('rejects a non-privileged caller on a plugin config id whose value was soft-deleted, even with no grant', async () => {
       const pluginConfigKey = 'plugin:acme:widget';
       const jsonStorageRepo = entityManager.getRepository('JsonStorage');
       await jsonStorageRepo.save({ id: pluginConfigKey, data: { some: 'value' } });
       await jsonStorageRepo.softDelete({ id: pluginConfigKey });
 
-      await expect(
-        service.assertCanWriteConfigEntitlement(requestData, pluginConfigKey, { [callerSubject]: [Capability.WRITE] }),
-      ).rejects.toMatchObject({ status: 403 });
+      await expect(service.assertCanWriteConfigEntitlement(requestData, pluginConfigKey)).rejects.toMatchObject({ status: 403 });
     });
 
     it.each([
@@ -721,20 +749,82 @@ describe('EntitlementService', () => {
       `);
       const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
 
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey, { anyone: [Capability.WRITE] })).resolves.toBeUndefined();
+      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('grantSelfConfigWrite', () => {
+    const configKey = 'plugin:my-plugin:settings';
+    let callerSubject: string;
+    beforeEach(() => {
+      callerSubject = getSubject(requestData);
+    });
+
+    it("grants WRITE to the caller's own subject for the key", async () => {
+      await service.grantSelfConfigWrite(requestData, configKey);
+
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual({
+        [callerSubject]: [Capability.WRITE],
+      });
+    });
+
+    it('is idempotent: calling it twice for the same subject/key merges instead of duplicating', async () => {
+      await service.grantSelfConfigWrite(requestData, configKey);
+      await service.grantSelfConfigWrite(requestData, configKey);
+
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual({
+        [callerSubject]: [Capability.WRITE],
+      });
+    });
+
+    it("preserves the caller's existing grants on other keys", async () => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('${callerSubject}', '{"configs": {"other-key": ["read"]}}')
+      `);
+
+      await service.grantSelfConfigWrite(requestData, configKey);
+
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'other-key')).toEqual({
+        [callerSubject]: [Capability.READ],
+      });
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual({
+        [callerSubject]: [Capability.WRITE],
+      });
+    });
+
+    // Reproduces a real race: the same subject winning first access on several distinct fresh
+    // plugin: ids concurrently (e.g. several PUT /config/plugin:{pluginId}:{id} requests in
+    // flight at once). Each request is its own transaction/connection, all targeting the same
+    // EntitlementsEntity row (keyed by subject) but different keys within its `configs` object —
+    // a non-atomic read-modify-write (findOneBy + save) loses all but the last writer's key.
+    it('does not lose grants when the same subject wins first access on several distinct keys concurrently', async () => {
+      const keys = Array.from({ length: 8 }, (_, i) => `plugin:acme:item-${i}`);
+
+      await Promise.all(keys.map(key => service.grantSelfConfigWrite(requestData, key)));
+
+      const [row] = await entityManager.query(`SELECT data->'configs' AS configs FROM entitlements WHERE id = $1`, [callerSubject]);
+      expect(row.configs).toEqual(Object.fromEntries(keys.map(key => [key, [Capability.WRITE]])));
     });
   });
 
   describe('setConfigEntitlement', () => {
     const configKey = 'plugin:my-plugin:settings';
 
-    it('writes the entitlements when the write gate passes (first access)', async () => {
-      const payload = { [getSubject(requestData)]: [Capability.WRITE] };
+    it('writes the entitlements when the caller already holds WRITE for the config', async () => {
+      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+      const payload = { 'new-user@example.com': [Capability.READ] };
 
-      const result = await service.setConfigEntitlement(requestData, configKey, payload);
+      const result = await service.setConfigEntitlement(rd, configKey, payload);
 
       expect(result).toEqual(payload);
       expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual(payload);
+    });
+
+    it('rejects and does not write for a non-privileged caller with no existing WRITE grant (no more self-service first access)', async () => {
+      const payload = { [getSubject(requestData)]: [Capability.WRITE] };
+
+      await expect(service.setConfigEntitlement(requestData, configKey, payload)).rejects.toMatchObject({ status: 403 });
+      expect(await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, configKey)).toEqual({});
     });
 
     it('rejects and does not write when the write gate fails', async () => {

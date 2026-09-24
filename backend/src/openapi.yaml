@@ -111,11 +111,20 @@ paths:
     put:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: putConfig
+      x-entitlements-required: true
       summary: Create or update configuration item
+      description: >-
+        Requires an existing WRITE grant on the config (EVERYONE's grants count), or a privileged
+        caller. A non-admin caller with no WRITE grant may still claim the config on first access
+        when configId follows the plugin:{pluginId}:{id} convention (matching the id
+        usePluginConfig builds on the frontend) and the id has never been created before
+        (including soft-deleted): the row is claimed via a conflict-detecting insert, and the
+        caller who wins it is self-granted WRITE in the same request. Any other configId (a
+        system config not matching that convention) is first-access only for a privileged caller.
       tags:
         - config
       security:
-        - bearerAuth: [super-admin, data-admin]
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -131,10 +140,19 @@ paths:
                 $ref: '#/components/schemas/ConfigItem'
         '400':
           $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
     get:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: getConfig
+      x-entitlements-required: true
       summary: Retrieve configuration item
+      description: >-
+        No security scheme: stays anonymous-friendly, since the frontend fetches theme/logo before
+        login. Requires READ or WRITE on the config (EVERYONE's grants count), or a privileged
+        caller; an anonymous caller relies solely on an EVERYONE grant.
       tags:
         - config
       responses:
@@ -144,25 +162,40 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ConfigItem'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: deleteConfig
+      x-entitlements-required: true
       summary: Delete configuration item
+      description: >-
+        Requires an existing WRITE grant on the config (EVERYONE's grants count), or a privileged
+        caller. No first-access bypass — deleting is not a way to first-access an id.
       tags:
         - config
       security:
-        - bearerAuth: [super-admin]
+        - bearerAuth: []
       responses:
         '204':
           description: Configuration deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /config:
     get:
       x-eov-operation-handler: controllers/config
       x-eov-operation-id: getConfigs
+      x-entitlements-required: true
       summary: Retrieve multiple configuration items by id
+      description: >-
+        No security scheme: stays anonymous-friendly, same as GET /config/{configId}. Ids the
+        caller lacks READ/WRITE on (EVERYONE's grants count) are silently omitted from the
+        response, the same precedent already used for ids that don't exist.
       tags:
         - config
       parameters:
@@ -973,12 +1006,10 @@ paths:
       x-entitlements-required: true
       summary: Set entitlement grants for a config item
       description: >-
-        A non-admin caller may only claim a config's entitlements on first access (nobody holds a
-        grant for it yet, and it hasn't been created) when configId follows the plugin:{pluginId}:{id}
-        convention, matching the id usePluginConfig builds on the frontend, and the request body
-        grants WRITE to the caller's own subject only. Any other configId is first-access only for
-        a super-admin or data-admin; a non-admin caller needs an existing WRITE grant, and may then
-        grant any subject.
+        Requires a privileged caller, or a non-admin caller already holding WRITE on the config.
+        No first-access bypass: first access to a fresh plugin:{pluginId}:{id} config now happens
+        through PUT /config/{configId} itself (its own conflict-detecting insert self-grants the
+        winner WRITE in the same request), not through this endpoint.
       tags:
         - config
       security:
