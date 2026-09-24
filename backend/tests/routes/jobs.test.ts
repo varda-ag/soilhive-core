@@ -341,7 +341,7 @@ describe('Testing /jobs routes', () => {
     expect(restrictedRes.statusCode).toBe(400);
   });
 
-  describe('POST /jobs data-requests validation', () => {
+  describe('POST /jobs run-job validation', () => {
     // Everything here is rejected at enqueue time on purpose: this is the only point at
     // which the caller's raw token exists (so external entitlements are visible), and a
     // synchronous 4xx beats a job that fails minutes later.
@@ -363,100 +363,17 @@ describe('Testing /jobs routes', () => {
       ],
     };
 
-    it('rejects an unknown filter with 404', async () => {
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.DATA_REQUESTS,
-        statistics_type: StatisticsType.DESCRIPTIVE,
-        filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
-      });
-      expect(res.statusCode).toBe(404);
-    });
-
-    it('rejects a filter with no geometries when no file_id is given', async () => {
-      const filterId = await createFilter([]);
-      const res = await request(app)
-        .post('/jobs')
-        .send({ type: JobQueues.DATA_REQUESTS, statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId });
-      expect(res.statusCode).toBe(400);
-      expect(res.body.detail).toContain('no geometries');
-    });
-
-    it('rejects label_field without file_id', async () => {
+    // The data-requests type is no longer accepted here at all: a Data Request is submitted
+    // through POST /data-requests, read by any bearer of its id and destroyed rather than merely
+    // cancelled, so serving it from both doors would mean two contradictory rules on one resource
+    // (docs/adr/0037). The discriminator no longer maps the type, so the request validator rejects
+    // it before any handler sees it.
+    it('no longer accepts a data-requests job', async () => {
       const filterId = await createFilter([polygon]);
       const res = await request(app).post('/jobs').send({
         type: JobQueues.DATA_REQUESTS,
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterId,
-        label_field: 'field_name',
-      });
-      expect(res.statusCode).toBe(400);
-      expect(res.body.detail).toContain('label_field requires file_id');
-    });
-
-    it('rejects a named dataset the caller cannot preview with 403', async () => {
-      const dataset = await addDataset('private-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
-      const entityManager = await getEntityManager();
-      await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
-
-      const filterId = await createFilter([polygon]);
-      const res = await request(app)
-        .post('/jobs')
-        .send({
-          type: JobQueues.DATA_REQUESTS,
-          statistics_type: StatisticsType.DESCRIPTIVE,
-          filter_id: filterId,
-          dataset_ids: [dataset.slug],
-        });
-      expect(res.statusCode).toBe(403);
-    });
-
-    it('accepts a valid request and enqueues on its own queue', async () => {
-      const dataset = await addDataset('public-stats-ds', [0, 0, 2, 2], GISDataType.POINT);
-      const filterId = await createFilter([polygon]);
-      const res = await request(app)
-        .post('/jobs')
-        .send({
-          type: JobQueues.DATA_REQUESTS,
-          statistics_type: StatisticsType.DESCRIPTIVE,
-          filter_id: filterId,
-          dataset_ids: [dataset.slug],
-          histogram_bins: 20,
-        });
-      expect(res.statusCode).toBe(201);
-      expect(res.body.queue).toBe(JobQueues.DATA_REQUESTS);
-      expect(res.body.data.histogram_bins).toBe(20);
-    });
-
-    // crea-index left this queue for soil-indexes (ADR 0036), so its old name is now simply an
-    // unknown Statistics Type here rather than a special case.
-    it('rejects statistics_type crea-index, which is no longer a Statistics Type', async () => {
-      const filterId = await createFilter([polygon]);
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.DATA_REQUESTS,
-        filter_id: filterId,
-        statistics_type: 'crea-index',
-      });
-      expect(res.statusCode).toBe(400);
-    });
-
-    it('rejects a data-requests job with no statistics_type', async () => {
-      const filterId = await createFilter([polygon]);
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.DATA_REQUESTS,
-        filter_id: filterId,
-      });
-      expect(res.statusCode).toBe(400);
-      // Same as its soil-indexes counterpart: the spec marks it required, so this is the
-      // request validator's rejection and not JobService's.
-      expect(JSON.stringify(res.body)).toContain('statistics_type');
-    });
-
-    it('rejects an unknown statistics_type', async () => {
-      const filterId = await createFilter([polygon]);
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.DATA_REQUESTS,
-        filter_id: filterId,
-        statistics_type: 'not-a-type',
       });
       expect(res.statusCode).toBe(400);
     });
@@ -509,17 +426,6 @@ describe('Testing /jobs routes', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('has no geometries');
-    });
-
-    it('rejects a histogram_bins value outside the allowed range', async () => {
-      const filterId = await createFilter([polygon]);
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.DATA_REQUESTS,
-        statistics_type: StatisticsType.DESCRIPTIVE,
-        filter_id: filterId,
-        histogram_bins: 1,
-      });
-      expect(res.statusCode).toBe(400);
     });
   });
 });

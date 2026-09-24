@@ -1,0 +1,365 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Data requests
+  description: Schemas for the /data-requests endpoints
+components:
+  schemas:
+    DataRequestSubmission:
+      type: object
+      description: >-
+        Payload submitted to POST /data-requests. Which product is computed is chosen by
+        statistics_type; the aggregation areas are resolved identically for every type, and only
+        what is computed over them differs.
+      additionalProperties: false
+      required:
+        - statistics_type
+        - filter_id
+      properties:
+        statistics_type:
+          type: string
+          enum: [descriptive]
+          description: >-
+            Which product to compute. `descriptive` gives descriptive statistics over the
+            matching observations, per aggregation area, dataset, soil property, sampling
+            year and depth interval. Required, and never defaulted.
+        filter_id:
+          type: string
+          format: uuid
+          description: >-
+            Filter supplying the criteria. Also supplies the aggregation areas, unless
+            file_id is given — in which case the filter's own geometries are not used.
+        file_id:
+          type: string
+          description: >-
+            Optional spatial file whose geometries each become one aggregation area. Must
+            be a vector file with a known EPSG code and only polygon or multipolygon
+            geometries; a multipolygon counts as one area. The number of geometries is
+            capped by server configuration.
+        dataset_ids:
+          type: array
+          items:
+            type: string
+          description: >-
+            Optional list of dataset IDs. When given, preview access to each is enforced
+            on submission. When omitted, every dataset the filter matches is used and
+            those without preview access are skipped. Which ones were skipped is no longer
+            reported back — it reaches the server log only.
+        histogram_bins:
+          type: integer
+          minimum: 2
+          maximum: 100
+          description: >-
+            Number of equal-width histogram bins spanning each cell's min-max range.
+            Applies to statistics_type `descriptive` only; sending it with another type is
+            a 400.
+        label_field:
+          type: string
+          description: >-
+            Optional field of file_id whose value labels each aggregation area. Must name
+            an existing field of that file.
+
+    DataRequestParameters:
+      type: object
+      description: >-
+        What was asked, plus what resolving it produced. The resolved half is part of the question
+        rather than the answer, and is what makes the result interpretable: unit_id in the result
+        is an opaque identifier, and units below is the only place its label and area appear.
+      required:
+        - statistics_type
+        - filter_id
+        - derived_filter_id
+        - unit_count
+        - units
+      properties:
+        statistics_type:
+          type: string
+          enum: [descriptive]
+        filter_id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+        dataset_ids:
+          type: array
+          items:
+            type: string
+        histogram_bins:
+          type: integer
+        label_field:
+          type: string
+        derived_filter_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            Filter holding the aggregation areas when they came from file_id; null when they are
+            the filter's own geometries.
+        unit_count:
+          type: integer
+          description: Number of aggregation areas resolved.
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/AggregationUnit'
+
+    AggregationUnit:
+      type: object
+      description: One aggregation area the statistics are reported for.
+      required:
+        - unit_id
+        - label
+        - record_ids
+        - area_m2
+        - raster_filtered
+      properties:
+        unit_id:
+          type: string
+          format: uuid
+          description: Identifier this area's statistics are reported under.
+        label:
+          type: string
+          nullable: true
+          description: Value of label_field for the source row, when one was given.
+        record_ids:
+          type: array
+          items:
+            type: integer
+          description: Source rows that resolved to this area — several when the file repeats a geometry.
+        area_m2:
+          type: number
+          nullable: true
+        raster_filtered:
+          type: boolean
+          description: >-
+            True when raster filters applied. The area is unchanged by them, so the effective area
+            the statistics cover is smaller than area_m2.
+
+    DataRequest:
+      type: object
+      description: >-
+        One data request and the outcome of its run. Progress fields are present only while the
+        underlying run still exists; data is present only once the run completed.
+      required:
+        - id
+        - status
+        - created_at
+        - completed_at
+        - message
+        - request
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: >-
+            Identifies the request and is the whole of the permission to read or delete it. Treat
+            it as a secret: anyone holding it has the same access as whoever submitted the request.
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+          description: When the request was submitted.
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the run reached its outcome; null while it is pending or running.
+        progress_percentage:
+          type: integer
+          description: Absent once the underlying run has been removed by retention.
+        progress_description:
+          type: string
+          description: Absent once the underlying run has been removed by retention.
+        message:
+          type: string
+          nullable: true
+          description: Why the request failed. Null unless status is `failed`.
+        request:
+          $ref: '#/components/schemas/DataRequestParameters'
+        data:
+          $ref: '#/components/schemas/SoilStatistics'
+
+    SoilStatistics:
+      type: object
+      description: >-
+        The result of a `descriptive` data request: one group per dataset and soil property.
+        Absent until the request completes, and never present for a failed one.
+      required:
+        - results
+        - truncated
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoilStatisticsGroup'
+        truncated:
+          type: boolean
+          description: >-
+            True when at least one group's per-year/per-depth breakdown was dropped to fit the
+            output budget. The per-area figures are always complete.
+
+    SoilStatisticsGroup:
+      type: object
+      required:
+        - dataset_id
+        - soil_property
+        - standard_unit
+        - l4_included
+        - overall
+        - units
+      properties:
+        dataset_id:
+          type: string
+        soil_property:
+          type: string
+        standard_unit:
+          type: string
+          nullable: true
+        l4_included:
+          type: boolean
+          description: False when this group's per-year/per-depth breakdown was dropped to fit the output budget.
+        overall:
+          allOf:
+            - $ref: '#/components/schemas/SoilStatisticsCell'
+          description: >-
+            Computed before areas are fanned out, so an observation inside two overlapping areas is
+            counted once. It therefore does not equal the sum of the per-area counts.
+        units:
+          type: array
+          items:
+            $ref: '#/components/schemas/SoilStatisticsUnit'
+
+    SoilStatisticsCell:
+      type: object
+      description: >-
+        Descriptive statistics over one set of observation values, all in standard_unit. Every
+        non-integer statistic is rounded to 3 decimals, and a statistic with no value is absent
+        rather than null. Two figures are deliberately left out because they are derivable: the
+        interquartile range (p75 - p25) and the coefficient of variation (stddev / |mean|).
+      required:
+        - count
+        - n_features
+        - n_layers
+        - min
+        - max
+        - mean
+        - median
+        - p05
+        - p25
+        - p75
+        - p95
+      properties:
+        count:
+          type: integer
+        n_features:
+          type: integer
+          description: Distinct sampling locations behind count — the sample support.
+        n_layers:
+          type: integer
+        min:
+          type: number
+        max:
+          type: number
+        mean:
+          type: number
+        median:
+          type: number
+        stddev:
+          type: number
+          description: Sample standard deviation. Absent when count is below 2.
+        p05:
+          type: number
+        p25:
+          type: number
+        p75:
+          type: number
+        p95:
+          type: number
+        sampling_date_min:
+          type: string
+        sampling_date_max:
+          type: string
+        depth_min:
+          type: integer
+        depth_max:
+          type: integer
+        horizons:
+          type: array
+          items:
+            type: string
+          description: Distinct horizons mixed into this cell. Absent when none are recorded.
+        laboratory_methods:
+          type: array
+          items:
+            type: string
+          description: >-
+            Distinct laboratory methods mixed into this cell — more than one means the summary
+            spans methods. Absent when none are recorded.
+        histogram:
+          $ref: '#/components/schemas/Histogram'
+
+    Histogram:
+      type: object
+      description: >-
+        Bin counts over equal-width bins spanning [min, max]. Absent at or below 100 observations,
+        where the bins would describe the sample rather than the distribution. Bin boundaries are
+        not transmitted: they are min + i * bin_width, the last being exactly max. A single entry
+        in counts — not bin_width being 0 — is the signal that every value in the cell is
+        identical, because a genuine width below 0.0005 also rounds to 0.
+      required:
+        - bin_width
+        - counts
+      properties:
+        bin_width:
+          type: number
+        counts:
+          type: array
+          items:
+            type: integer
+
+    SoilStatisticsUnit:
+      description: One aggregation area's statistics, keyed by the unit_id reported in request.units.
+      allOf:
+        - $ref: '#/components/schemas/SoilStatisticsCell'
+        - type: object
+          required:
+            - unit_id
+          properties:
+            unit_id:
+              type: string
+              format: uuid
+            breakdown:
+              type: array
+              description: >-
+                Per sampling year and depth interval. Absent for two different reasons, told apart
+                by l4_included on the group: when false the breakdown was dropped to fit the output
+                budget; when true this area's observations all fall in one year and depth interval,
+                so the single cell would repeat the area's own statistics. Never an empty array.
+              items:
+                $ref: '#/components/schemas/SoilStatisticsBreakdownCell'
+
+    SoilStatisticsBreakdownCell:
+      description: >-
+        One (year, depth interval) slice. Unlike the statistics above, nulls here are spelled out
+        rather than omitted: a null is the bucket's identity ("no recorded year"), not a value that
+        happens to be missing. depth_min and depth_max are dropped because the grouping is by
+        min_depth and max_depth, which would repeat them.
+      allOf:
+        - $ref: '#/components/schemas/SoilStatisticsCell'
+        - type: object
+          required:
+            - year
+            - min_depth
+            - max_depth
+          properties:
+            year:
+              type: integer
+              nullable: true
+            min_depth:
+              type: integer
+              nullable: true
+            max_depth:
+              type: integer
+              nullable: true

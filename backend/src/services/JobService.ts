@@ -81,7 +81,14 @@ export default class JobService {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
     }
     log.info('Job created', { queue: data.type, job_id: id, created_by: data.created_by ?? null });
-    return this.getJobById(requestData, id);
+
+    // Read back by queue rather than through getJobById: a `data-requests` job is enqueued here
+    // by DataRequestService, and `/jobs/{jobId}` deliberately does not serve that queue.
+    const job = await this.findJobInQueue(data.type as JobQueues, id);
+    if (!job) {
+      throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
+    }
+    return job;
   }
 
   /**
@@ -181,12 +188,20 @@ export default class JobService {
     }
   };
 
+  /**
+   * Queues not served by `/jobs` or `/jobs/{jobId}`: their jobs have their own endpoints, whose
+   * rules contradict these (docs/adr/0037).
+   */
+  private static readonly QUEUES_NOT_SERVED: string[] = [JobQueues.DATA_REQUESTS];
+
   getJobs = async (requestData: RequestData): Promise<Job[]> => {
     const subject = subjectOf(requestData);
     if (!subject) {
       throw new ErrorResponse('Authentication required to list jobs', StatusCodes.UNAUTHORIZED);
     }
-    const promises = Object.values(JobQueues).map(async queue => await this.boss.findJobs(queue));
+    const promises = Object.values(JobQueues)
+      .filter(queue => !JobService.QUEUES_NOT_SERVED.includes(queue))
+      .map(async queue => await this.boss.findJobs(queue));
     const results = await Promise.all(promises);
     const jobs: JobWithMetadata<unknown>[] = results.flat();
 
@@ -200,6 +215,9 @@ export default class JobService {
     return userJobs.map(job => this.prepareJobForResponse(job));
   };
 
+  /**
+   * One job by id, as `/jobs/{jobId}` sees it: owned by the caller, and on a queue served by this API.
+   */
   getJobById = async (requestData: RequestData, jobId: string): Promise<Job> => {
     const subject = subjectOf(requestData);
 
@@ -207,8 +225,11 @@ export default class JobService {
     const results = await Promise.all(promises);
     const jobs: JobWithMetadata<unknown>[] = results.flat();
     if (jobs.length) {
-      // Check ownership
       const job = this.translateJob(jobs[0]!);
+      if (JobService.QUEUES_NOT_SERVED.includes(job.queue)) {
+        throw new ErrorResponse(`Job '${jobId}' not found`, StatusCodes.NOT_FOUND);
+      }
+      // Check ownership
       if (job.data.created_by && job.data.created_by !== subject) {
         throw new ErrorResponse('Unauthorized to access this job', StatusCodes.UNAUTHORIZED);
       }
@@ -225,6 +246,23 @@ export default class JobService {
     }
     log.info('Job cancelled', { job_id: jobId, user: subject ?? null });
     await this.boss.cancel(job.queue, jobId);
+  };
+
+  findJobInQueue = async (queue: JobQueues, jobId: string): Promise<Job | null> => {
+    const jobs = await this.boss.findJobs(queue, { id: jobId });
+    return jobs.length ? this.translateJob(jobs[0]!) : null;
+  };
+
+  /** Cancels a job on a named queue. No ownership check, for the same reason as findJobInQueue. */
+  cancelJobInQueue = async (queue: JobQueues, jobId: string): Promise<void> => {
+    await this.boss.cancel(queue, jobId);
+  };
+
+  /**
+   * Removes a job row
+   */
+  deleteJobInQueue = async (queue: JobQueues, jobId: string): Promise<void> => {
+    await this.boss.deleteJob(queue, jobId);
   };
 
   /**

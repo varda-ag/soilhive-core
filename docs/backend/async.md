@@ -137,15 +137,16 @@ Computes an analytical product over the spatial areas matching a filter. `statis
 
 | `statistics_type` | Product | Output key |
 |---|---|---|
-| `descriptive` | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | none — removed, pending tables of its own |
+| `descriptive` | Descriptive statistics over the matching observations, per area, dataset, soil property, sampling year and depth interval | `data` on `GET /data-requests/{id}` |
+
+> **This queue is not reached through `/jobs`.** A data request is submitted, read and deleted through `/data-requests`, which applies a different rule at every point: anyone holding the id may read it, and `DELETE` destroys the record rather than only cancelling the run. `GET` and `DELETE /jobs/{jobId}` report a data-requests job as **not found** (docs/adr/0037).
 
 > Not to be confused with `GET /datasets/{datasetId}/dataset-file-mapping/{id}/soil-data/stats`, which returns an ingest **cleaning report** — how many raw cells and rows were rejected. The two are unrelated.
 
 **Trigger**
 ```json
-POST /jobs
+POST /data-requests
 {
-  "type": "data-requests",
   "statistics_type": "descriptive",
   "filter_id": "<uuid>",
   "file_id": "<file_id>",
@@ -155,7 +156,9 @@ POST /jobs
 }
 ```
 
-`statistics_type` and `filter_id` are required — there is **no default**, and a request that does not name its product is a `400`. Parameters the chosen type does not use are **rejected with a `400`, not ignored** — `histogram_bins` and `dataset_ids` apply to `descriptive` only. A missing or unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor without a usable one fails rather than falling back to `descriptive`.
+`statistics_type` and `filter_id` are required — there is **no default**, and a request that does not name its product is a `400`. Parameters the chosen type does not use are **rejected with a `400`, not ignored** — `histogram_bins` and `dataset_ids` apply to `descriptive` only. Unknown properties are rejected by the same rule, which includes `type` and `anonymous`: both were `/jobs` concepts and neither has a meaning here. A missing or unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor without a usable one fails rather than falling back to `descriptive`.
+
+**No token is required.** A token, if sent, decides only which datasets the run may read — without one it resolves public datasets only — and is never consulted again. It does not decide who may read or delete the result: the returned `id` is the whole of that permission, so passing it on passes on the data *and* the power to erase it.
 
 ### Aggregation areas
 
@@ -188,10 +191,37 @@ Identical to `GET /data-filters/{filterId}/coverage`, including raster filters, 
 4. Collect the matching observations into a staging table, one row per observation.
 5. Aggregate: `overall` per (dataset, soil property), then per unit, then per (unit, year, depth interval).
 6. Write progress into the job data.
+7. Record the outcome — the payload, or the reason there is none — as a `data_requests` row keyed by the job id.
 
-### Output
+### Reading it back
 
-> **TODO**: to be implemented in a future release
+```
+GET /data-requests/{id}
+```
+
+```jsonc
+{
+  "id": "…",                       // the job's id, and the whole of the permission to read this
+  "status": "completed",           // pending | running | completed | failed
+  "created_at": "…",
+  "completed_at": "…",
+  "progress_percentage": 100,      // absent once the run has been removed by retention
+  "progress_description": "…",     // likewise
+  "message": null,                 // why it failed; null otherwise
+  "request": { /* what was asked, plus the resolved units, derived_filter_id and unit_count */ },
+  "data": { "results": [ /* per dataset and soil property */ ], "truncated": false }
+}
+```
+
+`request` carries the resolved `units[]` for a reason: `unit_id` in the payload is an opaque identifier, and the units are the only place its label and area appear — so the result stays interpretable after the run is gone.
+
+**Lifetime.** Progress comes from the run, which pg-boss keeps for 30 days; the request and its result are kept indefinitely, until deleted. Every terminal outcome is recorded, success or failure — but a **cancelled** run records nothing, because cancelling is how a data request is destroyed.
+
+```
+DELETE /data-requests/{id}
+```
+
+Cancels the run if it is still in progress and permanently deletes the request and its result. `204` if either happened, `404` if neither was there. Irreversible, and open to anyone holding the id — including anyone it was shared with.
 
 ## `soil-indexes`
 

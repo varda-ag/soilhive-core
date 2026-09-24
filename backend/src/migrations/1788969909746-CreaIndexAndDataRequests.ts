@@ -29,17 +29,36 @@ export class CreaIndexAndDataRequests1788969909746 implements MigrationInterface
 
     // ── data_requests ─────────────────────────────────────────────────────────
     //
-    // One answered data request and the payload that answered it.
+    // One data request and the outcome its Run reached (docs/adr/0037).
     // Append-only: an identical `request` inserts a new row rather than reusing one.
     // Not deduplicated because the row has no owner and data changes in time.
     // Filters can dedupe (docs/adr/0007) only because they dedupe per owner.
-    // `gen_random_uuid()` and not the `uuidv7()` used everywhere else in this schema, on purpose.
-    // The row carries no owner, so the id is the only thing gating the payload: v4 contains more randomness with respect to v7.
+    //
+    // No default on `id`: it is always the id of the pg-boss job that ran it, so one
+    // identifier addresses the request while the job lives and the row afterwards. Nothing
+    // is given up by not generating it here - pg-boss also uses gen_random_uuid(), and the
+    // row carries no owner, so those 122 unstructured random bits are the whole of what
+    // gates the payload.
+    //
+    // Timestamps are copied from pg-boss's own timestamptz columns, hence `WITH TIME ZONE`
+    // where the rest of this schema uses a bare TIMESTAMP: truncating the offset here would
+    // be a lossy copy of a value this table does not originate.
+    //
+    // `data` is null exactly when the Run failed, which is what the CHECK pins: a completed
+    // Run without a payload and a failed Run carrying one are both nonsense. A cancelled Run
+    // writes no row at all - cancelling is how a Data Request is destroyed - so `status` has
+    // two values and not three.
     await queryRunner.query(
       `CREATE TABLE "data_requests" (
-         "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+         "id" uuid NOT NULL,
+         "status" text NOT NULL,
          "request" jsonb NOT NULL,
-         "data" jsonb NOT NULL,
+         "data" jsonb,
+         "message" text,
+         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL,
+         "completed_at" TIMESTAMP WITH TIME ZONE NOT NULL,
+         CONSTRAINT "CHK_data_requests_status" CHECK ("status" IN ('completed', 'failed')),
+         CONSTRAINT "CHK_data_requests_data_matches_status" CHECK (("status" = 'completed') = ("data" IS NOT NULL)),
          CONSTRAINT "PK_data_requests_id" PRIMARY KEY ("id")
        )`,
     );

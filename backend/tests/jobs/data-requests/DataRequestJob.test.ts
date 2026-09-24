@@ -7,7 +7,8 @@ import { DataRequestJob } from '../../../src/interfaces/Job';
 import { processDataRequest } from '../../../src/jobs/data-requests/DataRequestJob';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { Capability, JobQueues, StatisticsType } from '../../../src/types/enums';
+import { Capability, DataRequestStatus, JobQueues, StatisticsType } from '../../../src/types/enums';
+import { insertDataRequest } from '../../../src/data-layer/DataRequests';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
@@ -284,6 +285,179 @@ describe('processDataRequest', () => {
   });
 
   /**
+   * The Data Request record (docs/adr/0037).
+   *
+   * processDataRequest is the single write site for `data_requests`, and the three outcomes it
+   * distinguishes are what these cover: a payload, a throw, and — the one that is easy to get
+   * wrong — a cancellation, which returns normally with nothing and must write no row at all.
+   */
+  describe('the record it writes', () => {
+    const readRecord = async (id: string) => {
+      const entityManager = await getEntityManager();
+      const [row] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [id]);
+      return row;
+    };
+
+    it('records a completed run under the job id, with the resolved units', async () => {
+      await seedDataset('record-completed-ds', [10, 20]);
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, histogram_bins: 20 });
+      await processDataRequest(job);
+
+      const record = await readRecord(jobId);
+      // The id is the job's, not one the table generated: that is what lets a single id address
+      // the request while the job lives and the record afterwards.
+      expect(record.id).toBe(jobId);
+      expect(record.status).toBe('completed');
+      expect(record.message).toBeNull();
+      expect(record.data).toMatchObject({ truncated: expect.any(Boolean), results: expect.any(Array) });
+      expect(record.created_at).toBeInstanceOf(Date);
+      expect(record.completed_at).toBeInstanceOf(Date);
+
+      // What was asked, plus what resolving it produced — without which unit_id in the payload
+      // is an identifier with nothing to match it against once the job is gone.
+      expect(record.request).toMatchObject({
+        statistics_type: StatisticsType.DESCRIPTIVE,
+        filter_id: filterId,
+        histogram_bins: 20,
+        unit_count: 2,
+      });
+      expect(record.request.units).toHaveLength(2);
+      expect(record.request.units[0]).toMatchObject({ unit_id: expect.any(String) });
+    });
+
+    // The record has no owner, and is returned verbatim. A leak here is permanent and readable
+    // by anyone holding the id.
+    it('never writes the submitter or their privilege into the request', async () => {
+      await seedDataset('record-no-auth-ds', [1, 2]);
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, created_by: 'someone@example.com', isDataAdmin: true });
+      await processDataRequest(job);
+
+      const { request: recorded } = await readRecord(jobId);
+      expect(Object.keys(recorded)).not.toContain('created_by');
+      expect(Object.keys(recorded)).not.toContain('isDataAdmin');
+      expect(Object.keys(recorded)).not.toContain('isSuperAdmin');
+      expect(JSON.stringify(recorded)).not.toContain('someone@example.com');
+    });
+
+    it('records a failed run with a translated message and no data', async () => {
+      const { dataset } = await seedDataset('record-failed-ds', [1]);
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+
+      const filterId = await createFilter([UNIT_A]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, dataset_ids: [dataset.slug] });
+      // Still throws: pg-boss must fail the job, and the existing error surfacing is untouched.
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_DATASET_NOT_ENTITLED' });
+
+      const record = await readRecord(jobId);
+      expect(record.status).toBe('failed');
+      expect(record.data).toBeNull();
+      // Display-ready copy, not the raw "JobError: DR_DATASET_NOT_ENTITLED".
+      expect(record.message).toEqual(expect.any(String));
+      expect(record.message).not.toContain('DR_DATASET_NOT_ENTITLED');
+    });
+
+    it('records a failure that happened before any unit was resolved', async () => {
+      const filterId = await createFilter([UNIT_A]);
+      const file = await addVectorFileWithGeometries('record-failure-before-units', featureCollection([{ geometry: UNIT_A }]), {
+        epsg: undefined,
+      });
+
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, file_id: file.slug });
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'RUN_MISSING_EPSG' });
+
+      const record = await readRecord(jobId);
+      expect(record.status).toBe('failed');
+      // The request is still recorded, with the resolved half empty rather than absent.
+      expect(record.request).toMatchObject({ filter_id: filterId, unit_count: 0, units: [], derived_filter_id: null });
+    });
+
+    it('writes nothing for a cancelled run', async () => {
+      await seedDataset('record-cancelled-ds', [10, 20]);
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveJob({ filter_id: filterId });
+      // Cancelled before the first checkpoint, exactly as DELETE /data-requests/{id} does it.
+      await setJobState(jobId, 'cancelled');
+      await processDataRequest(job);
+
+      // No row: cancelling is how a Data Request is destroyed, so writing one here would
+      // resurrect what the caller deleted.
+      expect(await readRecord(jobId)).toBeUndefined();
+    });
+
+    /**
+     * The cancellation checkpoints are not the last thing a Run does, so a DELETE landing after
+     * the final one leaves the processor about to write a row for a request that no longer
+     * exists - and that row would be permanent, because the job is `cancelled` and reads
+     * therefore fall through to the record with nothing left to sweep it. The write itself
+     * carries the check, so the two cases below are the write refusing rather than the Run
+     * noticing.
+     */
+    it('refuses to write a record once the job has been cancelled', async () => {
+      const { jobId } = await createActiveJob({ filter_id: await createFilter([UNIT_A]) });
+      const entityManager = await getEntityManager();
+      await setJobState(jobId, 'cancelled');
+
+      await insertDataRequest(entityManager, {
+        id: jobId,
+        status: DataRequestStatus.COMPLETED,
+        request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
+        data: { results: [], truncated: false },
+        message: null,
+        created_at: new Date(),
+        completed_at: new Date(),
+      });
+
+      expect(await readRecord(jobId)).toBeUndefined();
+    });
+
+    it('refuses to write a record once the job row is gone', async () => {
+      const { jobId } = await createActiveJob({ filter_id: await createFilter([UNIT_A]) });
+      const entityManager = await getEntityManager();
+      // How DELETE disposes of a Run that had already terminated: cancel cannot touch it, so the
+      // job row is removed outright.
+      await getPgBoss().deleteJob(JobQueues.DATA_REQUESTS, jobId);
+
+      await insertDataRequest(entityManager, {
+        id: jobId,
+        status: DataRequestStatus.COMPLETED,
+        request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
+        data: { results: [], truncated: false },
+        message: null,
+        created_at: new Date(),
+        completed_at: new Date(),
+      });
+
+      expect(await readRecord(jobId)).toBeUndefined();
+    });
+
+    /**
+     * A failure that is not a JobError carries internal text - a statement timeout's own words, a
+     * constraint violation naming a column. `runJob` records those as `UNEXPECTED_ERROR` with the
+     * raw text as `detail`, so the job reports generic copy; this column has to say the same
+     * thing, and for a stronger reason: it is read by any bearer of the id and, unlike a job row,
+     * it is never reaped.
+     */
+    it('records a non-JobError failure as generic copy, never its own message', async () => {
+      const unknownFilter = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
+      const { jobId, job } = await createActiveJob({ filter_id: unknownFilter });
+
+      // FilterService throws an ErrorResponse, not a JobError - the message names the filter.
+      await expect(processDataRequest(job)).rejects.toThrow(unknownFilter);
+
+      const record = await readRecord(jobId);
+      expect(record.status).toBe('failed');
+      expect(record.message).toBe('An unexpected error occurred during processing. Try again. If the problem persists, contact support.');
+      expect(record.message).not.toContain(unknownFilter);
+    });
+  });
+
+  /**
    * The only tests in this file that let a real worker run the job.
    *
    * Everything else hand-builds a payload and calls processDataRequest directly, which
@@ -292,7 +466,11 @@ describe('processDataRequest', () => {
    * precisely in that gap — the API authorised the caller by their Subject (the email
    * claim) while the processor re-derived entitlements from the raw sub, matched no rows,
    * and fell back to `everyone`'s. So the chain has to start at a real token and a real
-   * POST /jobs, and the worker has to be the thing that picks the job up.
+   * POST /data-requests, and the worker has to be the thing that picks the job up.
+   *
+   * The token is optional on that route and is honoured when sent (docs/adr/0037) — which is
+   * exactly what is under test here: what a token changes is which datasets the run may read,
+   * and nothing else.
    */
   describe('caller entitlements', () => {
     // Deliberately different strings: were created_by to regress to the sub, every
@@ -318,9 +496,9 @@ describe('processDataRequest', () => {
       return dataset;
     };
 
-    /** POSTs the job as the caller and waits for the worker to finish it. */
+    /** Submits the data request as the caller and waits for the worker to finish it. */
     const runAsCaller = async (token: string, body: object): Promise<{ jobId: string; data: DataRequestJob }> => {
-      const res = await request(app).post('/jobs').set('Authorization', `Bearer ${token}`).send(body).expect(201);
+      const res = await request(app).post('/data-requests').set('Authorization', `Bearer ${token}`).send(body).expect(201);
       const jobId = res.body.id;
       const spy = getPgBoss().getSpy<DataRequestJob>(JobQueues.DATA_REQUESTS);
       await spy.waitForJobWithId(jobId, 'completed');
@@ -345,7 +523,6 @@ describe('processDataRequest', () => {
       expect(filterResponse.statusCode).toBe(201);
 
       const { jobId, data } = await runAsCaller(token, {
-        type: JobQueues.DATA_REQUESTS,
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterResponse.body.id,
       });
@@ -354,11 +531,12 @@ describe('processDataRequest', () => {
       expect(data.created_by).toBe(CALLER_EMAIL);
       expect(data.progress_percentage).toBe(100);
 
-      // The same Subject decides job ownership, so the caller must be able to read back
-      // the job the API just created for them.
-      const jobResponse = await request(app).get(`/jobs/${jobId}`).set('Authorization', `Bearer ${token}`);
-      expect(jobResponse.statusCode).toBe(200);
-      expect(jobResponse.body.data.created_by).toBe(CALLER_EMAIL);
+      // Neither /jobs nor /jobs/{jobId} serves this queue (docs/adr/0037), so the Subject has no
+      // ownership left to observe through the API; that exclusion is asserted in
+      // routes/data-requests.test.ts. The Data Request itself is readable with no token at all:
+      // the id is the permission, and the Subject decides nothing here.
+      const anonymous = await request(app).get(`/data-requests/${jobId}`);
+      expect(anonymous.statusCode).toBe(200);
     });
 
     it('completes a run naming those datasets explicitly, rather than refusing what enqueue allowed', async () => {
@@ -380,7 +558,6 @@ describe('processDataRequest', () => {
       expect(filterResponse.statusCode).toBe(201);
 
       const { data } = await runAsCaller(token, {
-        type: JobQueues.DATA_REQUESTS,
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterResponse.body.id,
         dataset_ids: [datasetA.slug, datasetB.slug],
@@ -407,10 +584,9 @@ describe('processDataRequest', () => {
       expect(filterResponse.statusCode).toBe(201);
 
       const res = await request(app)
-        .post('/jobs')
+        .post('/data-requests')
         .set('Authorization', `Bearer ${token}`)
         .send({
-          type: JobQueues.DATA_REQUESTS,
           statistics_type: StatisticsType.DESCRIPTIVE,
           filter_id: filterResponse.body.id,
           dataset_ids: [dataset.slug],
@@ -456,8 +632,9 @@ describe('processDataRequest', () => {
 
       await expect(processDataRequest(job)).resolves.toBeUndefined();
 
-      // Nothing is written on cancellation, and with no output key left the observable
-      // proof is that the run never reached completion.
+      // Nothing is written on cancellation. Job data is the half asserted here — that the run
+      // never reached completion; that no Data Request row is written either is asserted in
+      // 'the record it writes'.
       const stored = await readJobData(jobId);
       expect(stored.progress_percentage).not.toBe(100);
     });
@@ -472,8 +649,8 @@ describe('processDataRequest', () => {
       await processDataRequest(job);
       const stored = await readJobData(jobId);
 
-      // The type writes no output key, so the completion line is what says the descriptive
-      // producer ran: it counts dataset/property groups.
+      // The payload goes to the `data_requests` row, not into job data, so the completion line
+      // is what says the descriptive producer ran here: it counts dataset/property groups.
       expect(stored.progress_description).toContain('dataset/property group(s)');
     });
 

@@ -60,9 +60,15 @@ export interface RunContext {
  * would be lying if it set the same flag. Declaring it here lets the Units be resolved, flagged and
  * written exactly once, for every product that exists or will exist.
  */
-export interface RunProduct<T extends RunJobData> {
+export interface RunProduct<T extends RunJobData, P = void> {
   appliesRasterMask: boolean;
-  run: (ctx: RunContext, data: T) => Promise<void>;
+  /**
+   * Resolves with whatever the queue above needs to record. A `data-requests` product returns
+   * its payload, because `processDataRequest` — not the product — writes the Data Request row.
+   * A Soil Index returns nothing: it has already written its own `soil_index` rows and there
+   * is no Data Request to write (docs/adr/0037).
+   */
+  run: (ctx: RunContext, data: T) => Promise<P>;
 }
 
 /**
@@ -81,8 +87,16 @@ export interface RunProduct<T extends RunJobData> {
  * `derived_filter_id`, `unit_count` and `units[]` are written here and nowhere else. Every Run
  * promises a caller those three fields; writing them in the one place every Run passes through is
  * what makes the promise true by construction rather than by every product remembering.
+ *
+ * Resolves with the product's own result, or `undefined` when the Run was cancelled. That
+ * distinction is load-bearing for `data-requests`: no result and no throw is how a cancellation
+ * reaches the caller, and it is the signal not to write a row for a record the DELETE that
+ * cancelled it has already destroyed (docs/adr/0037).
  */
-export async function processRun<T extends RunJobData>(job: Job<T>, selectProduct: (data: T) => RunProduct<T>): Promise<void> {
+export async function processRun<T extends RunJobData, P = void>(
+  job: Job<T>,
+  selectProduct: (data: T) => RunProduct<T, P>,
+): Promise<P | undefined> {
   const { id: jobId, data } = job;
   const { filter_id, file_id, label_field, created_by } = data;
 
@@ -132,6 +146,13 @@ export async function processRun<T extends RunJobData>(job: Job<T>, selectProduc
     const rasterFiltered = product.appliesRasterMask && hasRasterFilters(filter.parameters);
     const units = extracted.units.map(unit => ({ ...unit, raster_filtered: rasterFiltered }));
 
+    // Written to the job row *and* to the copy this process holds. updateJobState is a SQL
+    // UPDATE, so without the assignment `job.data` would still say zero units — and
+    // processDataRequest reads exactly these three fields off it to build the record a caller
+    // keeps. Two copies of one fact, disagreeing, is how the units would vanish from a Data
+    // Request that outlived its job.
+    Object.assign(data, { derived_filter_id: extracted.derivedFilterId, unit_count: units.length, units });
+
     await updateJobState(jobId!, {
       derived_filter_id: extracted.derivedFilterId,
       unit_count: units.length,
@@ -141,7 +162,7 @@ export async function processRun<T extends RunJobData>(job: Job<T>, selectProduc
     } as Partial<RunJobData>);
     await assertNotCancelled();
 
-    await product.run(
+    return await product.run(
       {
         jobId: jobId!,
         entityManager,
@@ -158,7 +179,7 @@ export async function processRun<T extends RunJobData>(job: Job<T>, selectProduc
   } catch (error) {
     if (error instanceof JobCancelled) {
       log.info('Run cancelled', { job_id: jobId });
-      return;
+      return undefined;
     }
     throw error;
   }

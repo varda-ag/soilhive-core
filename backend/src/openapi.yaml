@@ -443,7 +443,6 @@ paths:
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
-                - $ref: '#/components/schemas/DataRequestJob'
                 - $ref: '#/components/schemas/SoilIndexJob'
               discriminator:
                 propertyName: type
@@ -453,7 +452,6 @@ paths:
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
-                  data-requests: '#/components/schemas/DataRequestJob'
                   soil-indexes: '#/components/schemas/SoilIndexJob'
       responses:
         '201':
@@ -555,6 +553,91 @@ paths:
           description: Job canceled successfully
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /data-requests:
+    post:
+      x-eov-operation-handler: controllers/data-requests
+      x-eov-operation-id: postDataRequest
+      x-entitlements-required: true
+      summary: Submit a data request
+      description: >-
+        Starts a run that resolves aggregation areas from a filter and computes the chosen
+        statistics_type over them. Returns immediately with status `pending`; poll
+        GET /data-requests/{dataRequestId} for progress and for the result.
+      tags:
+        - data-requests
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../src/data-requests.yaml#/components/schemas/DataRequestSubmission'
+      responses:
+        '201':
+          description: Data request accepted
+          content:
+            application/json:
+              schema:
+                $ref: '../src/data-requests.yaml#/components/schemas/DataRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /data-requests/{dataRequestId}:
+    parameters:
+      - name: dataRequestId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: ID of the data request, as returned by POST /data-requests
+    get:
+      x-eov-operation-handler: controllers/data-requests
+      x-eov-operation-id: getDataRequestById
+      summary: Get a data request and its result
+      description: >-
+        Anyone holding the id may read it; no token is required and a token is not consulted.
+      tags:
+        - data-requests
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: The data request
+          content:
+            application/json:
+              schema:
+                $ref: '../src/data-requests.yaml#/components/schemas/DataRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/data-requests
+      x-eov-operation-id: deleteDataRequestById
+      summary: Delete a data request
+      description: >-
+        Cancels the run if it is still in progress and permanently deletes the request and its result.
+      tags:
+        - data-requests
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '204':
+          description: Data request deleted
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -3070,67 +3153,6 @@ components:
             type: string
             format: uri
           description: Optional mapping of dataset_id to metadata URL for Readme.PDF
-
-    DataRequestJob:
-      type: object
-      description: >-
-        Computes an analytical product over the aggregation areas matching a filter. Which
-        product is chosen by statistics_type; the areas are resolved identically for every
-        type, and only what is computed over them differs.
-      required:
-        - type
-        - statistics_type
-        - filter_id
-      properties:
-        type:
-          type: string
-          enum: [data-requests]
-          description: Job type
-        statistics_type:
-          type: string
-          enum: [descriptive]
-          description: >-
-            Which product to compute. `descriptive` gives descriptive statistics over the
-            matching observations, per aggregation area, dataset, soil property, sampling
-            year and depth interval. Required.
-        anonymous:
-          type: boolean
-          description: Set to true to allow access without authentication
-        filter_id:
-          type: string
-          format: uuid
-          description: >-
-            Filter supplying the criteria. Also supplies the aggregation areas, unless
-            file_id is given — in which case the filter's own geometries are not used.
-        file_id:
-          type: string
-          description: >-
-            Optional spatial file whose geometries each become one aggregation area. Must
-            be a vector file with a known EPSG code and only polygon or multipolygon
-            geometries; a multipolygon counts as one area. The number of geometries is
-            capped by server configuration.
-        dataset_ids:
-          type: array
-          items:
-            type: string
-          description: >-
-            Optional list of dataset IDs. When given, preview access to each is enforced
-            on submission. When omitted, every dataset the filter matches is used and
-            those without preview access are skipped. Which ones were skipped is no longer
-            reported back — it reaches the server log only.
-        histogram_bins:
-          type: integer
-          minimum: 2
-          maximum: 100
-          description: >-
-            Number of equal-width histogram bins spanning each cell's min-max range.
-            Applies to statistics_type `descriptive` only; sending it with another type is
-            a 400.
-        label_field:
-          type: string
-          description: >-
-            Optional field of file_id whose value labels each aggregation area. Must name
-            an existing field of that file.
 
     SoilIndexJob:
       type: object
