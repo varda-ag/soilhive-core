@@ -109,7 +109,7 @@ describe('computeClassDistribution — classes', () => {
     const row = rows[0]!;
     expect(row.dataset_id).toBe(dataset.slug);
     expect(row.unit_id).toBe(unitId);
-    expect(row.count).toBe(10);
+    expect(row.n_observations).toBe(10);
     expect(row.n_features).toBe(1);
     // Empty Classes stay at 0; 9 and 10 fall in no Class.
     expect(row.classes).toEqual([
@@ -164,14 +164,14 @@ describe('computeClassDistribution — classes', () => {
       valueType: ValueType.COUNT,
     });
 
-    expect(row!.count).toBe(5);
+    expect(row!.n_observations).toBe(5);
     expect(row!.classes).toEqual([
       { name: 'Acid', value: 2 },
       { name: 'Neutral', value: 1 },
       { name: 'Alkaline', value: 0 },
       { name: 'unclassified', value: 2 },
     ]);
-    expect(row!.classes.reduce((total, entry) => total + entry.value, 0)).toBe(row!.count);
+    expect(row!.classes.reduce((total, entry) => total + entry.value, 0)).toBe(row!.n_observations);
   });
 });
 
@@ -187,7 +187,7 @@ describe('computeClassDistribution — Year Windows', () => {
     const rows = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug, timeAggregation: 3 });
 
     // 2016 and 2018 share 2016–2018; 2019 opens the next window.
-    expect(rows.map(row => [row.year_start, row.year_end, row.count])).toEqual([
+    expect(rows.map(row => [row.year_start, row.year_end, row.n_observations])).toEqual([
       [2016, 2018, 2],
       [2019, 2021, 1],
       [null, null, 1],
@@ -231,7 +231,7 @@ describe('computeClassDistribution — depth', () => {
       depthRanges: DepthRanges.STANDARD,
     });
 
-    expect(rows.map(row => [row.depth_start, row.depth_end, row.count])).toEqual([
+    expect(rows.map(row => [row.depth_start, row.depth_end, row.n_observations])).toEqual([
       [5, 15, 1],
       [15, 30, 1],
       [30, 60, 1],
@@ -254,7 +254,7 @@ describe('computeClassDistribution — depth', () => {
     const rows = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.count).toBe(5);
+    expect(rows[0]!.n_observations).toBe(5);
     expect(rows[0]).not.toHaveProperty('depth_start');
     expect(rows[0]).not.toHaveProperty('depth_end');
     expect(rows[0]!.depth_min).toBe(0);
@@ -274,9 +274,9 @@ describe('computeClassDistribution — scope', () => {
 
     const byDataset = new Map(rows.map(row => [row.dataset_id, row]));
     expect(rows).toHaveLength(2);
-    expect(byDataset.get(dataset.slug)!.count).toBe(2);
+    expect(byDataset.get(dataset.slug)!.n_observations).toBe(2);
     expect(byDataset.get(dataset.slug)!.classes.find(share => share.name === 'Acid')!.value).toBe(100);
-    expect(byDataset.get(second.slug)!.count).toBe(1);
+    expect(byDataset.get(second.slug)!.n_observations).toBe(1);
     expect(byDataset.get(second.slug)!.classes.find(share => share.name === 'Neutral')!.value).toBe(100);
   });
 
@@ -289,7 +289,7 @@ describe('computeClassDistribution — scope', () => {
 
     const rows = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
     expect(rows).toHaveLength(1);
-    expect(rows[0]!.count).toBe(1);
+    expect(rows[0]!.n_observations).toBe(1);
 
     const excluded = await run({
       unitIds: [unitId],
@@ -310,7 +310,7 @@ describe('computeClassDistribution — scope', () => {
     const rows = await run({ unitIds: [unitA, unitB, empty], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
     expect(rows.map(row => row.unit_id).sort()).toEqual([unitA, unitB].sort());
-    expect(rows.every(row => row.count === 1)).toBe(true);
+    expect(rows.every(row => row.n_observations === 1)).toBe(true);
   });
 });
 

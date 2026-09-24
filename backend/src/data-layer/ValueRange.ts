@@ -5,7 +5,7 @@ import { DatasetValueRange, ValueRangeFigures, WindowValueRange } from '../jobs/
 import { DepthRanges } from '../types/enums';
 import { round3 } from '../utils/utils';
 import { nothingToStage, StagedVariable, stageVariable } from './DataRequests';
-import { bucketKeys, yearStartSql } from './Buckets';
+import { bucketKeys, valueCount, yearStartSql } from './Buckets';
 
 export interface ValueRangeOptions {
   filter: DataFilter;
@@ -43,10 +43,14 @@ interface RawFigures {
   max: number | null;
 }
 
-const NONE: ValueRangeResult = { overall: { count: 0, n_features: 0 }, windows: [], datasets: [] };
+const nothingFor = (scores: boolean): ValueRangeResult => ({
+  overall: { ...valueCount(0, scores), n_features: 0 },
+  windows: [],
+  datasets: [],
+});
 
-const toFigures = (raw: RawFigures): ValueRangeFigures => ({
-  count: raw.count,
+const toFigures = (raw: RawFigures, scores: boolean): ValueRangeFigures => ({
+  ...valueCount(raw.count, scores),
   n_features: raw.n_features,
   ...(raw.min !== null ? { min: round3(raw.min) } : {}),
   ...(raw.max !== null ? { max: round3(raw.max) } : {}),
@@ -55,11 +59,12 @@ const toFigures = (raw: RawFigures): ValueRangeFigures => ({
 /** The `value-range` product: count and extremes, request-wide, per Year Window and per Dataset, pre-fan-out. */
 export const computeValueRange = async (entityManager: EntityManager, options: ValueRangeOptions): Promise<ValueRangeResult> => {
   const { filter, unitIds, datasetSlugs, variable, timeAggregation } = options;
+  const scores = 'soilIndexRun' in variable;
   const progress = options.onPhase ?? (async () => undefined);
   const checkCancelled = options.assertNotCancelled ?? (async () => undefined);
 
   if (nothingToStage(variable, unitIds, datasetSlugs)) {
-    return NONE;
+    return nothingFor(scores);
   }
 
   return entityManager.transaction(async em => {
@@ -94,17 +99,17 @@ export const computeValueRange = async (entityManager: EntityManager, options: V
     const keys = (raw: RawFigures) => bucketKeys(raw.year_start, null, timeAggregation, DepthRanges.NONE);
     const total = rows.find(row => Number(row.all_datasets) === 1 && Number(row.all_years) === 1);
     return {
-      overall: total ? toFigures(total) : NONE.overall,
+      overall: total ? toFigures(total, scores) : nothingFor(scores).overall,
       // Under `none` the one window would repeat `overall`.
       windows:
         timeAggregation === 'none'
           ? []
           : rows
               .filter(row => Number(row.all_datasets) === 1 && Number(row.all_years) === 0)
-              .map(row => ({ ...keys(row), ...toFigures(row) })),
+              .map(row => ({ ...keys(row), ...toFigures(row, scores) })),
       datasets: rows
         .filter(row => Number(row.all_datasets) === 0)
-        .map(row => ({ dataset_id: row.dataset_slug!, ...keys(row), ...toFigures(row) })),
+        .map(row => ({ dataset_id: row.dataset_slug!, ...keys(row), ...toFigures(row, scores) })),
     };
   });
 };

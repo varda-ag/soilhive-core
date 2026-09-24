@@ -7,7 +7,7 @@ import { JobError } from '../errors/JobError';
 import { log } from '../utils/logger';
 import { round3 } from '../utils/utils';
 import { nothingToStage, StagedVariable, stageVariable } from './DataRequests';
-import { bucketKeys, depthStartSql, yearStartSql } from './Buckets';
+import { bucketKeys, depthStartSql, valueCount, yearStartSql } from './Buckets';
 
 export interface SoilStatisticsOptions {
   filter: DataFilter;
@@ -50,6 +50,12 @@ interface RawRow {
   depth_max: number | null;
   horizons: string[];
   laboratory_methods: string[];
+  lower_fence: number;
+  upper_fence: number;
+  n_outliers_low: number;
+  n_outliers_high: number;
+  whisker_low: number;
+  whisker_high: number;
 }
 
 const METRICS = `
@@ -64,6 +70,37 @@ const METRICS = `
   MAX(max_depth)::int AS depth_max,
   COALESCE(ARRAY_AGG(DISTINCT horizon) FILTER (WHERE horizon IS NOT NULL), '{}') AS horizons,
   COALESCE(ARRAY_AGG(DISTINCT laboratory_method) FILTER (WHERE laboratory_method IS NOT NULL), '{}') AS laboratory_methods`;
+
+/**
+ * Statistics grouped by `keys` over `source`, with Tukey fences from each group's own quartiles.
+ * Keys can be null (the no-year / no-depth buckets), hence IS NOT DISTINCT FROM.
+ */
+const statisticsSql = (source: string, keys: string[]): string => {
+  const groupBy = keys.join(', ');
+  const sameGroup = keys.map(key => `s.${key} IS NOT DISTINCT FROM q.${key}`).join(' AND ');
+  return `
+    quartiles AS (
+      SELECT ${groupBy},
+             percentile_cont(0.25) WITHIN GROUP (ORDER BY value) AS q1,
+             percentile_cont(0.75) WITHIN GROUP (ORDER BY value) AS q3
+      FROM ${source}
+      GROUP BY ${groupBy}
+    ),
+    fenced AS (
+      SELECT s.*, q.q1 - 1.5 * (q.q3 - q.q1) AS lower_fence, q.q3 + 1.5 * (q.q3 - q.q1) AS upper_fence
+      FROM ${source} s
+      JOIN quartiles q ON ${sameGroup}
+    )
+    SELECT ${groupBy}, ${METRICS},
+      MIN(lower_fence) AS lower_fence,
+      MIN(upper_fence) AS upper_fence,
+      COUNT(*) FILTER (WHERE value < lower_fence)::int AS n_outliers_low,
+      COUNT(*) FILTER (WHERE value > upper_fence)::int AS n_outliers_high,
+      MIN(value) FILTER (WHERE value >= lower_fence) AS whisker_low,
+      MAX(value) FILTER (WHERE value <= upper_fence) AS whisker_high
+    FROM fenced
+    GROUP BY ${groupBy}`;
+};
 
 /** The `descriptive` product: per-unit rows plus pre-fan-out `overall` rows, same bucketing (docs/adr/0040). */
 export const computeSoilStatistics = async (
@@ -105,21 +142,14 @@ export const computeSoilStatistics = async (
     await checkCancelled();
 
     // ── aggregate ────────────────────────────────────────────────────────────────────
-    const order = 'ORDER BY dataset_slug, year_start NULLS LAST, depth_start NULLS LAST';
     const overallRows: RawRow[] = await em.query(`
-      WITH ${bucketed}
-      SELECT dataset_slug, year_start, depth_start, ${METRICS}
-      FROM pooled
-      GROUP BY dataset_slug, year_start, depth_start
-      ${order}`);
+      WITH ${bucketed}, ${statisticsSql('pooled', ['dataset_slug', 'year_start', 'depth_start'])}
+      ORDER BY dataset_slug, year_start NULLS LAST, depth_start NULLS LAST`);
     await progress('Computed overall statistics', 70);
     await checkCancelled();
 
     const unitRows: RawRow[] = await em.query(`
-      WITH ${bucketed}
-      SELECT unit_id, dataset_slug, year_start, depth_start, ${METRICS}
-      FROM bucketed
-      GROUP BY unit_id, dataset_slug, year_start, depth_start
+      WITH ${bucketed}, ${statisticsSql('bucketed', ['unit_id', 'dataset_slug', 'year_start', 'depth_start'])}
       ORDER BY dataset_slug, unit_id, year_start NULLS LAST, depth_start NULLS LAST`);
     await progress('Computed per-area statistics', 90);
 
@@ -137,7 +167,7 @@ const toStatisticsRow = (raw: RawRow, options: SoilStatisticsOptions): SoilStati
     ...(scores ? {} : { dataset_id: raw.dataset_slug }),
     ...(raw.unit_id !== undefined ? { unit_id: raw.unit_id } : {}),
     ...bucketKeys(raw.year_start, raw.depth_start, options.timeAggregation, options.depthRanges),
-    count: raw.count,
+    ...valueCount(raw.count, scores),
     ...(scores ? {} : { n_features: raw.n_features }),
     min: round3(raw.min),
     p05,
@@ -148,6 +178,12 @@ const toStatisticsRow = (raw: RawRow, options: SoilStatisticsOptions): SoilStati
     max: round3(raw.max),
     mean: round3(raw.mean),
     ...(raw.stddev !== null ? { stddev: round3(raw.stddev) } : {}),
+    lower_fence: round3(raw.lower_fence),
+    upper_fence: round3(raw.upper_fence),
+    n_outliers_low: raw.n_outliers_low,
+    n_outliers_high: raw.n_outliers_high,
+    whisker_low: round3(raw.whisker_low),
+    whisker_high: round3(raw.whisker_high),
     ...(raw.depth_min !== null ? { depth_min: raw.depth_min } : {}),
     ...(raw.depth_max !== null ? { depth_max: raw.depth_max } : {}),
     ...(raw.horizons.length > 0 ? { horizons: raw.horizons } : {}),

@@ -683,7 +683,13 @@ describe('processDataRequest', () => {
       const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
       expect(record.data.soil_property).toBe(soilProperty.slug);
       expect(record.data.results).toHaveLength(1);
-      expect(record.data.results[0]).toMatchObject({ dataset_id: dataset.slug, year_start: 2020, year_end: 2020, count: 3, median: 2 });
+      expect(record.data.results[0]).toMatchObject({
+        dataset_id: dataset.slug,
+        year_start: 2020,
+        year_end: 2020,
+        n_observations: 3,
+        median: 2,
+      });
       expect(record.data.results[0]).not.toHaveProperty('histogram');
       expect(record.data.overall[0]).not.toHaveProperty('unit_id');
     });
@@ -727,7 +733,7 @@ describe('processDataRequest', () => {
         dataset_id: dataset.slug,
         year_start: 2020,
         year_end: 2020,
-        count: 3,
+        n_observations: 3,
         classes: [
           { name: 'Acid', value: 33.333 },
           { name: 'Neutral', value: 33.333 },
@@ -781,11 +787,11 @@ describe('processDataRequest', () => {
       expect(record.data).toEqual({
         soil_property: soilProperty.slug,
         standard_unit: 'mg/kg',
-        count: 3,
+        n_observations: 3,
         n_features: 1,
         min: 3,
         max: 12,
-        datasets: [{ dataset_id: dataset.slug, count: 3, n_features: 1, min: 3, max: 12 }],
+        datasets: [{ dataset_id: dataset.slug, n_observations: 3, n_features: 1, min: 3, max: 12 }],
       });
     });
 

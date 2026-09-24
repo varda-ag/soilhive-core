@@ -81,13 +81,13 @@ describe('soil index runs as a variable', () => {
       unit_id: unitA,
       year_start: null,
       year_end: null,
-      count: 3,
+      n_scores: 3,
       classes: [
         { name: 'Low', value: 2 },
         { name: 'High', value: 1 },
       ],
     });
-    expect(byUnit.get(unitB)!.count).toBe(1);
+    expect(byUnit.get(unitB)!.n_scores).toBe(1);
     expect(observedMin).toBe(0.1);
     expect(observedMax).toBe(0.9);
   });
@@ -137,6 +137,6 @@ describe('soil index runs as a variable', () => {
     });
 
     // (10, 10) is outside every unit.
-    expect(overall).toMatchObject({ count: 2, min: 0.12, max: 0.97 });
+    expect(overall).toMatchObject({ n_scores: 2, min: 0.12, max: 0.97 });
   });
 });

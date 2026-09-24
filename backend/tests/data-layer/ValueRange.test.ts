@@ -76,11 +76,11 @@ describe('computeValueRange', () => {
       soilPropertySlug: soilProperty.slug,
     });
 
-    expect(overall).toEqual({ count: 5, n_features: 3, min: 3.9, max: 41 });
+    expect(overall).toEqual({ n_observations: 5, n_features: 3, min: 3.9, max: 41 });
     expect(datasets).toEqual(
       [
-        { dataset_id: lucas.slug, count: 2, n_features: 1, min: 3.9, max: 8.4 },
-        { dataset_id: farm.slug, count: 3, n_features: 2, min: 5.1, max: 41 },
+        { dataset_id: lucas.slug, n_observations: 2, n_features: 1, min: 3.9, max: 8.4 },
+        { dataset_id: farm.slug, n_observations: 3, n_features: 2, min: 5.1, max: 41 },
       ].sort((a, b) => a.dataset_id.localeCompare(b.dataset_id)),
     );
   });
@@ -104,10 +104,10 @@ describe('computeValueRange', () => {
 
     const result = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug, timeAggregation: 1 });
 
-    expect(result.overall).toEqual({ count: 2, n_features: 2, min: 4, max: 9 });
+    expect(result.overall).toEqual({ n_observations: 2, n_features: 2, min: 4, max: 9 });
     expect(result.windows).toEqual([
-      { year_start: 2018, year_end: 2018, count: 1, n_features: 1, min: 4, max: 4 },
-      { year_start: 2021, year_end: 2021, count: 1, n_features: 1, min: 9, max: 9 },
+      { year_start: 2018, year_end: 2018, n_observations: 1, n_features: 1, min: 4, max: 4 },
+      { year_start: 2021, year_end: 2021, n_observations: 1, n_features: 1, min: 9, max: 9 },
     ]);
     expect(result.datasets.map(entry => [entry.dataset_id, entry.year_start])).toEqual([
       [dataset.slug, 2018],
@@ -124,7 +124,7 @@ describe('computeValueRange', () => {
 
     const { overall } = await run({ unitIds: [unitA, unitB], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
-    expect(overall).toEqual({ count: 1, n_features: 1, min: 7, max: 7 });
+    expect(overall).toEqual({ n_observations: 1, n_features: 1, min: 7, max: 7 });
   });
 
   it('counts a location sampled by two Datasets once in the total', async () => {
@@ -144,7 +144,7 @@ describe('computeValueRange', () => {
       soilPropertySlug: soilProperty.slug,
     });
 
-    expect(overall.count).toBe(2);
+    expect(overall.n_observations).toBe(2);
     expect(overall.n_features).toBe(1);
     expect(datasets.every(entry => entry.n_features === 1)).toBe(true);
   });
@@ -158,7 +158,7 @@ describe('computeValueRange', () => {
     const unitId = await bboxUnit([0, 0, 2, 2]);
 
     const measured = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
-    expect(measured.overall).toEqual({ count: 1, n_features: 1, min: 5, max: 5 });
+    expect(measured.overall).toEqual({ n_observations: 1, n_features: 1, min: 5, max: 5 });
 
     const excluded = await run({
       unitIds: [unitId],
@@ -166,7 +166,7 @@ describe('computeValueRange', () => {
       soilPropertySlug: soilProperty.slug,
       parameters: { soil_properties: [other.slug] },
     });
-    expect(excluded).toEqual({ overall: { count: 0, n_features: 0 }, windows: [], datasets: [] });
+    expect(excluded).toEqual({ overall: { n_observations: 0, n_features: 0 }, windows: [], datasets: [] });
   });
 
   it('answers zero, with no extremes, when nothing matches', async () => {
@@ -177,7 +177,7 @@ describe('computeValueRange', () => {
 
     const result = await run({ unitIds: [farAway], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
-    expect(result).toEqual({ overall: { count: 0, n_features: 0 }, windows: [], datasets: [] });
+    expect(result).toEqual({ overall: { n_observations: 0, n_features: 0 }, windows: [], datasets: [] });
     expect(result.overall).not.toHaveProperty('min');
     expect(result.overall).not.toHaveProperty('max');
   });

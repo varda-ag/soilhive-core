@@ -8,7 +8,7 @@ import { log } from '../../utils/logger';
 import { RunContext } from '../runs/runContext';
 import { parametersProblem } from './parameters';
 import { effectiveFilterOf, resolveVariable } from './selectDatasets';
-import { ValueRangeOutput } from './types';
+import { SoilIndexValueRange, ValueRangeOutput } from './types';
 
 /** The `value-range` Statistics Type: a Value Range in the CONTEXT.md sense. */
 export async function runValueRange(ctx: RunContext, data: DataRequestJob): Promise<ValueRangeOutput> {
@@ -43,9 +43,10 @@ export async function runValueRange(ctx: RunContext, data: DataRequestJob): Prom
     assertNotCancelled,
   });
 
+  const valueCount = overall.n_observations ?? overall.n_scores;
   await updateJobState(jobId, {
     progress_percentage: 100,
-    progress_description: `Completed: ${overall.count} value(s) in range`,
+    progress_description: `Completed: ${valueCount} value(s) in range`,
   } as Partial<DataRequestJob>);
 
   log.info('Data request job completed', {
@@ -53,7 +54,7 @@ export async function runValueRange(ctx: RunContext, data: DataRequestJob): Prom
     queue: JobQueues.DATA_REQUESTS,
     units: units.length,
     datasets: variable.datasetSlugs.length,
-    values: overall.count,
+    values: valueCount,
   });
 
   // processDataRequest writes the row (docs/adr/0037).
@@ -61,11 +62,12 @@ export async function runValueRange(ctx: RunContext, data: DataRequestJob): Prom
   if ('run' in variable.header) {
     // Scores have no Dataset or Feature (docs/adr/0039).
     const withoutFeatures = <T extends { n_features: number }>({ n_features: _nFeatures, ...rest }: T) => rest;
+    // Omit loses the n_observations / n_scores union, though the shape is right.
     return {
       ...variable.header,
       ...withoutFeatures(overall),
       ...(timeAggregation === 'none' ? {} : { windows: windows.map(withoutFeatures) }),
-    };
+    } as SoilIndexValueRange;
   }
   return { ...variable.header, ...overall, ...windowsKey, datasets };
 }

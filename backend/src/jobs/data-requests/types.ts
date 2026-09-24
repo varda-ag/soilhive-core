@@ -1,5 +1,8 @@
 import type { ClassDefinition } from '../../interfaces/Job';
 
+/** How many values a row holds: Observations for a Soil Property, scores for a Soil Index Run. */
+export type ValueCount = { n_observations: number; n_scores?: never } | { n_scores: number; n_observations?: never };
+
 /** Bucket keys of a row; a pooled dimension has none. Null keys are the no-year / no-depth buckets. */
 export interface BucketKeys {
   year_start?: number | null;
@@ -10,11 +13,12 @@ export interface BucketKeys {
 }
 
 /** One `descriptive` row; `overall` rows have no `unit_id`. Empty fields are absent. */
-export interface SoilStatisticsRow extends BucketKeys {
+export type SoilStatisticsRow = SoilStatisticsFigures & ValueCount;
+
+export interface SoilStatisticsFigures extends BucketKeys {
   /** Absent for a Soil Index variable. */
   dataset_id?: string;
   unit_id?: string;
-  count: number;
   /** Absent for a Soil Index variable. */
   n_features?: number;
   min: number;
@@ -27,6 +31,15 @@ export interface SoilStatisticsRow extends BucketKeys {
   mean: number;
   /** Absent below 2 values. */
   stddev?: number;
+  /** Tukey fences: p25 - 1.5·IQR and p75 + 1.5·IQR. */
+  lower_fence: number;
+  upper_fence: number;
+  /** Values beyond each fence. */
+  n_outliers_low: number;
+  n_outliers_high: number;
+  /** Most extreme values inside the fences, where box-plot whiskers end. */
+  whisker_low: number;
+  whisker_high: number;
   /** Depth span of the Layers actually behind this row. */
   depth_min?: number;
   depth_max?: number;
@@ -56,19 +69,20 @@ export const STANDARD_DEPTH_RANGES: { start: number; end: number | null }[] = [
 
 export interface ClassValue {
   name: string;
-  /** Percentage of `count` (3 decimals) or a count, per `value_type`. */
+  /** Percentage of the row's values (3 decimals) or a count, per `value_type`. */
   value: number;
 }
 
 /** One (Dataset, unit, Year Window, depth bucket): one pie chart. */
-export interface ClassDistributionRow extends BucketKeys {
+export type ClassDistributionRow = ClassDistributionFigures & ValueCount;
+
+export interface ClassDistributionFigures extends BucketKeys {
   /** Absent for a Soil Index variable. */
   dataset_id?: string;
   unit_id: string;
   /** Depth span of the Layers actually behind this row. */
   depth_min?: number;
   depth_max?: number;
-  count: number;
   /** Absent for a Soil Index variable. */
   n_features?: number;
   /** In Class order, then `unclassified` when above 0. */
@@ -106,35 +120,29 @@ export interface ClassDistributionBody {
   results: ClassDistributionRow[];
 }
 
-/** `min` and `max` are absent when `count` is 0. */
-export interface ValueRangeCounts {
-  count: number;
-  min?: number;
-  max?: number;
-}
+/** `min` and `max` are absent when nothing matched. */
+export type ValueRangeCounts = ValueCount & { min?: number; max?: number };
 
-export interface ValueRangeFigures extends ValueRangeCounts {
-  n_features: number;
-}
+export type ValueRangeFigures = ValueRangeCounts & { n_features: number };
 
 /** Per (Dataset, Year Window); year keys absent under `time_aggregation: none`. */
-export interface DatasetValueRange extends ValueRangeFigures, BucketKeys {
-  dataset_id: string;
-}
+export type DatasetValueRange = ValueRangeFigures & BucketKeys & { dataset_id: string };
 
 /** Request-wide per Year Window; the list is absent under `time_aggregation: none`. */
 export type WindowValueRange<F extends ValueRangeCounts = ValueRangeFigures> = F & BucketKeys;
 
 /** Top-level figures cover the whole request and all years (each Observation once). */
-export interface SoilPropertyValueRange extends ValueRangeFigures, SoilPropertyVariableHeader {
-  windows?: WindowValueRange[];
-  datasets: DatasetValueRange[];
-}
+export type SoilPropertyValueRange = ValueRangeFigures &
+  SoilPropertyVariableHeader & {
+    windows?: WindowValueRange[];
+    datasets: DatasetValueRange[];
+  };
 
 /** No `datasets`: scores have no Dataset or Feature. */
-export interface SoilIndexValueRange extends ValueRangeCounts, SoilIndexVariableHeader {
-  windows?: WindowValueRange<ValueRangeCounts>[];
-}
+export type SoilIndexValueRange = ValueRangeCounts &
+  SoilIndexVariableHeader & {
+    windows?: WindowValueRange<ValueRangeCounts>[];
+  };
 
 export type ValueRangeOutput = SoilPropertyValueRange | SoilIndexValueRange;
 

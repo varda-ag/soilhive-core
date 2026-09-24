@@ -266,15 +266,17 @@ components:
 
     ValueRangeFigures:
       type: object
-      required:
-        - count
+      description: Exactly one of n_observations and n_scores is present; 0 when nothing matched.
       properties:
-        count:
+        n_observations:
           type: integer
-          description: Matching observations, or scores for a soil index; 0 when there are none.
+          description: Observations behind the figures, for a soil property. Absent for a soil index.
+        n_scores:
+          type: integer
+          description: Scores behind the figures, for a soil index. Absent for a soil property.
         n_features:
           type: integer
-          description: Distinct sampling locations behind count. Absent for a soil index, whose scores have none.
+          description: Distinct sampling locations behind n_observations. Absent for a soil index.
         min:
           type: number
           description: Lowest value, in standard_unit. Absent when count is 0.
@@ -440,7 +442,6 @@ components:
         an observation inside two overlapping areas counts in both.
       required:
         - unit_id
-        - count
         - classes
       properties:
         dataset_id:
@@ -479,19 +480,22 @@ components:
         depth_max:
           type: integer
           description: Deepest depth covered by the layers behind this row, in cm.
-        count:
+        n_observations:
           type: integer
-          description: Observations behind this row.
+          description: Observations behind the figures, for a soil property. Absent for a soil index.
+        n_scores:
+          type: integer
+          description: Scores behind the figures, for a soil index. Absent for a soil property.
         n_features:
           type: integer
-          description: Distinct sampling locations behind count. Absent for a soil index, where count is of scores.
+          description: Distinct sampling locations behind n_observations. Absent for a soil index.
         classes:
           type: array
           description: >-
             Every class of the top-level classes, in order, then `unclassified` when any observation
-            fell in no class. Each value is what request.value_type says: the percentage of count in
-            the class (rounded to 3 decimals, summing to 100) or the number of observations in it
-            (summing to count). Either way the array can be charted as is.
+            fell in no class. Each value is what request.value_type says: the percentage of the row's
+            values in the class (rounded to 3 decimals, summing to 100) or their number (summing to
+            n_observations, or n_scores). Either way the array can be charted as is.
           items:
             type: object
             required:
@@ -539,8 +543,13 @@ components:
         Statistics rounded to 3 decimals. Bucket keys follow class-distribution rows: absent for a
         pooled dimension, null for the no-year or no-depth bucket.
       required:
-        - count
         - min
+        - lower_fence
+        - upper_fence
+        - n_outliers_low
+        - n_outliers_high
+        - whisker_low
+        - whisker_high
         - p05
         - p25
         - median
@@ -568,11 +577,15 @@ components:
         depth_end:
           type: integer
           nullable: true
-        count:
+        n_observations:
           type: integer
+          description: Observations behind the figures, for a soil property. Absent for a soil index.
+        n_scores:
+          type: integer
+          description: Scores behind the figures, for a soil index. Absent for a soil property.
         n_features:
           type: integer
-          description: Distinct sampling locations behind count. Absent for a soil index.
+          description: Distinct sampling locations. Absent for a soil index.
         min:
           type: number
         p05:
@@ -592,6 +605,22 @@ components:
         stddev:
           type: number
           description: Sample standard deviation; absent below 2 values.
+        lower_fence:
+          type: number
+          description: Tukey fence p25 - 1.5·(p75 - p25); values below it are outliers.
+        upper_fence:
+          type: number
+          description: Tukey fence p75 + 1.5·(p75 - p25); values above it are outliers.
+        n_outliers_low:
+          type: integer
+        n_outliers_high:
+          type: integer
+        whisker_low:
+          type: number
+          description: Lowest value inside the fences, where a box plot's lower whisker ends.
+        whisker_high:
+          type: number
+          description: Highest value inside the fences, where a box plot's upper whisker ends.
         depth_min:
           type: integer
           description: Depth span of the layers behind this row.

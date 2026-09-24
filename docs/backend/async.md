@@ -188,15 +188,18 @@ Summary statistics for box plots and tiles, bucketed like `class-distribution` (
   "overall": [ /* per dataset and bucket over the whole request, each observation once; no unit_id */ ],
   "results": [
     { "dataset_id": "lucas-2018", "unit_id": "…", "year_start": 2018, "year_end": 2018,
-      "count": 57, "n_features": 41,
+      "n_observations": 57, "n_features": 41,
       "min": 4.1, "p05": 4.6, "p25": 5.4, "median": 6.1, "p75": 6.8, "p95": 7.5, "max": 8.2,
       "mean": 6.052, "stddev": 0.874,
+      "lower_fence": 3.3, "upper_fence": 8.9, "n_outliers_low": 0, "n_outliers_high": 1,
+      "whisker_low": 4.1, "whisker_high": 7.9,
       "depth_min": 0, "depth_max": 30, "laboratory_methods": ["pH in water (1:2.5)"] }
   ]
 }
 ```
 
 - Figures are rounded to 3 decimals; empty fields (`stddev` below 2 values, `horizons`, `laboratory_methods`, `depth_*`) are absent.
+- Outliers use Tukey fences (p25 - 1.5·IQR, p75 + 1.5·IQR); whiskers are the most extreme values inside them, as a box plot draws.
 - No histogram: use `class-distribution` with `class_count` + `equal-interval`.
 - The run fails if `overall` + `results` rows exceed `DATA_REQUESTS_MAX_CELLS`; nothing is truncated (docs/adr/0040).
 
@@ -270,12 +273,12 @@ POST /data-requests
 Checked on submission (`400` on failure):
 
 - **`variable`** (required): an existing soil property, which the filter's `soil_properties` must allow if set. A soil index run is also accepted (see below).
-- **`classes`** (1–20) or **`class_count`** + **`class_method`**, exactly one of the two:
+- **`classes`** (1-20) or **`class_count`** + **`class_method`**, exactly one of the two:
   - `classes`: `{ name, min?, max? }`, `[min, max)`, at least one bound, no overlaps, unique names, `unclassified` reserved.
-  - `class_count` (3–20, total) + `class_method` generates them once per request from the matching observations (each counted once). The first and last classes are open-ended. `equal-interval` uses equal readable widths (`4.0–4.8`) over the 1st–99th percentile range, which suits histograms. `quantile` gives about equal counts per class. Equal edges merge, so fewer classes may come back.
+  - `class_count` (3-20, total) + `class_method` generates them once per request from the matching observations (each counted once). The first and last classes are open-ended. `equal-interval` uses equal readable widths (`4.0-4.8`) over the 1st-99th percentile range, which suits histograms. `quantile` gives about equal counts per class. Equal edges merge, so fewer classes may come back.
 - **`value_type`** (required): `percentage` or `count`.
-- **`time_aggregation`** (required, 1–10 or `"none"`): years per window, aligned to multiples (with 3, 2019 is always in 2019–2021). Undated observations get `year_start`/`year_end` `null`; `"none"` pools every year and drops the year keys.
-- **`depth_ranges`** (default `none`): `none` pools all depths. `standard` uses the GlobalSoilMap range holding each layer's depth midpoint, so a 0–30 cm composite lands in 15–30. Layers with no depth get their own bucket.
+- **`time_aggregation`** (required, 1-10 or `"none"`): years per window, aligned to multiples (with 3, 2019 is always in 2019-2021). Undated observations get `year_start`/`year_end` `null`; `"none"` pools every year and drops the year keys.
+- **`depth_ranges`** (default `none`): `none` pools all depths. `standard` uses the GlobalSoilMap range holding each layer's depth midpoint, so a 0-30 cm composite lands in 15-30. Layers with no depth get their own bucket.
 
 **Output**: one flat row per distribution, with `classes` ready for recharts:
 
@@ -297,7 +300,7 @@ Checked on submission (`400` on failure):
       "year_start": 2016, "year_end": 2018,
       "depth_start": 15, "depth_end": 30,   // only with depth_ranges standard; depth_end null for > 200 cm
       "depth_min": 0, "depth_max": 30,      // span of the layers behind the row
-      "count": 57, "n_features": 41,
+      "n_observations": 57, "n_features": 41,
       "classes": [
         { "name": "Acid", "value": 42.105 },
         { "name": "Neutral", "value": 50.877 },
@@ -309,8 +312,8 @@ Checked on submission (`400` on failure):
 }
 ```
 
-- Values sum to 100 (percentages, 3 decimals) or to `count`. Every class appears in every row, and `unclassified` comes last, only when above 0.
-- Rows are never pooled across datasets. Empty rows are omitted and small ones kept, so check `count`. An observation in two overlapping areas counts in both.
+- Values sum to 100 (percentages, 3 decimals) or to `n_observations`. Every class appears in every row, and `unclassified` comes last, only when above 0.
+- Rows are never pooled across datasets. Empty rows are omitted and small ones kept, so check `n_observations`. An observation in two overlapping areas counts in both.
 - Generated classes live in `data`, not `request`, so two runs may differ. With no matches, generated `classes` is `[]` and the extremes are absent.
 
 **Size**: the run fails if rows × (classes + 1) exceeds `DATA_REQUESTS_MAX_CLASS_ENTRIES`. It never truncates (docs/adr/0038).
@@ -333,20 +336,20 @@ POST /data-requests
 {
   "soil_property": "ph",
   "standard_unit": "pH",
-  "count": 612, "n_features": 540, "min": 3.9, "max": 41.0,   // whole request, all years, each observation once
+  "n_observations": 612, "n_features": 540, "min": 3.9, "max": 41.0,   // whole request, all years, each observation once
   "windows": [                                                // absent with time_aggregation "none"
-    { "year_start": 2018, "year_end": 2018, "count": 212, "n_features": 140, "min": 3.9, "max": 8.4 },
-    { "year_start": 2021, "year_end": 2021, "count": 400, "n_features": 400, "min": 5.1, "max": 41.0 }
+    { "year_start": 2018, "year_end": 2018, "n_observations": 212, "n_features": 140, "min": 3.9, "max": 8.4 },
+    { "year_start": 2021, "year_end": 2021, "n_observations": 400, "n_features": 400, "min": 5.1, "max": 41.0 }
   ],
   "datasets": [                                               // per dataset and window; no year keys under "none"
-    { "dataset_id": "farm-grid",  "year_start": 2021, "year_end": 2021, "count": 400, "n_features": 400, "min": 5.1, "max": 41.0 },
-    { "dataset_id": "lucas-2018", "year_start": 2018, "year_end": 2018, "count": 212, "n_features": 140, "min": 3.9, "max": 8.4 }
+    { "dataset_id": "farm-grid",  "year_start": 2021, "year_end": 2021, "n_observations": 400, "n_features": 400, "min": 5.1, "max": 41.0 },
+    { "dataset_id": "lucas-2018", "year_start": 2018, "year_end": 2018, "n_observations": 212, "n_features": 140, "min": 3.9, "max": 8.4 }
   ]
 }
 ```
 
 - The top-level figures always span all years: the same values generated classes come from.
-- Only datasets and windows with matches are listed. With no match: `count: 0`, `n_features: 0`, no `min`/`max`, empty lists.
+- Only datasets and windows with matches are listed. With no match: `n_observations: 0`, `n_features: 0`, no `min`/`max`, empty lists.
 - No size limit, since output grows with datasets only.
 
 ## `data-requests` — over a soil index run's scores
@@ -361,7 +364,7 @@ POST /data-requests
 - A score belongs to the areas containing its representative point.
 - The filter must carry no criteria, since it supplies only the area.
 - Scores have no dataset, depth or location, so `dataset_ids` and `depth_ranges` are `400`s, rows have no `dataset_id`/`n_features`, and a value range has no `datasets`. CREA records no year, so its scores fall in the no-year window.
-- Output opens with `run` and `soil_index_type` (absent for an empty run) instead of `soil_property`/`standard_unit`.
+- Output opens with `run` and `soil_index_type` (absent for an empty run) instead of `soil_property`/`standard_unit`, and counts are `n_scores` instead of `n_observations`.
 
 ## `soil-indexes`
 

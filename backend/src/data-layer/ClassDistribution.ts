@@ -7,7 +7,7 @@ import { JobError } from '../errors/JobError';
 import { log } from '../utils/logger';
 import { round3 } from '../utils/utils';
 import { nothingToStage, StagedVariable, stageVariable } from './DataRequests';
-import { bucketKeys, depthStartSql, yearStartSql } from './Buckets';
+import { bucketKeys, depthStartSql, valueCount, yearStartSql } from './Buckets';
 import { generateClasses, percentilesFor } from '../jobs/data-requests/generateClasses';
 
 export interface ClassDistributionOptions {
@@ -202,7 +202,7 @@ const toRow = (raw: RawRow, classes: ClassDefinition[], options: ClassDistributi
     ...bucketKeys(raw.year_start, raw.depth_start, timeAggregation, depthRanges),
     ...(raw.depth_min !== null ? { depth_min: raw.depth_min } : {}),
     ...(raw.depth_max !== null ? { depth_max: raw.depth_max } : {}),
-    count: raw.count,
+    ...valueCount(raw.count, scores),
     ...(scores ? {} : { n_features: raw.n_features }),
     classes: values,
   };

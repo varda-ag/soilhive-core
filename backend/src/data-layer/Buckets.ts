@@ -1,4 +1,4 @@
-import { BucketKeys, STANDARD_DEPTH_RANGES } from '../jobs/data-requests/types';
+import { BucketKeys, STANDARD_DEPTH_RANGES, ValueCount } from '../jobs/data-requests/types';
 import { DepthRanges } from '../types/enums';
 import { TimeAggregation } from '../interfaces/Job';
 
@@ -43,3 +43,6 @@ export const bucketKeys = (
     ? { depth_start: depthStart, depth_end: depthStart === null ? null : (DEPTH_END_BY_START.get(depthStart) ?? null) }
     : {}),
 });
+
+/** `n_observations` for a Soil Property, `n_scores` for a Soil Index Run's scores. */
+export const valueCount = (count: number, scores: boolean): ValueCount => (scores ? { n_scores: count } : { n_observations: count });

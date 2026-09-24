@@ -4,10 +4,10 @@ Vector data is soil data with one record per sampling location: a point, a polyg
 
 For vector data the portal walks you through four steps:
 
-1. **General Info** – fill in essential metadata ([common](1-data-management-portal.md#general-info--describe-the-dataset))
-2. **File/s Upload** – upload your data file(s) ([common](1-data-management-portal.md#soil-data--upload-your-files), with the format requirements below)
-3. **Field Mapping** – map your columns to the SoilHive vocabulary and specify units and analytical methods
-4. **Preview** – review, clean, and load your dataset
+1. **General Info** - fill in essential metadata ([common](1-data-management-portal.md#general-info--describe-the-dataset))
+2. **File/s Upload** - upload your data file(s) ([common](1-data-management-portal.md#soil-data--upload-your-files), with the format requirements below)
+3. **Field Mapping** - map your columns to the SoilHive vocabulary and specify units and analytical methods
+4. **Preview** - review, clean, and load your dataset
 
 ---
 
@@ -98,8 +98,8 @@ Your data may be subject to modification, and some data may be discarded if it d
 | What happens | Shown in the summary as |
 |---|---|
 | Geometry contains a different type with respect to the dominant data type (e.g. 18 Point rows and 2 Polygon rows: 2 are discarded) | *Mixed geometry type* |
-| Coordinates fall outside the valid range for latitude (−90 to 90) or longitude (−180 to 180). For polygon or multipolygon geometries, this is raised if any vertex falls outside these ranges (see [criteria](https://postgis.net/docs/using_postgis_dbmanagement.html#Valid_Geometry))| *Invalid coordinates (out of range)* |
-| The upper depth is greater than or equal to the lower depth (e.g. 30–0 cm) or the depth range column is not properly formed (e.g. 0-20-30 cm) | *Invalid depth interval (upper ≥ lower or invalid range)* |
+| Coordinates fall outside the valid range for latitude (-90 to 90) or longitude (-180 to 180). For polygon or multipolygon geometries, this is raised if any vertex falls outside these ranges (see [criteria](https://postgis.net/docs/using_postgis_dbmanagement.html#Valid_Geometry))| *Invalid coordinates (out of range)* |
+| The upper depth is greater than or equal to the lower depth (e.g. 30-0 cm) or the depth range column is not properly formed (e.g. 0-20-30 cm) | *Invalid depth interval (upper ≥ lower or invalid range)* |
 | After all other cleaning steps, the row no longer has both a valid location and at least one valid soil property value | *Minimum data requirement not met (missing geometry or invalid soil property value)* |
 | The row exactly duplicates another row already in the dataset (same coordinates, date, depth, and value for every property) | *Duplicate row (same coordinates, date, depth, value across all properties)* |
 | You manually removed the row yourself during the preview step | *User discarded row* |
@@ -112,7 +112,7 @@ Your data may be subject to modification, and some data may be discarded if it d
 | The value is negative | *Negative value* |
 | The value is exactly zero, which SoilHive treats as no measurement rather than a true zero reading | *Zero value (treated as null)* |
 | The value is a percentage above 100% | *Out-of-bounds value* |
-| The value is exactly −999, the recognised "below limit of detection" convention | *Below limit of detection* |
+| The value is exactly -999, the recognised "below limit of detection" convention | *Below limit of detection* |
 
 You can review exactly which rows and cells were affected directly in the preview table, and you can delete additional individual rows yourself as a final quality check before confirming the upload.
 

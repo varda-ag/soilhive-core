@@ -83,7 +83,7 @@ describe('computeSoilStatistics — figures', () => {
       {
         dataset_id: dataset.slug,
         unit_id: unitId,
-        count: 10,
+        n_observations: 10,
         n_features: 1,
         min: 1,
         p05: 1.45,
@@ -94,9 +94,36 @@ describe('computeSoilStatistics — figures', () => {
         max: 10,
         mean: 5.5,
         stddev: 3.028,
+        // IQR 4.5: fences at 3.25 - 6.75 and 7.75 + 6.75.
+        lower_fence: -3.5,
+        upper_fence: 14.5,
+        n_outliers_low: 0,
+        n_outliers_high: 0,
+        whisker_low: 1,
+        whisker_high: 10,
         horizons: [expect.any(String)],
       },
     ]);
+  });
+
+  it('counts values beyond the Tukey fences and ends the whiskers inside them', async () => {
+    const { dataset, soilProperty, sample } = await seed();
+    await sample([-20, 1, 2, 3, 4, 5, 6, 7, 8, 9, 100]);
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const [row] = (await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug })).results;
+
+    // q1 = 2.5, q3 = 7.5: fences at -5 and 15.
+    expect(row).toMatchObject({
+      min: -20,
+      max: 100,
+      lower_fence: -5,
+      upper_fence: 15,
+      n_outliers_low: 1,
+      n_outliers_high: 1,
+      whisker_low: 1,
+      whisker_high: 9,
+    });
   });
 
   it('interpolates the median, and omits stddev below two values', async () => {
@@ -112,7 +139,7 @@ describe('computeSoilStatistics — figures', () => {
 
     const [lone] = (await run({ unitIds: [unitId], datasetSlugs: [second.dataset.slug], soilPropertySlug: second.soilProperty.slug }))
       .results;
-    expect(lone!.count).toBe(1);
+    expect(lone!.n_observations).toBe(1);
     expect(lone).not.toHaveProperty('stddev');
   });
 
@@ -148,7 +175,7 @@ describe('computeSoilStatistics — buckets', () => {
     const base = { unitIds: [unitId], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug };
 
     const windowed = await run({ ...base, timeAggregation: 3 });
-    expect(windowed.results.map(row => [row.year_start, row.year_end, row.count])).toEqual([
+    expect(windowed.results.map(row => [row.year_start, row.year_end, row.n_observations])).toEqual([
       [2016, 2018, 2],
       [2019, 2021, 1],
       [null, null, 1],
@@ -156,7 +183,7 @@ describe('computeSoilStatistics — buckets', () => {
 
     const pooled = await run(base);
     expect(pooled.results).toHaveLength(1);
-    expect(pooled.results[0]!.count).toBe(4);
+    expect(pooled.results[0]!.n_observations).toBe(4);
     expect(pooled.results[0]).not.toHaveProperty('year_start');
   });
 
@@ -193,11 +220,11 @@ describe('computeSoilStatistics — scope', () => {
     const { overall, results } = await run({ unitIds: [unitA, unitB], datasetSlugs: [dataset.slug], soilPropertySlug: soilProperty.slug });
 
     const byUnit = new Map(results.map(row => [row.unit_id, row]));
-    expect(byUnit.get(unitA)!.count).toBe(2);
-    expect(byUnit.get(unitB)!.count).toBe(1);
+    expect(byUnit.get(unitA)!.n_observations).toBe(2);
+    expect(byUnit.get(unitB)!.n_observations).toBe(1);
     expect(overall).toHaveLength(1);
     expect(overall[0]).not.toHaveProperty('unit_id');
-    expect(overall[0]).toMatchObject({ dataset_id: dataset.slug, count: 2, mean: 15 });
+    expect(overall[0]).toMatchObject({ dataset_id: dataset.slug, n_observations: 2, mean: 15 });
   });
 
   it('keeps Datasets apart, in results and in overall', async () => {
@@ -258,7 +285,25 @@ describe('computeSoilStatistics — scope', () => {
     const { overall, results } = await run({ unitIds: [unitId], variable: { soilIndexRun: runId } });
 
     expect(results).toEqual([
-      { unit_id: unitId, count: 2, min: 0.2, p05: 0.21, p25: 0.25, median: 0.3, p75: 0.35, p95: 0.39, max: 0.4, mean: 0.3, stddev: 0.141 },
+      {
+        unit_id: unitId,
+        n_scores: 2,
+        min: 0.2,
+        p05: 0.21,
+        p25: 0.25,
+        median: 0.3,
+        p75: 0.35,
+        p95: 0.39,
+        max: 0.4,
+        mean: 0.3,
+        stddev: 0.141,
+        lower_fence: 0.1,
+        upper_fence: 0.5,
+        n_outliers_low: 0,
+        n_outliers_high: 0,
+        whisker_low: 0.2,
+        whisker_high: 0.4,
+      },
     ]);
     expect(overall[0]).not.toHaveProperty('dataset_id');
   });
