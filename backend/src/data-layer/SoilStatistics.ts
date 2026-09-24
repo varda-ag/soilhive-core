@@ -71,13 +71,19 @@ const METRICS = `
   COALESCE(ARRAY_AGG(DISTINCT horizon) FILTER (WHERE horizon IS NOT NULL), '{}') AS horizons,
   COALESCE(ARRAY_AGG(DISTINCT laboratory_method) FILTER (WHERE laboratory_method IS NOT NULL), '{}') AS laboratory_methods`;
 
+/** Bucket keys that can be null (the no-year / no-depth buckets); never negative otherwise. */
+const NULLABLE_KEYS = new Set(['year_start', 'depth_start']);
+
 /**
  * Statistics grouped by `keys` over `source`, with Tukey fences from each group's own quartiles.
- * Keys can be null (the no-year / no-depth buckets), hence IS NOT DISTINCT FROM.
+ * Nullable keys are joined through COALESCE, not IS NOT DISTINCT FROM, which cannot hash-join
+ * and turns the join into a nested loop over values × groups.
  */
 const statisticsSql = (source: string, keys: string[]): string => {
   const groupBy = keys.join(', ');
-  const sameGroup = keys.map(key => `s.${key} IS NOT DISTINCT FROM q.${key}`).join(' AND ');
+  const sameGroup = keys
+    .map(key => (NULLABLE_KEYS.has(key) ? `COALESCE(s.${key}, -1) = COALESCE(q.${key}, -1)` : `s.${key} = q.${key}`))
+    .join(' AND ');
   return `
     quartiles AS (
       SELECT ${groupBy},
