@@ -26,7 +26,8 @@ import { DataRequestStatus } from '../types/enums';
  *    never generated here: it is the id of the pg-boss job that ran it, so one identifier
  *    addresses the request while the job lives and this row afterwards. pg-boss generates it
  *    with gen_random_uuid() — 122 unstructured random bits — rather than the uuidv7() the
- *    rest of this schema uses, which is exactly the property the capability rests on.
+ *    rest of this schema uses, which is exactly the property the capability rests on. An
+ *    attached row (`request.config_id`) is gated by its config item instead (docs/adr/0041).
  *  - **A cancelled Run writes nothing.** Cancelling is how a Data Request is destroyed, so
  *    `status` has two values and the absence of a row is how a cancellation reads.
  *

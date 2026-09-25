@@ -6,6 +6,7 @@ import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
+import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from 'hooks/usePluginDataRequest';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('hooks/useAvailabilityMap', () => ({
@@ -36,6 +37,11 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
   usePluginConfigEntitlementsMutation: jest.fn(),
 }));
 jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
+jest.mock('hooks/usePluginDataRequest', () => ({
+  usePluginDataRequest: jest.fn(),
+  usePluginDataRequestSubmit: jest.fn(),
+  usePluginDataRequestDelete: jest.fn(),
+}));
 
 const useAvailabilityMapMock = useAvailabilityMap as jest.MockedFunction<typeof useAvailabilityMap>;
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
@@ -112,6 +118,14 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.usePluginUserEntitlements).toBe(usePluginUserEntitlements);
+  });
+
+  it('exposes the three Data Request hooks', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.useDataRequestSubmit).toBe(usePluginDataRequestSubmit);
+    expect(result.current.useDataRequest).toBe(usePluginDataRequest);
+    expect(result.current.useDataRequestDelete).toBe(usePluginDataRequestDelete);
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {

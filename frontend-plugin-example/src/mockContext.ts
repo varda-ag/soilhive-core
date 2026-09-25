@@ -2,7 +2,7 @@ import type {
   PluginConfigEntitlements,
   PluginConfigResult,
   PluginContext,
-  PluginDataRequestData,
+  PluginDataRequest,
   PluginDataRequestResult,
   PluginDataRequestSubmission,
   PluginFilteredData,
@@ -138,12 +138,27 @@ const configEntitlementsMutation = (): PluginMutationResult<PluginConfigEntitlem
   isError: false,
 });
 
-// Stub: local preview never submits, so it always stays idle.
-function useDataRequest<S extends PluginDataRequestSubmission>(
-  _submission: S | undefined,
-): PluginDataRequestResult<PluginDataRequestData<S>> {
-  return { status: 'idle', data: undefined, isStale: false, error: undefined, retry: () => {}, isLoading: false, isError: false };
-}
+// Stubs: local preview has no backend, so submitting rejects and every id reads as lost.
+const dataRequestSubmit: PluginMutationResult<PluginDataRequestSubmission, PluginDataRequest> = {
+  mutateAsync: async () => {
+    throw new Error('Data requests are not available in local preview');
+  },
+  isPending: false,
+  isError: false,
+};
+
+const dataRequest = (id: string | undefined): PluginDataRequestResult => ({
+  data: undefined,
+  isLoading: false,
+  isError: !!id,
+  error: id ? { kind: 'lost', message: 'Data requests are not available in local preview' } : undefined,
+});
+
+const dataRequestDelete: PluginMutationResult<{ id: string }, void> = {
+  mutateAsync: async () => {},
+  isPending: false,
+  isError: false,
+};
 
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
@@ -160,7 +175,9 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   usePluginConfigEntitlements: () => query(configEntitlements),
   usePluginConfigEntitlementsMutation: () => configEntitlementsMutation(),
   usePluginUserEntitlements: () => query(configEntitlements),
-  useDataRequest,
+  useDataRequestSubmit: () => dataRequestSubmit,
+  useDataRequest: dataRequest,
+  useDataRequestDelete: () => dataRequestDelete,
   metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
   ...overrides,
 });

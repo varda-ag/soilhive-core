@@ -284,46 +284,54 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
 };
 ```
 
-### Requesting statistics (`useDataRequest`)
+### Requesting statistics (Data Requests)
 
-Call `context.useDataRequest(submission)` to compute descriptive statistics, a class distribution, or a value range for one soil property or soil index, over a filter's aggregation areas. Build the `submission` in a `useMemo`, and pass `undefined` while you don't have enough information to submit yet:
+A Data Request computes descriptive statistics, a class distribution, or a value range for one soil property or soil index, over a filter's aggregation areas. Three hooks cover its lifecycle:
+
+- `context.useDataRequestSubmit(pluginId, configId)` submits one. The request is **attached** to your config item `configId`, which must already be saved (see `usePluginConfig`). The caller needs write on that item.
+- `context.useDataRequest(id)` reads one and polls it until it is `completed` or `failed`. Pass `undefined` to skip fetching.
+- `context.useDataRequestDelete()` destroys one.
+
+You store the returned `id`, normally inside the same config item, and you delete it yourself when a widget is removed or its settings change. The host never deletes one for you. Anyone with read on the config item can read the result, and only those with write can delete it (see `soilhive-core` ADR 0041).
 
 ```tsx
-import { useMemo } from 'react';
-import type { PluginContext, PluginDescriptiveSubmission } from 'frontend-plugin-types';
+import type { PluginContext, PluginDataRequestSubmission } from 'frontend-plugin-types';
 
-const Widget: React.FC<{ context: PluginContext; filterId: string | undefined; propertyId: string }> = ({
-  context,
-  filterId,
-  propertyId,
-}) => {
-  const submission = useMemo<PluginDescriptiveSubmission | undefined>(
-    () =>
-      filterId
-        ? {
-            statistics_type: 'descriptive',
-            filter_id: filterId,
-            variable: { type: 'soil-property', id: propertyId },
-            time_aggregation: 'none',
-          }
-        : undefined,
-    [filterId, propertyId],
-  );
+type Dashboard = { widgets: { requestId?: string }[] };
 
-  const { status, data, isStale, error } = context.useDataRequest(submission);
+const Widget: React.FC<{ context: PluginContext; requestId: string | undefined }> = ({ context, requestId }) => {
+  const { data, error } = context.useDataRequest(requestId);
 
-  if (status === 'idle') return null;
-  if (error) return <p>{error.message}</p>;
+  if (error?.kind === 'lost') return <p>This result was deleted. Recompute it?</p>;
+  if (error?.kind === 'forbidden') return <p>You no longer have access to this dashboard.</p>;
+  if (!data || data.status === 'pending' || data.status === 'running') return <p>{data?.progress_description ?? 'Loading…'}</p>;
+  if (data.status === 'failed') return <p>{data.message}</p>;
 
-  return <p style={{ opacity: isStale ? 0.5 : 1 }}>{data ? `${data.results.length} results` : 'Loading…'}</p>;
+  // Narrow on the top-level statistics_type to type `data.data`.
+  if (data.statistics_type === 'descriptive') return <p>{data.data?.results.length} results</p>;
+  return null;
+};
+
+// Replacing a widget's request: submit the new one, save its id, then delete the old one.
+const useReplaceRequest = (context: PluginContext, dashboardId: string) => {
+  const { config, saveConfig } = context.usePluginConfig<Dashboard>('my-plugin', dashboardId, { widgets: [] });
+  const submit = context.useDataRequestSubmit('my-plugin', dashboardId);
+  const remove = context.useDataRequestDelete();
+
+  return async (index: number, submission: PluginDataRequestSubmission) => {
+    const created = await submit.mutateAsync(submission);
+    const oldId = config?.widgets[index]?.requestId;
+    const widgets = [...(config?.widgets ?? [])];
+    widgets[index] = { requestId: created.id };
+    await saveConfig({ widgets });
+    if (oldId) await remove.mutateAsync({ id: oldId });
+  };
 };
 ```
 
-The hook is **declarative**: it submits when `submission` changes from `undefined` to a value, or when its content changes, and there is no `submit()` function to call yourself. `undefined` means "do not submit" — use it whenever a required input (a filter, a selection) is still missing.
+`error.kind` is `lost` (404: deleted, or never existed), `forbidden` (no read on the config item), or `unavailable` (server or network error, retried automatically). Only `unavailable` keeps the last `data`. A `failed` status is not an error: it is the request's outcome, and `message` says why. A 4xx on submit, for example an unsaved config item, rejects `mutateAsync`.
 
-While a new submission is running, `data` still holds the result of the previous one and `isStale` is `true`, so a widget can keep showing its last chart instead of flashing empty. `error` is set with one of three kinds: `rejected` (the backend rejected the submission, a POST 4xx), `failed` (the Run itself failed), or `lost` (the result disappeared, a GET 404) — call `retry()` to submit the same payload again.
-
-The hook never gives you the Data Request's id: the id is the permission to read and to destroy that result (see `soilhive-core` ADR 0037), and a plugin only ever recomputes, never holds onto that permission.
+A result is never recomputed, so `created_at` tells how old the figures are. `request.units` gives each `unit_id` in the results its label and area.
 
 ## Registering your plugin with the host
 

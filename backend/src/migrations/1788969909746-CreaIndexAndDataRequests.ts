@@ -62,6 +62,10 @@ export class CreaIndexAndDataRequests1788969909746 implements MigrationInterface
          CONSTRAINT "PK_data_requests_id" PRIMARY KEY ("id")
        )`,
     );
+    // Deleting a config item destroys the Data Requests attached to it (docs/adr/0041).
+    await queryRunner.query(
+      `CREATE INDEX "IDX_data_requests_config_id" ON "data_requests" (("request"->>'config_id')) WHERE ("request"->>'config_id') IS NOT NULL`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

@@ -251,6 +251,7 @@ export const toDataRequestParameters = (data: DataRequestJob): DataRequestParame
   ...(data.time_aggregation !== undefined ? { time_aggregation: data.time_aggregation } : {}),
   ...(data.depth_ranges !== undefined ? { depth_ranges: data.depth_ranges } : {}),
   ...(data.value_type !== undefined ? { value_type: data.value_type } : {}),
+  ...(data.config_id !== undefined ? { config_id: data.config_id } : {}),
   derived_filter_id: data.derived_filter_id ?? null,
   unit_count: data.unit_count ?? 0,
   units: data.units ?? [],
@@ -287,8 +288,28 @@ export const findDataRequest = async (entityManager: EntityManager, id: string):
   return row ? (row as unknown as DataRequestRecord) : null;
 };
 
+/**
+ * Whether a row exists, and the config item it is attached to. Reads `request` only, so a DELETE
+ * does not fetch the unbounded `data` just to check permission.
+ */
+export const findDataRequestAttachment = async (entityManager: EntityManager, id: string): Promise<{ config_id: string | null } | null> => {
+  const rows: { config_id: string | null }[] = await entityManager.query(
+    `SELECT "request"->>'config_id' AS config_id FROM data_requests WHERE "id" = $1::uuid`,
+    [id],
+  );
+  return rows[0] ?? null;
+};
+
 /** Destroys one Data Request. Returns whether a row was there to destroy. */
 export const deleteDataRequest = async (entityManager: EntityManager, id: string): Promise<boolean> => {
   const result = await entityManager.getRepository(DataRequestEntity).delete({ id });
   return (result.affected ?? 0) > 0;
+};
+
+/** Destroys every Data Request attached to a config item. Returns how many rows went. */
+export const deleteAttachedDataRequests = async (entityManager: EntityManager, configId: string): Promise<number> => {
+  const [, affected]: [unknown, number] = await entityManager.query(`DELETE FROM data_requests WHERE "request"->>'config_id' = $1::text`, [
+    configId,
+  ]);
+  return affected;
 };

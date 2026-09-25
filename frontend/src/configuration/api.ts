@@ -9,4 +9,5 @@ export const REST_END_POINTS = {
   CONFIG: 'config/:id',
   DOWNLOADS: 'downloads',
   JOBS: 'jobs',
+  DATA_REQUESTS: 'data-requests',
 };

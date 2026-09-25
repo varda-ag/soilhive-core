@@ -142,19 +142,53 @@ export type PluginDataRequestData<S extends PluginDataRequestSubmission> = S ext
       ? PluginValueRange
       : never;
 
-// ---- Hook result ----
+// ---- The Data Request (GET /data-requests/{id}) ----
 
-export type PluginDataRequestStatus = 'idle' | 'submitting' | 'pending' | 'running' | 'completed' | 'failed';
-
-export interface PluginDataRequestError {
-  kind: 'rejected' | 'failed' | 'lost'; // POST 4xx | Run failed | GET 404
-  message: string; // backend message, or the error body
+// One aggregation area. The results only carry its unit_id: this is where its label and area are.
+export interface PluginAggregationUnit {
+  unit_id: string;
+  label: string | null; // value of label_field, when one was given
+  record_ids: number[];
+  area_m2: number | null;
+  raster_filtered: boolean; // raster filters applied, so the effective area is below area_m2
 }
 
-export interface PluginDataRequestResult<T> extends PluginQueryResult<T> {
+// What was asked, plus the aggregation areas it resolved to.
+export type PluginDataRequestParameters<S extends PluginDataRequestSubmission> = S & {
+  config_id?: string; // the config item the request is attached to
+  derived_filter_id: string | null;
+  unit_count: number;
+  units: PluginAggregationUnit[];
+};
+
+export type PluginDataRequestStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface PluginDataRequestOf<S extends PluginDataRequestSubmission> {
+  id: string; // store it to read the result again, and delete it once unused
+  statistics_type: S['statistics_type']; // copy of request.statistics_type: narrow on this one
   status: PluginDataRequestStatus;
-  data: T | undefined; // last completed result for this call
-  isStale: boolean; // true: data is from the previous submission
-  error: PluginDataRequestError | undefined;
-  retry: () => void;
+  created_at: string;
+  completed_at: string | null; // null while pending or running
+  progress_percentage?: number;
+  progress_description?: string;
+  message: string | null; // why it failed; null unless status is 'failed'
+  request: PluginDataRequestParameters<S>;
+  data?: PluginDataRequestData<S>; // present once status is 'completed'
+}
+
+// Narrow on statistics_type to type data.
+export type PluginDataRequest =
+  | PluginDataRequestOf<PluginDescriptiveSubmission>
+  | PluginDataRequestOf<PluginClassDistributionSubmission>
+  | PluginDataRequestOf<PluginValueRangeSubmission>;
+
+// ---- Hook result ----
+
+export interface PluginDataRequestError {
+  kind: 'lost' | 'forbidden' | 'unavailable'; // deleted or never existed | no read on its config item | server or network, retried
+  message: string;
+}
+
+export interface PluginDataRequestResult extends PluginQueryResult<PluginDataRequest> {
+  error: PluginDataRequestError | undefined; // on 'lost' and 'forbidden', data is undefined
 }

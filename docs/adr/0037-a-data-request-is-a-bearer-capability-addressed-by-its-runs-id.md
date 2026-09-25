@@ -1,5 +1,7 @@
 # A Data Request is a bearer capability addressed by its Run's id
 
+> **Amended by docs/adr/0041.** A Data Request attached to a plugin config item is no longer a bearer capability: reading it takes `read` on that item, destroying it takes `write`, and deleting the item destroys it. Everything below still holds for unattached Data Requests.
+
 `POST /data-requests`, `GET /data-requests/{id}` and `DELETE /data-requests/{id}` (SP-5634) expose the `data-requests` queue as a resource of its own, and the resource they expose is the **Data Request** — the record of one Run's outcome — not the job that computed it. Three things follow from that, and all three are deliberate departures from how `/jobs` behaves:
 
 - **One identifier.** `data_requests.id` *is* the pg-boss job id. The same id addresses the Run while its job record lives and the Data Request afterwards, so a caller polls, reads and destroys through one URL for the resource's whole life. pg-boss generates job ids with `gen_random_uuid()`, the same 122 unstructured random bits the `data_requests` default was chosen for, so nothing is given up by reusing it.

@@ -48,6 +48,31 @@ const descriptive = async (filterId: string, extra: object = {}) => {
   };
 };
 
+/**
+ * Drives a Run to `completed` by hand rather than by a worker, so that the state under test is the
+ * point of the test, not a race with one.
+ */
+const finishRun = async (id: string, configId?: string): Promise<void> => {
+  const entityManager = await getEntityManager();
+  await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET state = 'completed', completed_on = now() WHERE id = $1`, [id]);
+  await entityManager.query(
+    `INSERT INTO data_requests ("id", "status", "request", "data", "message", "created_at", "completed_at")
+     VALUES ($1, 'completed', $2::jsonb, $3::jsonb, NULL, now(), now())`,
+    [
+      id,
+      JSON.stringify({
+        statistics_type: 'descriptive',
+        filter_id: 'f',
+        ...(configId !== undefined ? { config_id: configId } : {}),
+        derived_filter_id: null,
+        unit_count: 0,
+        units: [],
+      }),
+      JSON.stringify({ results: [], truncated: false }),
+    ],
+  );
+};
+
 describe('Testing /data-requests routes', () => {
   beforeAll(async () => {
     const dataSource = await getDataSource();
@@ -575,24 +600,8 @@ describe('Testing /data-requests routes', () => {
      * The case the tests above cannot reach, and the one where DELETE is easiest to get wrong.
      * Every other test here destroys a Run that is still cancellable; pg-boss's `cancel` only
      * updates jobs below `completed`, so on a Run that already finished it matches nothing and the
-     * job goes on answering for a request the caller destroyed. The Run is driven to `completed`
-     * by hand rather than by a worker so that the state under test is the point of the test, not a
-     * race with one.
+     * job goes on answering for a request the caller destroyed. `finishRun` drives it there.
      */
-    const finishRun = async (id: string): Promise<void> => {
-      const entityManager = await getEntityManager();
-      await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET state = 'completed', completed_on = now() WHERE id = $1`, [id]);
-      await entityManager.query(
-        `INSERT INTO data_requests ("id", "status", "request", "data", "message", "created_at", "completed_at")
-         VALUES ($1, 'completed', $2::jsonb, $3::jsonb, NULL, now(), now())`,
-        [
-          id,
-          JSON.stringify({ statistics_type: 'descriptive', filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] }),
-          JSON.stringify({ results: [], truncated: false }),
-        ],
-      );
-    };
-
     it('destroys a request whose run already completed', async () => {
       const filterId = await createFilter([polygon]);
       const created = await submit(await descriptive(filterId)).expect(201);
@@ -618,6 +627,154 @@ describe('Testing /data-requests routes', () => {
       const entityManager = await getEntityManager();
       const rows = await entityManager.query(`SELECT state FROM ${PG_BOSS_SCHEMA}.job WHERE id = $1`, [created.body.id]);
       expect(rows).toHaveLength(0);
+    });
+  });
+
+  // docs/adr/0041: an attached request is gated by its config item, not by its id alone.
+  describe('attached to a config item', () => {
+    const authorEmail = 'dr-author@example.com';
+    const readerEmail = 'dr-reader@example.com';
+    const author = () => getUserToken('dr-author-id', authorEmail);
+    const reader = () => getUserToken('dr-reader-id', readerEmail);
+    const stranger = () => getUserToken('dr-stranger-id', 'dr-stranger@example.com');
+
+    /** A fresh plugin config item: the author claims write, the reader is granted read. */
+    const claimConfig = async (): Promise<string> => {
+      const configId = `plugin:dashboards:${uuidv4()}`;
+      await request(app).put(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(200);
+      await request(app)
+        .put(`/config/${configId}/entitlements`)
+        .set('Authorization', `Bearer ${author()}`)
+        .send({ [authorEmail]: ['write'], [readerEmail]: ['read'] })
+        .expect(200);
+      return configId;
+    };
+
+    const submitAttached = async (configId: string, token: string = author()) => {
+      const filterId = await createFilter([polygon]);
+      return submit(await descriptive(filterId, { config_id: configId })).set('Authorization', `Bearer ${token}`);
+    };
+
+    /** Submits as the author and asserts it was accepted. */
+    const createAttached = async (configId: string) => {
+      const res = await submitAttached(configId);
+      expect(res.statusCode).toBe(201);
+      return res;
+    };
+
+    describe('POST', () => {
+      it('records the config item in the request', async () => {
+        const configId = await claimConfig();
+        const res = await submitAttached(configId);
+        expect(res.statusCode).toBe(201);
+        expect(res.body.request.config_id).toBe(configId);
+      });
+
+      it('rejects a config id outside the plugin namespace', async () => {
+        const filterId = await createFilter([polygon]);
+        const res = await submit(await descriptive(filterId, { config_id: 'theme' })).set('Authorization', `Bearer ${author()}`);
+        expect(res.statusCode).toBe(400);
+        expect(res.body.detail).toContain('is not a plugin config id');
+      });
+
+      it('rejects a config item that was never saved', async () => {
+        const res = await submitAttached(`plugin:dashboards:${uuidv4()}`);
+        expect(res.statusCode).toBe(404);
+      });
+
+      it('rejects a caller holding only read on the config item', async () => {
+        const res = await submitAttached(await claimConfig(), reader());
+        expect(res.statusCode).toBe(403);
+      });
+
+      // Write survives a soft delete, so without this a stale page could attach to a deleted item
+      // after its cascade had already run.
+      it('rejects a soft-deleted config item', async () => {
+        const configId = await claimConfig();
+        await request(app).delete(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+
+        const res = await submitAttached(configId);
+        expect(res.statusCode).toBe(404);
+      });
+    });
+
+    describe('GET', () => {
+      it('is readable with read or write on the config item', async () => {
+        const created = await createAttached(await claimConfig());
+
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${author()}`).expect(200);
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+      });
+
+      it('is forbidden without read on the config item, token or not', async () => {
+        const created = await createAttached(await claimConfig());
+
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${stranger()}`).expect(403);
+        await request(app).get(`/data-requests/${created.body.id}`).expect(403);
+      });
+
+      it("counts everyone's read, so a public dashboard is readable without a token", async () => {
+        const configId = await claimConfig();
+        await request(app)
+          .put(`/config/${configId}/entitlements`)
+          .set('Authorization', `Bearer ${author()}`)
+          .send({ [authorEmail]: ['write'], everyone: ['read'] })
+          .expect(200);
+        const created = await createAttached(configId);
+
+        await request(app).get(`/data-requests/${created.body.id}`).expect(200);
+        await request(app).delete(`/data-requests/${created.body.id}`).expect(403);
+      });
+
+      it('is gated after the run completed too', async () => {
+        const configId = await claimConfig();
+        const created = await createAttached(configId);
+        await finishRun(created.body.id, configId);
+
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${stranger()}`).expect(403);
+      });
+    });
+
+    describe('DELETE', () => {
+      it('is forbidden with only read on the config item, and leaves the request standing', async () => {
+        const created = await createAttached(await claimConfig());
+
+        await request(app).delete(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(403);
+        await request(app).delete(`/data-requests/${created.body.id}`).expect(403);
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+      });
+
+      it('destroys the request with write on the config item', async () => {
+        const created = await createAttached(await claimConfig());
+
+        await request(app).delete(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
+      });
+    });
+
+    describe('DELETE /config/{configId}', () => {
+      it('destroys every request attached to the item, running or completed, and nothing else', async () => {
+        const configId = await claimConfig();
+        const running = await createAttached(configId);
+        const completed = await createAttached(configId);
+        await finishRun(completed.body.id, configId);
+        const unattached = await submit(await descriptive(await createFilter([polygon]))).expect(201);
+
+        await request(app).delete(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+
+        await request(app).get(`/data-requests/${running.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
+        await request(app).get(`/data-requests/${completed.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
+        await request(app).get(`/data-requests/${unattached.body.id}`).expect(200);
+
+        const entityManager = await getEntityManager();
+        const records = await entityManager.query(`SELECT id FROM data_requests WHERE id = $1`, [completed.body.id]);
+        expect(records).toHaveLength(0);
+        const jobs = await entityManager.query(`SELECT id, state FROM ${PG_BOSS_SCHEMA}.job WHERE id = ANY($1::uuid[])`, [
+          [running.body.id, completed.body.id],
+        ]);
+        expect(jobs).toEqual([{ id: running.body.id, state: 'cancelled' }]);
+      });
     });
   });
 });

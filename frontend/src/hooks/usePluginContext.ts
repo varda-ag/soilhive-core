@@ -1,9 +1,6 @@
 import { useMemo } from 'react';
 import type {
   PluginDataFilterInput,
-  PluginDataRequestData,
-  PluginDataRequestResult,
-  PluginDataRequestSubmission,
   PluginFilteredData,
   PluginGeometry,
   PluginQueryResult,
@@ -29,6 +26,7 @@ import usePluginConfig from './usePluginConfig';
 import usePluginConfigs from './usePluginConfigs';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from './usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from './usePluginUserEntitlements';
+import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from './usePluginDataRequest';
 import { metadataUrl } from 'configuration/routes';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
@@ -81,13 +79,6 @@ function usePluginSoilData(parameters: PluginSoilDataParameters): PluginSoilData
   return { data: allData, isLoading, hasMore, loadMore, reset };
 }
 
-// Stub: replaces this with the real declarative useDataRequest hook.
-function usePluginDataRequest<S extends PluginDataRequestSubmission>(
-  _submission: S | undefined,
-): PluginDataRequestResult<PluginDataRequestData<S>> {
-  return { status: 'idle', data: undefined, isStale: false, error: undefined, retry: () => {}, isLoading: false, isError: false };
-}
-
 export function usePluginContext(): PluginContext {
   const { user } = useAuthContext();
   const { selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName } = useAvailabilityMap();
@@ -114,7 +105,9 @@ export function usePluginContext(): PluginContext {
       usePluginConfigEntitlements,
       usePluginConfigEntitlementsMutation,
       usePluginUserEntitlements,
+      useDataRequestSubmit: usePluginDataRequestSubmit,
       useDataRequest: usePluginDataRequest,
+      useDataRequestDelete: usePluginDataRequestDelete,
       // A plain function, not a hook: plugins call it while rendering a dataset
       // row, so it must not add a hook to their render order.
       metadataUrl,
