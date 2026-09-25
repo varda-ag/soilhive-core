@@ -28,6 +28,12 @@ paths:
             namespaces, returned unfiltered. `dashboards` is not a storage namespace of its own —
             it's a filtered view over `configs`, returning only the entries whose key is
             `dashboards` or starts with `dashboards_`. There is no "all scopes" response.
+
+            For a normal user the response lists the grants the user holds. A Privileged caller
+            (internal-request, data-admin or super-admin) bypasses config Entitlements, so for
+            `configs` and `dashboards` the response also gives it `write` on every config that is
+            not deleted, on top of its grants. For `datasets` a Privileged caller gets only the
+            grants it holds.
       responses:
         '200':
           description: List of user entitlements for the requested scope
