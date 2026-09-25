@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import EntitlementService from '../services/EntitlementService';
 import { EntitlementScope, RequestScope } from '../types/Entitlements';
-import { getSubject } from '../utils/auth';
 
 const entitlementService = new EntitlementService();
 
@@ -32,6 +31,5 @@ export const setConfigEntitlement = async (req: Request, res: Response) => {
 export const getUserEntitlements = async (req: Request, res: Response) => {
   // Required and enum-validated by the OpenAPI spec — invalid or missing values never reach here.
   const scope = req.query['scope'] as RequestScope;
-  const data = await entitlementService.getUserEntitlements(req.customData, getSubject(req.customData));
-  res.json(entitlementService.selectByScope(data, scope));
+  res.json(await entitlementService.getVisibleEntitlements(req.customData, scope));
 };
