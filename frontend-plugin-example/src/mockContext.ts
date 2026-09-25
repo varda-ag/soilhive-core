@@ -2,6 +2,9 @@ import type {
   PluginConfigEntitlements,
   PluginConfigResult,
   PluginContext,
+  PluginDataRequestData,
+  PluginDataRequestResult,
+  PluginDataRequestSubmission,
   PluginFilteredData,
   PluginMapSelection,
   PluginMutationResult,
@@ -135,6 +138,13 @@ const configEntitlementsMutation = (): PluginMutationResult<PluginConfigEntitlem
   isError: false,
 });
 
+// Stub: local preview never submits, so it always stays idle.
+function useDataRequest<S extends PluginDataRequestSubmission>(
+  _submission: S | undefined,
+): PluginDataRequestResult<PluginDataRequestData<S>> {
+  return { status: 'idle', data: undefined, isStale: false, error: undefined, retry: () => {}, isLoading: false, isError: false };
+}
+
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
   mapSelection,
@@ -150,6 +160,7 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   usePluginConfigEntitlements: () => query(configEntitlements),
   usePluginConfigEntitlementsMutation: () => configEntitlementsMutation(),
   usePluginUserEntitlements: () => query(configEntitlements),
+  useDataRequest,
   metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
   ...overrides,
 });
