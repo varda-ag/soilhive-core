@@ -6,6 +6,7 @@ import type {
   PluginQueryResult,
   PluginUser,
 } from './common';
+import type { PluginDataRequestData, PluginDataRequestResult, PluginDataRequestSubmission } from './dataRequest';
 import type { PluginMapSelection } from './map';
 import type { PluginDataFilterInput, PluginFilteredData } from './filter';
 import type {
@@ -22,6 +23,7 @@ export * from './map';
 export * from './theme';
 export * from './filter';
 export * from './soil';
+export * from './dataRequest';
 
 export interface PluginContext {
   user?: PluginUser | null;
@@ -47,6 +49,10 @@ export interface PluginContext {
   // Filtered to the calling plugin's own plugin:{pluginId}: namespace and unprefixed
   // (see ADR 0036) — a plugin never sees another plugin's or the host's entitlements.
   usePluginUserEntitlements: (pluginId: string, scope: PluginEntitlementScope) => PluginQueryResult<PluginConfigEntitlements>;
+  // Declarative: submits when `submission` is set or its content changes; undefined = do not submit.
+  // Shares one Data Request between callers with the same payload, polls it, and deletes it
+  // when no caller uses it any more. Never returns the Data Request id (a bearer capability).
+  useDataRequest: <S extends PluginDataRequestSubmission>(submission: S | undefined) => PluginDataRequestResult<PluginDataRequestData<S>>;
   // Absolute URL of a dataset's metadata page. Provided by the host because the
   // origin comes from its runtime configuration, which a remote plugin cannot read.
   metadataUrl: (datasetId: string) => string;

@@ -6,6 +6,13 @@ jest.mock('hooks/useApiQuery', () => ({
   useApiQuery: jest.fn(),
 }));
 
+let mockSplitFilteringQueries = false;
+jest.mock('utilities/environmentVariables', () => ({
+  get SPLIT_FILTERING_QUERIES() {
+    return mockSplitFilteringQueries;
+  },
+}));
+
 const useApiQueryMock = useApiQuery as jest.MockedFunction<typeof useApiQuery>;
 
 const MOCK_DATASETS = [
@@ -16,6 +23,7 @@ const MOCK_DATASETS = [
 describe('useFilteredDatasetsQuery', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSplitFilteringQueries = false;
   });
 
   it('returns loading state when request is in progress', () => {
@@ -51,12 +59,21 @@ describe('useFilteredDatasetsQuery', () => {
     );
   });
 
-  it('is enabled when filterDataId is provided', () => {
+  it('is enabled when filterDataId is provided and SPLIT_FILTERING_QUERIES is set', () => {
+    mockSplitFilteringQueries = true;
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
 
     renderHook(() => useFilteredDatasetsQuery('test-filter-id'));
 
     expect(useApiQueryMock).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }));
+  });
+
+  it('is disabled by default even when filterDataId is provided', () => {
+    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
+
+    renderHook(() => useFilteredDatasetsQuery('test-filter-id'));
+
+    expect(useApiQueryMock).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
   });
 
   it('is disabled when filterDataId is undefined', () => {
