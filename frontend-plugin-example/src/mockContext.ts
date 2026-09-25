@@ -1,8 +1,13 @@
 import type {
+  PluginConfigEntitlements,
   PluginConfigResult,
   PluginContext,
+  PluginDataRequestData,
+  PluginDataRequestResult,
+  PluginDataRequestSubmission,
   PluginFilteredData,
   PluginMapSelection,
+  PluginMutationResult,
   PluginQueryResult,
   PluginRasterFilterCategory,
   PluginSoilDataResult,
@@ -123,6 +128,23 @@ const pluginConfig = <T>(defaultConfig?: T): PluginConfigResult<T> => ({
 // Static stand-in for the batch endpoint: no ids are pre-populated in local preview.
 const pluginConfigs = <T>(): PluginQueryResult<Record<string, T>> => query({});
 
+// Static stand-ins for the entitlements endpoints: no grants in local preview,
+// and the mutation is a no-op, same as saveConfig above.
+const configEntitlements: PluginConfigEntitlements = {};
+
+const configEntitlementsMutation = (): PluginMutationResult<PluginConfigEntitlements, PluginConfigEntitlements> => ({
+  mutateAsync: async () => configEntitlements,
+  isPending: false,
+  isError: false,
+});
+
+// Stub: local preview never submits, so it always stays idle.
+function useDataRequest<S extends PluginDataRequestSubmission>(
+  _submission: S | undefined,
+): PluginDataRequestResult<PluginDataRequestData<S>> {
+  return { status: 'idle', data: undefined, isStale: false, error: undefined, retry: () => {}, isLoading: false, isError: false };
+}
+
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
   mapSelection,
@@ -135,6 +157,10 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   useSoilData: () => soilData,
   usePluginConfig: (_pluginId, _id, defaultConfig) => pluginConfig(defaultConfig),
   usePluginConfigs: () => pluginConfigs(),
+  usePluginConfigEntitlements: () => query(configEntitlements),
+  usePluginConfigEntitlementsMutation: () => configEntitlementsMutation(),
+  usePluginUserEntitlements: () => query(configEntitlements),
+  useDataRequest,
   metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
   ...overrides,
 });
