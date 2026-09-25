@@ -2,13 +2,16 @@ import { describe, expect, it, beforeAll, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
-import { DataRequestStatus, JobQueues, StatisticsType } from '../../src/types/enums';
+import { DataRequestStatus, JobQueues, SoilIndexType, StatisticsType } from '../../src/types/enums';
+import { v4 as uuidv4 } from 'uuid';
+import { writeSoilIndexRun } from '../../src/data-layer/SoilIndex';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { sleep } from '../../src/utils/utils';
 import { getDataAdminToken, getUserToken } from '../helper';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
-import { addDataset } from '../../src/utils/mock';
+import { addCategory, addDataset, addSoilProperty } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
+import SoilPropertyEntity from '../../src/entities/SoilProperty';
 
 const polygon = {
   type: 'Polygon',
@@ -30,6 +33,21 @@ const createFilter = async (geometries: object[], parameters: object = {}): Prom
 
 const submit = (body: object) => request(app).post('/data-requests').send(body);
 
+/** A valid `descriptive` body over one shared Soil Property. */
+const descriptive = async (filterId: string, extra: object = {}) => {
+  const repo = (await getDataSource()).getRepository(SoilPropertyEntity);
+  const property =
+    (await repo.findOne({ where: { property_name: 'dr-route-prop' } })) ??
+    (await addSoilProperty('dr-route-prop', (await addCategory('dr-route-cat')).id, 'pH'));
+  return {
+    statistics_type: StatisticsType.DESCRIPTIVE,
+    filter_id: filterId,
+    variable: { type: 'soil-property', id: property.slug },
+    time_aggregation: 1,
+    ...extra,
+  };
+};
+
 describe('Testing /data-requests routes', () => {
   beforeAll(async () => {
     const dataSource = await getDataSource();
@@ -46,12 +64,12 @@ describe('Testing /data-requests routes', () => {
   describe('POST /data-requests', () => {
     it('accepts a request without a token and reports it as pending', async () => {
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, histogram_bins: 20 });
+      const res = await submit(await descriptive(filterId, { time_aggregation: 'none' }));
 
       expect(res.statusCode).toBe(201);
       expect(res.body.status).toBe(DataRequestStatus.PENDING);
       expect(res.body.id).toEqual(expect.any(String));
-      expect(res.body.request.histogram_bins).toBe(20);
+      expect(res.body.request.time_aggregation).toBe('none');
       expect(res.body.request.statistics_type).toBe(StatisticsType.DESCRIPTIVE);
       // Not yet computed, so no answer and no failure.
       expect(res.body.data).toBeUndefined();
@@ -63,7 +81,7 @@ describe('Testing /data-requests routes', () => {
     it('never returns the submitter, their privilege, or the queue', async () => {
       const filterId = await createFilter([polygon]);
       const token = getUserToken('dr-submitter-id', 'dr-submitter@example.com');
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const res = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -84,23 +102,20 @@ describe('Testing /data-requests routes', () => {
     });
 
     it('rejects an unknown filter with 404', async () => {
-      const res = await submit({
-        statistics_type: StatisticsType.DESCRIPTIVE,
-        filter_id: '960ee487-a6bd-4da8-8ef0-da6ef23d0e80',
-      });
+      const res = await submit(await descriptive('960ee487-a6bd-4da8-8ef0-da6ef23d0e80'));
       expect(res.statusCode).toBe(404);
     });
 
     it('rejects a filter with no geometries when no file_id is given', async () => {
       const filterId = await createFilter([]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId });
+      const res = await submit(await descriptive(filterId));
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('no geometries');
     });
 
     it('rejects label_field without file_id', async () => {
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, label_field: 'field_name' });
+      const res = await submit(await descriptive(filterId, { label_field: 'field_name' }));
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('label_field requires file_id');
     });
@@ -111,7 +126,7 @@ describe('Testing /data-requests routes', () => {
       await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
 
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, dataset_ids: [dataset.slug] });
+      const res = await submit(await descriptive(filterId, { dataset_ids: [dataset.slug] }));
       expect(res.statusCode).toBe(403);
     });
 
@@ -136,10 +151,315 @@ describe('Testing /data-requests routes', () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it('rejects a histogram_bins value outside the allowed range', async () => {
+    it('rejects histogram_bins, which no type takes any more', async () => {
       const filterId = await createFilter([polygon]);
-      const res = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, histogram_bins: 1 });
+      const res = await submit(await descriptive(filterId, { histogram_bins: 10 }));
       expect(res.statusCode).toBe(400);
+    });
+
+    it('rejects a request with no variable or no time_aggregation', async () => {
+      const filterId = await createFilter([polygon]);
+      const noVariable = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId, time_aggregation: 1 });
+      expect(noVariable.statusCode).toBe(400);
+      expect(JSON.stringify(noVariable.body)).toContain('variable');
+
+      const { time_aggregation: _omitted, ...withoutTime } = await descriptive(filterId);
+      const noTime = await submit(withoutTime);
+      expect(noTime.statusCode).toBe(400);
+      expect(JSON.stringify(noTime.body)).toContain('time_aggregation');
+    });
+  });
+
+  describe('POST /data-requests — class-distribution', () => {
+    const PH_CLASSES = [
+      { name: 'Acid', max: 6.5 },
+      { name: 'Neutral', min: 6.5, max: 7.5 },
+      { name: 'Alkaline', min: 7.5 },
+    ];
+
+    let propertyCounter = 0;
+    const addProperty = async () => {
+      const category = await addCategory(`cd-route-cat-${propertyCounter}`);
+      return addSoilProperty(`cd-route-ph-${propertyCounter++}`, category.id, 'pH');
+    };
+
+    const submitClassDistribution = async (overrides: Record<string, unknown> = {}, filterParameters: object = {}) => {
+      const property = await addProperty();
+      const filterId = await createFilter([polygon], filterParameters);
+      return submit({
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        filter_id: filterId,
+        variable: { type: 'soil-property', id: property.slug },
+        classes: PH_CLASSES,
+        value_type: 'percentage',
+        time_aggregation: 1,
+        ...overrides,
+      });
+    };
+
+    it('accepts a valid request and echoes every parameter back', async () => {
+      const res = await submitClassDistribution({ time_aggregation: 3, depth_ranges: 'standard' });
+
+      expect(res.statusCode).toBe(201);
+      expect(res.body.request.statistics_type).toBe(StatisticsType.CLASS_DISTRIBUTION);
+      expect(res.body.request.variable.type).toBe('soil-property');
+      expect(res.body.request.classes).toEqual(PH_CLASSES);
+      expect(res.body.request.time_aggregation).toBe(3);
+      expect(res.body.request.depth_ranges).toBe('standard');
+      expect(res.body.request.value_type).toBe('percentage');
+    });
+
+    it('accepts a property the filter admits', async () => {
+      const property = await addProperty();
+      const filterId = await createFilter([polygon], { soil_properties: [property.slug] });
+      const res = await submit({
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        filter_id: filterId,
+        variable: { type: 'soil-property', id: property.slug },
+        classes: PH_CLASSES,
+        value_type: 'count',
+        time_aggregation: 1,
+      });
+      expect(res.statusCode).toBe(201);
+    });
+
+    it('rejects a property the filter excludes', async () => {
+      const other = await addProperty();
+      const res = await submitClassDistribution({}, { soil_properties: [other.slug] });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('is excluded by filter');
+    });
+
+    it('accepts generated classes in place of classes, and echoes them back as submitted', async () => {
+      const res = await submitClassDistribution({ classes: undefined, class_count: 8, class_method: 'equal-interval' });
+      expect(res.statusCode).toBe(201);
+      expect(res.body.request.class_count).toBe(8);
+      expect(res.body.request.class_method).toBe('equal-interval');
+      expect(res.body.request).not.toHaveProperty('classes');
+    });
+
+    it.each([
+      ['both classes and class_count', { class_count: 5, class_method: 'quantile' }, 'not both'],
+      ['class_count without class_method', { classes: undefined, class_count: 5 }, 'class_count requires class_method'],
+      ['class_method without class_count', { classes: undefined, class_method: 'quantile' }, 'class_method requires class_count'],
+    ])('rejects %s', async (_label, overrides, detail) => {
+      const res = await submitClassDistribution(overrides);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain(detail);
+    });
+
+    it('rejects a class_count outside 3-20 and an unknown class_method', async () => {
+      expect((await submitClassDistribution({ classes: undefined, class_count: 2, class_method: 'quantile' })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ classes: undefined, class_count: 21, class_method: 'quantile' })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ classes: undefined, class_count: 5, class_method: 'jenks' })).statusCode).toBe(400);
+    });
+
+    it('rejects a missing variable or missing classes', async () => {
+      expect(JSON.stringify((await submitClassDistribution({ variable: undefined })).body)).toContain('variable');
+      expect((await submitClassDistribution({ classes: undefined })).body.detail).toContain(
+        'Parameter classes, or class_count with class_method, is required',
+      );
+    });
+
+    it('rejects a missing or unknown value_type', async () => {
+      const missing = await submitClassDistribution({ value_type: undefined });
+      expect(missing.statusCode).toBe(400);
+      expect(missing.body.detail).toContain('value_type is required');
+      expect((await submitClassDistribution({ value_type: 'ratio' })).statusCode).toBe(400);
+    });
+
+    it('rejects a variable that is not a soil property', async () => {
+      expect((await submitClassDistribution({ variable: { type: 'soil-index', id: 'crea-index' } })).statusCode).toBe(400);
+      const unknown = await submitClassDistribution({ variable: { type: 'soil-property', id: 'no-such-property' } });
+      expect(unknown.statusCode).toBe(400);
+      expect(unknown.body.detail).toContain('is not a soil property');
+    });
+
+    it.each([
+      [
+        'overlapping classes',
+        [
+          { name: 'A', min: 0, max: 5 },
+          { name: 'B', min: 4, max: 9 },
+        ],
+        'overlap',
+      ],
+      [
+        'two classes open below',
+        [
+          { name: 'A', max: 5 },
+          { name: 'B', max: 9 },
+        ],
+        'overlap',
+      ],
+      ['a class with no bound', [{ name: 'A' }], 'needs a min, a max, or both'],
+      ['min not below max', [{ name: 'A', min: 5, max: 5 }], 'needs min below max'],
+      [
+        'a duplicate name',
+        [
+          { name: 'A', max: 5 },
+          { name: 'A', min: 5 },
+        ],
+        'used more than once',
+      ],
+      ['the reserved name', [{ name: 'unclassified', min: 0 }], 'reserved'],
+    ])('rejects %s', async (_label, classes, detail) => {
+      const res = await submitClassDistribution({ classes });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain(detail);
+    });
+
+    it('accepts classes that touch without overlapping, in any order', async () => {
+      const res = await submitClassDistribution({
+        classes: [
+          { name: 'High', min: 7.5 },
+          { name: 'Low', max: 6.5 },
+          { name: 'Mid', min: 6.5, max: 7.5 },
+        ],
+      });
+      expect(res.statusCode).toBe(201);
+    });
+
+    it('rejects more than 20 classes and a time_aggregation outside 1-10', async () => {
+      const many = Array.from({ length: 21 }, (_, i) => ({ name: `C${i}`, min: i, max: i + 1 }));
+      expect((await submitClassDistribution({ classes: many })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ time_aggregation: 0 })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ time_aggregation: 11 })).statusCode).toBe(400);
+      expect((await submitClassDistribution({ depth_ranges: 'harmonised' })).statusCode).toBe(400);
+    });
+
+    it('accepts time_aggregation none', async () => {
+      expect((await submitClassDistribution({ time_aggregation: 'none' })).statusCode).toBe(201);
+    });
+
+    it('rejects class-distribution parameters sent with descriptive', async () => {
+      const filterId = await createFilter([polygon]);
+      const res = await submit(await descriptive(filterId, { classes: [{ name: 'All', min: 0 }] }));
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('classes does not apply');
+
+      const withValueType = await submit(await descriptive(filterId, { value_type: 'count' }));
+      expect(withValueType.statusCode).toBe(400);
+      expect(withValueType.body.detail).toContain('value_type does not apply');
+
+      const withClassCount = await submit(await descriptive(filterId, { class_count: 5 }));
+      expect(withClassCount.statusCode).toBe(400);
+      expect(withClassCount.body.detail).toContain('class_count does not apply');
+    });
+  });
+
+  describe('POST /data-requests — value-range', () => {
+    let propertyCounter = 0;
+    const addProperty = async () => {
+      const category = await addCategory(`vr-route-cat-${propertyCounter}`);
+      return addSoilProperty(`vr-route-ph-${propertyCounter++}`, category.id, 'pH');
+    };
+
+    const submitValueRange = async (overrides: Record<string, unknown> = {}, filterParameters: object = {}) => {
+      const property = await addProperty();
+      const filterId = await createFilter([polygon], filterParameters);
+      return submit({
+        statistics_type: StatisticsType.VALUE_RANGE,
+        filter_id: filterId,
+        variable: { type: 'soil-property', id: property.slug },
+        time_aggregation: 'none',
+        ...overrides,
+      });
+    };
+
+    it('accepts a variable alone and echoes it back', async () => {
+      const res = await submitValueRange();
+      expect(res.statusCode).toBe(201);
+      expect(res.body.request.statistics_type).toBe(StatisticsType.VALUE_RANGE);
+      expect(res.body.request.variable.type).toBe('soil-property');
+    });
+
+    it('rejects a missing variable, an unknown soil property, and one the filter excludes', async () => {
+      const missing = await submitValueRange({ variable: undefined });
+      expect(missing.statusCode).toBe(400);
+      expect(JSON.stringify(missing.body)).toContain('variable');
+
+      const unknown = await submitValueRange({ variable: { type: 'soil-property', id: 'no-such-property' } });
+      expect(unknown.statusCode).toBe(400);
+      expect(unknown.body.detail).toContain('is not a soil property');
+
+      const other = await addProperty();
+      const excluded = await submitValueRange({}, { soil_properties: [other.slug] });
+      expect(excluded.statusCode).toBe(400);
+      expect(excluded.body.detail).toContain('is excluded by filter');
+    });
+
+    it.each([
+      ['classes', { classes: [{ name: 'All', min: 0 }] }],
+      ['class_count', { class_count: 5, class_method: 'quantile' }],
+      ['value_type', { value_type: 'count' }],
+      ['depth_ranges', { depth_ranges: 'standard' }],
+    ])('rejects %s, which value-range does not use', async (name, overrides) => {
+      const res = await submitValueRange(overrides);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain(`${name} does not apply to statistics_type 'value-range'`);
+    });
+  });
+
+  describe('POST /data-requests — soil-index variables', () => {
+    const writeRun = async (): Promise<string> => {
+      const run = uuidv4();
+      await writeSoilIndexRun(await getEntityManager(), run, SoilIndexType.CREA_INDEX, [
+        { type: 'Feature', id: uuidv4(), geometry: { type: 'Point', coordinates: [1, 1] }, properties: { value: 0.5 } },
+      ]);
+      return run;
+    };
+
+    const submitOverRun = async (run: string, overrides: Record<string, unknown> = {}, filterParameters: object = {}) => {
+      const filterId = await createFilter([polygon], filterParameters);
+      return submit({
+        statistics_type: StatisticsType.VALUE_RANGE,
+        filter_id: filterId,
+        variable: { type: 'soil-index', id: run },
+        time_aggregation: 'none',
+        ...overrides,
+      });
+    };
+
+    it('accepts a completed soil index run for value-range and class-distribution', async () => {
+      const run = await writeRun();
+      expect((await submitOverRun(run)).statusCode).toBe(201);
+      const distribution = await submitOverRun(run, {
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        class_count: 4,
+        class_method: 'equal-interval',
+        value_type: 'count',
+      });
+      expect(distribution.statusCode).toBe(201);
+    });
+
+    it('rejects an id that is not a completed soil index run', async () => {
+      const res = await submitOverRun(uuidv4());
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('is not a completed soil index run');
+    });
+
+    it('rejects a filter that carries any criteria', async () => {
+      const res = await submitOverRun(await writeRun(), {}, { min_depth: 0, max_depth: 30 });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('do not apply to soil index scores');
+    });
+
+    it('rejects dataset_ids and depth_ranges, which scores have no use for', async () => {
+      const run = await writeRun();
+      const withDatasets = await submitOverRun(run, { dataset_ids: ['any'] });
+      expect(withDatasets.statusCode).toBe(400);
+      expect(withDatasets.body.detail).toContain('dataset_ids does not apply to a soil-index variable');
+
+      const withDepths = await submitOverRun(run, {
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        class_count: 4,
+        class_method: 'quantile',
+        value_type: 'count',
+        depth_ranges: 'standard',
+      });
+      expect(withDepths.statusCode).toBe(400);
+      expect(withDepths.body.detail).toContain('depth_ranges does not apply to a soil-index variable');
     });
   });
 
@@ -147,7 +467,7 @@ describe('Testing /data-requests routes', () => {
     it('is readable without a token by anyone holding the id', async () => {
       const filterId = await createFilter([polygon]);
       const token = getUserToken('dr-owner-id', 'dr-owner@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -161,7 +481,7 @@ describe('Testing /data-requests routes', () => {
       const filterId = await createFilter([polygon]);
       const submitter = getUserToken('dr-a-id', 'dr-a@example.com');
       const stranger = getUserToken('dr-b-id', 'dr-b@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${submitter}`)
         .expect(201);
 
@@ -179,7 +499,7 @@ describe('Testing /data-requests routes', () => {
     it('does not serve a data request through GET or DELETE /jobs/{jobId}', async () => {
       const filterId = await createFilter([polygon]);
       const token = getUserToken('dr-jobs-door-id', 'dr-jobs-door@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -196,7 +516,7 @@ describe('Testing /data-requests routes', () => {
       jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
       const filterId = await createFilter([polygon]);
       const token = await getDataAdminToken();
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${token}`)
         .expect(201);
 
@@ -219,7 +539,7 @@ describe('Testing /data-requests routes', () => {
   describe('DELETE /data-requests/{id}', () => {
     it('destroys a request without a token and makes it unreadable', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
 
       await request(app).delete(`/data-requests/${created.body.id}`).expect(204);
       // Not "cancelled": the job survives in that state until retention, and reporting it would
@@ -231,7 +551,7 @@ describe('Testing /data-requests routes', () => {
       const filterId = await createFilter([polygon]);
       const submitter = getUserToken('dr-del-a-id', 'dr-del-a@example.com');
       const stranger = getUserToken('dr-del-b-id', 'dr-del-b@example.com');
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId })
+      const created = await submit(await descriptive(filterId))
         .set('Authorization', `Bearer ${submitter}`)
         .expect(201);
 
@@ -245,7 +565,7 @@ describe('Testing /data-requests routes', () => {
 
     it('returns 404 on a second delete', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
 
       await request(app).delete(`/data-requests/${created.body.id}`).expect(204);
       await request(app).delete(`/data-requests/${created.body.id}`).expect(404);
@@ -275,7 +595,7 @@ describe('Testing /data-requests routes', () => {
 
     it('destroys a request whose run already completed', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
       await finishRun(created.body.id);
 
       // Readable first, so the 404 below is this DELETE's doing and not a request that was never there.
@@ -288,7 +608,7 @@ describe('Testing /data-requests routes', () => {
 
     it('leaves no job behind for a completed run it destroyed', async () => {
       const filterId = await createFilter([polygon]);
-      const created = await submit({ statistics_type: StatisticsType.DESCRIPTIVE, filter_id: filterId }).expect(201);
+      const created = await submit(await descriptive(filterId)).expect(201);
       await finishRun(created.body.id);
 
       await request(app).delete(`/data-requests/${created.body.id}`).expect(204);

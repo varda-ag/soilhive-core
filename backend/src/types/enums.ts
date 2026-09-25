@@ -46,6 +46,32 @@ export enum JobQueues {
  */
 export enum StatisticsType {
   DESCRIPTIVE = 'descriptive',
+  CLASS_DISTRIBUTION = 'class-distribution',
+  VALUE_RANGE = 'value-range',
+}
+
+/** What a Class Distribution or Value Range is computed for. */
+export enum VariableType {
+  SOIL_PROPERTY = 'soil-property',
+  SOIL_INDEX = 'soil-index',
+}
+
+/** `none` pools all depths; `standard` uses the Standard Depth Range holding the Layer's midpoint. */
+export enum DepthRanges {
+  NONE = 'none',
+  STANDARD = 'standard',
+}
+
+/** What a Class Distribution's values are. Never defaulted. */
+export enum ValueType {
+  PERCENTAGE = 'percentage',
+  COUNT = 'count',
+}
+
+/** How Classes are generated from `class_count`. */
+export enum ClassMethod {
+  EQUAL_INTERVAL = 'equal-interval',
+  QUANTILE = 'quantile',
 }
 
 /**

@@ -7,8 +7,19 @@ import { DataRequestJob } from '../../../src/interfaces/Job';
 import { processDataRequest } from '../../../src/jobs/data-requests/DataRequestJob';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import { getPgBoss, initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { Capability, DataRequestStatus, JobQueues, StatisticsType } from '../../../src/types/enums';
+import {
+  Capability,
+  ClassMethod,
+  DataRequestStatus,
+  JobQueues,
+  SoilIndexType,
+  StatisticsType,
+  ValueType,
+  VariableType,
+} from '../../../src/types/enums';
+import { v4 as uuidv4 } from 'uuid';
 import { insertDataRequest } from '../../../src/data-layer/DataRequests';
+import { writeSoilIndexRun } from '../../../src/data-layer/SoilIndex';
 import { GISDataType, VocabularyType } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
@@ -37,10 +48,25 @@ import {
   addVocabulary,
 } from '../../../src/utils/mock';
 import ProcedureEntity from '../../../src/entities/Procedure';
+import SoilPropertyEntity from '../../../src/entities/SoilProperty';
 import { getDataAdminToken, getUserToken } from '../../helper';
 
-const createActiveJob = (data: Partial<DataRequestJob>) =>
-  createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, { statistics_type: StatisticsType.DESCRIPTIVE, ...data });
+/** One Soil Property shared by every seeded Dataset, so a default job always has a variable. */
+const sharedProperty = async () => {
+  const repo = (await getDataSource()).getRepository(SoilPropertyEntity);
+  const existing = await repo.findOne({ where: { property_name: 'dr-shared-prop' } });
+  return existing ?? addSoilProperty('dr-shared-prop', (await addCategory('dr-shared-cat')).id, 'mg/kg');
+};
+
+const variableOf = async () => ({ type: VariableType.SOIL_PROPERTY, id: (await sharedProperty()).slug });
+
+const createActiveJob = async (data: Partial<DataRequestJob>) =>
+  createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
+    statistics_type: StatisticsType.DESCRIPTIVE,
+    variable: await variableOf(),
+    time_aggregation: 1,
+    ...data,
+  });
 
 /**
  * `features` is a global, content-addressed table: no dataset_id, and a UNIQUE geom_hash,
@@ -56,8 +82,7 @@ const nextCoordinates = (): [number, number] => {
 
 const seedDataset = async (name: string, values: number[], options: { coordinates?: [number, number]; gisDatatype?: GISDataType } = {}) => {
   const dataset = await addDataset(name, DATASET_BBOX, options.gisDatatype ?? GISDataType.POINT);
-  const category = await addCategory(`${name}-cat`);
-  const soilProperty = await addSoilProperty(`${name}-prop`, category.id, 'mg/kg');
+  const soilProperty = await sharedProperty();
   const [feature] = await addFeatures(GISDataType.POINT, [options.coordinates ?? nextCoordinates()]);
   // `layers` is likewise global and deduplicated — UNIQUE NULLS NOT DISTINCT over
   // (license, sampling_date, min_depth, max_depth, horizon) — so two datasets cannot each
@@ -302,7 +327,7 @@ describe('processDataRequest', () => {
       await seedDataset('record-completed-ds', [10, 20]);
       const filterId = await createFilter([UNIT_A, UNIT_B]);
 
-      const { jobId, job } = await createActiveJob({ filter_id: filterId, histogram_bins: 20 });
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, time_aggregation: 'none' });
       await processDataRequest(job);
 
       const record = await readRecord(jobId);
@@ -311,7 +336,7 @@ describe('processDataRequest', () => {
       expect(record.id).toBe(jobId);
       expect(record.status).toBe('completed');
       expect(record.message).toBeNull();
-      expect(record.data).toMatchObject({ truncated: expect.any(Boolean), results: expect.any(Array) });
+      expect(record.data).toMatchObject({ overall: expect.any(Array), results: expect.any(Array) });
       expect(record.created_at).toBeInstanceOf(Date);
       expect(record.completed_at).toBeInstanceOf(Date);
 
@@ -320,7 +345,7 @@ describe('processDataRequest', () => {
       expect(record.request).toMatchObject({
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterId,
-        histogram_bins: 20,
+        time_aggregation: 'none',
         unit_count: 2,
       });
       expect(record.request.units).toHaveLength(2);
@@ -407,7 +432,7 @@ describe('processDataRequest', () => {
         id: jobId,
         status: DataRequestStatus.COMPLETED,
         request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
-        data: { results: [], truncated: false },
+        data: { soil_property: 'p', standard_unit: null, overall: [], results: [] },
         message: null,
         created_at: new Date(),
         completed_at: new Date(),
@@ -427,7 +452,7 @@ describe('processDataRequest', () => {
         id: jobId,
         status: DataRequestStatus.COMPLETED,
         request: { statistics_type: StatisticsType.DESCRIPTIVE, filter_id: 'f', derived_filter_id: null, unit_count: 0, units: [] },
-        data: { results: [], truncated: false },
+        data: { soil_property: 'p', standard_unit: null, overall: [], results: [] },
         message: null,
         created_at: new Date(),
         completed_at: new Date(),
@@ -525,6 +550,8 @@ describe('processDataRequest', () => {
       const { jobId, data } = await runAsCaller(token, {
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterResponse.body.id,
+        variable: await variableOf(),
+        time_aggregation: 1,
       });
 
       // The Subject, not the sub: this is the value the processor looks entitlements up by.
@@ -560,6 +587,8 @@ describe('processDataRequest', () => {
       const { data } = await runAsCaller(token, {
         statistics_type: StatisticsType.DESCRIPTIVE,
         filter_id: filterResponse.body.id,
+        variable: await variableOf(),
+        time_aggregation: 1,
         dataset_ids: [datasetA.slug, datasetB.slug],
       });
 
@@ -589,6 +618,8 @@ describe('processDataRequest', () => {
         .send({
           statistics_type: StatisticsType.DESCRIPTIVE,
           filter_id: filterResponse.body.id,
+          variable: await variableOf(),
+          time_aggregation: 1,
           dataset_ids: [dataset.slug],
         });
       expect(res.statusCode).toBe(403);
@@ -641,17 +672,199 @@ describe('processDataRequest', () => {
   });
 
   describe('statistics_type', () => {
-    it('computes descriptive statistics when that is the named type', async () => {
-      await seedDataset('type-descriptive', [1, 2, 3]);
+    it('computes and records descriptive statistics when that is the named type', async () => {
+      const { dataset, soilProperty } = await seedDataset('type-descriptive', [1, 2, 3]);
       const filterId = await createFilter([UNIT_A]);
 
       const { jobId, job } = await createActiveJob({ filter_id: filterId, statistics_type: StatisticsType.DESCRIPTIVE });
       await processDataRequest(job);
-      const stored = await readJobData(jobId);
 
-      // The payload goes to the `data_requests` row, not into job data, so the completion line
-      // is what says the descriptive producer ran here: it counts dataset/property groups.
-      expect(stored.progress_description).toContain('dataset/property group(s)');
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.data.soil_property).toBe(soilProperty.slug);
+      expect(record.data.results).toHaveLength(1);
+      expect(record.data.results[0]).toMatchObject({
+        dataset_id: dataset.slug,
+        year_start: 2020,
+        year_end: 2020,
+        n_observations: 3,
+        median: 2,
+      });
+      expect(record.data.results[0]).not.toHaveProperty('histogram');
+      expect(record.data.overall[0]).not.toHaveProperty('unit_id');
+    });
+
+    it('fails a descriptive job with no variable', async () => {
+      await seedDataset('type-descriptive-no-variable', [1]);
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
+        statistics_type: StatisticsType.DESCRIPTIVE,
+        filter_id: filterId,
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_INVALID_PARAMETERS' });
+    });
+
+    it('computes and records a class distribution when that is the named type', async () => {
+      const { dataset, soilProperty } = await seedDataset('type-class-distribution', [3, 7, 12]);
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.PERCENTAGE,
+        variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
+        classes: [
+          { name: 'Acid', max: 6.5 },
+          { name: 'Neutral', min: 6.5, max: 7.5 },
+        ],
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.request.classes).toHaveLength(2);
+      expect(record.data.soil_property).toBe(soilProperty.slug);
+      expect(record.data.standard_unit).toBe('mg/kg');
+      // UNIT_B has no Observations, so no row.
+      expect(record.data.results).toHaveLength(1);
+      expect(record.data.results[0]).toMatchObject({
+        dataset_id: dataset.slug,
+        year_start: 2020,
+        year_end: 2020,
+        n_observations: 3,
+        classes: [
+          { name: 'Acid', value: 33.333 },
+          { name: 'Neutral', value: 33.333 },
+          { name: 'unclassified', value: 33.333 },
+        ],
+      });
+      expect(record.data).not.toHaveProperty('truncated');
+    });
+
+    it('generates classes and records them in the payload, not in the request', async () => {
+      const { soilProperty } = await seedDataset('type-class-distribution-generated', [3, 7, 12]);
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.COUNT,
+        variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
+        class_count: 3,
+        class_method: ClassMethod.EQUAL_INTERVAL,
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.request).toMatchObject({ class_count: 3, class_method: ClassMethod.EQUAL_INTERVAL });
+      expect(record.request).not.toHaveProperty('classes');
+      // p01 = 3.08, p99 = 11.9: one inner class of width 12 from 0.
+      expect(record.data.classes.map((definition: { name: string }) => definition.name)).toEqual(['< 0', '0–12', '≥ 12']);
+      expect(record.data.observed_min).toBe(3);
+      expect(record.data.observed_max).toBe(12);
+      expect(record.data.results[0].classes.map((entry: { value: number }) => entry.value)).toEqual([0, 2, 1]);
+    });
+
+    it('computes and records a value range when that is the named type', async () => {
+      const { dataset, soilProperty } = await seedDataset('type-value-range', [3, 7, 12]);
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.VALUE_RANGE,
+        variable: { type: VariableType.SOIL_PROPERTY, id: soilProperty.slug },
+        time_aggregation: 'none',
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.data).toEqual({
+        soil_property: soilProperty.slug,
+        standard_unit: 'mg/kg',
+        n_observations: 3,
+        n_features: 1,
+        min: 3,
+        max: 12,
+        datasets: [{ dataset_id: dataset.slug, n_observations: 3, n_features: 1, min: 3, max: 12 }],
+      });
+    });
+
+    it('distributes a soil index run over the units, heading the payload with the run', async () => {
+      const run = uuidv4();
+      await writeSoilIndexRun(await getEntityManager(), run, SoilIndexType.CREA_INDEX, [
+        { type: 'Feature', id: uuidv4(), geometry: { type: 'Point', coordinates: [1, 1] }, properties: { value: 0.2 } },
+        { type: 'Feature', id: uuidv4(), geometry: { type: 'Point', coordinates: [1.2, 1.2] }, properties: { value: 0.8 } },
+      ]);
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.COUNT,
+        variable: { type: VariableType.SOIL_INDEX, id: run },
+        classes: [
+          { name: 'Low', max: 0.5 },
+          { name: 'High', min: 0.5 },
+        ],
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.data).toMatchObject({ run, soil_index_type: SoilIndexType.CREA_INDEX, observed_min: 0.2, observed_max: 0.8 });
+      expect(record.data).not.toHaveProperty('soil_property');
+      expect(record.data.results).toHaveLength(1);
+      expect(record.data.results[0]).not.toHaveProperty('dataset_id');
+      expect(record.data.results[0].classes).toEqual([
+        { name: 'Low', value: 1 },
+        { name: 'High', value: 1 },
+      ]);
+    });
+
+    it('fails when the soil index run named has no partition by the time it runs', async () => {
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.VALUE_RANGE,
+        variable: { type: VariableType.SOIL_INDEX, id: uuidv4() },
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_UNKNOWN_SOIL_INDEX_RUN' });
+    });
+
+    it('fails a class distribution whose soil property was deleted after submission', async () => {
+      await seedDataset('type-class-distribution-gone', [1]);
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.PERCENTAGE,
+        variable: { type: VariableType.SOIL_PROPERTY, id: 'no-such-property' },
+        classes: [{ name: 'All', min: 0 }],
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_UNKNOWN_SOIL_PROPERTY' });
+    });
+
+    it('re-checks class-distribution parameters rather than trusting job data', async () => {
+      await seedDataset('type-class-distribution-invalid', [1]);
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.CLASS_DISTRIBUTION,
+        value_type: ValueType.PERCENTAGE,
+        variable: { type: VariableType.SOIL_PROPERTY, id: 'anything' },
+        classes: [{ name: 'Unbounded' }],
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_INVALID_PARAMETERS' });
     });
 
     it('fails rather than assuming descriptive when the type is absent', async () => {

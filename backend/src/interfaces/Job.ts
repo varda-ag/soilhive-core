@@ -1,4 +1,4 @@
-import type { StatisticsType, SoilIndexType } from '../types/enums';
+import type { StatisticsType, SoilIndexType, VariableType, DepthRanges, ValueType, ClassMethod } from '../types/enums';
 import type { AggregationUnit } from '../jobs/runs/types';
 
 export type AnyJob =
@@ -110,7 +110,35 @@ export interface DataRequestJobParameters extends RunJobParameters {
   statistics_type: StatisticsType;
   /** Dataset slugs. Absent means every dataset the filter matches that the caller can preview. */
   dataset_ids?: string[];
-  histogram_bins?: number;
+  /** Required by every Statistics Type. */
+  variable?: ClassDistributionVariable;
+  /** `class-distribution` only; exclusive with `class_count`. */
+  classes?: ClassDefinition[];
+  /** `class-distribution` only: total Classes to generate, 3-20. */
+  class_count?: number;
+  /** `class-distribution` only; required with `class_count`. */
+  class_method?: ClassMethod;
+  /** Required by every Statistics Type: Year Window in years (1-10), or `none`. */
+  time_aggregation?: TimeAggregation;
+  /** `descriptive` and `class-distribution`, default `none`. */
+  depth_ranges?: DepthRanges;
+  /** `class-distribution` only (required there). */
+  value_type?: ValueType;
+}
+
+export type TimeAggregation = number | 'none';
+
+export interface ClassDistributionVariable {
+  type: VariableType;
+  /** Soil Property slug, or Soil Index Run id. */
+  id: string;
+}
+
+/** `[min, max)`; an absent bound is open. At least one is present. */
+export interface ClassDefinition {
+  name: string;
+  min?: number;
+  max?: number;
 }
 
 export interface DataRequestJob extends DataRequestJobParameters, RunJobData {}

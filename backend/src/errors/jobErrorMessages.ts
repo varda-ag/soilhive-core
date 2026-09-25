@@ -196,6 +196,32 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "'{statistics_type}' is not a kind of statistics this server can compute.",
     actions: ['Start the job again with one of: {supported}.'],
   },
+  DR_INVALID_PARAMETERS: {
+    message: 'The request parameters cannot be used: {reason}.',
+    actions: ['Correct the parameters and submit the request again.'],
+  },
+  DR_UNKNOWN_SOIL_PROPERTY: {
+    message: "Soil property '{soil_property}' no longer exists.",
+    actions: ['Submit the request again with a soil property that exists.'],
+  },
+  DR_UNKNOWN_SOIL_INDEX_RUN: {
+    message: "Soil index run '{run}' no longer has any scores to read.",
+    actions: ['Run the soil index again, then submit the request with the new run id.'],
+  },
+  DR_SOIL_STATISTICS_TOO_LARGE: {
+    message: 'These statistics would have {rows} rows, more than the {max_rows} this server returns.',
+    actions: [
+      'Group more years per window with a larger time_aggregation or none, or pool depths with depth_ranges none.',
+      'Alternatively, use fewer areas or fewer datasets.',
+    ],
+  },
+  DR_CLASS_DISTRIBUTION_TOO_LARGE: {
+    message: 'This class distribution would have {rows} rows ({entries} class values), more than the {max_entries} this server returns.',
+    actions: [
+      'Group more years per window with a larger time_aggregation, or pool depths with depth_ranges none.',
+      'Alternatively, use fewer classes, fewer areas or fewer datasets.',
+    ],
+  },
   SI_UNKNOWN_INDEX_TYPE: {
     message: "'{soil_index_type}' is not a soil index this server can compute.",
     actions: ['Start the job again with one of: {supported}.'],

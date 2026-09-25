@@ -68,3 +68,29 @@ export async function writeSoilIndexRun(
 
   return rows.length;
 }
+
+/** A Run is complete once its partition is attached; the job is not consulted, as it expires. */
+export async function soilIndexRunExists(entityManager: EntityManager, run: string): Promise<boolean> {
+  if (!validate(run)) {
+    return false;
+  }
+  const schema = process.env.POSTGRES_SCHEMA;
+  const [row]: { attached: boolean }[] = await entityManager.query(
+    `SELECT EXISTS (
+       SELECT 1 FROM pg_inherits
+       WHERE inhparent = to_regclass($1) AND inhrelid = to_regclass($2)
+     ) AS attached`,
+    [`"${schema}"."soil_index"`, `"${schema}"."${soilIndexPartition(run)}"`],
+  );
+  return Boolean(row?.attached);
+}
+
+/** Null when the Run scored nothing. */
+export async function soilIndexRunType(entityManager: EntityManager, run: string): Promise<SoilIndexType | null> {
+  const schema = process.env.POSTGRES_SCHEMA;
+  const [row]: { soil_index_type: SoilIndexType }[] = await entityManager.query(
+    `SELECT soil_index_type FROM "${schema}"."soil_index" WHERE run = $1::uuid LIMIT 1`,
+    [run],
+  );
+  return row?.soil_index_type ?? null;
+}
