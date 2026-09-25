@@ -115,6 +115,13 @@ components:
           description: >-
             Optional field of file_id whose value labels each aggregation area. Must name
             an existing field of that file.
+        config_id:
+          type: string
+          description: >-
+            Optional plugin config item (plugin:{pluginId}:{id}) to attach the request to. It
+            must exist and the caller needs write on it. An attached request is readable only with
+            read on that item, deletable only with write, and is destroyed when the item is
+            deleted. Without it, the id alone grants both.
 
     DataRequestParameters:
       type: object
@@ -164,6 +171,8 @@ components:
           type: string
           enum: [percentage, count]
         label_field:
+          type: string
+        config_id:
           type: string
         derived_filter_id:
           type: string

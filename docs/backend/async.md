@@ -163,6 +163,8 @@ POST /data-requests
 
 **No token is required.** A token, if sent, decides only which datasets the run may read — without one it resolves public datasets only — and is never consulted again. It does not decide who may read or delete the result: the returned `id` is the whole of that permission, so passing it on passes on the data *and* the power to erase it.
 
+**Attached requests.** With `"config_id": "plugin:{pluginId}:{id}"` the request is attached to that plugin config item, which must already exist and on which the caller needs `write`. `GET` then also requires `read` on the item, `DELETE` requires `write`, and deleting the item destroys the request (docs/adr/0041). Both answer `404` before `403`.
+
 ### Aggregation areas
 
 > This section applies to **`soil-indexes` as well as `data-requests`**: both are *runs*, and a run resolves its areas the same way whichever product it computes.
@@ -247,7 +249,7 @@ GET /data-requests/{id}
 DELETE /data-requests/{id}
 ```
 
-Cancels the run if it is still in progress and permanently deletes the request and its result. `204` if either happened, `404` if neither was there. Irreversible, and open to anyone holding the id — including anyone it was shared with.
+Cancels the run if it is still in progress and permanently deletes the request and its result. `204` if either happened, `404` if neither was there. Irreversible, and open to anyone holding the id — including anyone it was shared with — unless the request is attached, when it requires `write` on the config item.
 
 ## `data-requests` — `class-distribution`
 

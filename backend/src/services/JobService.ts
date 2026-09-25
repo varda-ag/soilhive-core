@@ -294,15 +294,21 @@ export default class JobService {
     return jobs.length ? this.translateJob(jobs[0]!) : null;
   };
 
+  /** Jobs on a named queue whose data contains `data` (jsonb containment). No ownership check. */
+  findJobsInQueueByData = async (queue: JobQueues, data: object): Promise<Job[]> => {
+    const jobs = await this.boss.findJobs(queue, { data });
+    return jobs.map(job => this.translateJob(job));
+  };
+
   /** Cancels a job on a named queue. No ownership check, for the same reason as findJobInQueue. */
-  cancelJobInQueue = async (queue: JobQueues, jobId: string): Promise<void> => {
+  cancelJobInQueue = async (queue: JobQueues, jobId: string | string[]): Promise<void> => {
     await this.boss.cancel(queue, jobId);
   };
 
   /**
    * Removes a job row
    */
-  deleteJobInQueue = async (queue: JobQueues, jobId: string): Promise<void> => {
+  deleteJobInQueue = async (queue: JobQueues, jobId: string | string[]): Promise<void> => {
     await this.boss.deleteJob(queue, jobId);
   };
 

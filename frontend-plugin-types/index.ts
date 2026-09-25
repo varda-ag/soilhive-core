@@ -6,7 +6,7 @@ import type {
   PluginQueryResult,
   PluginUser,
 } from './common';
-import type { PluginDataRequestData, PluginDataRequestResult, PluginDataRequestSubmission } from './dataRequest';
+import type { PluginDataRequest, PluginDataRequestResult, PluginDataRequestSubmission } from './dataRequest';
 import type { PluginMapSelection } from './map';
 import type { PluginDataFilterInput, PluginFilteredData } from './filter';
 import type {
@@ -49,10 +49,13 @@ export interface PluginContext {
   // Filtered to the calling plugin's own plugin:{pluginId}: namespace and unprefixed
   // (see ADR 0036) — a plugin never sees another plugin's or the host's entitlements.
   usePluginUserEntitlements: (pluginId: string, scope: PluginEntitlementScope) => PluginQueryResult<PluginConfigEntitlements>;
-  // Declarative: submits when `submission` is set or its content changes; undefined = do not submit.
-  // Shares one Data Request between callers with the same payload, polls it, and deletes it
-  // when no caller uses it any more. Never returns the Data Request id (a bearer capability).
-  useDataRequest: <S extends PluginDataRequestSubmission>(submission: S | undefined) => PluginDataRequestResult<PluginDataRequestData<S>>;
+  // Data Requests are attached to one of the plugin's config items, which must already be saved:
+  // read on it is needed to read them, write to submit or delete them (see ADR 0041). The plugin
+  // stores the returned id and deletes it itself; the host never deletes one.
+  useDataRequestSubmit: (pluginId: string, configId: string) => PluginMutationResult<PluginDataRequestSubmission, PluginDataRequest>;
+  // Polls until completed or failed; undefined id = do not fetch.
+  useDataRequest: (id: string | undefined) => PluginDataRequestResult;
+  useDataRequestDelete: () => PluginMutationResult<{ id: string }, void>;
   // Absolute URL of a dataset's metadata page. Provided by the host because the
   // origin comes from its runtime configuration, which a remote plugin cannot read.
   metadataUrl: (datasetId: string) => string;

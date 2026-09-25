@@ -20,13 +20,14 @@ type UseApiQueryOptions<TResponse, TBody = void> = {
   queryKey: QueryKey;
   enabled: boolean;
   refetchInterval?: number | false | ((query: Query<TResponse, Error, TResponse, QueryKey>) => number | false | undefined);
-  retry?: boolean | number;
+  retry?: boolean | number | ((failureCount: number, error: Error) => boolean);
   showErrorNotification?: boolean;
   notFoundAsNull?: boolean;
   isBlobResponse?: boolean;
   abortOnNewQuery?: boolean;
   authenticate?: boolean;
   disableCache?: boolean;
+  staleTime?: number;
 };
 
 export function useApiQuery<TResponse, TBody = void>({
@@ -44,6 +45,7 @@ export function useApiQuery<TResponse, TBody = void>({
   abortOnNewQuery = false,
   authenticate,
   disableCache,
+  staleTime,
 }: UseApiQueryOptions<TResponse, TBody>) {
   const { request } = useRequest();
 
@@ -79,7 +81,7 @@ export function useApiQuery<TResponse, TBody = void>({
     queryKey,
     queryFn: fetchData,
     enabled,
-    staleTime: disableCache ? 0 : QUERY_STALE_TIME,
+    staleTime: disableCache ? 0 : (staleTime ?? QUERY_STALE_TIME),
     refetchInterval,
     retry,
   });
