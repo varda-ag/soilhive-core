@@ -28,6 +28,12 @@ const emptyEntitlements = (): Entitlements => ({ datasets: Object.create(null), 
  */
 const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
 
+/**
+ * Whether `scope` is a config subkey (a filtered view over `configs`, see `selectByScope`) rather
+ * than a storage namespace. The single rule for telling the two apart.
+ */
+const isConfigSubkeyScope = (scope: RequestScope): scope is ConfigSubkeyScope => Object.values<string>(ConfigSubkeyScope).includes(scope);
+
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
   Array.from(new Set([...(existing ?? []), ...(Array.isArray(incoming) ? incoming : [])])).sort();
@@ -194,7 +200,7 @@ export default class EntitlementService {
    * included) is what's returned, so the caller still knows which config it is.
    */
   selectByScope = (entitlements: Entitlements, scope: RequestScope): CapabilityGrants => {
-    if (scope === EntitlementScope.DATASETS || scope === EntitlementScope.CONFIGS) {
+    if (!isConfigSubkeyScope(scope)) {
       return entitlements[scope] ?? {};
     }
     const configs = entitlements.configs ?? {};
@@ -214,7 +220,7 @@ export default class EntitlementService {
    */
   getVisibleEntitlements = async (requestData: RequestData, scope: RequestScope): Promise<CapabilityGrants> => {
     const grants = await this.getUserEntitlements(requestData, getSubject(requestData));
-    const isConfigScope = scope === EntitlementScope.CONFIGS || Object.values<string>(ConfigSubkeyScope).includes(scope);
+    const isConfigScope = scope === EntitlementScope.CONFIGS || isConfigSubkeyScope(scope);
     const entitlements =
       isConfigScope && isPrivilegedCaller(requestData.token) ? await this.addWriteOnEveryConfig(requestData, grants) : grants;
     return this.selectByScope(entitlements, scope);
