@@ -4,13 +4,14 @@ import { In } from 'typeorm';
 import { EVERYONE, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
-import { EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
+import { ConfigSubkeyScope, EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { getEntitySlugs } from '../utils/slugs';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
+import { JsonStorage } from '../entities/JsonStorage';
 
 // Object.create(null), not {}: a key here can legitimately be "__proto__" (see the comment in
 // getUserEntitlements for why that's dangerous on a plain object).
@@ -202,6 +203,30 @@ export default class EntitlementService {
       return id === scope || id.startsWith(`${scope}_`);
     };
     return Object.fromEntries(Object.entries(configs).filter(([key]) => matchesSubkey(key)));
+  };
+
+  /**
+   * `GET /entitlements?scope=`: the grants held, sliced to `scope`. A Privileged caller also gets
+   * WRITE on every (non-deleted) config row for a config scope (`configs` or a subkey): it
+   * bypasses the config gates (`canReadConfig`/`canWriteConfig`) but holds no grants, so its
+   * grants alone would list nothing. Not part of `getUserEntitlements`, which also fills
+   * `requestData.entitlements` on every request, where no gate would read the result.
+   */
+  getVisibleEntitlements = async (requestData: RequestData, scope: RequestScope): Promise<CapabilityGrants> => {
+    const grants = await this.getUserEntitlements(requestData, getSubject(requestData));
+    const isConfigScope = scope === EntitlementScope.CONFIGS || Object.values<string>(ConfigSubkeyScope).includes(scope);
+    const entitlements =
+      isConfigScope && isPrivilegedCaller(requestData.token) ? await this.addWriteOnEveryConfig(requestData, grants) : grants;
+    return this.selectByScope(entitlements, scope);
+  };
+
+  private addWriteOnEveryConfig = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
+    const rows = await requestData.entityManager.getRepository(JsonStorage).find({ select: { id: true } });
+    const configs: CapabilityGrants = Object.assign(Object.create(null), entitlements.configs);
+    for (const { id } of rows) {
+      configs[id] = mergeCapabilities(configs[id], [Capability.WRITE]);
+    }
+    return { ...entitlements, configs };
   };
 
   async getUserEntitlements(requestData: RequestData, id?: string): Promise<Entitlements> {
