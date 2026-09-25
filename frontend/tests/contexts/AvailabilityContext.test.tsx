@@ -9,6 +9,7 @@ import { useSoilProperties } from 'hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
+import useAvailabilityData from 'hooks/useAvailabilityData';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, GISDataType, type FilteredDatasetSummary } from 'types/backend';
 
@@ -22,6 +23,10 @@ jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 jest.mock('hooks/usePropertiesCategories', () => ({ usePropertiesCategories: jest.fn() }));
 jest.mock('hooks/useRaster', () => ({ useRaster: jest.fn() }));
 jest.mock('hooks/useAvailabilityMap', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+jest.mock('hooks/useAvailabilityData', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
@@ -84,6 +89,7 @@ describe('AvailabilityContext', () => {
     mockSplitFilteringQueries = false;
     (useAuthContext as jest.Mock).mockReturnValue({ isAuthenticated: true });
     (useAvailabilityMap as jest.Mock).mockReturnValue({ geometryFilter: [] });
+    (useAvailabilityData as jest.Mock).mockReturnValue({ setAvailabilityData: jest.fn() });
     (useDataFilterQuery as jest.Mock).mockReturnValue({ filterId: 'filter-1', selectedFilters: undefined, isLoading: false });
     (useFilteredCoverageQuery as jest.Mock).mockReturnValue({
       data: {
@@ -123,6 +129,47 @@ describe('AvailabilityContext', () => {
       [privateDownloadableDataset.id, publicDataset.id, privatePreviewOnlyDataset.id].sort(),
     );
     expect(result.current.selectedDatasets).not.toContain(privateNonDownloadableDataset.id);
+  });
+
+  it('pushes soil properties, categories, raster categories and visible datasets into AvailabilityDataContext', () => {
+    const setAvailabilityData = jest.fn();
+    (useAvailabilityData as jest.Mock).mockReturnValue({ setAvailabilityData });
+
+    renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    expect(setAvailabilityData).toHaveBeenLastCalledWith({
+      soilProperties: [],
+      isLoadingSoilProperties: false,
+      categories: [],
+      isLoadingCategories: false,
+      rasterCategories: [],
+      isLoadingRasterCategories: false,
+      visibleDatasets: expect.arrayContaining([
+        expect.objectContaining({ id: publicDataset.id }),
+        expect.objectContaining({ id: privateDownloadableDataset.id }),
+        expect.objectContaining({ id: privateNonDownloadableDataset.id }),
+        expect.objectContaining({ id: privatePreviewOnlyDataset.id }),
+      ]),
+      isLoadingVisibleDatasets: false,
+    });
+  });
+
+  it('propagates loading flags for soil properties, categories and raster categories into AvailabilityDataContext', () => {
+    const setAvailabilityData = jest.fn();
+    (useAvailabilityData as jest.Mock).mockReturnValue({ setAvailabilityData });
+    (useSoilProperties as jest.Mock).mockReturnValue({ data: undefined, isLoading: true });
+    (usePropertiesCategories as jest.Mock).mockReturnValue({ data: undefined, isLoading: true });
+    (useRaster as jest.Mock).mockReturnValue({ allCategories: undefined, isLoading: true, setCategoryActive: jest.fn() });
+
+    renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    expect(setAvailabilityData).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        isLoadingSoilProperties: true,
+        isLoadingCategories: true,
+        isLoadingRasterCategories: true,
+      }),
+    );
   });
 
   it('isDatasetsLoading follows the full coverage query by default', () => {

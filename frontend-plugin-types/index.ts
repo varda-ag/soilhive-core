@@ -10,6 +10,7 @@ import type { PluginDataRequestData, PluginDataRequestResult, PluginDataRequestS
 import type { PluginMapSelection } from './map';
 import type { PluginDataFilterInput, PluginFilteredData } from './filter';
 import type {
+  PluginDataset,
   PluginRasterFilterCategory,
   PluginSoilDataParameters,
   PluginSoilDataResult,
@@ -34,6 +35,7 @@ export interface PluginContext {
   useSoilProperties: () => PluginQueryResult<PluginSoilProperty[]>;
   usePropertiesCategories: () => PluginQueryResult<PluginSoilPropertyCategory[]>;
   useRasterCategories: () => PluginQueryResult<PluginRasterFilterCategory[]>;
+  useVisibleDatasets: () => PluginQueryResult<PluginDataset[]>;
   useSoilData: (parameters: PluginSoilDataParameters) => PluginSoilDataResult;
   // pluginId is the plugin's own exported id (see plugin-development.md), passed
   // back in so the same config namespace is used no matter which plugin calls it.

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type {
   PluginDataFilterInput,
+  PluginDataset,
   PluginDataRequestData,
   PluginDataRequestResult,
   PluginDataRequestSubmission,
@@ -17,13 +18,11 @@ import type {
 import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
+import useAvailabilityData from './useAvailabilityData';
 import useAvailabilityMap from './useAvailabilityMap';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
 import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
-import { usePropertiesCategories as useHostPropertiesCategories } from './usePropertiesCategories';
-import { useRaster as useHostRaster } from './useRaster';
 import { useSoilData as useHostSoilData } from './useSoilData';
-import { useSoilProperties as useHostSoilProperties } from './useSoilProperties';
 import useHostTheme from './useTheme';
 import usePluginConfig from './usePluginConfig';
 import usePluginConfigs from './usePluginConfigs';
@@ -62,18 +61,23 @@ function usePluginFilteredCoverageQuery(filterId: string | undefined, geometryOn
 }
 
 function usePluginSoilProperties(): PluginQueryResult<PluginSoilProperty[]> {
-  const { data, isLoading, isError } = useHostSoilProperties();
-  return { data, isLoading, isError };
+  const { soilProperties, isLoadingSoilProperties } = useAvailabilityData();
+  return { data: soilProperties, isLoading: isLoadingSoilProperties, isError: false };
 }
 
 function usePluginPropertiesCategories(): PluginQueryResult<PluginSoilPropertyCategory[]> {
-  const { data, isLoading, isError } = useHostPropertiesCategories();
-  return { data, isLoading, isError };
+  const { categories, isLoadingCategories } = useAvailabilityData();
+  return { data: categories, isLoading: isLoadingCategories, isError: false };
 }
 
 function usePluginRasterCategories(): PluginQueryResult<PluginRasterFilterCategory[]> {
-  const { allCategories, isLoading } = useHostRaster();
-  return { data: allCategories, isLoading, isError: false };
+  const { rasterCategories, isLoadingRasterCategories } = useAvailabilityData();
+  return { data: rasterCategories, isLoading: isLoadingRasterCategories, isError: false };
+}
+
+function usePluginVisibleDatasets(): PluginQueryResult<PluginDataset[]> {
+  const { visibleDatasets, isLoadingVisibleDatasets } = useAvailabilityData();
+  return { data: visibleDatasets, isLoading: isLoadingVisibleDatasets, isError: false };
 }
 
 function usePluginSoilData(parameters: PluginSoilDataParameters): PluginSoilDataResult {
@@ -104,6 +108,7 @@ export function usePluginContext(): PluginContext {
       useSoilProperties: usePluginSoilProperties,
       usePropertiesCategories: usePluginPropertiesCategories,
       useRasterCategories: usePluginRasterCategories,
+      useVisibleDatasets: usePluginVisibleDatasets,
       useSoilData: usePluginSoilData,
       // Already matches PluginContext's signature (pluginId, id, defaultConfig),
       // so it's passed through directly rather than wrapped like the hooks above.

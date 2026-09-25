@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import type { LngLat, MapGeoJSONFeature } from 'maplibre-gl';
 import { usePluginContext } from 'hooks/usePluginContext';
+import useAvailabilityData from 'hooks/useAvailabilityData';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
@@ -13,20 +14,22 @@ jest.mock('hooks/useAvailabilityMap', () => ({
   default: jest.fn(),
 }));
 
+jest.mock('hooks/useAvailabilityData', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
 jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
 }));
 
-// Only useAvailabilityMap/useAuthContext are actually invoked by usePluginContext;
-// the rest are mocked purely to avoid pulling in their real (heavy) module graphs
-// at import time — none of these are exercised by the tests below.
+// Only useAvailabilityMap/useAvailabilityData/useAuthContext are actually invoked by
+// usePluginContext; the rest are mocked purely to avoid pulling in their real (heavy)
+// module graphs at import time — none of these are exercised by the tests below.
 jest.mock('hooks/useTheme', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/useDataFilterQuery', () => ({ useDataFilterQuery: jest.fn() }));
 jest.mock('hooks/useFilteredCoverageQuery', () => ({ useFilteredCoverageQuery: jest.fn() }));
-jest.mock('hooks/usePropertiesCategories', () => ({ usePropertiesCategories: jest.fn() }));
-jest.mock('hooks/useRaster', () => ({ useRaster: jest.fn() }));
 jest.mock('hooks/useSoilData', () => ({ useSoilData: jest.fn() }));
-jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 // usePluginConfig transitively imports useConfig -> App -> i18n's real (heavy) module
 // graph; mock it like the other host hooks above so importing usePluginContext stays cheap.
 jest.mock('hooks/usePluginConfig', () => ({ __esModule: true, default: jest.fn() }));
@@ -38,6 +41,7 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
 jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
 
 const useAvailabilityMapMock = useAvailabilityMap as jest.MockedFunction<typeof useAvailabilityMap>;
+const useAvailabilityDataMock = useAvailabilityData as jest.MockedFunction<typeof useAvailabilityData>;
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
 
 const MOCK_AVAILABILITY_MAP = {
@@ -77,10 +81,23 @@ const MOCK_AUTH_CONTEXT = {
   authMode: 'NONE',
 };
 
+const MOCK_AVAILABILITY_DATA = {
+  soilProperties: [{ id: 'soil-property-1' }],
+  isLoadingSoilProperties: false,
+  categories: [{ id: 'category-1' }],
+  isLoadingCategories: false,
+  rasterCategories: [{ id: 'raster-category-1' }],
+  isLoadingRasterCategories: false,
+  visibleDatasets: [{ id: 'dataset-1' }],
+  isLoadingVisibleDatasets: false,
+  setAvailabilityData: jest.fn(),
+};
+
 describe('usePluginContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     useAvailabilityMapMock.mockReturnValue(MOCK_AVAILABILITY_MAP);
+    useAvailabilityDataMock.mockReturnValue(MOCK_AVAILABILITY_DATA as unknown as ReturnType<typeof useAvailabilityData>);
     useAuthContextMock.mockReturnValue({ ...MOCK_AUTH_CONTEXT, user: null });
   });
 
@@ -168,5 +185,50 @@ describe('usePluginContext', () => {
     expect(result.current.mapSelection?.selection.features).toEqual([
       { type: 'Feature', geometry: { type: 'Point', coordinates: [3, 4] }, properties: { baz: 'qux' } },
     ]);
+  });
+
+  it('useSoilProperties reads soil properties from the lifted AvailabilityDataContext instead of fetching its own', () => {
+    const { result } = renderHook(() => usePluginContext());
+    const { result: soilProperties } = renderHook(() => result.current.useSoilProperties());
+
+    expect(soilProperties.current).toEqual({ data: MOCK_AVAILABILITY_DATA.soilProperties, isLoading: false, isError: false });
+  });
+
+  it('usePropertiesCategories reads categories from the lifted AvailabilityDataContext instead of fetching its own', () => {
+    const { result } = renderHook(() => usePluginContext());
+    const { result: categories } = renderHook(() => result.current.usePropertiesCategories());
+
+    expect(categories.current).toEqual({ data: MOCK_AVAILABILITY_DATA.categories, isLoading: false, isError: false });
+  });
+
+  it('useRasterCategories reads raster categories from the lifted AvailabilityDataContext instead of fetching its own', () => {
+    const { result } = renderHook(() => usePluginContext());
+    const { result: rasterCategories } = renderHook(() => result.current.useRasterCategories());
+
+    expect(rasterCategories.current).toEqual({ data: MOCK_AVAILABILITY_DATA.rasterCategories, isLoading: false, isError: false });
+  });
+
+  it('useVisibleDatasets reads visible datasets from the lifted AvailabilityDataContext', () => {
+    const { result } = renderHook(() => usePluginContext());
+    const { result: visibleDatasets } = renderHook(() => result.current.useVisibleDatasets());
+
+    expect(visibleDatasets.current).toEqual({ data: MOCK_AVAILABILITY_DATA.visibleDatasets, isLoading: false, isError: false });
+  });
+
+  it('propagates loading flags from AvailabilityDataContext for soil properties, categories, raster categories and visible datasets', () => {
+    useAvailabilityDataMock.mockReturnValue({
+      ...MOCK_AVAILABILITY_DATA,
+      isLoadingSoilProperties: true,
+      isLoadingCategories: true,
+      isLoadingRasterCategories: true,
+      isLoadingVisibleDatasets: true,
+    } as unknown as ReturnType<typeof useAvailabilityData>);
+
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(renderHook(() => result.current.useSoilProperties()).result.current.isLoading).toBe(true);
+    expect(renderHook(() => result.current.usePropertiesCategories()).result.current.isLoading).toBe(true);
+    expect(renderHook(() => result.current.useRasterCategories()).result.current.isLoading).toBe(true);
+    expect(renderHook(() => result.current.useVisibleDatasets()).result.current.isLoading).toBe(true);
   });
 });
