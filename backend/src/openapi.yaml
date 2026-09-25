@@ -31,8 +31,8 @@ paths:
 
             For a normal user the response lists the grants the user holds. A Privileged caller
             (internal-request, data-admin or super-admin) bypasses config Entitlements, so for
-            `configs` and `dashboards` the response also gives it `write` on every config that is
-            not deleted, on top of its grants. For `datasets` a Privileged caller gets only the
+            `configs` and `dashboards` the response also gives it `read` and `write` on every config
+            that is not deleted, on top of its grants. For `datasets` a Privileged caller gets only the
             grants it holds.
       responses:
         '200':

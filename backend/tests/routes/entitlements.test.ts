@@ -402,22 +402,22 @@ describe('Testing entitlements routes', () => {
         `);
       });
 
-      it('gets WRITE on every config row under scope=dashboards, on top of its real grants', async () => {
+      it('gets READ and WRITE on every config row under scope=dashboards, on top of its real grants', async () => {
         const res = await request(app).get('/entitlements').query({ scope: 'dashboards' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
         expect(res.body).toEqual({
           dashboards_granted: ['read'],
-          'plugin:dashboards:dashboards_owned_by_someone': [Capability.WRITE],
+          'plugin:dashboards:dashboards_owned_by_someone': [Capability.READ, Capability.WRITE],
         });
       });
 
-      it('gets WRITE on every config row under scope=configs', async () => {
+      it('gets READ and WRITE on every config row under scope=configs', async () => {
         const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
         expect(res.body).toMatchObject({
           dashboards_granted: ['read'],
-          'plugin:dashboards:dashboards_owned_by_someone': [Capability.WRITE],
-          look_and_feel: [Capability.WRITE],
+          'plugin:dashboards:dashboards_owned_by_someone': [Capability.READ, Capability.WRITE],
+          look_and_feel: [Capability.READ, Capability.WRITE],
         });
         expect(res.body).not.toHaveProperty(['plugin:dashboards:dashboards_deleted']);
       });
@@ -428,11 +428,14 @@ describe('Testing entitlements routes', () => {
         expect(res.body).toEqual({ [slug]: ['download', 'preview'] });
       });
 
-      it.each(['dashboards', 'configs'])('does not give a non-privileged caller WRITE on config rows under scope=%s', async scope => {
-        const res = await request(app).get('/entitlements').query({ scope }).set('Authorization', `Bearer ${userToken}`);
-        expect(res.statusCode).toBe(StatusCodes.OK);
-        expect(res.body).toEqual({ dashboards_granted: ['read'] });
-      });
+      it.each(['dashboards', 'configs'])(
+        'does not give a non-privileged caller READ or WRITE on config rows under scope=%s',
+        async scope => {
+          const res = await request(app).get('/entitlements').query({ scope }).set('Authorization', `Bearer ${userToken}`);
+          expect(res.statusCode).toBe(StatusCodes.OK);
+          expect(res.body).toEqual({ dashboards_granted: ['read'] });
+        },
+      );
     });
   });
 

@@ -213,7 +213,7 @@ export default class EntitlementService {
 
   /**
    * `GET /entitlements?scope=`: the grants held, sliced to `scope`. A Privileged caller also gets
-   * WRITE on every (non-deleted) config row for a config scope (`configs` or a subkey): it
+   * READ and WRITE on every (non-deleted) config row for a config scope (`configs` or a subkey): it
    * bypasses the config gates (`canReadConfig`/`canWriteConfig`) but holds no grants, so its
    * grants alone would list nothing. Not part of `getUserEntitlements`, which also fills
    * `requestData.entitlements` on every request, where no gate would read the result.
@@ -222,15 +222,15 @@ export default class EntitlementService {
     const grants = await this.getUserEntitlements(requestData, getSubject(requestData));
     const isConfigScope = scope === EntitlementScope.CONFIGS || isConfigSubkeyScope(scope);
     const entitlements =
-      isConfigScope && isPrivilegedCaller(requestData.token) ? await this.addWriteOnEveryConfig(requestData, grants) : grants;
+      isConfigScope && isPrivilegedCaller(requestData.token) ? await this.addReadWriteOnEveryConfig(requestData, grants) : grants;
     return this.selectByScope(entitlements, scope);
   };
 
-  private addWriteOnEveryConfig = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
+  private addReadWriteOnEveryConfig = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
     const rows = await requestData.entityManager.getRepository(JsonStorage).find({ select: { id: true } });
     const configs: CapabilityGrants = Object.assign(Object.create(null), entitlements.configs);
     for (const { id } of rows) {
-      configs[id] = mergeCapabilities(configs[id], [Capability.WRITE]);
+      configs[id] = mergeCapabilities(configs[id], [Capability.READ, Capability.WRITE]);
     }
     return { ...entitlements, configs };
   };
