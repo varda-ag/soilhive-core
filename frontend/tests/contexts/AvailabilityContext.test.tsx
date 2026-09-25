@@ -32,6 +32,13 @@ jest.mock('hooks/useAvailabilityData', () => ({
 }));
 jest.mock('hooks/useEntitlementsHook', () => ({ useEntitlements: jest.fn() }));
 
+let mockSplitFilteringQueries = false;
+jest.mock('utilities/environmentVariables', () => ({
+  get SPLIT_FILTERING_QUERIES() {
+    return mockSplitFilteringQueries;
+  },
+}));
+
 const publicDataset: FilteredDatasetSummary = {
   id: 'dataset-public',
   name: 'Public Dataset',
@@ -79,6 +86,7 @@ const capabilitiesById: Record<string, Capability[]> = {
 describe('AvailabilityContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSplitFilteringQueries = false;
     (useAuthContext as jest.Mock).mockReturnValue({ isAuthenticated: true });
     (useAvailabilityMap as jest.Mock).mockReturnValue({ geometryFilter: [] });
     (useAvailabilityData as jest.Mock).mockReturnValue({ setAvailabilityData: jest.fn() });
@@ -162,5 +170,50 @@ describe('AvailabilityContext', () => {
         isLoadingRasterCategories: true,
       }),
     );
+  });
+
+  it('isDatasetsLoading follows the full coverage query by default', () => {
+    (useFilteredCoverageQuery as jest.Mock).mockImplementation((_filterId: string, geometryOnly?: boolean) => ({
+      data: undefined,
+      isLoading: !geometryOnly,
+    }));
+    (useFilteredDatasetsQuery as jest.Mock).mockReturnValue({ data: [], isLoading: false });
+
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    expect(result.current.isDatasetsLoading).toBe(true);
+  });
+
+  it('isDatasetsLoading ignores the geometry-only coverage query by default', () => {
+    (useFilteredCoverageQuery as jest.Mock).mockImplementation((_filterId: string, geometryOnly?: boolean) => ({
+      data: undefined,
+      isLoading: !!geometryOnly,
+    }));
+
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    expect(result.current.isDatasetsLoading).toBe(false);
+  });
+
+  it('isDatasetsLoading follows the datasets query when SPLIT_FILTERING_QUERIES is set', () => {
+    mockSplitFilteringQueries = true;
+    (useFilteredCoverageQuery as jest.Mock).mockReturnValue({ data: undefined, isLoading: true });
+    (useFilteredDatasetsQuery as jest.Mock).mockReturnValue({ data: [], isLoading: false });
+
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    expect(result.current.isDatasetsLoading).toBe(false);
+  });
+
+  it('isNoFilteredData is true when criteria are set and coverage returns no datasets', () => {
+    (useFilteredCoverageQuery as jest.Mock).mockReturnValue({ data: { datasets: [], raster_filters: {} }, isLoading: false });
+
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    act(() => {
+      result.current.setDatasetFilters({ soil_properties: ['property-1'] });
+    });
+
+    expect(result.current.isNoFilteredData).toBe(true);
   });
 });

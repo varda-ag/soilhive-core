@@ -284,6 +284,47 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
 };
 ```
 
+### Requesting statistics (`useDataRequest`)
+
+Call `context.useDataRequest(submission)` to compute descriptive statistics, a class distribution, or a value range for one soil property or soil index, over a filter's aggregation areas. Build the `submission` in a `useMemo`, and pass `undefined` while you don't have enough information to submit yet:
+
+```tsx
+import { useMemo } from 'react';
+import type { PluginContext, PluginDescriptiveSubmission } from 'frontend-plugin-types';
+
+const Widget: React.FC<{ context: PluginContext; filterId: string | undefined; propertyId: string }> = ({
+  context,
+  filterId,
+  propertyId,
+}) => {
+  const submission = useMemo<PluginDescriptiveSubmission | undefined>(
+    () =>
+      filterId
+        ? {
+            statistics_type: 'descriptive',
+            filter_id: filterId,
+            variable: { type: 'soil-property', id: propertyId },
+            time_aggregation: 'none',
+          }
+        : undefined,
+    [filterId, propertyId],
+  );
+
+  const { status, data, isStale, error } = context.useDataRequest(submission);
+
+  if (status === 'idle') return null;
+  if (error) return <p>{error.message}</p>;
+
+  return <p style={{ opacity: isStale ? 0.5 : 1 }}>{data ? `${data.results.length} results` : 'Loading…'}</p>;
+};
+```
+
+The hook is **declarative**: it submits when `submission` changes from `undefined` to a value, or when its content changes, and there is no `submit()` function to call yourself. `undefined` means "do not submit" — use it whenever a required input (a filter, a selection) is still missing.
+
+While a new submission is running, `data` still holds the result of the previous one and `isStale` is `true`, so a widget can keep showing its last chart instead of flashing empty. `error` is set with one of three kinds: `rejected` (the backend rejected the submission, a POST 4xx), `failed` (the Run itself failed), or `lost` (the result disappeared, a GET 404) — call `retry()` to submit the same payload again.
+
+The hook never gives you the Data Request's id: the id is the permission to read and to destroy that result (see `soilhive-core` ADR 0037), and a plugin only ever recomputes, never holds onto that permission.
+
 ## Registering your plugin with the host
 
 Scaffolding and syncing a plugin does not make it appear in the host. That is a separate step, and it currently has no UI. You must add an entry directly to the host's `ThemeConfig.plugins` — for example through `PUT /config/theme`, or directly in the database — with `url` pointing at your remote's `mf-manifest.json`.
