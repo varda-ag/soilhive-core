@@ -22,6 +22,7 @@ export * from './map';
 export * from './theme';
 export * from './filter';
 export * from './soil';
+export * from './dataRequest';
 
 export interface PluginContext {
   user?: PluginUser | null;
