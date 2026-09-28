@@ -9,6 +9,7 @@ import useTheme from 'hooks/useTheme';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useRaster } from 'hooks/useRaster';
+import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from 'hooks/usePluginDataRequest';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
@@ -36,6 +37,11 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
 }));
 jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
 jest.mock('hooks/useFilter', () => ({ useFilter: jest.fn() }));
+jest.mock('hooks/usePluginDataRequest', () => ({
+  usePluginDataRequest: jest.fn(),
+  usePluginDataRequestSubmit: jest.fn(),
+  usePluginDataRequestDelete: jest.fn(),
+}));
 
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
 const useFilterMock = useFilter as jest.MockedFunction<typeof useFilter>;
@@ -199,6 +205,14 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => context.current.useRasterCategories());
 
     expect(result.current).toEqual({ data: undefined, isLoading: true, isError: true });
+  });
+
+  it('exposes the three Data Request hooks', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.useDataRequestSubmit).toBe(usePluginDataRequestSubmit);
+    expect(result.current.useDataRequest).toBe(usePluginDataRequest);
+    expect(result.current.useDataRequestDelete).toBe(usePluginDataRequestDelete);
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {

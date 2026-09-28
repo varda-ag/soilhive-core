@@ -1,6 +1,7 @@
 import type {
   PluginClassDistribution,
   PluginClassDistributionSubmission,
+  PluginDataRequest,
   PluginDataRequestData,
   PluginDescriptiveSubmission,
   PluginSoilStatistics,
@@ -44,5 +45,25 @@ describe('PluginDataRequestData', () => {
     };
 
     expect(submission).toBeDefined();
+  });
+});
+
+describe('PluginDataRequest', () => {
+  it('narrows data on the top-level statistics_type', () => {
+    const narrow = (dataRequest: PluginDataRequest) => {
+      if (dataRequest.statistics_type === 'descriptive') {
+        const statistics: PluginSoilStatistics | undefined = dataRequest.data;
+        return statistics;
+      }
+      if (dataRequest.statistics_type === 'value-range') {
+        const range: PluginValueRange | undefined = dataRequest.data;
+        // @ts-expect-error a value range is not a class distribution
+        const distribution: PluginClassDistribution | undefined = dataRequest.data;
+        return range ?? distribution;
+      }
+      return undefined;
+    };
+
+    expect(narrow).toBeDefined();
   });
 });

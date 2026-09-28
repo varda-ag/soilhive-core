@@ -73,6 +73,12 @@ const parseExternalEntitlements = (body: unknown): CapabilityGrants => {
   return Object.assign(Object.create(null), ...body);
 };
 
+/** The config gates' one rule: `write` implies `read`. */
+const grantsConfig = (capabilities: Capability[] | undefined, capability: Capability.READ | Capability.WRITE): boolean =>
+  capability === Capability.WRITE
+    ? (capabilities?.includes(Capability.WRITE) ?? false)
+    : Boolean(capabilities?.some(granted => granted === Capability.READ || granted === Capability.WRITE));
+
 export default class EntitlementService {
   // Object.create(null): a subject id can legitimately be "__proto__" — same risk as
   // getUserEntitlements's merge loop, but here `acc[id] = ...` is a plain assignment, so it
@@ -377,8 +383,7 @@ export default class EntitlementService {
     if (isPrivilegedCaller(requestData.token)) {
       return true;
     }
-    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
-    return Boolean(callerCapabilities?.some(capability => capability === Capability.READ || capability === Capability.WRITE));
+    return grantsConfig(requestData.entitlements[EntitlementScope.CONFIGS]?.[key], Capability.READ);
   };
 
   /** Read gate for `GET /config/{configId}(/entitlements)` and `GET /config` (see ADR 0037). */
@@ -390,8 +395,26 @@ export default class EntitlementService {
 
   /** Boolean core of the write gate (see ADR 0037). `ConfigService.putConfig` calls this directly to branch into first-access bootstrap on `false`. */
   canWriteConfig = (requestData: RequestData, key: string): boolean =>
-    isPrivilegedCaller(requestData.token) ||
-    (requestData.entitlements[EntitlementScope.CONFIGS]?.[key]?.includes(Capability.WRITE) ?? false);
+    isPrivilegedCaller(requestData.token) || grantsConfig(requestData.entitlements[EntitlementScope.CONFIGS]?.[key], Capability.WRITE);
+
+  /**
+   * The same gates for one key, on a route that loads no entitlements (docs/adr/0041). Reads only
+   * the caller's and EVERYONE's local grants for that key: config items are never granted by the
+   * external endpoint, so neither that call nor slug expansion can change the answer.
+   */
+  canAccessConfig = async (requestData: RequestData, key: string, capability: Capability.READ | Capability.WRITE): Promise<boolean> => {
+    if (isPrivilegedCaller(requestData.token)) {
+      return true;
+    }
+    const subject = requestData.token ? getSubject(requestData) : undefined;
+    const rows: { capabilities: unknown }[] = await requestData.entityManager.query(
+      `SELECT "data"->'configs'->$1::text AS capabilities FROM "entitlements" WHERE "id" = ANY($2::text[]) AND "deleted_at" IS NULL`,
+      [key, subject ? [EVERYONE, subject] : [EVERYONE]],
+    );
+    // A non-array grant is malformed and skipped, as getUserEntitlements skips it.
+    const capabilities = rows.flatMap(row => (Array.isArray(row.capabilities) ? (row.capabilities as Capability[]) : []));
+    return grantsConfig(capabilities, capability);
+  };
 
   /** Write gate for `PUT /config/{configId}/entitlements` and `DELETE /config/{configId}` (see ADR 0037). */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {

@@ -124,6 +124,8 @@ export interface DataRequestJobParameters extends RunJobParameters {
   depth_ranges?: DepthRanges;
   /** `class-distribution` only (required there). */
   value_type?: ValueType;
+  /** Plugin config item this request is attached to: it gates reads and deletes (docs/adr/0041). */
+  config_id?: string;
 }
 
 export type TimeAggregation = number | 'none';

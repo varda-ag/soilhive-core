@@ -179,7 +179,8 @@ paths:
       summary: Delete configuration item
       description: >-
         Requires an existing WRITE grant on the config (EVERYONE's grants count), or a privileged
-        caller. No first-access bypass — deleting is not a way to first-access an id.
+        caller. No first-access bypass — deleting is not a way to first-access an id. Also destroys
+        every data request attached to the config.
       tags:
         - config
       security:
@@ -604,7 +605,9 @@ paths:
       description: >-
         Starts a run that resolves aggregation areas from a filter and computes the chosen
         statistics_type over them. Returns immediately with status `pending`; poll
-        GET /data-requests/{dataRequestId} for progress and for the result.
+        GET /data-requests/{dataRequestId} for progress and for the result. With config_id the
+        request is attached to that plugin config item, which must exist and on which the caller
+        needs write.
       tags:
         - data-requests
       security:
@@ -648,7 +651,8 @@ paths:
       x-eov-operation-id: getDataRequestById
       summary: Get a data request and its result
       description: >-
-        Anyone holding the id may read it; no token is required and a token is not consulted.
+        Anyone holding the id may read it, with no token required, unless the request is attached
+        to a config item: then read on that item is required.
       tags:
         - data-requests
       security:
@@ -661,6 +665,8 @@ paths:
             application/json:
               schema:
                 $ref: '../src/data-requests.yaml#/components/schemas/DataRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -669,6 +675,8 @@ paths:
       summary: Delete a data request
       description: >-
         Cancels the run if it is still in progress and permanently deletes the request and its result.
+        Anyone holding the id may delete it, unless the request is attached to a config item: then
+        write on that item is required.
       tags:
         - data-requests
       security:
@@ -677,6 +685,8 @@ paths:
       responses:
         '204':
           description: Data request deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 
