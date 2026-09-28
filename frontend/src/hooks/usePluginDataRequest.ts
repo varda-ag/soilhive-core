@@ -95,6 +95,8 @@ export function usePluginDataRequestDelete(): PluginMutationResult<{ id: string 
     endpoint: ({ id }) => `/${REST_END_POINTS.DATA_REQUESTS}/${id}`,
     method: 'DELETE',
     showErrorNotification: false,
+    // Already gone counts as deleted, so a plugin can repeat a delete safely.
+    notFoundAsNull: true,
   });
 
   return useMemo(

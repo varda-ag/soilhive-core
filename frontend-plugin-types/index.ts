@@ -55,6 +55,7 @@ export interface PluginContext {
   useDataRequestSubmit: (pluginId: string, configId: string) => PluginMutationResult<PluginDataRequestSubmission, PluginDataRequest>;
   // Polls until completed or failed; undefined id = do not fetch.
   useDataRequest: (id: string | undefined) => PluginDataRequestResult;
+  // Resolves when the id is already gone, so a delete is safe to repeat.
   useDataRequestDelete: () => PluginMutationResult<{ id: string }, void>;
   // Absolute URL of a dataset's metadata page. Provided by the host because the
   // origin comes from its runtime configuration, which a remote plugin cannot read.

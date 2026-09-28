@@ -290,7 +290,7 @@ A Data Request computes descriptive statistics, a class distribution, or a value
 
 - `context.useDataRequestSubmit(pluginId, configId)` submits one. The request is **attached** to your config item `configId`, which must already be saved (see `usePluginConfig`). The caller needs write on that item.
 - `context.useDataRequest(id)` reads one and polls it until it is `completed` or `failed`. Pass `undefined` to skip fetching.
-- `context.useDataRequestDelete()` destroys one.
+- `context.useDataRequestDelete()` destroys one. Deleting an id that is already gone also succeeds, so a delete is safe to repeat.
 
 You store the returned `id`, normally inside the same config item, and you delete it yourself when a widget is removed or its settings change. The host never deletes one for you. Anyone with read on the config item can read the result, and only those with write can delete it (see `soilhive-core` ADR 0041).
 

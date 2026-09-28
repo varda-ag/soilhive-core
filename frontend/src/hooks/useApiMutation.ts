@@ -8,12 +8,14 @@ type UseApiMutationOptions<TVariables = void> = {
   body?: TVariables;
   parameters?: Array<[string, string]>;
   showErrorNotification?: boolean;
+  notFoundAsNull?: boolean;
 };
 
 export function useApiMutation<TResponse, TVariables = void>({
   endpoint,
   method,
   showErrorNotification,
+  notFoundAsNull,
 }: UseApiMutationOptions<TVariables>) {
   const { request } = useRequest();
 
@@ -25,6 +27,7 @@ export function useApiMutation<TResponse, TVariables = void>({
         method,
         body: variables,
         showErrorNotification,
+        notFoundAsNull,
       }) as Promise<TResponse>;
     },
   });

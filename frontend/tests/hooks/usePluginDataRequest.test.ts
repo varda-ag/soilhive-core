@@ -197,8 +197,10 @@ describe('usePluginDataRequestDelete', () => {
 
     await result.current.mutateAsync({ id: 'dr-1' });
 
-    const { endpoint, method } = useApiMutationMock.mock.calls[0][0];
+    const { endpoint, method, notFoundAsNull } = useApiMutationMock.mock.calls[0][0];
     expect(method).toBe('DELETE');
+    // A request that is already gone resolves rather than rejects.
+    expect(notFoundAsNull).toBe(true);
     expect(endpoint({ id: 'dr-1' })).toBe('/data-requests/dr-1');
     expect(mutateAsync).toHaveBeenCalledWith({ id: 'dr-1' });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: dataRequestQueryKey('dr-1') });
