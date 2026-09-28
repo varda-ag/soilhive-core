@@ -25,8 +25,9 @@ export const queryClient = new QueryClient();
 
 // Reads PluginContext at render time, inside the route tree, instead of the router baking in a
 // snapshot captured when `router` was built. `usePluginContext()`'s return value changes identity
-// often (e.g. map selection state); if that identity fed the `router` useMemo below, react-router's
-// `RouterProvider` would be handed a brand-new router instance on every such change. RouterProvider
+// whenever the auth `user` does (sign-in/out, token renewal); if that identity fed the `router`
+// useMemo below, react-router's `RouterProvider` would be handed a brand-new router instance on
+// every such change. RouterProvider
 // only resyncs its internal state on a router *identity* change, so swapping instances mid-flight —
 // most visibly during the cascade of state updates right after the initial loading gate opens —
 // leaves route elements (like this one, which renders its own nested <Routes>) briefly rendered
