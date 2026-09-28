@@ -10,7 +10,7 @@ export function useDataFilterQuery(filters: DataFilterDTO, enabled: boolean = tr
   // between when inputs change and when the query actually starts.
   const isDebouncePending = enabled && isPending;
 
-  const { data, isLoading } = useApiQuery<BackendStoredDataFilter, DataFilterDTO>({
+  const { data, isLoading, isError } = useApiQuery<BackendStoredDataFilter, DataFilterDTO>({
     endpoint: '/data-filters',
     method: 'POST',
     body: debouncedFilters,
@@ -22,5 +22,6 @@ export function useDataFilterQuery(filters: DataFilterDTO, enabled: boolean = tr
     filterId: data?.id,
     selectedFilters: data,
     isLoading: isLoading || isDebouncePending,
+    isError,
   };
 }

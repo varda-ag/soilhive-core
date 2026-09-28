@@ -97,6 +97,15 @@ describe('useRaster', () => {
     expect(result.current.allCategories).toHaveLength(4);
   });
 
+  it('returns isError when the raster filters query fails', () => {
+    useQueryMock.mockReturnValue({ data: undefined, isLoading: false, isError: true } as any);
+
+    const { result } = renderHook(() => useRaster());
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.allCategories).toBeUndefined();
+  });
+
   it('select sorts categories by name regardless of backend order', () => {
     let capturedConfig: any;
     useQueryMock.mockImplementation((config: any) => {

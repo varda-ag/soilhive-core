@@ -11,8 +11,10 @@ type ThemeContextType = {
   themeConfig: ThemeConfig;
   logo: string | null;
   isLogoLoading: boolean;
+  isLogoError: boolean;
   setLogo: React.Dispatch<React.SetStateAction<string | null>>;
   isLoadingThemeConfig: boolean;
+  isThemeConfigError: boolean;
   saveColors: (colors: ThemeColors) => Promise<void>;
   saveDefaultColors: (defaultColors: ThemeColors) => Promise<void>;
   saveMapSettings: (initialBbox: number[], daiConfig: DaiConfig) => Promise<void>;
@@ -46,7 +48,12 @@ export const defaultThemeConfig: ThemeConfig = {
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const { t } = useTranslation('admin');
   const { showNotification } = useNotifications();
-  const { isLoading: isLoadingThemeConfig, config: themeConfig, saveConfig } = useConfig<ThemeConfig>('theme', defaultThemeConfig);
+  const {
+    isLoading: isLoadingThemeConfig,
+    isError: isThemeConfigError,
+    config: themeConfig,
+    saveConfig,
+  } = useConfig<ThemeConfig>('theme', defaultThemeConfig);
 
   const saveColors = async (colors: ThemeColors) => {
     await saveConfig({
@@ -135,7 +142,12 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const [logo, setLogo] = useState<string | null>(null);
 
-  const { data: logoResponse, isLoading: isLogoLoading } = useApiQuery<Blob | MediaSource>({
+  // notFoundAsNull resolves a missing logo (404) to null, so isLogoError only flags real failures.
+  const {
+    data: logoResponse,
+    isLoading: isLogoLoading,
+    isError: isLogoError,
+  } = useApiQuery<Blob | MediaSource>({
     endpoint: `/${REST_END_POINTS.LOGO}`,
     method: 'GET',
     queryKey: [`${REST_END_POINTS.LOGO}`],
@@ -177,7 +189,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         saveNotificationBanner,
         setLogo,
         isLogoLoading,
+        isLogoError,
         isLoadingThemeConfig,
+        isThemeConfigError,
       }}
     >
       {children}

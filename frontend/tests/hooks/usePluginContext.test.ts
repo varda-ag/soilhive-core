@@ -5,15 +5,20 @@ import usePluginConfigs from 'hooks/usePluginConfigs';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
 import { useFilter } from 'hooks/useFilter';
+import useTheme from 'hooks/useTheme';
+import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
+import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
+import { useRaster } from 'hooks/useRaster';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
 }));
 
-// Only useAuthContext is actually invoked by usePluginContext itself, and useFilter
-// is exercised through context.useFilter below; the rest are mocked purely to avoid
-// pulling in their real (heavy) module graphs at import time.
+// Only useAuthContext is actually invoked by usePluginContext itself; useFilter, useTheme,
+// useDataFilterQuery, useFilteredCoverageQuery and useRaster are exercised through the
+// context below, and the rest are mocked purely to avoid pulling in their real (heavy)
+// module graphs at import time.
 jest.mock('hooks/useTheme', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/useDataFilterQuery', () => ({ useDataFilterQuery: jest.fn() }));
 jest.mock('hooks/useFilteredCoverageQuery', () => ({ useFilteredCoverageQuery: jest.fn() }));
@@ -34,6 +39,10 @@ jest.mock('hooks/useFilter', () => ({ useFilter: jest.fn() }));
 
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
 const useFilterMock = useFilter as jest.MockedFunction<typeof useFilter>;
+const useThemeMock = useTheme as jest.MockedFunction<typeof useTheme>;
+const useDataFilterQueryMock = useDataFilterQuery as jest.MockedFunction<typeof useDataFilterQuery>;
+const useFilteredCoverageQueryMock = useFilteredCoverageQuery as jest.MockedFunction<typeof useFilteredCoverageQuery>;
+const useRasterMock = useRaster as jest.MockedFunction<typeof useRaster>;
 
 const MOCK_AUTH_CONTEXT = {
   isEmailBasedAuth: false,
@@ -126,6 +135,70 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => context.current.useFilter(undefined));
 
     expect(result.current).toEqual({ data: undefined, isLoading: true, isError: false });
+  });
+
+  it.each([
+    { name: 'theme config errors', isThemeConfigError: true, isLogoError: false },
+    { name: 'logo errors', isThemeConfigError: false, isLogoError: true },
+  ])('maps useTheme to a PluginQueryResult with isError true when $name', ({ isThemeConfigError, isLogoError }) => {
+    const colors = { primary: '#111111' };
+    useThemeMock.mockReturnValue({
+      themeConfig: { colors },
+      logo: 'blob:logo-url',
+      isLoadingThemeConfig: false,
+      isLogoLoading: true,
+      isThemeConfigError,
+      isLogoError,
+    } as any);
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useTheme());
+
+    expect(result.current).toEqual({ data: { colors, logoUrl: 'blob:logo-url' }, isLoading: true, isError: true });
+  });
+
+  it('does not flag useTheme as errored when there is no logo', () => {
+    useThemeMock.mockReturnValue({
+      themeConfig: { colors: {} },
+      logo: null,
+      isLoadingThemeConfig: false,
+      isLogoLoading: false,
+      isThemeConfigError: false,
+      isLogoError: false,
+    } as any);
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useTheme());
+
+    expect(result.current).toEqual({ data: { colors: {}, logoUrl: null }, isLoading: false, isError: false });
+  });
+
+  it('forwards isLoading and isError from useDataFilterQuery', () => {
+    useDataFilterQueryMock.mockReturnValue({ filterId: undefined, selectedFilters: undefined, isLoading: true, isError: true });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useDataFilterQuery({ geometries: [], parameters: {} }));
+
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: true });
+  });
+
+  it('forwards isLoading and isError from useFilteredCoverageQuery', () => {
+    useFilteredCoverageQueryMock.mockReturnValue({ data: undefined, isLoading: true, isError: true });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useFilteredCoverageQuery('abc'));
+
+    expect(useFilteredCoverageQueryMock).toHaveBeenCalledWith('abc', undefined);
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: true });
+  });
+
+  it('forwards isLoading and isError from useRaster as useRasterCategories', () => {
+    useRasterMock.mockReturnValue({ allCategories: undefined, isLoading: true, isError: true, setCategoryActive: jest.fn() });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useRasterCategories());
+
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: true });
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {

@@ -39,6 +39,15 @@ describe('useFilteredCoverageQuery', () => {
     expect(result.current.data).toEqual(MOCK_FILTERED_DATA);
   });
 
+  it('returns isError when the request fails', () => {
+    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false, isError: true } as any);
+
+    const { result } = renderHook(() => useFilteredCoverageQuery('test-filter-id'));
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.data).toBeUndefined();
+  });
+
   it('calls the correct endpoint with the given filterDataId', () => {
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
 

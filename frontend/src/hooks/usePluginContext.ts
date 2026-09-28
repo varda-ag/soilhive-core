@@ -34,16 +34,17 @@ import { usePluginUserEntitlements } from './usePluginUserEntitlements';
 import { metadataUrl } from 'configuration/routes';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
-  const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading } = useHostTheme();
+  const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading, isThemeConfigError, isLogoError } = useHostTheme();
+  // A missing logo (404) isn't an error — the host resolves it to a null logoUrl.
   return {
     data: { colors: themeConfig.colors, logoUrl: logo },
     isLoading: isLoadingThemeConfig || isLogoLoading,
-    isError: false,
+    isError: isThemeConfigError || isLogoError,
   };
 }
 
 function usePluginDataFilterQuery(filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number): PluginQueryResult<string> {
-  const { filterId, isLoading } = useHostDataFilterQuery(
+  const { filterId, isLoading, isError } = useHostDataFilterQuery(
     {
       geometries: filters.geometries as DataFilterDTO['geometries'],
       parameters: {
@@ -55,12 +56,12 @@ function usePluginDataFilterQuery(filters: PluginDataFilterInput, enabled?: bool
     debounceTime,
   );
 
-  return { data: filterId, isLoading, isError: false };
+  return { data: filterId, isLoading, isError };
 }
 
 function usePluginFilteredCoverageQuery(filterId: string | undefined, geometryOnly?: boolean): PluginQueryResult<PluginFilteredData> {
-  const { data, isLoading } = useHostFilteredCoverageQuery(filterId, geometryOnly);
-  return { data: data as PluginFilteredData | undefined, isLoading, isError: false };
+  const { data, isLoading, isError } = useHostFilteredCoverageQuery(filterId, geometryOnly);
+  return { data: data as PluginFilteredData | undefined, isLoading, isError };
 }
 
 // Narrow explicitly rather than passing the stored filter through as-is: it
@@ -91,8 +92,8 @@ function usePluginPropertiesCategories(): PluginQueryResult<PluginSoilPropertyCa
 }
 
 function usePluginRasterCategories(): PluginQueryResult<PluginRasterFilterCategory[]> {
-  const { allCategories, isLoading } = useHostRaster();
-  return { data: allCategories, isLoading, isError: false };
+  const { allCategories, isLoading, isError } = useHostRaster();
+  return { data: allCategories, isLoading, isError };
 }
 
 function usePluginSoilData(parameters: PluginSoilDataParameters): PluginSoilDataResult {
