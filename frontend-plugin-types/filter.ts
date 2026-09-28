@@ -20,6 +20,12 @@ export interface PluginDataFilterInput {
   parameters: PluginFilterCriteria;
 }
 
+export interface PluginStoredDataFilter {
+  id: string;
+  name?: string;
+  filter: PluginDataFilterInput;
+}
+
 export interface PluginFilteredDatasetSummary extends PluginFilterCriteria {
   id: string;
   name: string;

@@ -61,7 +61,7 @@ Fetches a theme config object from `/config/:id`.
 Fires a filtered dataset query against the backend based on the current filter state from `AvailabilityContext` and geometry from `AvailabilityMapContext`.
 
 ### `useFilter(filterId)`
-Fetches a stored filter by id from `/data-filters/:id`. Disabled until `filterId` is set.
+Fetches a stored filter by id from `/data-filters/:id`. Disabled until `filterId` is set. Plugins get it as `context.useFilter` (see [plugin-development.md](plugin-development.md)).
 
 ### `useFilteredDatasetsQuery(filters)`
 Fetches datasets filtered by the current availability filters. Used to populate the datasets sidebar.

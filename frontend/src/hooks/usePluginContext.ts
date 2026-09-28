@@ -4,6 +4,7 @@ import type {
   PluginDataRequestData,
   PluginDataRequestResult,
   PluginDataRequestSubmission,
+  PluginFilterCriteria,
   PluginFilteredData,
   PluginGeometry,
   PluginQueryResult,
@@ -12,6 +13,7 @@ import type {
   PluginSoilDataResult,
   PluginSoilProperty,
   PluginSoilPropertyCategory,
+  PluginStoredDataFilter,
   PluginTheme,
 } from 'frontend-plugin-types';
 import type { DataFilterDTO, GISDataType } from 'types/backend';
@@ -19,6 +21,7 @@ import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import useAvailabilityMap from './useAvailabilityMap';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
+import { useFilter as useHostFilter } from './useFilter';
 import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { usePropertiesCategories as useHostPropertiesCategories } from './usePropertiesCategories';
 import { useRaster as useHostRaster } from './useRaster';
@@ -61,6 +64,23 @@ function usePluginFilteredCoverageQuery(filterId: string | undefined, geometryOn
   return { data: data as PluginFilteredData | undefined, isLoading, isError: false };
 }
 
+// Narrow explicitly rather than passing the stored filter through as-is: it
+// carries the owner, which PluginContext's thin contract must not leak to plugins.
+function usePluginFilter(filterId: string | undefined): PluginQueryResult<PluginStoredDataFilter> {
+  const { filter, isLoading, isError } = useHostFilter(filterId);
+  const data = filter
+    ? {
+        id: filter.id,
+        name: filter.name,
+        filter: {
+          geometries: filter.filter.geometries as PluginGeometry[],
+          parameters: filter.filter.parameters as PluginFilterCriteria,
+        },
+      }
+    : undefined;
+  return { data, isLoading, isError };
+}
+
 function usePluginSoilProperties(): PluginQueryResult<PluginSoilProperty[]> {
   const { data, isLoading, isError } = useHostSoilProperties();
   return { data, isLoading, isError };
@@ -101,6 +121,7 @@ export function usePluginContext(): PluginContext {
       useTheme: usePluginTheme,
       useDataFilterQuery: usePluginDataFilterQuery,
       useFilteredCoverageQuery: usePluginFilteredCoverageQuery,
+      useFilter: usePluginFilter,
       useSoilProperties: usePluginSoilProperties,
       usePropertiesCategories: usePluginPropertiesCategories,
       useRasterCategories: usePluginRasterCategories,

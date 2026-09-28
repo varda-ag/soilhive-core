@@ -260,6 +260,15 @@ Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in
 const { data, isLoading } = context.usePluginConfigs<WidgetSettings>(pluginId, ['widget-a', 'widget-b']);
 ```
 
+### Fetching a stored filter
+
+Call `context.useFilter(filterId)` to fetch a stored filter's geometries and parameters by id. It sends no request while `filterId` is `undefined`. A filter that doesn't exist sets `isError`, and it isn't retried:
+
+```tsx
+const { data, isLoading, isError } = context.useFilter(filterId);
+// data?.filter.geometries, data?.filter.parameters
+```
+
 ### Linking to a dataset's metadata page
 
 Call `context.metadataUrl(datasetId)` to get the absolute URL of a dataset's metadata page. Use the dataset `id` exactly as it arrives from `context.useFilteredCoverageQuery` — it is the dataset slug, which is what the metadata route expects.

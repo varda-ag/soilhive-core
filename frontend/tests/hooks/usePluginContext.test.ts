@@ -6,6 +6,7 @@ import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
+import { useFilter } from 'hooks/useFilter';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('hooks/useAvailabilityMap', () => ({
@@ -36,9 +37,11 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
   usePluginConfigEntitlementsMutation: jest.fn(),
 }));
 jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
+jest.mock('hooks/useFilter', () => ({ useFilter: jest.fn() }));
 
 const useAvailabilityMapMock = useAvailabilityMap as jest.MockedFunction<typeof useAvailabilityMap>;
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
+const useFilterMock = useFilter as jest.MockedFunction<typeof useFilter>;
 
 const MOCK_AVAILABILITY_MAP = {
   selectedPoint: null,
@@ -112,6 +115,54 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.usePluginUserEntitlements).toBe(usePluginUserEntitlements);
+  });
+
+  it('maps useFilter to a PluginQueryResult, never leaking the owner', () => {
+    const geometry: GeoJSON.Polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    };
+    useFilterMock.mockReturnValue({
+      filter: {
+        id: 'abc',
+        name: 'My filter',
+        owner: 'owner-123',
+        filter: { geometries: [geometry], parameters: { soil_properties: ['ph'] } },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useFilter('abc'));
+
+    expect(useFilterMock).toHaveBeenCalledWith('abc');
+    expect(result.current).toEqual({
+      data: {
+        id: 'abc',
+        name: 'My filter',
+        filter: { geometries: [geometry], parameters: { soil_properties: ['ph'] } },
+      },
+      isLoading: false,
+      isError: false,
+    });
+    expect(JSON.stringify(result.current)).not.toContain('owner');
+  });
+
+  it('returns undefined data from useFilter while no filter is loaded', () => {
+    useFilterMock.mockReturnValue({ filter: undefined, isLoading: true, isError: false });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useFilter(undefined));
+
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: false });
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {
