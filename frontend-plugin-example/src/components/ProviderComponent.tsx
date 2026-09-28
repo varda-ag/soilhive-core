@@ -16,10 +16,10 @@ const pluginId = 'unique-id-of-remote-module'; // must be unique across every pl
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const {
     user,
-    mapSelection,
     useTheme,
     useDataFilterQuery,
     useFilteredCoverageQuery,
+    useFilter,
     useSoilProperties,
     usePropertiesCategories,
     useRasterCategories,
@@ -28,8 +28,11 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   } = context;
   const { config: settings, saveConfig: saveSettings } = usePluginConfig(pluginId, 'settings', { clickCount: 0 });
   const { data: theme } = useTheme();
+  // The host links here with ?filterId=..., so the selection travels as a stored filter id.
+  const urlFilterId = new URLSearchParams(window.location.search).get('filterId') ?? undefined;
+  const { data: storedFilter, isLoading: isStoredFilterLoading } = useFilter(urlFilterId);
   const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
-    geometries: mapSelection?.geometryFilter ?? [],
+    geometries: storedFilter?.filter.geometries ?? [],
     parameters: { data_types: ['point'] },
   });
   const { data: coverage, isLoading: isCoverageLoading } = useFilteredCoverageQuery(filterId);
@@ -55,8 +58,12 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
       <h1 className="title">Hello Module Federation 2.0</h1>
       <p>User from host: {user ? (user.profile?.name ?? user.profile?.email ?? 'authenticated user') : '(none received)'}</p>
       <p>
-        Map selection from host:{' '}
-        {mapSelection ? `${mapSelection.selectionType} in ${mapSelection.boundingBox ?? 'empty bounding box'}` : '(none received)'}
+        Stored filter from URL:{' '}
+        {isStoredFilterLoading
+          ? 'loading…'
+          : storedFilter
+            ? `${storedFilter.name ?? storedFilter.id} (${storedFilter.filter.geometries.length} geometry(ies))`
+            : '(none received)'}
       </p>
       <p>
         Theme colors from host:{' '}

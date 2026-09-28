@@ -19,7 +19,6 @@ import type {
 import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
-import useAvailabilityMap from './useAvailabilityMap';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
 import { useFilter as useHostFilter } from './useFilter';
 import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
@@ -110,7 +109,6 @@ function usePluginDataRequest<S extends PluginDataRequestSubmission>(
 
 export function usePluginContext(): PluginContext {
   const { user } = useAuthContext();
-  const { selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName } = useAvailabilityMap();
 
   return useMemo<PluginContext>(
     () => ({
@@ -139,27 +137,7 @@ export function usePluginContext(): PluginContext {
       // A plain function, not a hook: plugins call it while rendering a dataset
       // row, so it must not add a hook to their render order.
       metadataUrl,
-      // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
-      // classes, not plain data, which PluginContext's thin contract must not depend on.
-      mapSelection: {
-        selectedPoint: selectedPoint ? { lng: selectedPoint.lng, lat: selectedPoint.lat } : null,
-        selectedH3Cell: selectedH3Cell
-          ? { type: 'Feature' as const, geometry: selectedH3Cell.geometry, properties: selectedH3Cell.properties }
-          : null,
-        selection: {
-          type: selection.type,
-          features: selection.features.map(feature => ({
-            type: 'Feature' as const,
-            geometry: (feature as GeoJSON.Feature).geometry,
-            properties: (feature as GeoJSON.Feature).properties,
-          })),
-        },
-        boundingBox,
-        geometryFilter: geometryFilter as PluginGeometry[],
-        selectionType,
-        locationName,
-      },
     }),
-    [user, selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName],
+    [user],
   );
 }

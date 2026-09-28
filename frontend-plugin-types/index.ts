@@ -7,7 +7,6 @@ import type {
   PluginUser,
 } from './common';
 import type { PluginDataRequestData, PluginDataRequestResult, PluginDataRequestSubmission } from './dataRequest';
-import type { PluginMapSelection } from './map';
 import type { PluginDataFilterInput, PluginFilteredData, PluginStoredDataFilter } from './filter';
 import type {
   PluginRasterFilterCategory,
@@ -27,7 +26,6 @@ export * from './dataRequest';
 
 export interface PluginContext {
   user?: PluginUser | null;
-  mapSelection?: PluginMapSelection;
   useTheme: () => PluginQueryResult<PluginTheme>;
   useDataFilterQuery: (filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number) => PluginQueryResult<string>;
   useFilteredCoverageQuery: (filterId: string | undefined, geometryOnly?: boolean) => PluginQueryResult<PluginFilteredData>;

@@ -6,13 +6,13 @@ import type {
   PluginDataRequestResult,
   PluginDataRequestSubmission,
   PluginFilteredData,
-  PluginMapSelection,
   PluginMutationResult,
   PluginQueryResult,
   PluginRasterFilterCategory,
   PluginSoilDataResult,
   PluginSoilProperty,
   PluginSoilPropertyCategory,
+  PluginStoredDataFilter,
   PluginTheme,
 } from 'frontend-plugin-types';
 
@@ -22,14 +22,26 @@ import type {
  */
 const query = <T>(data: T): PluginQueryResult<T> => ({ data, isLoading: false, isError: false });
 
-const mapSelection: PluginMapSelection = {
-  selectedPoint: { lng: -122.4194, lat: 37.7749 },
-  selectedH3Cell: null,
-  selection: { type: 'FeatureCollection', features: [] },
-  boundingBox: [-122.5, 37.7, -122.35, 37.85],
-  geometryFilter: [],
-  selectionType: 'drawn-polygon',
-  locationName: 'Local Preview Area',
+const storedFilter: PluginStoredDataFilter = {
+  id: 'mock-filter-id',
+  name: 'Local Preview Area',
+  filter: {
+    geometries: [
+      {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-122.5, 37.7],
+            [-122.35, 37.7],
+            [-122.35, 37.85],
+            [-122.5, 37.85],
+            [-122.5, 37.7],
+          ],
+        ],
+      },
+    ],
+    parameters: {},
+  },
 };
 
 const theme: PluginTheme = {
@@ -147,10 +159,10 @@ function useDataRequest<S extends PluginDataRequestSubmission>(
 
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
-  mapSelection,
   useTheme: () => query(theme),
   useDataFilterQuery: () => query('mock-filter-id'),
   useFilteredCoverageQuery: () => query(filteredCoverage),
+  useFilter: () => query(storedFilter),
   useSoilProperties: () => query(soilProperties),
   usePropertiesCategories: () => query(propertiesCategories),
   useRasterCategories: () => query(rasterCategories),

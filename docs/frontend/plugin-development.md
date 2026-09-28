@@ -168,7 +168,7 @@ The host's map has three features that `--with-map` does not vendor. Each one ne
 | Host feature | Why it is not vendored | What you get instead |
 |---|---|---|
 | DAI overlay | It needs a host-only network hook, tied to a live backend filter session | Nothing equivalent. Omit the `dai` prop |
-| Selection info card (`AreaInfo`) | It is also the planned future home of a `map-info-card` capability that must stay host-only (see ADR 9997) | `PluginContext.mapSelection`. Build your own card and render it through `SoilhiveMap`'s `children` slot (needs `react-map-gl` context, for example a `Popup`) or `footer` slot (a plain sibling element, for example a bottom bar) |
+| Selection info card (`AreaInfo`) | It is also the planned future home of a `map-info-card` capability that must stay host-only (see ADR 9997) | Your own `selectionState` (see above), or `context.useFilter(filterId)` for a selection passed in as a `filterId`. Build your own card and render it through `SoilhiveMap`'s `children` slot (needs `react-map-gl` context, for example a `Popup`) or `footer` slot (a plain sibling element, for example a bottom bar) |
 | Style switcher UI | It needs `primereact`'s `Dialog` | The `currentMapStyleIndex` prop. Build your own switcher and pass the index back in |
 | "Upload a polygon" toolbar modal | It needs `primereact`'s `Dialog` | `SoilhiveMapRef.onUpload`. It only accepts an already-parsed geometry; it does not read files or provide a drop zone. Pass your own `onUploadClick` to show your own upload UI, or wire up drag-and-drop yourself — see the next section |
 
@@ -205,7 +205,7 @@ For an "upload via a button" flow instead of drag-and-drop, use the `onUploadCli
 
 ## Using host data and hooks (`PluginContext`)
 
-Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, map selection, the logged-in user, your plugin's own persisted config, and dataset metadata URLs.
+Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, stored filters by id, the logged-in user, your plugin's own persisted config, and dataset metadata URLs.
 
 See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`.
 
@@ -267,6 +267,13 @@ Call `context.useFilter(filterId)` to fetch a stored filter's geometries and par
 ```tsx
 const { data, isLoading, isError } = context.useFilter(filterId);
 // data?.filter.geometries, data?.filter.parameters
+```
+
+This is how a plugin receives the host's map selection: the context carries no live selection, so link to your plugin with a `filterId` query parameter and read it back:
+
+```tsx
+const filterId = new URLSearchParams(window.location.search).get('filterId') ?? undefined;
+const { data } = context.useFilter(filterId);
 ```
 
 ### Linking to a dataset's metadata page
