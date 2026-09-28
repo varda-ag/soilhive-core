@@ -19,7 +19,6 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
     useTheme,
     useDataFilterQuery,
     useFilteredCoverageQuery,
-    useFilter,
     useSoilProperties,
     usePropertiesCategories,
     useRasterCategories,
@@ -28,11 +27,8 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   } = context;
   const { config: settings, saveConfig: saveSettings } = usePluginConfig(pluginId, 'settings', { clickCount: 0 });
   const { data: theme } = useTheme();
-  // The host links here with ?filterId=..., so the selection travels as a stored filter id.
-  const urlFilterId = new URLSearchParams(window.location.search).get('filterId') ?? undefined;
-  const { data: storedFilter, isLoading: isStoredFilterLoading } = useFilter(urlFilterId);
   const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
-    geometries: storedFilter?.filter.geometries ?? [],
+    geometries: [],
     parameters: { data_types: ['point'] },
   });
   const { data: coverage, isLoading: isCoverageLoading } = useFilteredCoverageQuery(filterId);
@@ -57,14 +53,6 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
       </div>
       <h1 className="title">Hello Module Federation 2.0</h1>
       <p>User from host: {user ? (user.profile?.name ?? user.profile?.email ?? 'authenticated user') : '(none received)'}</p>
-      <p>
-        Stored filter from URL:{' '}
-        {isStoredFilterLoading
-          ? 'loading…'
-          : storedFilter
-            ? `${storedFilter.name ?? storedFilter.id} (${storedFilter.filter.geometries.length} geometry(ies))`
-            : '(none received)'}
-      </p>
       <p>
         Theme colors from host:{' '}
         {theme
