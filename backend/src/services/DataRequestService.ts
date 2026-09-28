@@ -3,11 +3,23 @@ import { RequestData } from '../interfaces/RequestData';
 import { DataRequest } from '../interfaces/DataRequest';
 import { DataRequestJob, DataRequestJobParameters, Job } from '../interfaces/Job';
 import { DataRequestOutput } from '../jobs/data-requests/types';
-import { DataRequestRecord, deleteDataRequest, findDataRequest, toDataRequestParameters } from '../data-layer/DataRequests';
-import { DataRequestStatus, JobQueues } from '../types/enums';
+import {
+  DataRequestRecord,
+  deleteAttachedDataRequests,
+  deleteDataRequest,
+  findDataRequest,
+  findDataRequestAttachment,
+  toDataRequestParameters,
+} from '../data-layer/DataRequests';
+import { JsonStorage } from '../entities/JsonStorage';
+import { PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
+import { Capability, DataRequestStatus, JobQueues } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
 import { log } from '../utils/logger';
+import EntitlementService from './EntitlementService';
 import JobService from './JobService';
+
+const entitlementService = new EntitlementService();
 
 /**
  * Job states that mean "this Data Request must be hidden".
@@ -38,7 +50,8 @@ const STATUS_BY_JOB_STATE: Record<string, DataRequestStatus> = {
  * id and one contract. JobService is used for the three pg-boss operations that are genuinely
  * shared - enqueue, find, cancel - and for nothing else: its ownership rules are deliberately
  * bypassed, because a Data Request has no owner and possession of the id is the whole of the
- * permission both to read it and to destroy it.
+ * permission both to read it and to destroy it. The exception is an attached Data Request, gated
+ * by `read`/`write` on its config item (docs/adr/0041).
  */
 export default class DataRequestService {
   private jobService = new JobService();
@@ -55,6 +68,9 @@ export default class DataRequestService {
    * What the token never does is decide who may read or destroy the result.
    */
   createDataRequest = async (requestData: RequestData, parameters: DataRequestJobParameters): Promise<DataRequest> => {
+    if (parameters.config_id !== undefined) {
+      await this.assertCanAttach(requestData, parameters.config_id);
+    }
     const job = await this.jobService.createJob(requestData, {
       ...parameters,
       type: JobQueues.DATA_REQUESTS,
@@ -74,6 +90,7 @@ export default class DataRequestService {
   getDataRequest = async (requestData: RequestData, id: string): Promise<DataRequest> => {
     const job = await this.findLiveJob(id);
     if (job) {
+      await this.assertConfigAccess(requestData, id, (job.data as DataRequestJob).config_id, Capability.READ);
       // The record is read only once the Run has terminated. `data` is unbounded, so fetching it
       // beside a job that is still running would pay for a payload that cannot exist yet.
       const record = TERMINAL_JOB_STATES.includes(job.status) ? await findDataRequest(requestData.entityManager, id) : null;
@@ -82,6 +99,7 @@ export default class DataRequestService {
 
     const record = await findDataRequest(requestData.entityManager, id);
     if (record) {
+      await this.assertConfigAccess(requestData, id, record.request.config_id, Capability.READ);
       return this.fromRecord(record);
     }
 
@@ -94,20 +112,82 @@ export default class DataRequestService {
    */
   deleteDataRequest = async (requestData: RequestData, id: string): Promise<void> => {
     const job = await this.findLiveJob(id);
-    if (job) {
-      if (TERMINAL_JOB_STATES.includes(job.status)) {
-        await this.jobService.deleteJobInQueue(JobQueues.DATA_REQUESTS, id);
-      } else {
-        await this.jobService.cancelJobInQueue(JobQueues.DATA_REQUESTS, id);
-      }
-    }
-
-    const deleted = await deleteDataRequest(requestData.entityManager, id);
-    if (!job && !deleted) {
+    const attachment = job
+      ? { config_id: (job.data as DataRequestJob).config_id ?? null }
+      : await findDataRequestAttachment(requestData.entityManager, id);
+    if (!attachment) {
       throw new ErrorResponse(`Data request '${id}' not found`, StatusCodes.NOT_FOUND);
     }
+    await this.assertConfigAccess(requestData, id, attachment.config_id, Capability.WRITE);
+
+    if (job) {
+      await this.disposeJobs([job]);
+    }
+    const deleted = await deleteDataRequest(requestData.entityManager, id);
 
     log.info('Data request destroyed', { id, disposed_job: Boolean(job), deleted_record: deleted });
+  };
+
+  /**
+   * Destroys every Data Request attached to a config item, as `DELETE /config/{configId}` does
+   * (docs/adr/0041). The caller has already been checked for `write` on the item.
+   */
+  deleteAttachedDataRequests = async (requestData: RequestData, configId: string): Promise<void> => {
+    const jobs = (await this.jobService.findJobsInQueueByData(JobQueues.DATA_REQUESTS, { config_id: configId })).filter(
+      job => !GONE_JOB_STATES.includes(job.status),
+    );
+    await this.disposeJobs(jobs);
+    const deleted = await deleteAttachedDataRequests(requestData.entityManager, configId);
+
+    log.info('Attached data requests destroyed', { config_id: configId, disposed_jobs: jobs.length, deleted_records: deleted });
+  };
+
+  /**
+   * A terminated job cannot be cancelled (pg-boss only cancels below `completed`), so it is removed
+   * instead. A job still running is cancelled and kept: the worker learns it was cancelled by
+   * reading that job's own state.
+   */
+  private disposeJobs = async (jobs: Job[]): Promise<void> => {
+    const terminated = jobs.filter(job => TERMINAL_JOB_STATES.includes(job.status)).map(job => job.id!);
+    const running = jobs.filter(job => !TERMINAL_JOB_STATES.includes(job.status)).map(job => job.id!);
+    if (terminated.length > 0) {
+      await this.jobService.deleteJobInQueue(JobQueues.DATA_REQUESTS, terminated);
+    }
+    if (running.length > 0) {
+      await this.jobService.cancelJobInQueue(JobQueues.DATA_REQUESTS, running);
+    }
+  };
+
+  /**
+   * Attaching needs `write` on an existing plugin config item. `findOneBy` skips soft-deleted rows,
+   * so a deleted item cannot collect requests after its cascade has run.
+   */
+  private assertCanAttach = async (requestData: RequestData, configId: string): Promise<void> => {
+    if (!PLUGIN_CONFIG_ID_PATTERN.test(configId)) {
+      throw new ErrorResponse(
+        `Parameter config_id '${configId}' is not a plugin config id: use plugin:{pluginId}:{id}`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+    const row = await requestData.entityManager.getRepository(JsonStorage).findOneBy({ id: configId });
+    if (!row) {
+      throw new ErrorResponse(`Config '${configId}' not found: save it before attaching data requests to it`, StatusCodes.NOT_FOUND);
+    }
+    if (!entitlementService.canWriteConfig(requestData, configId)) {
+      throw new ErrorResponse(`User does not have write entitlement for config ${configId}`, StatusCodes.FORBIDDEN);
+    }
+  };
+
+  /** An attached Data Request is gated by its config item; an unattached one by nothing but its id. */
+  private assertConfigAccess = async (
+    requestData: RequestData,
+    id: string,
+    configId: string | null | undefined,
+    capability: Capability.READ | Capability.WRITE,
+  ): Promise<void> => {
+    if (configId && !(await entitlementService.canAccessConfig(requestData, configId, capability))) {
+      throw new ErrorResponse(`Data request '${id}' requires ${capability} on its config`, StatusCodes.FORBIDDEN);
+    }
   };
 
   /** The job, unless it is in a state that reads as gone. */

@@ -187,4 +187,27 @@ describe('useApiMutation', () => {
       body: undefined,
     });
   });
+
+  it('passes notFoundAsNull to request', async () => {
+    requestMock.mockResolvedValueOnce(null);
+
+    const wrapper = createWrapper();
+
+    const { result } = renderHook(
+      () =>
+        useApiMutation<void, { id: string }>({
+          endpoint: ({ id }) => `/test/${id}`,
+          method: 'DELETE',
+          notFoundAsNull: true,
+        }),
+      { wrapper },
+    );
+
+    await act(async () => {
+      await result.current.mutateAsync({ id: '1' });
+    });
+
+    expect(requestMock).toHaveBeenCalledWith(expect.objectContaining({ url: `${BACKEND_BASE_URL}/test/1`, notFoundAsNull: true }));
+    expect(result.current.isError).toBe(false);
+  });
 });
