@@ -59,6 +59,13 @@ export function useApiQuery<TResponse, TBody = void>({
       return existing as Promise<TResponse>;
     }
 
+    // Only removes this request's own entry: a newer request may have replaced it after an abort.
+    const forget = () => {
+      if (inflightRequests.get(requestKey) === promise) {
+        inflightRequests.delete(requestKey);
+      }
+    };
+
     const promise = request({
       url,
       method,
@@ -69,11 +76,15 @@ export function useApiQuery<TResponse, TBody = void>({
       notFoundAsNull,
       isBlobResponse,
       authenticate,
-    }).finally(() => {
-      inflightRequests.delete(requestKey);
-    });
+    }).finally(forget);
 
     inflightRequests.set(requestKey, promise);
+    if (abortOnNewQuery) {
+      // React Query aborts the signal when the last observer unmounts (e.g. a StrictMode remount).
+      // Forget the aborted request at once: otherwise the next fetch reuses it and caches its
+      // `null` result (ignoreAbortError) as success.
+      signal.addEventListener('abort', forget, { once: true });
+    }
     return promise as Promise<TResponse>;
   };
 
