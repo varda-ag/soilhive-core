@@ -253,7 +253,7 @@ async function insertFootprintBatch(
     `WITH fp_ins AS (INSERT INTO raster_footprints (geom)
      SELECT ST_Multi(piece.geom)
      FROM unnest($1::bytea[]) AS v
-     CROSS JOIN LATERAL ST_Subdivide(ST_SetSRID(ST_GeomFromWKB(v), 4326), $3) AS piece(geom)
+     CROSS JOIN LATERAL ST_Subdivide(ST_CollectionExtract(ST_MakeValid(ST_SetSRID(ST_GeomFromWKB(v), 4326)), 3), $3) AS piece(geom)
      ON CONFLICT (geom_hash) DO UPDATE SET id = raster_footprints.id
      RETURNING id)
      INSERT INTO raster_layer_footprints (raster_layer_id, raster_footprint_id)
