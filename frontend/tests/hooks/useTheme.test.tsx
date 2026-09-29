@@ -59,6 +59,7 @@ describe('ThemeProvider / useTheme', () => {
       if (key === 'theme') {
         return {
           isLoading: false,
+          isError: false,
           config: mockThemeConfig,
           saveConfig: saveThemeConfigMock,
         };
@@ -74,6 +75,7 @@ describe('ThemeProvider / useTheme', () => {
     (useApiQuery as jest.Mock).mockReturnValue({
       data: null,
       isLoading: false,
+      isError: false,
     });
 
     (useNotifications as jest.Mock).mockReturnValue({
@@ -109,6 +111,8 @@ describe('ThemeProvider / useTheme', () => {
     expect(result.current.logo).toBe(null);
     expect(result.current.isLogoLoading).toBe(false);
     expect(result.current.isLoadingThemeConfig).toBe(false);
+    expect(result.current.isLogoError).toBe(false);
+    expect(result.current.isThemeConfigError).toBe(false);
     expect(result.current.themeConfig.termsAndConditionsHtml).toBe('<p>Terms text</p>');
     expect(typeof result.current.saveColors).toBe('function');
     expect(typeof result.current.saveDefaultColors).toBe('function');
@@ -165,6 +169,39 @@ describe('ThemeProvider / useTheme', () => {
     expect(URL.createObjectURL).not.toHaveBeenCalled();
     expect(result.current.logo).toBe(null);
     expect(result.current.isLogoLoading).toBe(true);
+  });
+
+  it('exposes isLogoError when the logo request fails', () => {
+    (useApiQuery as jest.Mock).mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    });
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    expect(result.current.isLogoError).toBe(true);
+    expect(result.current.isThemeConfigError).toBe(false);
+  });
+
+  it('requests the logo with notFoundAsNull so a missing logo is not an error', () => {
+    renderHook(() => useTheme(), { wrapper });
+
+    expect(useApiQuery).toHaveBeenCalledWith(expect.objectContaining({ notFoundAsNull: true }));
+  });
+
+  it('exposes isThemeConfigError when the theme config request fails', () => {
+    (useConfig as jest.Mock).mockReturnValue({
+      isLoading: false,
+      isError: true,
+      config: mockThemeConfig,
+      saveConfig: saveThemeConfigMock,
+    });
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+
+    expect(result.current.isThemeConfigError).toBe(true);
+    expect(result.current.isLogoError).toBe(false);
   });
 
   it('does not create logo url when there is no logo response', () => {

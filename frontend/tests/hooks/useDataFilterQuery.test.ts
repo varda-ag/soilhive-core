@@ -63,6 +63,15 @@ describe('useDataFilterQuery', () => {
     expect(result.current.selectedFilters).toEqual(MOCK_STORED_FILTER);
   });
 
+  it('returns isError when the request fails', () => {
+    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false, isError: true } as any);
+
+    const { result } = renderHook(() => useDataFilterQuery(MOCK_FILTERS));
+
+    expect(result.current.isError).toBe(true);
+    expect(result.current.filterId).toBeUndefined();
+  });
+
   it('calls the correct endpoint with POST method and debounced filters as body', () => {
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false } as any);
 

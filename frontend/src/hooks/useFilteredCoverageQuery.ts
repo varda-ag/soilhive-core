@@ -2,7 +2,7 @@ import type { FilteredData } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 
 export function useFilteredCoverageQuery(filterDataId: string | undefined, geometryOnly: boolean = false) {
-  const { data, isLoading } = useApiQuery<FilteredData>({
+  const { data, isLoading, isError } = useApiQuery<FilteredData>({
     endpoint: `/data-filters/${filterDataId}/coverage${geometryOnly ? '?geometryOnly=true' : ''}`,
     method: 'GET',
     queryKey: ['data-filter-coverage', filterDataId, geometryOnly],
@@ -14,5 +14,6 @@ export function useFilteredCoverageQuery(filterDataId: string | undefined, geome
   return {
     data,
     isLoading,
+    isError,
   };
 }

@@ -16,7 +16,6 @@ const pluginId = 'unique-id-of-remote-module'; // must be unique across every pl
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const {
     user,
-    mapSelection,
     useTheme,
     useDataFilterQuery,
     useFilteredCoverageQuery,
@@ -29,7 +28,7 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
   const { config: settings, saveConfig: saveSettings } = usePluginConfig(pluginId, 'settings', { clickCount: 0 });
   const { data: theme } = useTheme();
   const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
-    geometries: mapSelection?.geometryFilter ?? [],
+    geometries: [],
     parameters: { data_types: ['point'] },
   });
   const { data: coverage, isLoading: isCoverageLoading } = useFilteredCoverageQuery(filterId);
@@ -54,10 +53,6 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
       </div>
       <h1 className="title">Hello Module Federation 2.0</h1>
       <p>User from host: {user ? (user.profile?.name ?? user.profile?.email ?? 'authenticated user') : '(none received)'}</p>
-      <p>
-        Map selection from host:{' '}
-        {mapSelection ? `${mapSelection.selectionType} in ${mapSelection.boundingBox ?? 'empty bounding box'}` : '(none received)'}
-      </p>
       <p>
         Theme colors from host:{' '}
         {theme

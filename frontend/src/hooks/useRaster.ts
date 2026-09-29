@@ -8,7 +8,11 @@ export function useRaster() {
   const queryClient = useQueryClient();
 
   // Load all raster filters (regardless of category)
-  const { data: allCategories, isLoading } = useQuery({
+  const {
+    data: allCategories,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ['rasterFilters'],
     queryFn: () =>
       request({
@@ -33,6 +37,7 @@ export function useRaster() {
   return {
     allCategories,
     isLoading: isLoading || isPending,
+    isError,
     setCategoryActive,
   };
 }

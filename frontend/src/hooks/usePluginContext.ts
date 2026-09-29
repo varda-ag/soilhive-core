@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type {
   PluginDataFilterInput,
+  PluginFilterCriteria,
   PluginFilteredData,
   PluginGeometry,
   PluginQueryResult,
@@ -9,13 +10,14 @@ import type {
   PluginSoilDataResult,
   PluginSoilProperty,
   PluginSoilPropertyCategory,
+  PluginStoredDataFilter,
   PluginTheme,
 } from 'frontend-plugin-types';
 import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
-import useAvailabilityMap from './useAvailabilityMap';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
+import { useFilter as useHostFilter } from './useFilter';
 import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { usePropertiesCategories as useHostPropertiesCategories } from './usePropertiesCategories';
 import { useRaster as useHostRaster } from './useRaster';
@@ -30,16 +32,17 @@ import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestS
 import { metadataUrl } from 'configuration/routes';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
-  const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading } = useHostTheme();
+  const { themeConfig, logo, isLoadingThemeConfig, isLogoLoading, isThemeConfigError, isLogoError } = useHostTheme();
+  // A missing logo (404) isn't an error — the host resolves it to a null logoUrl.
   return {
     data: { colors: themeConfig.colors, logoUrl: logo },
     isLoading: isLoadingThemeConfig || isLogoLoading,
-    isError: false,
+    isError: isThemeConfigError || isLogoError,
   };
 }
 
 function usePluginDataFilterQuery(filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number): PluginQueryResult<string> {
-  const { filterId, isLoading } = useHostDataFilterQuery(
+  const { filterId, isLoading, isError } = useHostDataFilterQuery(
     {
       geometries: filters.geometries as DataFilterDTO['geometries'],
       parameters: {
@@ -51,12 +54,29 @@ function usePluginDataFilterQuery(filters: PluginDataFilterInput, enabled?: bool
     debounceTime,
   );
 
-  return { data: filterId, isLoading, isError: false };
+  return { data: filterId, isLoading, isError };
 }
 
 function usePluginFilteredCoverageQuery(filterId: string | undefined, geometryOnly?: boolean): PluginQueryResult<PluginFilteredData> {
-  const { data, isLoading } = useHostFilteredCoverageQuery(filterId, geometryOnly);
-  return { data: data as PluginFilteredData | undefined, isLoading, isError: false };
+  const { data, isLoading, isError } = useHostFilteredCoverageQuery(filterId, geometryOnly);
+  return { data: data as PluginFilteredData | undefined, isLoading, isError };
+}
+
+// Narrow explicitly rather than passing the stored filter through as-is: it
+// carries the owner, which PluginContext's thin contract must not leak to plugins.
+function usePluginFilter(filterId: string | undefined): PluginQueryResult<PluginStoredDataFilter> {
+  const { filter, isLoading, isError } = useHostFilter(filterId);
+  const data = filter
+    ? {
+        id: filter.id,
+        name: filter.name,
+        filter: {
+          geometries: filter.filter.geometries as PluginGeometry[],
+          parameters: filter.filter.parameters as PluginFilterCriteria,
+        },
+      }
+    : undefined;
+  return { data, isLoading, isError };
 }
 
 function usePluginSoilProperties(): PluginQueryResult<PluginSoilProperty[]> {
@@ -70,8 +90,8 @@ function usePluginPropertiesCategories(): PluginQueryResult<PluginSoilPropertyCa
 }
 
 function usePluginRasterCategories(): PluginQueryResult<PluginRasterFilterCategory[]> {
-  const { allCategories, isLoading } = useHostRaster();
-  return { data: allCategories, isLoading, isError: false };
+  const { allCategories, isLoading, isError } = useHostRaster();
+  return { data: allCategories, isLoading, isError };
 }
 
 function usePluginSoilData(parameters: PluginSoilDataParameters): PluginSoilDataResult {
@@ -81,7 +101,6 @@ function usePluginSoilData(parameters: PluginSoilDataParameters): PluginSoilData
 
 export function usePluginContext(): PluginContext {
   const { user } = useAuthContext();
-  const { selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName } = useAvailabilityMap();
 
   return useMemo<PluginContext>(
     () => ({
@@ -92,6 +111,7 @@ export function usePluginContext(): PluginContext {
       useTheme: usePluginTheme,
       useDataFilterQuery: usePluginDataFilterQuery,
       useFilteredCoverageQuery: usePluginFilteredCoverageQuery,
+      useFilter: usePluginFilter,
       useSoilProperties: usePluginSoilProperties,
       usePropertiesCategories: usePluginPropertiesCategories,
       useRasterCategories: usePluginRasterCategories,
@@ -111,27 +131,7 @@ export function usePluginContext(): PluginContext {
       // A plain function, not a hook: plugins call it while rendering a dataset
       // row, so it must not add a hook to their render order.
       metadataUrl,
-      // Narrow explicitly too: selectedPoint/selectedH3Cell are maplibre-gl
-      // classes, not plain data, which PluginContext's thin contract must not depend on.
-      mapSelection: {
-        selectedPoint: selectedPoint ? { lng: selectedPoint.lng, lat: selectedPoint.lat } : null,
-        selectedH3Cell: selectedH3Cell
-          ? { type: 'Feature' as const, geometry: selectedH3Cell.geometry, properties: selectedH3Cell.properties }
-          : null,
-        selection: {
-          type: selection.type,
-          features: selection.features.map(feature => ({
-            type: 'Feature' as const,
-            geometry: (feature as GeoJSON.Feature).geometry,
-            properties: (feature as GeoJSON.Feature).properties,
-          })),
-        },
-        boundingBox,
-        geometryFilter: geometryFilter as PluginGeometry[],
-        selectionType,
-        locationName,
-      },
     }),
-    [user, selectedPoint, selectedH3Cell, selection, boundingBox, geometryFilter, selectionType, locationName],
+    [user],
   );
 }

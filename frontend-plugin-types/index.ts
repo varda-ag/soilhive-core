@@ -7,8 +7,7 @@ import type {
   PluginUser,
 } from './common';
 import type { PluginDataRequest, PluginDataRequestResult, PluginDataRequestSubmission } from './dataRequest';
-import type { PluginMapSelection } from './map';
-import type { PluginDataFilterInput, PluginFilteredData } from './filter';
+import type { PluginDataFilterInput, PluginFilteredData, PluginStoredDataFilter } from './filter';
 import type {
   PluginRasterFilterCategory,
   PluginSoilDataParameters,
@@ -27,10 +26,10 @@ export * from './dataRequest';
 
 export interface PluginContext {
   user?: PluginUser | null;
-  mapSelection?: PluginMapSelection;
   useTheme: () => PluginQueryResult<PluginTheme>;
   useDataFilterQuery: (filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number) => PluginQueryResult<string>;
   useFilteredCoverageQuery: (filterId: string | undefined, geometryOnly?: boolean) => PluginQueryResult<PluginFilteredData>;
+  useFilter: (filterId: string | undefined) => PluginQueryResult<PluginStoredDataFilter>;
   useSoilProperties: () => PluginQueryResult<PluginSoilProperty[]>;
   usePropertiesCategories: () => PluginQueryResult<PluginSoilPropertyCategory[]>;
   useRasterCategories: () => PluginQueryResult<PluginRasterFilterCategory[]>;

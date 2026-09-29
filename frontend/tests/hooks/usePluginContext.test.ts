@@ -1,26 +1,25 @@
 import { renderHook } from '@testing-library/react';
-import type { LngLat, MapGeoJSONFeature } from 'maplibre-gl';
 import { usePluginContext } from 'hooks/usePluginContext';
-import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
+import { useFilter } from 'hooks/useFilter';
+import useTheme from 'hooks/useTheme';
+import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
+import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
+import { useRaster } from 'hooks/useRaster';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from 'hooks/usePluginDataRequest';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
-
-jest.mock('hooks/useAvailabilityMap', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}));
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
 }));
 
-// Only useAvailabilityMap/useAuthContext are actually invoked by usePluginContext;
-// the rest are mocked purely to avoid pulling in their real (heavy) module graphs
-// at import time — none of these are exercised by the tests below.
+// Only useAuthContext is actually invoked by usePluginContext itself; useFilter, useTheme,
+// useDataFilterQuery, useFilteredCoverageQuery and useRaster are exercised through the
+// context below, and the rest are mocked purely to avoid pulling in their real (heavy)
+// module graphs at import time.
 jest.mock('hooks/useTheme', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/useDataFilterQuery', () => ({ useDataFilterQuery: jest.fn() }));
 jest.mock('hooks/useFilteredCoverageQuery', () => ({ useFilteredCoverageQuery: jest.fn() }));
@@ -37,42 +36,19 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
   usePluginConfigEntitlementsMutation: jest.fn(),
 }));
 jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
+jest.mock('hooks/useFilter', () => ({ useFilter: jest.fn() }));
 jest.mock('hooks/usePluginDataRequest', () => ({
   usePluginDataRequest: jest.fn(),
   usePluginDataRequestSubmit: jest.fn(),
   usePluginDataRequestDelete: jest.fn(),
 }));
 
-const useAvailabilityMapMock = useAvailabilityMap as jest.MockedFunction<typeof useAvailabilityMap>;
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
-
-const MOCK_AVAILABILITY_MAP = {
-  selectedPoint: null,
-  selectedH3Cell: null,
-  h3Cells: null,
-  emptySelection: { type: 'FeatureCollection', features: [] },
-  selection: { type: 'FeatureCollection', features: [] },
-  showDrawControl: false,
-  showSelectionToolbar: false,
-  boundingBox: [0, 0, 1, 1] as [number, number, number, number],
-  geometryFilter: [],
-  selectionType: 'drawn-polygon' as const,
-  locationName: undefined,
-  isDaiEnabled: false,
-  daiOpacity: 80,
-  setSelectedPoint: jest.fn(),
-  setSelectedH3Cell: jest.fn(),
-  setH3Cells: jest.fn(),
-  setSelection: jest.fn(),
-  setShowDrawControl: jest.fn(),
-  setShowSelectionToolbar: jest.fn(),
-  setBoundingBox: jest.fn(),
-  setGeometryFilter: jest.fn(),
-  setSelectionType: jest.fn(),
-  setLocationName: jest.fn(),
-  setIsDaiEnabled: jest.fn(),
-  setDaiOpacity: jest.fn(),
-};
+const useFilterMock = useFilter as jest.MockedFunction<typeof useFilter>;
+const useThemeMock = useTheme as jest.MockedFunction<typeof useTheme>;
+const useDataFilterQueryMock = useDataFilterQuery as jest.MockedFunction<typeof useDataFilterQuery>;
+const useFilteredCoverageQueryMock = useFilteredCoverageQuery as jest.MockedFunction<typeof useFilteredCoverageQuery>;
+const useRasterMock = useRaster as jest.MockedFunction<typeof useRaster>;
 
 const MOCK_AUTH_CONTEXT = {
   isEmailBasedAuth: false,
@@ -86,7 +62,6 @@ const MOCK_AUTH_CONTEXT = {
 describe('usePluginContext', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    useAvailabilityMapMock.mockReturnValue(MOCK_AVAILABILITY_MAP);
     useAuthContextMock.mockReturnValue({ ...MOCK_AUTH_CONTEXT, user: null });
   });
 
@@ -120,6 +95,118 @@ describe('usePluginContext', () => {
     expect(result.current.usePluginUserEntitlements).toBe(usePluginUserEntitlements);
   });
 
+  it('maps useFilter to a PluginQueryResult, never leaking the owner', () => {
+    const geometry: GeoJSON.Polygon = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [0, 0],
+          [1, 0],
+          [1, 1],
+          [0, 0],
+        ],
+      ],
+    };
+    useFilterMock.mockReturnValue({
+      filter: {
+        id: 'abc',
+        name: 'My filter',
+        owner: 'owner-123',
+        filter: { geometries: [geometry], parameters: { soil_properties: ['ph'] } },
+      },
+      isLoading: false,
+      isError: false,
+    });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useFilter('abc'));
+
+    expect(useFilterMock).toHaveBeenCalledWith('abc');
+    expect(result.current).toEqual({
+      data: {
+        id: 'abc',
+        name: 'My filter',
+        filter: { geometries: [geometry], parameters: { soil_properties: ['ph'] } },
+      },
+      isLoading: false,
+      isError: false,
+    });
+    expect(JSON.stringify(result.current)).not.toContain('owner');
+  });
+
+  it('returns undefined data from useFilter while no filter is loaded', () => {
+    useFilterMock.mockReturnValue({ filter: undefined, isLoading: true, isError: false });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useFilter(undefined));
+
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: false });
+  });
+
+  it.each([
+    { name: 'theme config errors', isThemeConfigError: true, isLogoError: false },
+    { name: 'logo errors', isThemeConfigError: false, isLogoError: true },
+  ])('maps useTheme to a PluginQueryResult with isError true when $name', ({ isThemeConfigError, isLogoError }) => {
+    const colors = { primary: '#111111' };
+    useThemeMock.mockReturnValue({
+      themeConfig: { colors },
+      logo: 'blob:logo-url',
+      isLoadingThemeConfig: false,
+      isLogoLoading: true,
+      isThemeConfigError,
+      isLogoError,
+    } as any);
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useTheme());
+
+    expect(result.current).toEqual({ data: { colors, logoUrl: 'blob:logo-url' }, isLoading: true, isError: true });
+  });
+
+  it('does not flag useTheme as errored when there is no logo', () => {
+    useThemeMock.mockReturnValue({
+      themeConfig: { colors: {} },
+      logo: null,
+      isLoadingThemeConfig: false,
+      isLogoLoading: false,
+      isThemeConfigError: false,
+      isLogoError: false,
+    } as any);
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useTheme());
+
+    expect(result.current).toEqual({ data: { colors: {}, logoUrl: null }, isLoading: false, isError: false });
+  });
+
+  it('forwards isLoading and isError from useDataFilterQuery', () => {
+    useDataFilterQueryMock.mockReturnValue({ filterId: undefined, selectedFilters: undefined, isLoading: true, isError: true });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useDataFilterQuery({ geometries: [], parameters: {} }));
+
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: true });
+  });
+
+  it('forwards isLoading and isError from useFilteredCoverageQuery', () => {
+    useFilteredCoverageQueryMock.mockReturnValue({ data: undefined, isLoading: true, isError: true });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useFilteredCoverageQuery('abc'));
+
+    expect(useFilteredCoverageQueryMock).toHaveBeenCalledWith('abc', undefined);
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: true });
+  });
+
+  it('forwards isLoading and isError from useRaster as useRasterCategories', () => {
+    useRasterMock.mockReturnValue({ allCategories: undefined, isLoading: true, isError: true, setCategoryActive: jest.fn() });
+
+    const { result: context } = renderHook(() => usePluginContext());
+    const { result } = renderHook(() => context.current.useRasterCategories());
+
+    expect(result.current).toEqual({ data: undefined, isLoading: true, isError: true });
+  });
+
   it('exposes the three Data Request hooks', () => {
     const { result } = renderHook(() => usePluginContext());
 
@@ -146,41 +233,9 @@ describe('usePluginContext', () => {
     expect(JSON.stringify(result.current.user)).not.toContain('secret-');
   });
 
-  it('maps mapSelection with null-safety and narrows selectedH3Cell/features to plain data', () => {
-    const { result: emptyResult } = renderHook(() => usePluginContext());
-
-    expect(emptyResult.current.mapSelection?.selectedPoint).toBeNull();
-    expect(emptyResult.current.mapSelection?.selectedH3Cell).toBeNull();
-
-    useAvailabilityMapMock.mockReturnValue({
-      ...MOCK_AVAILABILITY_MAP,
-      selectedPoint: { lng: 1, lat: 2 } as unknown as LngLat,
-      selectedH3Cell: {
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [1, 2] },
-        properties: { foo: 'bar' },
-        id: 'h3-cell-id',
-        layer: {},
-        source: 'h3-source',
-        sourceLayer: 'h3-source-layer',
-        state: {},
-      } as unknown as MapGeoJSONFeature,
-      selection: {
-        type: 'FeatureCollection',
-        features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [3, 4] }, properties: { baz: 'qux' }, id: 'ignored' }],
-      },
-    });
-
+  it('does not expose mapSelection: plugins read a stored filter by id via useFilter instead', () => {
     const { result } = renderHook(() => usePluginContext());
 
-    expect(result.current.mapSelection?.selectedPoint).toEqual({ lng: 1, lat: 2 });
-    expect(result.current.mapSelection?.selectedH3Cell).toEqual({
-      type: 'Feature',
-      geometry: { type: 'Point', coordinates: [1, 2] },
-      properties: { foo: 'bar' },
-    });
-    expect(result.current.mapSelection?.selection.features).toEqual([
-      { type: 'Feature', geometry: { type: 'Point', coordinates: [3, 4] }, properties: { baz: 'qux' } },
-    ]);
+    expect(result.current).not.toHaveProperty('mapSelection');
   });
 });
