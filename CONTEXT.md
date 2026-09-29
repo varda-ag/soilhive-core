@@ -237,7 +237,7 @@ An externally hosted module-federation remote that the frontend loads at runtime
 _Avoid_: Module, remote, extension (all name one aspect — the file, the transport mechanism, the capability — not the concept as a whole)
 
 **Plugin Context** (`PluginContext`):
-The data and host-injected query hooks a Plugin receives as its one prop: map selection, theme, and hooks for filters, coverage, soil properties, soil data, and **Data Requests**. Defined in `frontend-plugin-types`, decoupled from the host's own domain types. The host-to-Plugin half of the contract.
+The data and host-injected query hooks a Plugin receives as its one prop: the signed-in user's profile, theme, and hooks for filters, coverage, soil properties, soil data, **Data Requests**, and showing notifications in the host's toast stack. Defined in `frontend-plugin-types`, decoupled from the host's own domain types. The host-to-Plugin half of the contract.
 _Avoid_: Plugin props, context (too generic — always say "Plugin Context")
 
 **Remote Plugin** (`RemotePlugin`):
