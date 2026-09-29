@@ -6,7 +6,8 @@
         "map_settings": "SoilHive - Map settings",
         "look_and_feel": "SoilHive - Look & Feel",
         "datasets": "SoilHive - Datasets publication",
-        "filters": "SoilHive - Map-based filters"
+        "filters": "SoilHive - Map-based filters",
+        "export_settings": "SoilHive - Export settings"
     },
     "sidebar": {
         "logout": "Logout",
@@ -21,7 +22,8 @@
             "map_settings": "Map settings",
             "look_and_feel": "Look & Feel",
             "datasets": "Datasets publication",
-            "filters": "Map-based filters"
+            "filters": "Map-based filters",
+            "export_settings": "Export settings"
         }
     },
     "terms_and_conditions": {
@@ -535,6 +537,36 @@
             "description": "Access our documentation and follow the instructions to activate the map-based filters:",
             "status_title": "Filter states",
             "status_description": "Check if the filters are correctly activated:"
+        }
+    },
+    "export_settings": {
+        "title": "Export settings",
+        "subtitle": "Export limits",
+        "description": "Limit how large a single data export can be, to protect the server from load. An export over any enabled limit fails, and the user is told which limit it exceeded. With no limit enabled, exports are unlimited.",
+        "area": {
+            "label": "Area limit (km²)",
+            "description": "Maximum area of interest. Overlapping areas count more than once, and an export without an area of interest fails."
+        },
+        "observations": {
+            "label": "Observations limit",
+            "description": "Maximum number of observations from point and polygon datasets."
+        },
+        "raster_layers": {
+            "label": "Raster layers limit",
+            "description": "Maximum number of raster layers."
+        },
+        "exempt_admins": {
+            "label": "Exempt administrators",
+            "description": "Data admins and super admins can export without limits."
+        },
+        "errors": {
+            "positive_number": "Enter a number greater than zero",
+            "positive_integer": "Enter a whole number greater than zero"
+        },
+        "save": "Save changes",
+        "notification": {
+            "title": "Successful update",
+            "message": "Export settings have been updated"
         }
     },
     "logoAlt": "Logo",

@@ -4,6 +4,7 @@ import PageTitle from 'components/PageTitle';
 import {
   TermsAndConditions,
   DatasetsPublication,
+  ExportSettings,
   LookAndFeel,
   MapBasedFilters,
   MapSettings,
@@ -182,6 +183,15 @@ export function AdminPortalModule() {
                 <>
                   <PageTitle title={t('page_titles.filters')} />
                   <MapBasedFilters />
+                </>
+              }
+            />
+            <Route
+              path={ADMIN_ROUTES.EXPORT_SETTINGS}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.export_settings')} />
+                  <ExportSettings />
                 </>
               }
             />

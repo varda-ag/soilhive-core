@@ -2,7 +2,7 @@ import React, { createContext, useState, useEffect, type ReactNode } from 'react
 import { useTranslation } from 'react-i18next';
 import useConfig from '../hooks/useConfig';
 import { REST_END_POINTS } from '../configuration/api';
-import type { DaiConfig, ThemeColors, ThemeConfig } from '../types/config';
+import type { DaiConfig, ExportLimits, ThemeColors, ThemeConfig } from '../types/config';
 import useNotifications from 'hooks/useNotifications';
 import { useApiQuery } from '../hooks/useApiQuery';
 import { defaultColors } from '../configuration/colors';
@@ -21,6 +21,7 @@ type ThemeContextType = {
   saveTermsAndConditions: (termsAndConditionsHtml: string) => Promise<void>;
   savePrivacyPolicy: (privacyPolicyHtml: string) => Promise<void>;
   saveNotificationBanner: (notificationBannerHtml: string) => Promise<void>;
+  saveExportLimits: (exportLimits: ExportLimits) => Promise<void>;
 };
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -42,6 +43,12 @@ export const defaultThemeConfig: ThemeConfig = {
   daiConfig: {
     isEnabled: false,
     defaultValue: false,
+  },
+  exportLimits: {
+    maxAreaM2: null,
+    maxObservations: null,
+    maxRasterLayers: null,
+    exemptAdmins: false,
   },
 };
 
@@ -140,6 +147,20 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     });
   };
 
+  const saveExportLimits = async (exportLimits: ExportLimits) => {
+    await saveConfig({
+      ...themeConfig,
+      exportLimits,
+    });
+
+    showNotification({
+      id: 'saveExportLimitsSuccess',
+      title: t('export_settings.notification.title'),
+      message: t('export_settings.notification.message'),
+      type: 'success',
+    });
+  };
+
   const [logo, setLogo] = useState<string | null>(null);
 
   // notFoundAsNull resolves a missing logo (404) to null, so isLogoError only flags real failures.
@@ -187,6 +208,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         saveTermsAndConditions,
         savePrivacyPolicy,
         saveNotificationBanner,
+        saveExportLimits,
         setLogo,
         isLogoLoading,
         isLogoError,

@@ -18,6 +18,7 @@ import {
   computeCombinedProgress,
 } from './exportHelpers';
 import { getPgBoss, PG_BOSS_SCHEMA, updateJobState } from '../../services/PgBoss';
+import { assertWithinAreaLimit, assertWithinObservationLimit, assertWithinRasterLayerLimit, getExportLimits } from './exportLimits';
 import { GeoFileWriter } from './GeoFileWriter';
 import { RasterFileWriter } from './RasterFileWriter';
 import {
@@ -80,8 +81,17 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     const vectorData = { ...data, dataset_ids: vectorDatasets.map(d => d.slug) };
     const rasterData = { ...data, dataset_ids: rasterDatasets.map(d => d.slug) };
 
-    const total_records_estimate = vectorRequested ? await getTotalRecordsCount(requestData, vectorData) : 0;
+    // Export Limits are checked cheapest first, so an Export over the area limit never pays for the record count.
+    const exportLimits = await getExportLimits(entityManager, data);
+    const needsFilter = exportLimits.maxAreaM2 !== null || rasterRequested;
+    const filter = needsFilter ? await new FilterService().getFilterById(requestData, filter_id) : null;
+    if (filter) assertWithinAreaLimit(exportLimits, filter);
+
     const total_layers_estimate = rasterRequested ? await getTotalLayersCount(requestData, rasterData) : 0;
+    assertWithinRasterLayerLimit(exportLimits, total_layers_estimate);
+
+    const total_records_estimate = vectorRequested ? await getTotalRecordsCount(requestData, vectorData) : 0;
+    assertWithinObservationLimit(exportLimits, total_records_estimate);
 
     // The XLSX size limit is enforced here rather than at enqueue time because this is the first
     // moment the record count is known without paying for it twice: JobService would have to run
@@ -95,13 +105,8 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       });
     }
 
-    // Calculate filter geometries' area for raster report tracking
-    let aoi_area_km2: number | null = null;
-    if (rasterRequested) {
-      const filterService = new FilterService();
-      const filter = await filterService.getFilterById(requestData, filter_id);
-      aoi_area_km2 = filter.area / 1e6; // Convert from m2 to km2
-    }
+    // Filter geometries' area for raster report tracking
+    const aoi_area_km2 = rasterRequested && filter ? filter.area / 1e6 : null;
 
     await updateJobState(jobId, {
       ...data,
