@@ -16,12 +16,17 @@ const LIMITS: { key: Limit; i18nKey: string; isInteger: boolean }[] = [
 
 const M2_PER_KM2 = 1e6;
 
+// The area is entered in km² but stored in whole m²
+const toStored = (key: Limit, value: number): number => (key === 'area' ? Math.round(value * M2_PER_KM2) : value);
+
 const isSet = (value: unknown): value is number => typeof value === 'number';
 
-function isValid(value: string, isInteger: boolean): boolean {
+// Checked on the stored value: an area that rounds to 0 m² would be saved as 0, which the export job ignores.
+function isValid(key: Limit, value: string, isInteger: boolean): boolean {
   if (value.trim() === '') return false;
   const number = Number(value);
-  return Number.isFinite(number) && number > 0 && (!isInteger || Number.isInteger(number));
+  const stored = toStored(key, number);
+  return Number.isFinite(stored) && stored > 0 && (!isInteger || Number.isInteger(number));
 }
 
 function LimitLabel({ title, description }: { title: string; description: string }) {
@@ -50,18 +55,16 @@ export function ExportSettings() {
   });
   const [isAdminExempt, setIsAdminExempt] = useState<boolean>(exemptAdmins === true);
 
-  const errors = Object.fromEntries(LIMITS.map(({ key, isInteger }) => [key, enabled[key] && !isValid(values[key], isInteger)])) as Record<
-    Limit,
-    boolean
-  >;
+  const errors = Object.fromEntries(
+    LIMITS.map(({ key, isInteger }) => [key, enabled[key] && !isValid(key, values[key], isInteger)]),
+  ) as Record<Limit, boolean>;
   const hasErrors = Object.values(errors).some(Boolean);
   const hasLimit = Object.values(enabled).some(Boolean);
 
   const onSave = useCallback(() => {
-    const limitValue = (key: Limit) => (enabled[key] ? Number(values[key]) : null);
-    const area = limitValue('area');
+    const limitValue = (key: Limit) => (enabled[key] ? toStored(key, Number(values[key])) : null);
     saveExportLimits({
-      maxAreaM2: area === null ? null : Math.round(area * M2_PER_KM2),
+      maxAreaM2: limitValue('area'),
       maxObservations: limitValue('observations'),
       maxRasterLayers: limitValue('rasterLayers'),
       exemptAdmins: hasLimit && isAdminExempt,

@@ -113,6 +113,14 @@ describe('ExportSettings page', () => {
     expect(saveButton()).toBeDisabled();
   });
 
+  it('rejects an area that would be stored as 0 m²', () => {
+    renderPage();
+    fireEvent.click(checkboxes()[0]);
+    fireEvent.change(inputs()[0], { target: { value: '0.0000001' } });
+    expect(screen.getByText('Enter a number greater than zero')).toBeInTheDocument();
+    expect(saveButton()).toBeDisabled();
+  });
+
   it('accepts a decimal area', () => {
     renderPage();
     fireEvent.click(checkboxes()[0]);
