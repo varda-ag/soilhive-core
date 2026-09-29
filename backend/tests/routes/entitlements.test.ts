@@ -355,23 +355,23 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
 
-    describe('scope=dashboards (config subkey filter)', () => {
+    describe('scope=dashboards (Config Kind filter)', () => {
       beforeEach(async () => {
         const entityManager = await getEntityManager();
         await entityManager.query(`
           UPDATE entitlements
-          SET data = data || '{"configs": {"dashboards_1": ["read"], "dashboards_2": ["read"], "look_and_feel": ["read"], "plugin:weather-widget:dashboards_1": ["read"]}}'::jsonb
+          SET data = data || '{"configs": {"dashboards:1": ["read"], "dashboards:2": ["read"], "look_and_feel": ["read"], "plugin:weather-widget:dashboards:1": ["read"]}}'::jsonb
           WHERE id = 'everyone'
         `);
       });
 
-      it('returns only the configs entries under the dashboards subkey, including a plugin-owned one', async () => {
+      it('returns only the configs entries of Config Kind dashboards, including a plugin-owned one', async () => {
         const res = await request(app).get('/entitlements').query({ scope: 'dashboards' }).set('Authorization', `Bearer ${userToken}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
         expect(res.body).toEqual({
-          dashboards_1: ['read'],
-          dashboards_2: ['read'],
-          'plugin:weather-widget:dashboards_1': ['read'],
+          'dashboards:1': ['read'],
+          'dashboards:2': ['read'],
+          'plugin:weather-widget:dashboards:1': ['read'],
         });
       });
 
@@ -379,10 +379,10 @@ describe('Testing entitlements routes', () => {
         const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${userToken}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
         expect(res.body).toEqual({
-          dashboards_1: ['read'],
-          dashboards_2: ['read'],
+          'dashboards:1': ['read'],
+          'dashboards:2': ['read'],
           look_and_feel: ['read'],
-          'plugin:weather-widget:dashboards_1': ['read'],
+          'plugin:weather-widget:dashboards:1': ['read'],
         });
       });
     });
@@ -392,13 +392,13 @@ describe('Testing entitlements routes', () => {
         const entityManager = await getEntityManager();
         const repo = entityManager.getRepository('JsonStorage');
         await repo.save([
-          { id: 'plugin:dashboards:dashboards_owned_by_someone', data: {} },
-          { id: 'plugin:dashboards:dashboards_deleted', data: {} },
+          { id: 'plugin:dashboards:dashboards:owned_by_someone', data: {} },
+          { id: 'plugin:dashboards:dashboards:deleted', data: {} },
           { id: 'look_and_feel', data: {} },
         ]);
-        await repo.softDelete({ id: 'plugin:dashboards:dashboards_deleted' });
+        await repo.softDelete({ id: 'plugin:dashboards:dashboards:deleted' });
         await entityManager.query(`
-          UPDATE entitlements SET data = data || '{"configs": {"dashboards_granted": ["read"]}}'::jsonb WHERE id = 'everyone'
+          UPDATE entitlements SET data = data || '{"configs": {"dashboards:granted": ["read"]}}'::jsonb WHERE id = 'everyone'
         `);
       });
 
@@ -406,8 +406,8 @@ describe('Testing entitlements routes', () => {
         const res = await request(app).get('/entitlements').query({ scope: 'dashboards' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
         expect(res.body).toEqual({
-          dashboards_granted: ['read'],
-          'plugin:dashboards:dashboards_owned_by_someone': [Capability.READ, Capability.WRITE],
+          'dashboards:granted': ['read'],
+          'plugin:dashboards:dashboards:owned_by_someone': [Capability.READ, Capability.WRITE],
         });
       });
 
@@ -415,11 +415,11 @@ describe('Testing entitlements routes', () => {
         const res = await request(app).get('/entitlements').query({ scope: 'configs' }).set('Authorization', `Bearer ${token}`);
         expect(res.statusCode).toBe(StatusCodes.OK);
         expect(res.body).toMatchObject({
-          dashboards_granted: ['read'],
-          'plugin:dashboards:dashboards_owned_by_someone': [Capability.READ, Capability.WRITE],
+          'dashboards:granted': ['read'],
+          'plugin:dashboards:dashboards:owned_by_someone': [Capability.READ, Capability.WRITE],
           look_and_feel: [Capability.READ, Capability.WRITE],
         });
-        expect(res.body).not.toHaveProperty(['plugin:dashboards:dashboards_deleted']);
+        expect(res.body).not.toHaveProperty(['plugin:dashboards:dashboards:deleted']);
       });
 
       it('keeps scope=datasets to the grants held', async () => {
@@ -433,7 +433,7 @@ describe('Testing entitlements routes', () => {
         async scope => {
           const res = await request(app).get('/entitlements').query({ scope }).set('Authorization', `Bearer ${userToken}`);
           expect(res.statusCode).toBe(StatusCodes.OK);
-          expect(res.body).toEqual({ dashboards_granted: ['read'] });
+          expect(res.body).toEqual({ 'dashboards:granted': ['read'] });
         },
       );
     });

@@ -252,6 +252,10 @@ await setEntitlements({ ...entitlements, everyone: ['read'] });
 
 Use `['read', 'write']` instead of `['read']` if every user should be able to edit the config, not just view it.
 
+#### Config Kinds
+
+Give an id a `{kind}:` prefix to mark what it represents, e.g. `dashboards:{id}` for a dashboard. `context.usePluginUserEntitlements(pluginId, 'dashboards')` lists only your ids of that kind, with the `dashboards:` prefix kept, so they can be passed straight back to `usePluginConfig`/`usePluginConfigs`.
+
 ### Batch-fetching multiple config ids
 
 Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map:

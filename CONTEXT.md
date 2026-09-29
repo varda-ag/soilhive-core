@@ -244,6 +244,14 @@ _Avoid_: Plugin props, context (too generic — always say "Plugin Context")
 The metadata a Plugin exposes describing how the host should mount it: its `PluginType` (`single-page`, `new-tab`, or `map-info-card`), whether it gets a menu item, its route, and its `Page` component. Defined in the host's `src/types/plugins.ts`, not in `frontend-plugin-types`. The Plugin-to-host half of the contract — the mirror image of Plugin Context, not an overlapping concept.
 _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), plugin config
 
+**Plugin Namespace**:
+The `plugin:{pluginId}:` prefix that marks a config item as owned by one **Plugin**; a config id without it belongs to the host.
+_Avoid_: Plugin prefix
+
+**Config Kind**:
+What a config item represents, carried as a `{kind}:` prefix on its id right after the **Plugin Namespace**, if any (`plugin:{pluginId}:dashboards:{id}`); `dashboards` is the only kind today.
+_Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` storage namespaces), convention prefix
+
 ## Relationships
 
 - An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
@@ -268,6 +276,7 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
+- A config item has at most one **Config Kind**, and only when a non-empty id follows the `{kind}:` prefix; the **Plugin** chooses it, and the host adds and strips only the **Plugin Namespace**
 - A **Data Request** is attached to at most one plugin config item, fixed at submission, which must already exist; a **Plugin** only ever submits attached Data Requests, and decides itself when each one is destroyed
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
 - An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
@@ -306,6 +315,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 ## Flagged ambiguities
 
+- **"scope" names both storage namespaces and Config Kinds.** `GET /entitlements?scope=` accepts `datasets`, `configs` and `dashboards`, but only the first two are namespaces. Resolved: `dashboards` is a **Config Kind**, a filtered view over `configs`; the query param keeps its name because it is API.
 - **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: it means **listed only**. Every dataset-listing path pins `status = 'PUBLISHED'`, but `/soil-data` deliberately does not — an unpublished Dataset's Observations are readable by anyone holding its slug, gated by **Visibility** and **Entitlement** and nothing else. So "unpublished datasets aren't visible" is true of the catalog and false of the data. Always say *where*.
 - **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.
 
