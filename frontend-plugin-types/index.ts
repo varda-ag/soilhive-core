@@ -8,6 +8,7 @@ import type {
 } from './common';
 import type { PluginDataRequest, PluginDataRequestResult, PluginDataRequestSubmission } from './dataRequest';
 import type { PluginDataFilterInput, PluginFilteredData, PluginStoredDataFilter } from './filter';
+import type { PluginNotificationsResult } from './notification';
 import type {
   PluginRasterFilterCategory,
   PluginSoilDataParameters,
@@ -23,6 +24,7 @@ export * from './theme';
 export * from './filter';
 export * from './soil';
 export * from './dataRequest';
+export * from './notification';
 
 export interface PluginContext {
   user?: PluginUser | null;
@@ -59,4 +61,7 @@ export interface PluginContext {
   // Absolute URL of a dataset's metadata page. Provided by the host because the
   // origin comes from its runtime configuration, which a remote plugin cannot read.
   metadataUrl: (datasetId: string) => string;
+  // Shows a toast in the host's stack. Ids are namespaced under plugin:{pluginId}:, so they
+  // never collide with the host's or another plugin's.
+  useNotifications: (pluginId: string) => PluginNotificationsResult;
 }

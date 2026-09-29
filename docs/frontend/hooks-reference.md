@@ -34,7 +34,7 @@ Returns the `AvailabilityMapContext` value. Contains the geometry filter drawn b
 Returns `ThemeContext`: brand colors, terms HTML, privacy HTML, initial map bounding box, and notification banner config.
 
 ### `useNotifications()`
-Returns `{ showNotification, dismissNotification }` from `NotificationsContext`. Call `showNotification` to display a toast from any component.
+Returns `{ notifications, showNotification, removeNotification }` from `NotificationsContext`. Call `showNotification` to display a toast from any component.
 
 ### `useLookAndFeel()`
 Returns `LookAndFeelContext`: logo URL, current colors, and mutations for saving changes. Only used in the Admin console.

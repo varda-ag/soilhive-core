@@ -7,6 +7,7 @@ import type {
   PluginDataRequestSubmission,
   PluginFilteredData,
   PluginMutationResult,
+  PluginNotificationsResult,
   PluginQueryResult,
   PluginRasterFilterCategory,
   PluginSoilDataResult,
@@ -172,6 +173,10 @@ const dataRequestDelete: PluginMutationResult<{ id: string }, void> = {
   isError: false,
 };
 
+const notifications: PluginNotificationsResult = {
+  showNotification: notification => console.info('[notification]', notification),
+};
+
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
   useTheme: () => query(theme),
@@ -191,5 +196,7 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   useDataRequest: dataRequest,
   useDataRequestDelete: () => dataRequestDelete,
   metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
+  // No host toast stack in local preview, so notifications go to the console.
+  useNotifications: () => notifications,
   ...overrides,
 });
