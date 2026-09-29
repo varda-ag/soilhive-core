@@ -55,8 +55,9 @@ export const initializeSchema = async (schema: string = process.env.POSTGRES_SCH
   } finally {
     await dataSourcePublic.destroy().catch(() => {});
   }
-  // Connect to custom schema to run migrations
-  const dataSource = await createDataSource(schema);
+  // Connect to custom schema to run migrations. Entities are deliberately excluded: migrations are
+  // hand-written SQL (synchronize: false), so entity metadata is never needed here
+  const dataSource = await createDataSource(schema, false);
   try {
     await runConditionalMigrations(dataSource);
   } finally {
