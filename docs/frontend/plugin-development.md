@@ -300,6 +300,18 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
 };
 ```
 
+### Showing a notification
+
+Call `context.useNotifications(pluginId)` to show a toast in the host's notification stack. It uses the host's styling, position and auto-dismiss timing, and you can't change them. `type` is required. Pass strings you have already translated:
+
+```tsx
+const { showNotification } = context.useNotifications('my-plugin');
+
+showNotification({ type: 'success', title: t('saved'), message: t('savedDetail') });
+```
+
+`id` is optional. A toast with the same `id` as one already showing or queued is dropped, so pass an `id` to avoid stacking repeats (for example, from a polling loop). Leave it out to always show a new toast. Ids only deduplicate within your plugin: the host prefixes them with `plugin:{pluginId}:`. `showNotification` keeps the same identity across renders, so it is safe to use in effect dependencies.
+
 ### Requesting statistics (Data Requests)
 
 A Data Request computes descriptive statistics, a class distribution, or a value range for one soil property or soil index, over a filter's aggregation areas. Three hooks cover its lifecycle:

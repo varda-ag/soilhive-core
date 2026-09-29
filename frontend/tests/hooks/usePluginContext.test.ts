@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { usePluginContext } from 'hooks/usePluginContext';
 import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
@@ -6,6 +6,7 @@ import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
 import { useFilter } from 'hooks/useFilter';
 import useTheme from 'hooks/useTheme';
+import useNotifications from 'hooks/useNotifications';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useRaster } from 'hooks/useRaster';
@@ -21,6 +22,7 @@ jest.mock('../../src/auth/AuthContextProvider', () => ({
 // context below, and the rest are mocked purely to avoid pulling in their real (heavy)
 // module graphs at import time.
 jest.mock('hooks/useTheme', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('hooks/useNotifications', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/useDataFilterQuery', () => ({ useDataFilterQuery: jest.fn() }));
 jest.mock('hooks/useFilteredCoverageQuery', () => ({ useFilteredCoverageQuery: jest.fn() }));
 jest.mock('hooks/usePropertiesCategories', () => ({ usePropertiesCategories: jest.fn() }));
@@ -46,6 +48,7 @@ jest.mock('hooks/usePluginDataRequest', () => ({
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
 const useFilterMock = useFilter as jest.MockedFunction<typeof useFilter>;
 const useThemeMock = useTheme as jest.MockedFunction<typeof useTheme>;
+const useNotificationsMock = useNotifications as jest.MockedFunction<typeof useNotifications>;
 const useDataFilterQueryMock = useDataFilterQuery as jest.MockedFunction<typeof useDataFilterQuery>;
 const useFilteredCoverageQueryMock = useFilteredCoverageQuery as jest.MockedFunction<typeof useFilteredCoverageQuery>;
 const useRasterMock = useRaster as jest.MockedFunction<typeof useRaster>;
@@ -237,5 +240,57 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current).not.toHaveProperty('mapSelection');
+  });
+
+  describe('useNotifications', () => {
+    const hostShow = jest.fn();
+
+    beforeEach(() => {
+      useNotificationsMock.mockReturnValue({ notifications: [], showNotification: hostShow, removeNotification: jest.fn() });
+    });
+
+    const renderNotifications = (pluginId = 'my-plugin') => {
+      const { result: context } = renderHook(() => usePluginContext());
+      return renderHook(({ id }) => context.current.useNotifications(id), { initialProps: { id: pluginId } });
+    };
+
+    it('namespaces a given id under plugin:{pluginId}: and passes the rest through', () => {
+      const { result } = renderNotifications();
+
+      act(() => result.current.showNotification({ id: 'saved', title: 'Saved', message: 'Done', type: 'success' }));
+
+      expect(hostShow).toHaveBeenCalledWith({ id: 'plugin:my-plugin:saved', title: 'Saved', message: 'Done', type: 'success' });
+    });
+
+    it('generates a distinct namespaced id per call when none is given', () => {
+      const { result } = renderNotifications();
+
+      act(() => result.current.showNotification({ title: 'A', type: 'error' }));
+      act(() => result.current.showNotification({ title: 'B', type: 'error' }));
+
+      const [first, second] = hostShow.mock.calls.map(([n]) => n.id);
+      expect(first).toMatch(/^plugin:my-plugin:auto-\d+$/);
+      expect(second).toMatch(/^plugin:my-plugin:auto-\d+$/);
+      expect(first).not.toBe(second);
+    });
+
+    it('keeps showNotification stable when the host callback changes identity', () => {
+      const { result, rerender } = renderNotifications();
+      const initial = result.current.showNotification;
+      const nextHostShow = jest.fn();
+      useNotificationsMock.mockReturnValue({ notifications: [], showNotification: nextHostShow, removeNotification: jest.fn() });
+
+      rerender({ id: 'my-plugin' });
+      act(() => result.current.showNotification({ id: 'x', title: 'X', type: 'warning' }));
+
+      expect(result.current.showNotification).toBe(initial);
+      expect(nextHostShow).toHaveBeenCalledWith({ id: 'plugin:my-plugin:x', title: 'X', type: 'warning' });
+    });
+
+    it("exposes only showNotification, never the host's list or removeNotification", () => {
+      const { result } = renderNotifications();
+
+      expect(Object.keys(result.current)).toEqual(['showNotification']);
+    });
   });
 });

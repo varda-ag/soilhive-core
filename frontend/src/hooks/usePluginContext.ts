@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type {
   PluginDataFilterInput,
   PluginFilterCriteria,
   PluginFilteredData,
   PluginGeometry,
+  PluginNotification,
+  PluginNotificationsResult,
   PluginQueryResult,
   PluginRasterFilterCategory,
   PluginSoilDataParameters,
@@ -19,6 +21,7 @@ import { useAuthContext } from '../auth/AuthContextProvider';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
 import { useFilter as useHostFilter } from './useFilter';
 import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
+import useHostNotifications from './useNotifications';
 import { usePropertiesCategories as useHostPropertiesCategories } from './usePropertiesCategories';
 import { useRaster as useHostRaster } from './useRaster';
 import { useSoilData as useHostSoilData } from './useSoilData';
@@ -99,6 +102,25 @@ function usePluginSoilData(parameters: PluginSoilDataParameters): PluginSoilData
   return { data: allData, isLoading, hasMore, loadMore, reset };
 }
 
+let autoNotificationId = 0;
+
+// Only showNotification is exposed: the host's visible list and removeNotification stay private.
+// A counter, not crypto.randomUUID, since that needs a secure context and hosts may serve plain HTTP.
+function usePluginNotifications(pluginId: string): PluginNotificationsResult {
+  const { showNotification: hostShow } = useHostNotifications();
+  // The host's showNotification changes identity whenever a toast starts closing; read it
+  // through a ref so plugins get a stable callback for their effect deps.
+  const hostShowRef = useRef(hostShow);
+  hostShowRef.current = hostShow;
+  const showNotification = useCallback(
+    ({ id, ...notification }: PluginNotification) => {
+      hostShowRef.current({ id: `plugin:${pluginId}:${id ?? `auto-${++autoNotificationId}`}`, ...notification });
+    },
+    [pluginId],
+  );
+  return useMemo(() => ({ showNotification }), [showNotification]);
+}
+
 export function usePluginContext(): PluginContext {
   const { user } = useAuthContext();
 
@@ -131,6 +153,7 @@ export function usePluginContext(): PluginContext {
       // A plain function, not a hook: plugins call it while rendering a dataset
       // row, so it must not add a hook to their render order.
       metadataUrl,
+      useNotifications: usePluginNotifications,
     }),
     [user],
   );
