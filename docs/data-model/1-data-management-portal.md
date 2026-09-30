@@ -92,6 +92,7 @@ Every dataset you have created is listed in the Admin console, with a status tha
 | Status | What it means | What you can do |
 |---|---|---|
 | **Draft** | The dataset was created but the upload wizard was never completed | Edit (resumes the wizard at the furthest step you reached), Delete |
+| **Queued** | A load has been submitted and is waiting to start. A published dataset stays live until then | Wait for it to start; nothing can be edited meanwhile |
 | **Loading** | The file is being processed and loaded | Wait for it to finish |
 | **Loaded** | The data is in the database but is not visible to users | **Publish**, Delete |
 | **Published** | The dataset is live | Edit (opens the settings page), Delete |

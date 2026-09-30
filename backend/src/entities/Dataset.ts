@@ -5,6 +5,7 @@ import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import { GISDataType, IngestionStatus } from '../types/data';
 import { Capability } from '../types/enums';
+import { QueuedJob } from '../interfaces/Job';
 
 @Entity('datasets')
 @Unique(['name'])
@@ -114,4 +115,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
 
   // Not a column, populated at runtime from processing_steps.description
   preprocessing_steps?: string | null;
+
+  // Not a column, populated at runtime from pg-boss for a Privileged caller (docs/adr/0042)
+  queued_job?: QueuedJob | null;
 }

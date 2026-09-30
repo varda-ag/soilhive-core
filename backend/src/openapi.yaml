@@ -436,6 +436,12 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     delete:
       x-eov-operation-handler: controllers/datasets
@@ -457,6 +463,12 @@ paths:
           description: Dataset successfully deleted (no content returned)
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /jobs:
     post:
@@ -467,6 +479,8 @@ paths:
       description: >-
         bulk-load, raster-load, file-to-db and bulk-delete jobs require data-admin or super-admin scope.
         Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
+        A bulk-load, raster-load or bulk-delete job is refused with 409 while its dataset already has one of
+        those queued or running, and its dataset_id is stored as the dataset's current id.
       tags:
         - jobs
       security:
@@ -508,6 +522,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
     get:
       x-eov-operation-handler: controllers/jobs
@@ -756,6 +776,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Unauthorized - Token subject is missing
+        '409':
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: deleteDatasetFileMappingByFileId
@@ -784,6 +810,12 @@ paths:
           $ref: '#/components/responses/NotFound'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}:
     get:
@@ -856,6 +888,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           description: Unauthorized - Token subject is missing
+        '409':
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /datasets/{datasetId}/files:
     get:
@@ -1816,6 +1854,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     get:
       x-eov-operation-handler: controllers/datasets
       x-eov-operation-id: getSoilData
@@ -2651,7 +2695,7 @@ components:
       type: array
       items:
         $ref: '#/components/schemas/FilteredDatasetSummary'
-    
+
     FilteredData:
       type: object
       properties:
@@ -2895,6 +2939,21 @@ components:
             type: string
             format: uri
           nullable: true
+        queued_job:
+          type: object
+          nullable: true
+          readOnly: true
+          description: >-
+            The bulk-load, raster-load or bulk-delete job pg-boss has not picked up yet, or null.
+            Returned by GET /datasets and GET /datasets/{datasetId} to data-admin, super-admin and
+            internal-request callers only.
+          properties:
+            id:
+              type: string
+              format: uuid
+            queue:
+              type: string
+              enum: [bulk-load, raster-load, bulk-delete]
 
     SoilProperty:
       type: object
@@ -2957,7 +3016,7 @@ components:
         - id
         - category_name
         - category_acronym
-    
+
     VocabularyItem:
       type: object
       properties:
@@ -3378,14 +3437,14 @@ components:
           type: object
           additionalProperties:
             type: number
-    
+
     cleaningReportModifications:
       type: object
       properties:
         reason:
           type: string
           enum: [depth_rounded, value_rounded, unit_converted]
-        count: 
+        count:
           type: number
 
     cleaningReportRowDeletions:
@@ -3394,7 +3453,7 @@ components:
         reason:
           type: string
           enum: [mixed_data_type, invalid_coordinates, invalid_depth_interval, minimum_data_requirement, duplicate_row]
-        count: 
+        count:
           type: number
 
     cleaningReportCellDeletions:
@@ -3403,9 +3462,9 @@ components:
         reason:
           type: string
           enum: [non_numeric, negative_value, zero_value, out_of_bounds]
-        count: 
+        count:
           type: number
-        property: 
+        property:
           type: string
           nullable: true
 
@@ -3415,9 +3474,9 @@ components:
         summary:
           type: object
           properties:
-            values_modified: 
+            values_modified:
               type: number
-            rows_deleted: 
+            rows_deleted:
               type: number
             cells_deleted:
               type: number

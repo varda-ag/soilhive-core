@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { AnyJob, ExportJob, Job, DataRequestJob, SoilIndexJob, RunJobData } from '../interfaces/Job';
+import { AnyJob, ExportJob, Job, DataRequestJob, SoilIndexJob, RunJobData, BulkLoadJob } from '../interfaces/Job';
 import { Capability, JobQueues, SoilIndexType, StatisticsType, VariableType } from '../types/enums';
 import { EntitlementScope } from '../types/Entitlements';
 import { getPgBoss } from './PgBoss';
@@ -17,6 +17,10 @@ import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
+import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/DatasetJobs';
+import { getEntity } from '../utils/slugs';
+import DatasetEntity from '../entities/Dataset';
+import { EntityType } from '../types/data';
 
 const entitlementService = new EntitlementService();
 
@@ -52,6 +56,10 @@ export default class JobService {
       if (!isPrivilegedCaller(requestData.token)) {
         throw new ErrorResponse(`${data.type} jobs require the data-admin or super-admin scope`, StatusCodes.FORBIDDEN);
       }
+    }
+
+    if (DATASET_LOCKING_QUEUES.includes(data.type)) {
+      await this.lockDataset(requestData, data as BulkLoadJob);
     }
 
     // Checking entitlements
@@ -94,6 +102,17 @@ export default class JobService {
     }
     return job;
   }
+
+  /**
+   * Refuses the job while its Dataset has another one Queued or running (docs/adr/0042).
+   * dataset_id is rewritten to the current slug: an old one resolves here but would never match
+   * the Queued lookup, which compares slugs as stored in the job data.
+   */
+  private lockDataset = async (requestData: RequestData, data: { dataset_id: string }): Promise<void> => {
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
+    data.dataset_id = dataset.slug;
+    await assertNoUnfinishedJob(requestData.entityManager, dataset);
+  };
 
   /**
    * Enqueue-time validation for data-requests jobs.
