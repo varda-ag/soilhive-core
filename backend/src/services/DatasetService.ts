@@ -17,6 +17,7 @@ import { refreshDaiStats } from '../data-layer/DaiStats';
 import JobService from './JobService';
 import { RefreshDaiStatsJob } from '../interfaces/Job';
 import { ProcessingSteps } from '../interfaces/Dataset';
+import { assertNoUnfinishedJob, getQueuedJobs } from '../data-layer/DatasetJobs';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -163,6 +164,33 @@ export default class DatasetService {
       dataset.visibility === 'public' || isBypassed
         ? [Capability.PREVIEW, Capability.DOWNLOAD]
         : requestData.entitlements.datasets?.[dataset.slug] || [];
+  };
+
+  /**
+   * Sets `queued_job` for a Privileged caller, the only one shown a Dataset's pending work.
+   * Called by the read endpoints rather than getDataset, which the job processors also use.
+   */
+  decorateWithQueuedJobs = async (requestData: RequestData, datasets: DatasetEntity[]): Promise<void> => {
+    if (!isPrivilegedCaller(requestData.token) || datasets.length === 0) {
+      return;
+    }
+    const queued = await getQueuedJobs(
+      requestData.entityManager,
+      datasets.map(d => d.slug),
+    );
+    for (const dataset of datasets) {
+      dataset.queued_job = queued.get(dataset.slug) ?? null;
+    }
+  };
+
+  /**
+   * Refuses an edit with 409 while the Dataset has a Bulk Load, Raster Load or Purge Queued or
+   * running (docs/adr/0042). Called by the edit endpoints only: the jobs write through the same
+   * service methods and must not lock themselves out.
+   */
+  assertEditable = async (requestData: RequestData, slug: string): Promise<void> => {
+    const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
+    await assertNoUnfinishedJob(requestData.entityManager, dataset);
   };
 
   decoratePreprocessingSteps = (dataset: DatasetEntity) => {

@@ -26,6 +26,8 @@ DELETE /jobs/{jobId}
 
 Job status values: `created`, `active`, `completed`, `cancelled`, `failed`.
 
+**Dataset lock.** While a dataset has a `bulk-load`, `raster-load` or `bulk-delete` job `created` or `active`, another job on those queues and every dataset edit (`PATCH`/`DELETE /datasets/{id}`, the `dataset-file-mapping` writes, `POST …/soil-data` except the bulk load's own internal-request batches) return 409. `file-to-db` neither locks nor is refused. A `created` job is shown to privileged callers as the dataset's `queued_job` (ADR 0042).
+
 **Job identity.** A job records the **Subject** of whoever submitted it in `created_by` — the token's `email` claim, else `client_id`, else `sub` (ADR 0022). The same value governs two things: which jobs `GET /jobs` lists and who may poll or cancel one, and which entitlements the processor resolves. Processors hold no raw token, so they re-derive entitlements from `everyone` plus the Subject's local rows; entitlements that exist only at the external endpoint are visible at enqueue time but not to the processor.
 
 ---

@@ -547,6 +547,7 @@ describe('Testing /data-requests routes', () => {
 
       // A job on a served queue from the same caller, so an empty list cannot pass for a filter
       // that dropped everything.
+      await addDataset('dr-jobs-list-dataset', [0, 0, 1, 1]);
       const bulk = await request(app)
         .post('/jobs')
         .set('Authorization', `Bearer ${token}`)
@@ -640,7 +641,7 @@ describe('Testing /data-requests routes', () => {
 
     /** A fresh plugin config item: the author claims write, the reader is granted read. */
     const claimConfig = async (): Promise<string> => {
-      const configId = `plugin:dashboards:${uuidv4()}`;
+      const configId = `plugin:dashboards:dashboards:${uuidv4()}`;
       await request(app).put(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(200);
       await request(app)
         .put(`/config/${configId}/entitlements`)
@@ -678,7 +679,7 @@ describe('Testing /data-requests routes', () => {
       });
 
       it('rejects a config item that was never saved', async () => {
-        const res = await submitAttached(`plugin:dashboards:${uuidv4()}`);
+        const res = await submitAttached(`plugin:dashboards:dashboards:${uuidv4()}`);
         expect(res.statusCode).toBe(404);
       });
 

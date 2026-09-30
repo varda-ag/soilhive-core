@@ -19,6 +19,11 @@
     border-color: var(--color-accent-warning-1700);
     color: var(--color-accent-warning-1700);
   }
+  &.QUEUED {
+    background-color: var(--color-accent-tech-100);
+    border-color: var(--color-neutral-dark-400);
+    color: var(--color-neutral-dark-600);
+  }
   &.PUBLISHED {
     background-color: var(--color-brand-light-green-100);
     border-color: var(--color-brand-light-green-1000);

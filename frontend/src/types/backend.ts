@@ -170,6 +170,13 @@ export interface Dataset {
   inferred_properties?: InferredProperty[] | null;
   preprocessing_steps?: string | null;
   related_resources?: string[] | null;
+  // Set for data admins only: the bulk-load, raster-load or bulk-delete job pg-boss has not picked up yet
+  queued_job?: QueuedJob | null;
+}
+
+export interface QueuedJob {
+  id: string;
+  queue: string;
 }
 
 export interface SoilDataParameters {
@@ -307,7 +314,7 @@ export type ConfigEntitlements = Record<string, ConfigEntitlementCapability[]>;
 /**
  * Namespace `GET /entitlements`'s mandatory `scope` query param selects (see backend ADR-0032).
  * `DASHBOARDS` is not a storage namespace of its own — it's a filtered view over `CONFIGS`,
- * returning only the config entries under the `dashboards` subkey.
+ * returning only the config entries of Config Kind `dashboards` (ids `dashboards:{id}`).
  */
 export enum EntitlementScope {
   DATASETS = 'datasets',

@@ -8,7 +8,7 @@ import { Token } from '../../src/interfaces/Token';
 import { addDataset, addLicense } from '../../src/utils/mock';
 import EntitlementService from '../../src/services/EntitlementService';
 import DatasetService from '../../src/services/DatasetService';
-import { EntitlementScope, ConfigSubkeyScope, CapabilityGrants } from '../../src/types/Entitlements';
+import { EntitlementScope, ConfigKind, CapabilityGrants } from '../../src/types/Entitlements';
 import { Capability } from '../../src/types/enums';
 import DatasetEntity from '../../src/entities/Dataset';
 import LicenseEntity from '../../src/entities/License';
@@ -841,36 +841,36 @@ describe('EntitlementService', () => {
   });
 
   describe('selectByScope', () => {
-    it('returns the configs entries under a subkey prefix, excluding unrelated keys', () => {
+    it('returns the configs entries of a Config Kind, excluding unrelated keys', () => {
       const entitlements = {
         datasets: {},
-        configs: { dashboards_1: [Capability.READ], dashboards_2: [Capability.READ], look_and_feel: [Capability.READ] },
+        configs: { 'dashboards:1': [Capability.READ], 'dashboards:2': [Capability.READ], look_and_feel: [Capability.READ] },
       };
-      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({
-        dashboards_1: [Capability.READ],
-        dashboards_2: [Capability.READ],
+      expect(service.selectByScope(entitlements, ConfigKind.DASHBOARDS)).toEqual({
+        'dashboards:1': [Capability.READ],
+        'dashboards:2': [Capability.READ],
       });
     });
 
-    it('matches a singleton subkey entry with no suffix, via exact equality', () => {
-      const entitlements = { datasets: {}, configs: { dashboards: [Capability.READ] } };
-      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({ dashboards: [Capability.READ] });
+    it.each(['dashboards', 'dashboards:', 'dashboards_1', 'dashboardsettings'])('does not treat %s as a dashboard', key => {
+      const entitlements = { datasets: {}, configs: { [key]: [Capability.READ] } };
+      expect(service.selectByScope(entitlements, ConfigKind.DASHBOARDS)).toEqual({});
     });
 
     it('matches a plugin-owned key on its id part, keeping the full key (with prefix) in the result', () => {
       const entitlements = {
         datasets: {},
         configs: {
-          'plugin:weather-widget:dashboards_1': [Capability.READ],
+          'plugin:weather-widget:dashboards:1': [Capability.READ],
           'plugin:weather-widget:dashboards': [Capability.READ],
+          'plugin:weather-widget:dashboards:': [Capability.READ],
           'plugin:weather-widget:look_and_feel': [Capability.READ],
-          dashboards_2: [Capability.READ],
+          'dashboards:2': [Capability.READ],
         },
       };
-      expect(service.selectByScope(entitlements, ConfigSubkeyScope.DASHBOARDS)).toEqual({
-        'plugin:weather-widget:dashboards_1': [Capability.READ],
-        'plugin:weather-widget:dashboards': [Capability.READ],
-        dashboards_2: [Capability.READ],
+      expect(service.selectByScope(entitlements, ConfigKind.DASHBOARDS)).toEqual({
+        'plugin:weather-widget:dashboards:1': [Capability.READ],
+        'dashboards:2': [Capability.READ],
       });
     });
   });

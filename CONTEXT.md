@@ -197,11 +197,15 @@ One request and the outcome its **Run** reached, kept together so the outcome su
 _Avoid_: Filter (a persisted scope, deduplicated per owner), query, job (the queue record that computes an answer, not the record of one), **Soil Statistics** (one Statistics Type's payload, not the record carrying it), **Soil Index** (a Run's product, held as scored geometry and never a Data Request), cache entry (an identical request is never answered from an earlier one), export
 
 **Export**:
-One execution of a download request: a **Filter** and a set of **Datasets** resolved into files in the caller's chosen formats. Identified by the id of the job that runs it, and the unit that progress, failure and the size limit are all attributed to — so "the Export is too large" is always a statement about how many **Observations** it names, never about how big its files turned out. Two Exports of an identical request are two Exports, and neither supersedes the other.
+One execution of a download request: a **Filter** and a set of **Datasets** resolved into files in the caller's chosen formats. Identified by the id of the job that runs it, and the unit that progress, failure and size limits are all attributed to — so "the Export is too large" is always a statement about what it names, never about how big its files turned out. It names two counts that are never added together: its **Observations** and its **Raster Layers**. Two Exports of an identical request are two Exports, and neither supersedes the other.
 _Avoid_: Download (the act of retrieving the **Export Bundle**, not of producing it), **Data Request** (a historical answer that is never recomputed — an Export is recomputed every time it is asked for), report, extract, query
 
+**Export Limit**:
+An administrator-set bound on an **Export**'s size, protecting server load rather than the data: its **Filter**'s area (the sum of its geometries' areas; no geometries exceeds any area limit), its **Observations**, or its **Raster Layers**. Any combination may be set, and none means unlimited. An Export over any one fails, judged when it starts running. Applies to **Privileged callers** too, unless administrators (the data-admin and super-admin scopes) are exempted. Distinct from the XLSX record cap, which belongs to one format and is not set by administrators.
+_Avoid_: Quota (implies a per-caller allowance over time), export size (ambiguous with the **Export Bundle**'s bytes), count limit (there are two counts)
+
 **Export Bundle**:
-The single ZIP an **Export** produces: a readme PDF, one file or worksheet per **Soil Property**, and one folder per exported **Raster Layer**. It is the artifact, never the request — its size is measured in bytes and its shape depends on the chosen formats, while the Export that produced it is measured in **Observations**. An Export that fails produces no Export Bundle at all; there is no partial one.
+The single ZIP an **Export** produces: a readme PDF, one file or worksheet per **Soil Property**, and one folder per exported **Raster Layer**. It is the artifact, never the request — its size is measured in bytes and its shape depends on the chosen formats, while the Export that produced it is measured in **Observations** and **Raster Layers**. An Export that fails produces no Export Bundle at all; there is no partial one.
 _Avoid_: **Export** (the execution that produces it), the ZIP/the archive (names the container, and "archive" already means the reversible retirement of a **Dataset**), the download, output files
 
 **Ingestion Status**:
@@ -212,8 +216,12 @@ _Avoid_: State, stage, publication state, visibility (the access attribute), "ac
 The Ingestion Status a Dataset must hold to be **listed** — to appear in the catalog and in every filter, coverage and DAI result. It is not a release of the data: a Dataset's soil data is readable through `/soil-data` by anyone holding its slug at any Ingestion Status, subject only to **Visibility** and **Entitlement**. Say "listed", never "released".
 _Avoid_: Live, public (that is a **Visibility** value), released, available, approved
 
+**Queued**:
+A Dataset with a Bulk Load, Raster Load or **Purge** submitted but not yet started. A fact about its pending work, not an **Ingestion Status**: it holds alongside whatever status the Dataset has, and ends when the work starts or is withdrawn (docs/adr/0042).
+_Avoid_: QUEUED status, pending (an Ingestion Status), waiting
+
 **Privileged caller**:
-A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject.
+A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. It does not bypass **Export Limits** unless administrators are exempted from them. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject.
 _Avoid_: Admin (ambiguous across the three scopes, and "data admin" also names the human role that curates Datasets), role, superuser, owner
 
 **Archive**:
@@ -244,6 +252,14 @@ _Avoid_: Plugin props, context (too generic — always say "Plugin Context")
 The metadata a Plugin exposes describing how the host should mount it: its `PluginType` (`single-page`, `new-tab`, or `map-info-card`), whether it gets a menu item, its route, and its `Page` component. Defined in the host's `src/types/plugins.ts`, not in `frontend-plugin-types`. The Plugin-to-host half of the contract — the mirror image of Plugin Context, not an overlapping concept.
 _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), plugin config
 
+**Plugin Namespace**:
+The `plugin:{pluginId}:` prefix that marks a config item as owned by one **Plugin**; a config id without it belongs to the host.
+_Avoid_: Plugin prefix
+
+**Config Kind**:
+What a config item represents, carried as a `{kind}:` prefix on its id right after the **Plugin Namespace**, if any (`plugin:{pluginId}:dashboards:{id}`); `dashboards` is the only kind today.
+_Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` storage namespaces), convention prefix
+
 ## Relationships
 
 - An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
@@ -268,9 +284,11 @@ _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), 
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
+- A config item has at most one **Config Kind**, and only when a non-empty id follows the `{kind}:` prefix; the **Plugin** chooses it, and the host adds and strips only the **Plugin Namespace**
 - A **Data Request** is attached to at most one plugin config item, fixed at submission, which must already exist; a **Plugin** only ever submits attached Data Requests, and decides itself when each one is destroyed
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
 - An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
+- A **Dataset** accepts no edits while it has a Bulk Load, Raster Load or **Purge** Queued or running; being **Queued** is only the first part of that window
 - **Ingestion Status**, **Visibility** and **Entitlement** are three independent attributes of a Dataset: the first decides whether it is listed, the other two decide what may be done with its data
 
 ## Example dialogue
@@ -306,12 +324,14 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 ## Flagged ambiguities
 
+- **"scope" names both storage namespaces and Config Kinds.** `GET /entitlements?scope=` accepts `datasets`, `configs` and `dashboards`, but only the first two are namespaces. Resolved: `dashboards` is a **Config Kind**, a filtered view over `configs`; the query param keeps its name because it is API.
 - **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: it means **listed only**. Every dataset-listing path pins `status = 'PUBLISHED'`, but `/soil-data` deliberately does not — an unpublished Dataset's Observations are readable by anyone holding its slug, gated by **Visibility** and **Entitlement** and nothing else. So "unpublished datasets aren't visible" is true of the catalog and false of the data. Always say *where*.
 - **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.
 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.
 
 - **"ID" almost never means the primary key** — see **Public identifier**. "dataset ID" means the Dataset's `slug`: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. The same holds inside a Band Mapping: an additional resource's `file_id` is a **File slug**, resolved through slug history, so a File renamed after the mapping was written still resolves. In domain discussions, say **slug** when you mean the public identifier and reserve "primary key" for the internal UUID — never bare "ID" for either.
+- Export failure messages say **"records"** for **Observations**, the word a user sees as rows in their files. It is a UI label only; in domain discussions and on admin pages say Observations.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.

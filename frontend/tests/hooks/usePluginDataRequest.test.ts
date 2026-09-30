@@ -148,7 +148,7 @@ describe('usePluginDataRequestSubmit', () => {
   });
 
   it('attaches the submission to the plugin config item and seeds the cache with the pending request', async () => {
-    const { result } = renderHook(() => usePluginDataRequestSubmit('dashboards', 'd1'));
+    const { result } = renderHook(() => usePluginDataRequestSubmit('dashboards', 'dashboards:d1'));
     const submission = {
       statistics_type: 'value-range' as const,
       filter_id: 'f',
@@ -159,14 +159,14 @@ describe('usePluginDataRequestSubmit', () => {
     const created = await result.current.mutateAsync(submission);
 
     expect(useApiMutationMock).toHaveBeenCalledWith({ endpoint: '/data-requests', method: 'POST', showErrorNotification: false });
-    expect(mutateAsync).toHaveBeenCalledWith({ ...submission, config_id: 'plugin:dashboards:d1' });
+    expect(mutateAsync).toHaveBeenCalledWith({ ...submission, config_id: 'plugin:dashboards:dashboards:d1' });
     expect(setQueryData).toHaveBeenCalledWith(dataRequestQueryKey('dr-1'), response('pending'));
     expect(created.statistics_type).toBe('value-range');
   });
 
   it('lets a rejected submission reject', async () => {
     mutateAsync.mockRejectedValue({ status: 404, message: 'Config not found' });
-    const { result } = renderHook(() => usePluginDataRequestSubmit('dashboards', 'd1'));
+    const { result } = renderHook(() => usePluginDataRequestSubmit('dashboards', 'dashboards:d1'));
 
     await expect(
       result.current.mutateAsync({

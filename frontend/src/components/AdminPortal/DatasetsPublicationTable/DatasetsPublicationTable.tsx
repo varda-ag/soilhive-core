@@ -15,11 +15,17 @@ import styles from './DatasetsPublicationTable.module.scss';
 
 const statusSortingMap = {
   [IngestionStatus.PENDING]: 0,
-  [IngestionStatus.ONGOING]: 1,
-  [IngestionStatus.STAGED]: 2,
-  [IngestionStatus.LOADED]: 3,
-  [IngestionStatus.PUBLISHED]: 4,
+  [IngestionStatus.ONGOING]: 2,
+  [IngestionStatus.STAGED]: 3,
+  [IngestionStatus.LOADED]: 4,
+  [IngestionStatus.PUBLISHED]: 5,
 };
+
+// Queued comes before any work has started, so between PENDING and ONGOING
+const QUEUED_SORT_ORDER = 1;
+
+const statusSortValue = (dataset: DatasetsPublicationListItem) =>
+  dataset.isQueued ? QUEUED_SORT_ORDER : (statusSortingMap[dataset.status] ?? 0);
 
 interface Props {
   datasets: DatasetsPublicationListItem[];
@@ -35,9 +41,7 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
 
   const statusSortFunction = useCallback((event: ColumnSortEvent) => {
     return [...event.data].sort((a: DatasetsPublicationListItem, b: DatasetsPublicationListItem) => {
-      const valA = statusSortingMap[a.status] ?? 0;
-      const valB = statusSortingMap[b.status] ?? 0;
-      return (event.order || 0) * (valA - valB);
+      return (event.order || 0) * (statusSortValue(a) - statusSortValue(b));
     });
   }, []);
 
@@ -100,7 +104,7 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
 
   const rowClassName = (row: DatasetsPublicationListItem) => {
     if (row.hasErrors) return 'sh-row-error';
-    if (row.status === IngestionStatus.LOADED) return 'sh-row-highlighted';
+    if (row.status === IngestionStatus.LOADED && !row.isQueued) return 'sh-row-highlighted';
     return undefined;
   };
   return (

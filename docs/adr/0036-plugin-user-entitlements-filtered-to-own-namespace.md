@@ -29,7 +29,7 @@ how it's filtered.
   rejected — leaks cross-plugin and host entitlement data, and lets a plugin pass `'datasets'` for
   a param that can only ever resolve to `{}`.
 - **Hardcode `scope` to `'configs'` only, drop the parameter entirely**: rejected once it became
-  clear `selectByScope`'s subkey match strips the `plugin:{pluginId}:` prefix before comparing
-  against `dashboards`/`dashboards_*` (`EntitlementService.ts:190-194`) — a plugin's own
-  `dashboards_1`-named config genuinely surfaces under `scope=dashboards`, so that scope is live for
+  clear `selectByScope`'s Config Kind match strips the `plugin:{pluginId}:` prefix before comparing
+  against the `dashboards:` Config Kind (`EntitlementService.selectByScope`) — a plugin's own
+  `dashboards:1`-named config genuinely surfaces under `scope=dashboards`, so that scope is live for
   plugins, not dead.

@@ -11,6 +11,7 @@ import MapPinIcon from 'assets/icons/map-pin-icon.svg?react';
 import ImageIcon from 'assets/icons/image-icon.svg?react';
 import ServerIcon from 'assets/icons/server-icon.svg?react';
 import FilterIcon from 'assets/icons/filter2-icon.svg?react';
+import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { ADMIN_PATHS } from '../../../configuration/admin';
 import { useAuthContext } from '../../../auth/AuthContextProvider';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
@@ -80,6 +81,7 @@ export function AdminSidebar() {
           disabled: false,
         },
         { url: ADMIN_PATHS.FILTERS, title: 'filters', Icon: FilterIcon, disabled: false },
+        { url: ADMIN_PATHS.EXPORT_SETTINGS, title: 'export_settings', Icon: DownloadIcon, disabled: false },
       ],
     };
   }, []);

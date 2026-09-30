@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { createBrowserRouter, createRoutesFromElements, Route, RouterProvider } from 'react-router';
 import PageTitle from './components/PageTitle';
+import PluginErrorPage from './components/PluginErrorPage/PluginErrorPage';
 import { ADMIN_ROOT } from './configuration/admin';
 import { METADATA_ROUTE, PRIVACY_POLICY_ROUTE, TERMS_OF_USE_ROUTE } from './configuration/routes';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
@@ -96,6 +97,9 @@ function AppRoutes() {
                     <PluginPage Page={Page} />
                   </>
                 }
+                // Contains an error thrown while rendering the plugin to its own route, instead of
+                // react-router's default error screen replacing the whole app (header included).
+                errorElement={<PluginErrorPage name={name} />}
               />
             ))}
           </Route>

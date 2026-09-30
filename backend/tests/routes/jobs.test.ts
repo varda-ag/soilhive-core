@@ -1,16 +1,19 @@
 import { describe, expect, it, beforeAll, afterEach, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
+import { v4 as uuidv4 } from 'uuid';
 import { app } from '../../src/app';
 import { Token } from '../../src/interfaces/Token';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
 import { JobQueues, SoilIndexType, StatisticsType } from '../../src/types/enums';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
-import { getRawTableName, sleep } from '../../src/utils/utils';
+import { getRawTableName, signToken, sleep } from '../../src/utils/utils';
+import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
 import { getDataAdminToken, getUserToken } from '../helper';
 import { RequestData } from '../../src/interfaces/RequestData';
 import FileService from '../../src/services/FileService';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
+import * as FileToDbJobModule from '../../src/jobs/file-to-db/FileToDbJob';
 import { VectorFileMetadata } from '../../src/interfaces/File';
 import { addDataset, linkMapping } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
@@ -91,6 +94,8 @@ describe('Testing /jobs routes', () => {
 
     jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
     jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
+    // createJob resolves the dataset of a bulk-load before enqueueing it
+    await addDataset('test-dataset', [-180, -90, 180, 90]);
 
     // The spy has to exist before the job is enqueued. pg-boss only records into spies that
     // already exist for the queue (manager.#spies.get(name)), and getSpy creates one lazily - so
@@ -426,6 +431,180 @@ describe('Testing /jobs routes', () => {
       });
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('has no geometries');
+    });
+  });
+
+  describe('dataset lock (docs/adr/0042)', () => {
+    // Stays `created` for the whole test: workers skip a job until its startAfter
+    const holdQueued = async (queue: JobQueues, datasetId: string): Promise<string> =>
+      (await getPgBoss().send(queue, { type: queue, dataset_id: datasetId }, { startAfter: 3600 }))!;
+
+    it('refuses a second dataset job and every dataset edit while one is queued', async () => {
+      const token = await getDataAdminToken();
+      const dataset = await addDataset('queued-lock-dataset', [0, 0, 1, 1]);
+      const heldId = await holdQueued(JobQueues.RASTER_LOAD, dataset.slug);
+      const auth = ['Authorization', `Bearer ${token}`] as const;
+      const base = `/datasets/${dataset.slug}`;
+      try {
+        const job = await request(app)
+          .post('/jobs')
+          .set(...auth)
+          .send({ type: JobQueues.BULK_DELETE, dataset_id: dataset.slug });
+        expect(job.statusCode).toBe(409);
+        expect(job.body.detail).toContain(heldId);
+
+        const edits = [
+          request(app)
+            .patch(base)
+            .set(...auth)
+            .send({ description: 'changed' }),
+          request(app)
+            .delete(base)
+            .set(...auth),
+          request(app)
+            .post(`${base}/dataset-file-mapping`)
+            .set(...auth)
+            .send({}),
+          request(app)
+            .delete(`${base}/dataset-file-mapping`)
+            .query({ fileId: 'any-file' })
+            .set(...auth),
+          request(app)
+            .patch(`${base}/dataset-file-mapping/${uuidv4()}`)
+            .set(...auth)
+            .send({}),
+          request(app)
+            .post(`${base}/dataset-file-mapping/${uuidv4()}/soil-data`)
+            .set(...auth)
+            .send([]),
+        ];
+        for (const res of await Promise.all(edits)) {
+          expect(res.statusCode).toBe(409);
+          expect(res.body.detail).toContain('queued');
+        }
+
+        // The running bulk load writes its own batches here under an internal token
+        const internal = await request(app)
+          .post(`${base}/dataset-file-mapping/${uuidv4()}/soil-data`)
+          .set('Authorization', `Bearer ${signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD)}`)
+          .send([]);
+        expect(internal.statusCode).not.toBe(409);
+      } finally {
+        await getPgBoss().cancel(JobQueues.RASTER_LOAD, heldId);
+      }
+
+      const afterCancel = await request(app)
+        .patch(base)
+        .set(...auth)
+        .send({ description: 'changed' });
+      expect(afterCancel.statusCode).toBe(200);
+    });
+
+    it('exposes the queued job to a privileged caller only', async () => {
+      const token = await getDataAdminToken();
+      const dataset = await addDataset('queued-read-dataset', [0, 0, 1, 1]);
+      const heldId = await holdQueued(JobQueues.BULK_LOAD, dataset.slug);
+      try {
+        const expected = { id: heldId, queue: JobQueues.BULK_LOAD };
+        const one = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
+        expect(one.body.queued_job).toEqual(expected);
+
+        const list = await request(app).get('/datasets').set('Authorization', `Bearer ${token}`);
+        expect(list.body.find((d: { id: string }) => d.id === dataset.slug).queued_job).toEqual(expected);
+
+        const anonymous = await request(app).get(`/datasets/${dataset.slug}`);
+        expect(anonymous.statusCode).toBe(200);
+        expect(anonymous.body).not.toHaveProperty('queued_job');
+      } finally {
+        await getPgBoss().cancel(JobQueues.BULK_LOAD, heldId);
+      }
+
+      const afterCancel = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
+      expect(afterCancel.body.queued_job).toBeNull();
+    });
+
+    it('keeps the dataset locked while its job runs, but no longer queued', async () => {
+      const token = await getDataAdminToken();
+      const dataset = await addDataset('running-lock-dataset', [0, 0, 1, 1]);
+      let release!: () => void;
+      const released = new Promise<void>(resolve => (release = resolve));
+      jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockImplementation(() => released);
+      // Acquired before the job is enqueued - see the bulk-load test above
+      const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
+
+      const job = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ type: JobQueues.BULK_LOAD, dataset_id: dataset.slug });
+      expect(job.statusCode).toBe(201);
+      await spy.waitForJobWithId(job.body.id, 'active');
+
+      try {
+        const running = await request(app)
+          .patch(`/datasets/${dataset.slug}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ description: 'changed' });
+        expect(running.statusCode).toBe(409);
+        expect(running.body.detail).toContain('running');
+
+        const read = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
+        expect(read.body.queued_job).toBeNull();
+      } finally {
+        release();
+      }
+      await spy.waitForJobWithId(job.body.id, 'completed');
+
+      const done = await request(app)
+        .patch(`/datasets/${dataset.slug}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ description: 'changed' });
+      expect(done.statusCode).toBe(200);
+    });
+
+    it('does not lock on file staging', async () => {
+      const token = await getDataAdminToken();
+      jest.spyOn(FileToDbJobModule, 'processFileToDb').mockResolvedValue(undefined);
+      const dataset = await addDataset('staging-lock-dataset', [0, 0, 1, 1]);
+      const heldId = await holdQueued(JobQueues.RASTER_LOAD, dataset.slug);
+      try {
+        const res = await request(app)
+          .post('/jobs')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ type: JobQueues.FILE_TO_DB, file_id: 'any-file', dataset_id: dataset.slug });
+        expect(res.statusCode).toBe(201);
+      } finally {
+        await getPgBoss().cancel(JobQueues.RASTER_LOAD, heldId);
+      }
+    });
+
+    it('stores the current slug when a job is submitted under an old one', async () => {
+      const token = await getDataAdminToken();
+      jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
+      const created = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Slug Before Load' });
+      const oldSlug = created.body.id;
+      const renamed = await request(app)
+        .patch(`/datasets/${oldSlug}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ name: 'Slug After Rename' });
+      expect(renamed.body.id).not.toBe(oldSlug);
+      const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
+
+      const job = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ type: JobQueues.BULK_LOAD, dataset_id: oldSlug });
+      expect(job.statusCode).toBe(201);
+      expect(job.body.data.dataset_id).toBe(renamed.body.id);
+      await spy.waitForJobWithId(job.body.id, 'completed');
+    });
+
+    it('refuses a dataset job for a dataset that does not exist', async () => {
+      const token = await getDataAdminToken();
+      const res = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ type: JobQueues.RASTER_LOAD, dataset_id: 'no-such-dataset' });
+      expect(res.statusCode).toBe(404);
     });
   });
 });
