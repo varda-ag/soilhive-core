@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterAll, jest } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, jest } from '@jest/globals';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
@@ -28,11 +28,13 @@ import RasterLayerEntity from '../../../src/entities/RasterLayer';
 import FileEntity from '../../../src/entities/File';
 import { RasterFileMetadata } from '../../../src/interfaces/File';
 import { getDataSource } from '../../../src/utils/data-source';
+import { JsonStorage } from '../../../src/entities/JsonStorage';
+import { THEME_CONFIG_ID } from '../../../src/constants/constants';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
-import { IngestionStatus } from '../../../src/types/data';
+import { GISDataType, IngestionStatus } from '../../../src/types/data';
 import { log } from '../../../src/utils/logger';
 import * as FilteringMasksModule from '../../../src/data-layer/FilteringMasks';
-import { addRasterFilterData, addRasterFilterMappings } from '../../helper';
+import { addRasterFilterData, addRasterFilterMappings, getDataAdminToken } from '../../helper';
 import * as RasterUtilsModule from '../../../src/utils/raster';
 import { fromFile } from 'geotiff';
 import * as computeRasterFootprints from '../../../src/scripts/computeRasterFootprints';
@@ -1341,5 +1343,112 @@ describe('Soil Export Job Integration Test', () => {
     fetchBatchSpy.mockRestore();
     getTotalRecordsCountSpy.mockRestore();
     createReadmeFileSpy.mockRestore();
+  });
+
+  describe('Export Limits', () => {
+    // About 31 km²
+    const aoi = {
+      type: 'Polygon' as const,
+      coordinates: [
+        [
+          [0.1, 0.1],
+          [0.15, 0.1],
+          [0.15, 0.15],
+          [0.1, 0.15],
+          [0.1, 0.1],
+        ],
+      ],
+    };
+
+    const setExportLimits = async (exportLimits: object) => {
+      const dataSource = await getDataSource();
+      await dataSource.getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits } });
+    };
+
+    const authorized = (req: request.Test, token?: string) => (token ? req.set('Authorization', `Bearer ${token}`) : req);
+
+    // Returns the job once it has completed or failed
+    async function runExport(datasetIds: string[], formats: string[], token?: string): Promise<any> {
+      const filterResponse = await request(app)
+        .post('/data-filters')
+        .send({ geometries: [aoi], parameters: {} });
+      expect(filterResponse.statusCode).toBe(StatusCodes.CREATED);
+
+      const exportJobResponse = await authorized(request(app).post('/jobs'), token).send({
+        type: 'export',
+        filter_id: filterResponse.body.id,
+        dataset_ids: datasetIds,
+        formats,
+      });
+      expect(exportJobResponse.statusCode).toBe(StatusCodes.CREATED);
+
+      for (let attempts = 0; attempts < 120; attempts++) {
+        await sleep(500);
+        const { body } = await authorized(request(app).get(`/jobs/${exportJobResponse.body.id}`), token);
+        if (body.status === 'completed' || body.status === 'failed') return body;
+      }
+      throw new Error('Export job did not finish');
+    }
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('fails an Export over the area limit before counting its Observations', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxAreaM2: 1_000_000 });
+      const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount');
+
+      const job = await runExport(['limits-vector'], [VectorFileFormat.CSV]);
+
+      expect(job.status).toBe('failed');
+      expect(job.data.errors[0].code).toBe('EX_AREA_LIMIT_EXCEEDED');
+      expect(job.message).toContain('more than the 1 km² allowed per export');
+      expect(getTotalRecordsCountSpy).not.toHaveBeenCalled();
+    });
+
+    it('fails an Export over the raster layer limit', async () => {
+      await addDataset('limits-raster', [0, 0, 1, 1], GISDataType.RASTER);
+      await setExportLimits({ maxRasterLayers: 2 });
+      jest.spyOn(exportHelpers, 'getTotalLayersCount').mockResolvedValue(3);
+
+      const job = await runExport(['limits-raster'], [RasterFileFormat.TIFF]);
+
+      expect(job.status).toBe('failed');
+      expect(job.data.errors[0].code).toBe('EX_RASTER_LAYER_LIMIT_EXCEEDED');
+    });
+
+    it('fails an Export over the Observation limit', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxObservations: 500 });
+      jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(1000);
+
+      const job = await runExport(['limits-vector'], [VectorFileFormat.CSV]);
+
+      expect(job.status).toBe('failed');
+      expect(job.data.errors[0].code).toBe('EX_OBSERVATION_LIMIT_EXCEEDED');
+      expect(job.message).toContain('Your selection contains 1,000 records, more than the 500 allowed per export.');
+    });
+
+    it('exempts an administrator when exemptAdmins is set', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxAreaM2: 1, exemptAdmins: true });
+
+      const job = await runExport(['limits-vector'], [VectorFileFormat.CSV], await getDataAdminToken());
+
+      expect(job.status).toBe('completed');
+    });
+
+    it('records the area of interest of a raster Export within the area limit', async () => {
+      await addDataset('limits-raster', [0, 0, 1, 1], GISDataType.RASTER);
+      await setExportLimits({ maxAreaM2: 1e9 });
+
+      const job = await runExport(['limits-raster'], [RasterFileFormat.TIFF]);
+
+      const dataSource = await getDataSource();
+      const [{ km2 }] = await dataSource.query('SELECT ST_Area(ST_GeomFromGeoJSON($1)::geography) / 1e6 AS km2', [JSON.stringify(aoi)]);
+      expect(job.status).toBe('completed');
+      expect(job.data.aoi_area_km2).toBeCloseTo(km2);
+    });
   });
 });

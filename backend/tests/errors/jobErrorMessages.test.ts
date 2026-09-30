@@ -49,6 +49,10 @@ describe('translateJobError', () => {
     'RL_CONVERSION_FAILED',
     'RL_UNIT_NOT_CONVERTIBLE',
     'EX_XLSX_TOO_MANY_RECORDS',
+    'EX_AREA_LIMIT_EXCEEDED',
+    'EX_AREA_LIMIT_NO_AOI',
+    'EX_RASTER_LAYER_LIMIT_EXCEEDED',
+    'EX_OBSERVATION_LIMIT_EXCEEDED',
   ];
 
   it.each(DEFINED_CODES)('returns non-empty message and actions for %s', code => {
@@ -75,6 +79,16 @@ describe('translateJobError', () => {
     expect(result.message).toBe('Your selection contains 1,536,173 records, more than the 300,000 Excel limit.');
     // The remedy has to name a format that has no such limit, not just the limit that was hit.
     expect(result.actions[0]).toContain('CSV');
+  });
+
+  it('interpolates the area and the limit in EX_AREA_LIMIT_EXCEEDED', () => {
+    const result = translateJobError('EX_AREA_LIMIT_EXCEEDED', { area_km2: '1,250.5', max_area_km2: '1,000' });
+    expect(result.message).toBe('Your area of interest covers 1,250.5 km², more than the 1,000 km² allowed per export.');
+  });
+
+  it('interpolates the count and the limit in EX_OBSERVATION_LIMIT_EXCEEDED', () => {
+    const result = translateJobError('EX_OBSERVATION_LIMIT_EXCEEDED', { record_count: '600,000', max_records: '500,000' });
+    expect(result.message).toBe('Your selection contains 600,000 records, more than the 500,000 allowed per export.');
   });
 
   it('interpolates field and issue params in BL_RECORD_VALIDATION_FAILED', () => {
