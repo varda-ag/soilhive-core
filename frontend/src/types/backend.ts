@@ -307,7 +307,7 @@ export type ConfigEntitlements = Record<string, ConfigEntitlementCapability[]>;
 /**
  * Namespace `GET /entitlements`'s mandatory `scope` query param selects (see backend ADR-0032).
  * `DASHBOARDS` is not a storage namespace of its own — it's a filtered view over `CONFIGS`,
- * returning only the config entries under the `dashboards` subkey.
+ * returning only the config entries of Config Kind `dashboards` (ids `dashboards:{id}`).
  */
 export enum EntitlementScope {
   DATASETS = 'datasets',

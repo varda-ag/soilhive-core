@@ -640,7 +640,7 @@ describe('Testing /data-requests routes', () => {
 
     /** A fresh plugin config item: the author claims write, the reader is granted read. */
     const claimConfig = async (): Promise<string> => {
-      const configId = `plugin:dashboards:${uuidv4()}`;
+      const configId = `plugin:dashboards:dashboards:${uuidv4()}`;
       await request(app).put(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(200);
       await request(app)
         .put(`/config/${configId}/entitlements`)
@@ -678,7 +678,7 @@ describe('Testing /data-requests routes', () => {
       });
 
       it('rejects a config item that was never saved', async () => {
-        const res = await submitAttached(`plugin:dashboards:${uuidv4()}`);
+        const res = await submitAttached(`plugin:dashboards:dashboards:${uuidv4()}`);
         expect(res.statusCode).toBe(404);
       });
 

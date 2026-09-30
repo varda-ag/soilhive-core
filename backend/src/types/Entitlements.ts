@@ -22,14 +22,10 @@ export enum EntitlementScope {
   CONFIGS = 'configs',
 }
 
-/**
- * Recognized config subkey prefixes: a filtered view over the `configs` namespace, not a storage
- * namespace of its own (see `EntitlementService.selectByScope`). For now separate from
- * `EntitlementScope`.
- */
-export enum ConfigSubkeyScope {
+/** Recognized Config Kinds: a filtered view over `configs`, not a storage namespace (see `EntitlementService.selectByScope`). */
+export enum ConfigKind {
   DASHBOARDS = 'dashboards',
 }
 
 /** Every value `GET /entitlements`'s `scope` query param may take. */
-export type RequestScope = EntitlementScope | ConfigSubkeyScope;
+export type RequestScope = EntitlementScope | ConfigKind;

@@ -4,7 +4,7 @@ import { In } from 'typeorm';
 import { EVERYONE, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
-import { ConfigSubkeyScope, EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
+import { ConfigKind, EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
@@ -28,11 +28,8 @@ const emptyEntitlements = (): Entitlements => ({ datasets: Object.create(null), 
  */
 const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
 
-/**
- * Whether `scope` is a config subkey (a filtered view over `configs`, see `selectByScope`) rather
- * than a storage namespace. The single rule for telling the two apart.
- */
-const isConfigSubkeyScope = (scope: RequestScope): scope is ConfigSubkeyScope => Object.values<string>(ConfigSubkeyScope).includes(scope);
+/** Whether `scope` is a Config Kind (a filtered view over `configs`, see `selectByScope`) rather than a storage namespace. */
+const isConfigKind = (scope: RequestScope): scope is ConfigKind => Object.values<string>(ConfigKind).includes(scope);
 
 /** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
@@ -192,41 +189,32 @@ export default class EntitlementService {
 
   /**
    * Slices merged `entitlements` down to what a `GET /entitlements?scope=` caller asked for.
-   * `DATASETS`/`CONFIGS` are real storage namespaces — passed through unfiltered. Any other
-   * `scope` is a config subkey prefix: a virtual filter over `configs`, not a namespace of its
-   * own, so it never looks at `entitlements.datasets` at all. A key matches either exactly (the
-   * singleton case, e.g. a lone `dashboards` entry with no suffix) or as `${scope}_...` (the
-   * multi-entry case, e.g. `dashboards_1`, `dashboards_2`) — `startsWith` alone would miss the
-   * singleton case.
-   *
-   * A plugin-owned key (`plugin:${pluginId}:${id}`, see `PLUGIN_CONFIG_ID_PATTERN`) is matched on
-   * its `id` part alone — `plugin:weather-widget:dashboards_1` counts as a `dashboards` entry the
-   * same way `dashboards_1` does — since the subkey convention is a property of what a plugin
-   * named its own config, not of the plugin namespace wrapped around it. The full key (prefix
-   * included) is what's returned, so the caller still knows which config it is.
+   * `DATASETS`/`CONFIGS` pass through unfiltered. A Config Kind keeps the `configs` keys whose id,
+   * after any Plugin Namespace, is `${kind}:` plus a non-empty id; full keys are returned.
    */
   selectByScope = (entitlements: Entitlements, scope: RequestScope): CapabilityGrants => {
-    if (!isConfigSubkeyScope(scope)) {
+    if (!isConfigKind(scope)) {
       return entitlements[scope] ?? {};
     }
     const configs = entitlements.configs ?? {};
-    const matchesSubkey = (key: string): boolean => {
+    const prefix = `${scope}:`;
+    const hasKind = (key: string): boolean => {
       const id = PLUGIN_CONFIG_ID_PATTERN.exec(key)?.[2] ?? key;
-      return id === scope || id.startsWith(`${scope}_`);
+      return id.length > prefix.length && id.startsWith(prefix);
     };
-    return Object.fromEntries(Object.entries(configs).filter(([key]) => matchesSubkey(key)));
+    return Object.fromEntries(Object.entries(configs).filter(([key]) => hasKind(key)));
   };
 
   /**
    * `GET /entitlements?scope=`: the grants held, sliced to `scope`. A Privileged caller also gets
-   * READ and WRITE on every (non-deleted) config row for a config scope (`configs` or a subkey): it
+   * READ and WRITE on every (non-deleted) config row for a config scope (`configs` or a Config Kind): it
    * bypasses the config gates (`canReadConfig`/`canWriteConfig`) but holds no grants, so its
    * grants alone would list nothing. Not part of `getUserEntitlements`, which also fills
    * `requestData.entitlements` on every request, where no gate would read the result.
    */
   getVisibleEntitlements = async (requestData: RequestData, scope: RequestScope): Promise<CapabilityGrants> => {
     const grants = await this.getUserEntitlements(requestData, getSubject(requestData));
-    const isConfigScope = scope === EntitlementScope.CONFIGS || isConfigSubkeyScope(scope);
+    const isConfigScope = scope === EntitlementScope.CONFIGS || isConfigKind(scope);
     const entitlements =
       isConfigScope && isPrivilegedCaller(requestData.token) ? await this.addReadWriteOnEveryConfig(requestData, grants) : grants;
     return this.selectByScope(entitlements, scope);
