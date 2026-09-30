@@ -33,14 +33,12 @@ export default function Header() {
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const { plugins } = useRemotes();
-  const visiblePlugins = useMemo(
-    () => (isAuthenticated ? plugins : plugins.filter(plugin => !plugin.requiresAuth)),
-    [plugins, isAuthenticated],
-  );
-  const singlePages = useMemo(() => visiblePlugins.filter(isSinglePageModule), [visiblePlugins]);
-  const newTabs = useMemo(() => visiblePlugins.filter(isNewTabModule), [visiblePlugins]);
+  const singlePages = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
+  const newTabs = useMemo(() => plugins.filter(isNewTabModule), [plugins]);
 
-  // Plugin menu items, as nav entries so desktop and mobile render them identically.
+  // Plugin menu items, as nav entries so desktop and mobile render them identically. Every plugin
+  // gets one, including those that need a signed-in user: a single-page plugin's route asks an
+  // anonymous visitor to sign in, and a new-tab plugin's page is not the host's to gate.
   const pluginEntries: NavMenuEntry[] = useMemo(
     () => [
       ...singlePages.map(({ route, name }): NavMenuEntry => ({ name, route, type: 'internal' })),

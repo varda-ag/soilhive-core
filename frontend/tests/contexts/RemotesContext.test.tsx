@@ -145,6 +145,32 @@ describe('RemotesProvider', () => {
     expect(showNotification).not.toHaveBeenCalled();
   });
 
+  it('keeps new-tab plugins that require a signed-in user on a deployment with no sign-in', async () => {
+    useAuthContextMock.mockReturnValue({ authMode: 'none' });
+    loadRemotesMock.mockResolvedValue({
+      loaded: [
+        {
+          pluginId: 'tab',
+          name: 'New Tab',
+          type: PluginType.NEW_TAB,
+          targetUrl: 'https://example.com',
+          hasMenuItem: true,
+          requiresAuth: true,
+        },
+        { ...pluginA, requiresAuth: true },
+      ],
+      failed: [],
+    });
+
+    const { findByTestId } = render(
+      <RemotesProvider>
+        <Consumer />
+      </RemotesProvider>,
+    );
+
+    await waitFor(async () => expect((await findByTestId('plugins')).textContent).toBe('New Tab'));
+  });
+
   it('keeps plugins that require a signed-in user where sign-in exists', async () => {
     loadRemotesMock.mockResolvedValue({
       loaded: [

@@ -358,28 +358,30 @@ describe('Header component', () => {
       });
     });
 
-    it('hides their menu entries from an anonymous visitor', () => {
+    it('shows their menu entries to an anonymous visitor', () => {
       render(
         <MemoryRouter initialEntries={['/']}>
           <Header />
         </MemoryRouter>,
       );
 
-      expect(screen.queryByRole('link', { name: 'single-page-module' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: 'new-tab-module' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'single-page-module' })).toHaveAttribute('href', '/single-page-route');
+      expect(screen.getByRole('link', { name: 'new-tab-module' })).toHaveAttribute('href', 'https://example.com/plugin');
     });
 
-    it('shows their menu entries to a signed-in user', () => {
-      (useAuthContext as jest.Mock).mockReturnValue({ isAuthenticated: true });
+    it('opens a new-tab entry for an anonymous visitor rather than asking them to log in', () => {
+      const login = jest.fn();
+      (useAuthContext as jest.Mock).mockReturnValue({ isAuthenticated: false, login });
 
       render(
         <MemoryRouter initialEntries={['/']}>
           <Header />
         </MemoryRouter>,
       );
+      const followed = fireEvent.click(screen.getByRole('link', { name: 'new-tab-module' }));
 
-      expect(screen.getByRole('link', { name: 'single-page-module' })).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: 'new-tab-module' })).toBeInTheDocument();
+      expect(followed).toBe(true);
+      expect(login).not.toHaveBeenCalled();
     });
   });
 });

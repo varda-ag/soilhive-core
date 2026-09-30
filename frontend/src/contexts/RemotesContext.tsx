@@ -1,6 +1,6 @@
 import React, { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { loadRemotes, partitionDuplicatePluginIds, partitionInvalidPlugins } from '../utilities/moduleFederation';
+import { isNewTabModule, loadRemotes, partitionDuplicatePluginIds, partitionInvalidPlugins } from '../utilities/moduleFederation';
 import type { Plugin, RemotePlugin } from '../types/plugins';
 import useTheme from '../hooks/useTheme';
 import useNotifications from '../hooks/useNotifications';
@@ -90,9 +90,10 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
           });
         });
         // Nobody can sign in without an identity system, so a plugin that needs
-        // a signed-in user is not installed at all there, route included.
+        // a signed-in user is not installed at all there, route included. A
+        // new-tab plugin is kept: its page is not the host's to gate.
         // authMode is fixed for the page's lifetime, so this never changes.
-        const available = authMode === AuthModes.NONE ? unique.filter(plugin => !plugin.requiresAuth) : unique;
+        const available = authMode === AuthModes.NONE ? unique.filter(plugin => !plugin.requiresAuth || isNewTabModule(plugin)) : unique;
         setPlugins(available);
       } finally {
         setIsLoadingModules(false);

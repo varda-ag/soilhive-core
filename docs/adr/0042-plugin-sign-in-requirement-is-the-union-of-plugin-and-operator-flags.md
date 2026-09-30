@@ -10,5 +10,6 @@ A Plugin that cannot work without a Signed-in user (dashboards) says so itself b
 ## Consequences
 
 - `mustBeLoggedIn` is enforced for the first time, so any existing config row with it set to `true` starts hiding that Plugin from anonymous visitors.
+- A new-tab Plugin is exempt: its page is outside the host, which can only hide or intercept a link to it, so it is always listed and opens for everyone, even with either flag set.
 - `enableACL`/`acl` are still not enforced.
 - This is frontend gating only. The backend still decides what a caller may read or write.

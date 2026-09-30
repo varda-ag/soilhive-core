@@ -289,7 +289,8 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
 - A **Plugin** requires a **Signed-in user** if it says so itself (`requiresAuth`) or if the deployment's config for it says so (`mustBeLoggedIn`); neither can lift the other's requirement
-- A **Plugin** that requires a **Signed-in user** has no menu entry for an anonymous visitor, but its address stays valid and asks them to sign in rather than sending them elsewhere; on a deployment with no identity system it is not available at all, address included
+- A **Plugin** that requires a **Signed-in user** keeps its menu entry for an anonymous visitor, and opening it asks them to sign in rather than showing the Plugin or sending them elsewhere; on a deployment with no identity system it is not available at all, menu entry and address included
+- A new-tab **Plugin** is never gated on a **Signed-in user**, whatever its flags say: its page is outside the host, so it is listed and opens for everyone, on every deployment
 - A config item has at most one **Config Kind**, and only when a non-empty id follows the `{kind}:` prefix; the **Plugin** chooses it, and the host adds and strips only the **Plugin Namespace**
 - A **Data Request** is attached to at most one plugin config item, fixed at submission, which must already exist; a **Plugin** only ever submits attached Data Requests, and decides itself when each one is destroyed
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest

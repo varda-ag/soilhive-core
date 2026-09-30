@@ -98,7 +98,7 @@ const route = 'my-plugin-page'; // becomes the URL path /my-plugin-page in the h
 export { pluginId, name, route, type, Page };
 ```
 
-Export `requiresAuth = true` if the plugin only works for a signed-in user. It defaults to `false`. The host then hides the plugin's menu entry from anonymous visitors and shows a login prompt at its route instead of `Page`. On a deployment with no identity system the plugin is not loaded at all. The operator's `mustBeLoggedIn` has the same effect, and either one is enough.
+Export `requiresAuth = true` if the plugin only works for a signed-in user. It defaults to `false`. Its menu entry stays visible to anonymous visitors, but opening it asks them to log in: the host shows a login prompt at its route instead of `Page`. On a deployment with no identity system the plugin is not loaded at all. The operator's `mustBeLoggedIn` has the same effect, and either one is enough. Neither applies to a `new-tab` plugin, whose page is outside the host: it is always listed and opens for everyone.
 
 `pluginId` is authored by the plugin, not derived from its config `url`, so it stays stable if the plugin is re-hosted at a different URL. It's also the id you pass to `context.usePluginConfig` (see [PluginContext](#plugincontext)) to namespace your plugin's own persisted settings. If two enabled plugins resolve to the same `pluginId`, the host keeps whichever loaded first, drops the rest, and shows an error notification — it does not crash the app.
 
