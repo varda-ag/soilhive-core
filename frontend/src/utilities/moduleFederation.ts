@@ -52,9 +52,9 @@ export function partitionInvalidPlugins(modules: RemotePlugin[]): {
 
 // Splits out modules whose pluginId collides with an earlier one. The first-seen
 // plugin for a given id wins and the rest are reported as duplicates rather than
-// thrown as an error: there's no ErrorBoundary mounted anywhere in the app, so a
-// throw here would surface as a blank page instead of the notification the caller
-// (RemotesContext) shows the user.
+// thrown as an error: remotes are loaded before the router exists, outside the plugin
+// routes' errorElement, so a throw here would surface as a blank page instead of the
+// notification the caller (RemotesContext) shows the user.
 export function partitionDuplicatePluginIds(modules: RemotePlugin[]): { unique: RemotePlugin[]; duplicates: RemotePlugin[] } {
   const seen = new Set<string>();
   const unique: RemotePlugin[] = [];

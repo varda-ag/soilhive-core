@@ -98,6 +98,11 @@
         "load_failed": {
             "title": "Plugin unavailable",
             "message": "The plugin at \"{{url}}\" could not be loaded. It has been disabled."
+        },
+        "render_error": {
+            "title": "Plugin error",
+            "message": "\"{{name}}\" ran into a problem and couldn't be displayed.",
+            "back_home": "Return to home page"
         }
     },
     "components": {

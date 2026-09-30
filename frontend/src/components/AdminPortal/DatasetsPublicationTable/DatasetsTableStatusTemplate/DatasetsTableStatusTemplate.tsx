@@ -14,10 +14,12 @@ interface Props {
 
 export function DatasetsTableStatusTemplate({ dataset, onShowErrors }: Props) {
   const { t } = useTranslation('admin');
+  // Queued is not an ingestion status: it replaces the status tag until the job starts
+  const status = dataset.isQueued ? 'QUEUED' : dataset.status;
 
   return (
     <div className={styles.StatusCell}>
-      <Tag text={t(`datasets.list.status.${dataset.status}`)} className={classnames(styles.Tag, styles[dataset.status])} />
+      <Tag text={t(`datasets.list.status.${status}`)} className={classnames(styles.Tag, styles[status])} />
       {dataset.hasErrors && (
         <button className={styles.ErrorLink} onClick={() => onShowErrors(dataset)}>
           <NewTabIcon className={styles.ErrorLinkIcon} />

@@ -74,7 +74,7 @@ describe('useDatasetsPublicationList', () => {
     expect(result.current.searchValue).toBe('');
     expect(result.current.gisDataTypeFilter).toEqual([]);
     expect(result.current.visibilityFilter).toEqual([]);
-    expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false })));
+    expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false, isQueued: false })));
     expect(result.current.selectedDataset).toBeNull();
     expect(result.current.isDeleteModalOpened).toBe(false);
     expect(result.current.isErrorModalOpened).toBe(false);
@@ -98,6 +98,26 @@ describe('useDatasetsPublicationList', () => {
     expect(result.current.isLoading).toBe(true);
   });
 
+  describe('queued job', () => {
+    it('marks a dataset with a queued load as queued', () => {
+      const queued = [{ ...datasets[0], queued_job: { id: 'job-1', queue: 'raster-load' } }, datasets[1]];
+      (useDatasets as jest.Mock).mockReturnValue({ datasets: queued, isLoading: false });
+
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      expect(result.current.filteredDatasets.map(d => d.isQueued)).toEqual([true, false]);
+    });
+
+    it('hides a dataset whose deletion is queued', () => {
+      const queued = [{ ...datasets[0], queued_job: { id: 'job-1', queue: 'bulk-delete' } }, datasets[1]];
+      (useDatasets as jest.Mock).mockReturnValue({ datasets: queued, isLoading: false });
+
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      expect(result.current.filteredDatasets.map(d => d.id)).toEqual(['2']);
+    });
+  });
+
   describe('search filter', () => {
     it('filteredDatasets filters by searchValue case-insensitively', () => {
       const { result } = renderHook(() => useDatasetsPublicationList());
@@ -117,7 +137,7 @@ describe('useDatasetsPublicationList', () => {
         result.current.setSearchValue('');
       });
 
-      expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false })));
+      expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false, isQueued: false })));
     });
 
     it('filteredDatasets returns empty array when datasets is undefined', () => {

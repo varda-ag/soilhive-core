@@ -106,16 +106,20 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
   const datasetListItems = useMemo((): DatasetsPublicationListItem[] => {
     const errorIds = new Set(datasetErrors?.map(e => e.dataset_id) ?? []);
     return (
-      datasets?.map(dataset => ({
-        id: dataset.id,
-        name: dataset.name,
-        status: dataset.status,
-        updated_at: dataset.updated_at,
-        updated_by: dataset.updated_by,
-        visibility: dataset.visibility,
-        gis_datatype: dataset.gis_datatype,
-        hasErrors: errorIds.has(dataset.id),
-      })) || []
+      datasets
+        // A queued deletion is already gone as far as the admin is concerned (see onDeletionConfirm)
+        ?.filter(dataset => dataset.queued_job?.queue !== 'bulk-delete')
+        .map(dataset => ({
+          id: dataset.id,
+          name: dataset.name,
+          status: dataset.status,
+          updated_at: dataset.updated_at,
+          updated_by: dataset.updated_by,
+          visibility: dataset.visibility,
+          gis_datatype: dataset.gis_datatype,
+          hasErrors: errorIds.has(dataset.id),
+          isQueued: Boolean(dataset.queued_job),
+        })) || []
     );
   }, [datasets, datasetErrors]);
 

@@ -547,6 +547,7 @@ describe('Testing /data-requests routes', () => {
 
       // A job on a served queue from the same caller, so an empty list cannot pass for a filter
       // that dropped everything.
+      await addDataset('dr-jobs-list-dataset', [0, 0, 1, 1]);
       const bulk = await request(app)
         .post('/jobs')
         .set('Authorization', `Bearer ${token}`)

@@ -9,6 +9,7 @@ export type DatasetsPublicationListItem = {
   visibility?: string;
   gis_datatype?: GISDataType | null;
   hasErrors?: boolean;
+  isQueued?: boolean;
 };
 
 export type SoilDataSummary = {

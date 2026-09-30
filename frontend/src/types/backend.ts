@@ -170,6 +170,13 @@ export interface Dataset {
   inferred_properties?: InferredProperty[] | null;
   preprocessing_steps?: string | null;
   related_resources?: string[] | null;
+  // Set for data admins only: the bulk-load, raster-load or bulk-delete job pg-boss has not picked up yet
+  queued_job?: QueuedJob | null;
+}
+
+export interface QueuedJob {
+  id: string;
+  queue: string;
 }
 
 export interface SoilDataParameters {
