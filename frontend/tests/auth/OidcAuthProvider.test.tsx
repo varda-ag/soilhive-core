@@ -2,8 +2,8 @@
 //
 // Covers the OIDC token-expiry handling in AuthContextProvider (see ADR 0006):
 //   1. the save-effect is gated on validity, so an expired token is never persisted;
-//   2. the `accessTokenExpired` event (which react-oidc-context ignores) drives
-//      clearToken() + removeUser() — a quiet logout.
+//   2. the `accessTokenExpired` event (which react-oidc-context ignores) drives a
+//      silent renew, and only if that fails clearToken() + removeUser() — a quiet logout.
 //
 // OidcAuthProvider is not exported, so it is exercised through AuthContextProvider
 // rendered in OIDC mode.
@@ -39,9 +39,12 @@ jest.mock('../../src/auth/tokenStore', () => ({
   getToken: jest.fn(),
 }));
 
-jest.mock('../../src/auth/tokenRefresher', () => ({
-  setTokenRefresher: jest.fn(),
-}));
+// The real module, so the expiry handler's refreshAccessToken() reaches the refresher the provider
+// registers; setTokenRefresher is wrapped so a test can read what was registered.
+jest.mock('../../src/auth/tokenRefresher', () => {
+  const actual = jest.requireActual('../../src/auth/tokenRefresher');
+  return { ...actual, setTokenRefresher: jest.fn(actual.setTokenRefresher) };
+});
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -55,9 +58,9 @@ const OIDC_CONFIG = {
 };
 
 // Captures the handler passed to addAccessTokenExpired so a test can fire it.
-let capturedExpiredHandler: (() => void) | undefined;
+let capturedExpiredHandler: (() => Promise<void>) | undefined;
 const removeUser = jest.fn().mockResolvedValue(undefined);
-const addAccessTokenExpired = jest.fn((h: () => void) => {
+const addAccessTokenExpired = jest.fn((h: () => Promise<void>) => {
   capturedExpiredHandler = h;
 });
 const removeAccessTokenExpired = jest.fn();
@@ -137,16 +140,33 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(typeof capturedExpiredHandler).toBe('function');
     });
 
-    it('clears the token and removes the user when the token expires', async () => {
+    it('keeps the user signed in when a silent renew succeeds on expiry', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
-      // saved on mount; reset so we assert only the expiry-driven call
+      signinSilent.mockResolvedValue({ access_token: 'fresh-token', expired: false });
       (clearToken as jest.Mock).mockClear();
 
       await act(async () => {
-        capturedExpiredHandler?.();
+        await capturedExpiredHandler?.();
       });
 
-      expect(clearToken).toHaveBeenCalledTimes(1);
+      expect(signinSilent).toHaveBeenCalledTimes(1);
+      expect(saveToken).toHaveBeenCalledWith('fresh-token');
+      expect(clearToken).not.toHaveBeenCalled();
+      expect(removeUser).not.toHaveBeenCalled();
+    });
+
+    it('clears the token and removes the user when the silent renew on expiry fails', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockResolvedValue(null);
+      // saved on mount; reset so we assert only the expiry-driven calls
+      (clearToken as jest.Mock).mockClear();
+
+      await act(async () => {
+        await capturedExpiredHandler?.();
+      });
+
+      expect(signinSilent).toHaveBeenCalledTimes(1);
+      expect(clearToken).toHaveBeenCalled();
       expect(removeUser).toHaveBeenCalledTimes(1);
     });
 
@@ -259,6 +279,25 @@ describe('OidcAuthProvider token lifecycle', () => {
       getOnSigninCallback()({ state: { returnTo: '//evil.example/' } });
 
       expect(window.location.pathname + window.location.search).toBe('/admin');
+    });
+
+    it("strips a failed callback's params before the app mounts", () => {
+      window.history.replaceState({}, '', '/admin?tab=2&error=access_denied&state=xyz');
+      const urlsSeenByApp: string[] = [];
+      const App = () => {
+        urlsSeenByApp.push(window.location.pathname + window.location.search);
+        return null;
+      };
+      (useReactOidcAuth as jest.Mock).mockReturnValue({ ...buildAuth(null), error: { source: 'signinCallback' } });
+
+      render(
+        <AuthContextProvider>
+          <App />
+        </AuthContextProvider>,
+      );
+
+      expect(window.location.pathname + window.location.search).toBe('/admin?tab=2');
+      expect(urlsSeenByApp).toEqual(['/admin?tab=2']);
     });
   });
 

@@ -35,13 +35,19 @@ Own token-expiry handling explicitly in `OidcAuthProvider`, in two parts:
    also closes the load-time hole (see Consequences).
 
 2. **Subscribe to `reactOidcAuth.events.addAccessTokenExpired`** (the event `react-oidc-context`
-   ignores) and on fire call `clearToken()` + `reactOidcAuth.removeUser()`, with a matching
-   `removeAccessTokenExpired` cleanup. `removeUser()` dispatches `USER_UNLOADED`, flipping
-   `isAuthenticated` to false so the login button reappears, and evicts the stale user from the
-   OIDC `WebStorageStateStore` so a reload won't resurrect it.
+   ignores), with a matching `removeAccessTokenExpired` cleanup. On fire, first try a one-shot
+   silent renew through `refreshAccessToken()`, the same deduped renew the httpClient uses on a
+   401. Only if that yields no valid token, call `clearToken()` + `reactOidcAuth.removeUser()`.
+   `removeUser()` dispatches `USER_UNLOADED`, flipping `isAuthenticated` to false so the login
+   button reappears, and evicts the stale user from the OIDC `WebStorageStateStore` so a reload
+   won't resurrect it.
 
-This is a **quiet logout**: on expiry the user is returned to a logged-out UI, not force-redirected
-to the IdP.
+The renew comes first because expiry usually means the scheduled renew only missed its window
+(throttled tab, machine sleep), and signing out replaces any page gated on a signed-in user (ADR
+0042) with a login prompt, losing its in-page state.
+
+When the renew fails this is a **quiet logout**: the user is returned to a logged-out UI, not
+force-redirected to the IdP.
 
 ## Considered alternatives
 
@@ -59,7 +65,7 @@ to the IdP.
 - An already-expired token at app load is handled: `oidc-client-ts` always arms the expired-timer
   (clamped to a 1s minimum) when a user is loaded, so `accessTokenExpired` fires ~1s after init.
   The validity gate (part 1) prevents the stale token from being sent during that 1s window — the
-  event handler then updates the UI.
+  event handler then renews the session if the IdP still has one, or updates the UI.
 - **Why silent renew fails is explicitly out of scope.** This ADR makes expiry *recover correctly*
   regardless of cause. If `automaticSilentRenew` is structurally broken (e.g. third-party-cookie /
   iframe restrictions on `silentRedirectUri`), users will be logged out once per short token
