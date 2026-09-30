@@ -54,6 +54,7 @@ export function ExportSettings() {
     rasterLayers: isSet(maxRasterLayers) ? String(maxRasterLayers) : '',
   });
   const [isAdminExempt, setIsAdminExempt] = useState<boolean>(exemptAdmins === true);
+  const [isSaving, setIsSaving] = useState(false);
 
   const errors = Object.fromEntries(
     LIMITS.map(({ key, isInteger }) => [key, enabled[key] && !isValid(key, values[key], isInteger)]),
@@ -61,14 +62,21 @@ export function ExportSettings() {
   const hasErrors = Object.values(errors).some(Boolean);
   const hasLimit = Object.values(enabled).some(Boolean);
 
-  const onSave = useCallback(() => {
+  const onSave = useCallback(async () => {
     const limitValue = (key: Limit) => (enabled[key] ? toStored(key, Number(values[key])) : null);
-    saveExportLimits({
-      maxAreaM2: limitValue('area'),
-      maxObservations: limitValue('observations'),
-      maxRasterLayers: limitValue('rasterLayers'),
-      exemptAdmins: hasLimit && isAdminExempt,
-    });
+    setIsSaving(true);
+    try {
+      await saveExportLimits({
+        maxAreaM2: limitValue('area'),
+        maxObservations: limitValue('observations'),
+        maxRasterLayers: limitValue('rasterLayers'),
+        exemptAdmins: hasLimit && isAdminExempt,
+      });
+    } catch {
+      // Already reported: the failed request shows its own error notification
+    } finally {
+      setIsSaving(false);
+    }
   }, [enabled, values, hasLimit, isAdminExempt, saveExportLimits]);
 
   return (
@@ -119,7 +127,7 @@ export function ExportSettings() {
           </div>
         </main>
         <div className={styles.Footer}>
-          <Button isDisabled={hasErrors} onClick={onSave}>
+          <Button isDisabled={hasErrors || isSaving} onClick={onSave}>
             {t('export_settings.save')}
           </Button>
         </div>

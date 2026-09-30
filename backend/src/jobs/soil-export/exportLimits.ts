@@ -49,17 +49,31 @@ export async function getExportLimits(
   return limits.exemptAdmins && isAdmin ? NO_EXPORT_LIMITS : limits;
 }
 
-const km2 = (m2: number): string => (m2 / 1e6).toLocaleString('en-US', { maximumFractionDigits: 2 });
+// The km² decimals an area limit needs to be shown exactly: at least 2, and at most 6, since the
+// admin page stores it in whole m².
+const decimalsFor = (limitM2: number): number => {
+  let decimals = 2;
+  while (decimals < 6 && limitM2 % 10 ** (6 - decimals) !== 0) decimals++;
+  return decimals;
+};
+
+// Rounds in m², to whole units of the last decimal shown, so a km² fraction is never rounded.
+const km2 = (m2: number, decimals: number, round: (units: number) => number): string =>
+  (round(m2 / 10 ** (6 - decimals)) / 10 ** decimals).toLocaleString('en-US', { maximumFractionDigits: decimals });
 const count = (n: number): string => n.toLocaleString('en-US');
 
 // A Filter with no geometries has no bounded area, so it exceeds any area limit.
 export function assertWithinAreaLimit(limits: ExportLimits, filter: DataFilter): void {
   if (limits.maxAreaM2 === null) return;
+  // The area is shown to the limit's decimals, the limit rounded down and the area up, so an area
+  // over the limit never reads as within it.
+  const decimals = decimalsFor(limits.maxAreaM2);
+  const maxAreaKm2 = km2(limits.maxAreaM2, decimals, Math.floor);
   if (!filter.geometryIds.length) {
-    throw new JobError('EX_AREA_LIMIT_NO_AOI', { max_area_km2: km2(limits.maxAreaM2) });
+    throw new JobError('EX_AREA_LIMIT_NO_AOI', { max_area_km2: maxAreaKm2 });
   }
   if (filter.area > limits.maxAreaM2) {
-    throw new JobError('EX_AREA_LIMIT_EXCEEDED', { area_km2: km2(filter.area), max_area_km2: km2(limits.maxAreaM2) });
+    throw new JobError('EX_AREA_LIMIT_EXCEEDED', { area_km2: km2(filter.area, decimals, Math.ceil), max_area_km2: maxAreaKm2 });
   }
 }
 

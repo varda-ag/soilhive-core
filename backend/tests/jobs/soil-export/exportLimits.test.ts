@@ -15,14 +15,16 @@ const limits = (overrides: Partial<ExportLimits>): ExportLimits => ({ ...NO_EXPO
 
 const filter = (area: number, geometryIds: string[] = ['g1']): DataFilter => ({ geometryIds, parameters: {}, area });
 
-const codeOf = (fn: () => void): string | undefined => {
+const thrownBy = (fn: () => void): { code?: string; params?: object } | undefined => {
   try {
     fn();
   } catch (error) {
-    return (error as { code?: string }).code;
+    return error as { code?: string; params?: object };
   }
   return undefined;
 };
+const codeOf = (fn: () => void) => thrownBy(fn)?.code;
+const paramsOf = (fn: () => void) => thrownBy(fn)?.params;
 
 function entityManagerWithTheme(themeData: object | null): EntityManager {
   return {
@@ -101,12 +103,32 @@ describe('assertWithinAreaLimit', () => {
   });
 
   it('reports areas in km²', () => {
-    try {
-      assertWithinAreaLimit(limits({ maxAreaM2: 1e9 }), filter(1_250_500_000));
-    } catch (error) {
-      expect((error as { params: object }).params).toEqual({ area_km2: '1,250.5', max_area_km2: '1,000' });
-    }
-    expect.assertions(1);
+    expect(paramsOf(() => assertWithinAreaLimit(limits({ maxAreaM2: 1e9 }), filter(1_250_500_000)))).toEqual({
+      area_km2: '1,250.5',
+      max_area_km2: '1,000',
+    });
+  });
+
+  it('never shows an area just over the limit as the limit', () => {
+    expect(paramsOf(() => assertWithinAreaLimit(limits({ maxAreaM2: 1e9 }), filter(1_000_004_000)))).toEqual({
+      area_km2: '1,000.01',
+      max_area_km2: '1,000',
+    });
+  });
+
+  it('shows a small limit, and the area, to the decimals the limit needs', () => {
+    expect(paramsOf(() => assertWithinAreaLimit(limits({ maxAreaM2: 1_000 }), filter(30_800_123)))).toEqual({
+      area_km2: '30.801',
+      max_area_km2: '0.001',
+    });
+    expect(paramsOf(() => assertWithinAreaLimit(limits({ maxAreaM2: 1 }), filter(0, [])))).toEqual({ max_area_km2: '0.000001' });
+  });
+
+  it('rounds a limit that is not in whole m² down, and the area up', () => {
+    expect(paramsOf(() => assertWithinAreaLimit(limits({ maxAreaM2: 1_234.5 }), filter(1_234.6)))).toEqual({
+      area_km2: '0.001235',
+      max_area_km2: '0.001234',
+    });
   });
 });
 

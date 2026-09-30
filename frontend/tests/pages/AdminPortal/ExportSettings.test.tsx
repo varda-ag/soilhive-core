@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import useTheme from 'hooks/useTheme';
 import { ExportSettings } from '../../../src/pages/AdminPortal/ExportSettings/ExportSettings';
 
@@ -13,6 +13,8 @@ const UNLIMITED = { maxAreaM2: null, maxObservations: null, maxRasterLayers: nul
 const checkboxes = () => screen.getAllByRole('checkbox');
 const inputs = () => screen.getAllByTestId('sh-ui-textinputfield') as HTMLInputElement[];
 const saveButton = () => screen.getByText('Save changes').closest('button') as HTMLButtonElement;
+// Lets the save settle, so the page's update once it is done happens inside act
+const clickSave = () => act(async () => fireEvent.click(saveButton()));
 
 describe('ExportSettings page', () => {
   let saveExportLimits: jest.Mock;
@@ -58,43 +60,43 @@ describe('ExportSettings page', () => {
     expect(inputs()[1]).toHaveValue(500000);
   });
 
-  it('saves unlimited when no limit is enabled', () => {
+  it('saves unlimited when no limit is enabled', async () => {
     renderPage();
-    fireEvent.click(saveButton());
+    await clickSave();
     expect(saveExportLimits).toHaveBeenCalledWith(UNLIMITED);
   });
 
-  it('saves the area in m²', () => {
+  it('saves the area in m²', async () => {
     renderPage();
     fireEvent.click(checkboxes()[0]);
     fireEvent.change(inputs()[0], { target: { value: '1000.5' } });
-    fireEvent.click(saveButton());
+    await clickSave();
     expect(saveExportLimits).toHaveBeenCalledWith({ ...UNLIMITED, maxAreaM2: 1_000_500_000 });
   });
 
-  it('saves the limits independently of each other', () => {
+  it('saves the limits independently of each other', async () => {
     renderPage();
     fireEvent.click(checkboxes()[1]);
     fireEvent.change(inputs()[1], { target: { value: '500000' } });
     fireEvent.click(checkboxes()[2]);
     fireEvent.change(inputs()[2], { target: { value: '10' } });
     fireEvent.click(checkboxes()[3]);
-    fireEvent.click(saveButton());
+    await clickSave();
     expect(saveExportLimits).toHaveBeenCalledWith({ maxAreaM2: null, maxObservations: 500000, maxRasterLayers: 10, exemptAdmins: true });
   });
 
-  it('saves an unticked limit as null', () => {
+  it('saves an unticked limit as null', async () => {
     renderPage({ ...UNLIMITED, maxRasterLayers: 10 });
     fireEvent.click(checkboxes()[2]);
-    fireEvent.click(saveButton());
+    await clickSave();
     expect(saveExportLimits).toHaveBeenCalledWith(UNLIMITED);
   });
 
-  it('never saves the exemption without a limit', () => {
+  it('never saves the exemption without a limit', async () => {
     renderPage({ ...UNLIMITED, maxRasterLayers: 10, exemptAdmins: true });
     fireEvent.click(checkboxes()[2]);
     expect(checkboxes()[3]).toBeDisabled();
-    fireEvent.click(saveButton());
+    await clickSave();
     expect(saveExportLimits).toHaveBeenCalledWith(UNLIMITED);
   });
 
@@ -126,5 +128,29 @@ describe('ExportSettings page', () => {
     fireEvent.click(checkboxes()[0]);
     fireEvent.change(inputs()[0], { target: { value: '0.5' } });
     expect(saveButton()).toBeEnabled();
+  });
+
+  it('disables saving until the save completes', async () => {
+    let finishSave!: () => void;
+    saveExportLimits.mockReturnValue(new Promise<void>(resolve => (finishSave = resolve)));
+    renderPage();
+
+    fireEvent.click(saveButton());
+    expect(saveButton()).toBeDisabled();
+    fireEvent.click(saveButton());
+    expect(saveExportLimits).toHaveBeenCalledTimes(1);
+
+    await act(async () => finishSave());
+    expect(saveButton()).toBeEnabled();
+  });
+
+  it('allows saving again after a failed save', async () => {
+    saveExportLimits.mockRejectedValue(new Error('Save failed'));
+    renderPage();
+
+    fireEvent.click(saveButton());
+    expect(saveButton()).toBeDisabled();
+
+    await waitFor(() => expect(saveButton()).toBeEnabled());
   });
 });
