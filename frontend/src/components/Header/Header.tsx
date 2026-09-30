@@ -33,8 +33,12 @@ export default function Header() {
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const { plugins } = useRemotes();
-  const singlePages = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
-  const newTabs = useMemo(() => plugins.filter(isNewTabModule), [plugins]);
+  const visiblePlugins = useMemo(
+    () => (isAuthenticated ? plugins : plugins.filter(plugin => !plugin.requiresAuth)),
+    [plugins, isAuthenticated],
+  );
+  const singlePages = useMemo(() => visiblePlugins.filter(isSinglePageModule), [visiblePlugins]);
+  const newTabs = useMemo(() => visiblePlugins.filter(isNewTabModule), [visiblePlugins]);
 
   // Plugin menu items, as nav entries so desktop and mobile render them identically.
   const pluginEntries: NavMenuEntry[] = useMemo(

@@ -1,13 +1,16 @@
+import { StrictMode } from 'react';
 import { render, waitFor } from '@testing-library/react';
 import useRemotes from 'hooks/useRemotes';
 import useTheme from 'hooks/useTheme';
 import useNotifications from 'hooks/useNotifications';
 import { loadRemotes } from 'utilities/moduleFederation';
+import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { RemotesProvider } from '../../src/contexts/RemotesContext';
 import { PluginType, type RemotePlugin } from '../../src/types/plugins';
 
 jest.mock('hooks/useTheme', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/useNotifications', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('../../src/auth/AuthContextProvider', () => ({ useAuthContext: jest.fn() }));
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: Record<string, string>) =>
@@ -31,6 +34,7 @@ jest.mock('utilities/moduleFederation', () => ({
 const useThemeMock = useTheme as jest.MockedFunction<typeof useTheme>;
 const useNotificationsMock = useNotifications as jest.MockedFunction<typeof useNotifications>;
 const loadRemotesMock = loadRemotes as jest.MockedFunction<typeof loadRemotes>;
+const useAuthContextMock = useAuthContext as jest.Mock;
 
 const Page = () => null;
 
@@ -49,6 +53,7 @@ describe('RemotesProvider', () => {
     jest.clearAllMocks();
     useThemeMock.mockReturnValue({ themeConfig: { plugins: [] }, isLoadingThemeConfig: false } as unknown as ReturnType<typeof useTheme>);
     useNotificationsMock.mockReturnValue({ notifications: [], showNotification, removeNotification: jest.fn() });
+    useAuthContextMock.mockReturnValue({ authMode: 'oidc' });
   });
 
   it('keeps the first plugin loaded for a pluginId and reports every later duplicate', async () => {
@@ -117,5 +122,61 @@ describe('RemotesProvider', () => {
       expect.objectContaining({ id: `remote-load-failed-${failedUrl}`, type: 'error', message: expect.stringContaining(failedUrl) }),
     );
     expect(showNotification).not.toHaveBeenCalledWith(expect.objectContaining({ id: expect.stringContaining('invalid-plugin-') }));
+  });
+
+  it('drops plugins that require a signed-in user on a deployment with no sign-in', async () => {
+    useAuthContextMock.mockReturnValue({ authMode: 'none' });
+    loadRemotesMock.mockResolvedValue({
+      loaded: [
+        { ...pluginA, requiresAuth: true },
+        { ...pluginB, pluginId: 'open' },
+      ],
+      failed: [],
+    });
+
+    const { findByTestId } = render(
+      <RemotesProvider>
+        <Consumer />
+      </RemotesProvider>,
+    );
+
+    await waitFor(async () => expect((await findByTestId('plugins')).textContent).toBe('Plugin B'));
+
+    expect(showNotification).not.toHaveBeenCalled();
+  });
+
+  it('keeps plugins that require a signed-in user where sign-in exists', async () => {
+    loadRemotesMock.mockResolvedValue({
+      loaded: [
+        { ...pluginA, requiresAuth: true },
+        { ...pluginB, pluginId: 'open' },
+      ],
+      failed: [],
+    });
+
+    const { findByTestId } = render(
+      <RemotesProvider>
+        <Consumer />
+      </RemotesProvider>,
+    );
+
+    await waitFor(async () => expect((await findByTestId('plugins')).textContent).toBe('Plugin A,Plugin B'));
+  });
+
+  it('finishes loading under Strict Mode when the theme config is already cached', async () => {
+    // The theme is loaded on the very first render, as after a password login remounts the app,
+    // so the load starts inside Strict Mode's simulated mount/unmount/mount cycle.
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [] });
+
+    const { findByTestId } = render(
+      <StrictMode>
+        <RemotesProvider>
+          <Consumer />
+        </RemotesProvider>
+      </StrictMode>,
+    );
+
+    await waitFor(async () => expect((await findByTestId('plugins')).textContent).toBe('Plugin A'));
+    expect(loadRemotesMock).toHaveBeenCalledTimes(1);
   });
 });

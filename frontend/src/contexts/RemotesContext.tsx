@@ -4,6 +4,8 @@ import { loadRemotes, partitionDuplicatePluginIds, partitionInvalidPlugins } fro
 import type { Plugin, RemotePlugin } from '../types/plugins';
 import useTheme from '../hooks/useTheme';
 import useNotifications from '../hooks/useNotifications';
+import { useAuthContext } from '../auth/AuthContextProvider';
+import { AuthModes } from '../auth/types';
 
 type RemotesContextType = {
   plugins: RemotePlugin[];
@@ -22,6 +24,7 @@ const EMPTY_REMOTES: Plugin[] = [];
 export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) => {
   const { themeConfig, isLoadingThemeConfig } = useTheme();
   const { showNotification } = useNotifications();
+  const { authMode } = useAuthContext();
   const { t } = useTranslation('common');
 
   const [plugins, setPlugins] = useState<RemotePlugin[]>([]);
@@ -29,13 +32,14 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
   // Guards against re-loading the same config (e.g. React Strict Mode double-invoke
   // or unrelated re-renders). The MF host is a singleton, so remotes load once.
+  // So that one load is never cancelled on cleanup: Strict Mode's simulated
+  // unmount would discard it and leave the app blank whenever the provider mounts
+  // with the theme config already cached.
   const hasLoadedRef = useRef(false);
 
   useEffect(() => {
     if (isLoadingThemeConfig || hasLoadedRef.current) return;
     hasLoadedRef.current = true;
-
-    let cancelled = false;
 
     const load = async () => {
       try {
@@ -85,17 +89,17 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
             type: 'error',
           });
         });
-        if (!cancelled) setPlugins(unique);
+        // Nobody can sign in without an identity system, so a plugin that needs
+        // a signed-in user is not installed at all there, route included.
+        // authMode is fixed for the page's lifetime, so this never changes.
+        const available = authMode === AuthModes.NONE ? unique.filter(plugin => !plugin.requiresAuth) : unique;
+        setPlugins(available);
       } finally {
-        if (!cancelled) setIsLoadingModules(false);
+        setIsLoadingModules(false);
       }
     };
     load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [themeConfig?.plugins, isLoadingThemeConfig, showNotification, t]);
+  }, [themeConfig?.plugins, isLoadingThemeConfig, authMode, showNotification, t]);
 
   return (
     <RemotesContext.Provider

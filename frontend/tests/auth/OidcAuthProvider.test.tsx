@@ -8,9 +8,10 @@
 // OidcAuthProvider is not exported, so it is exercised through AuthContextProvider
 // rendered in OIDC mode.
 import React from 'react';
-import { render, act } from '@testing-library/react';
+import { render, act, fireEvent } from '@testing-library/react';
 import { AuthContextProvider } from '../../src/auth/AuthContextProvider';
-import { useAuth as useReactOidcAuth } from 'react-oidc-context';
+import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
+import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { saveToken, clearToken } from '../../src/auth/tokenStore';
 import { setTokenRefresher } from '../../src/auth/tokenRefresher';
@@ -19,7 +20,8 @@ import { setTokenRefresher } from '../../src/auth/tokenRefresher';
 
 jest.mock('react-oidc-context', () => ({
   // Passthrough provider — the real one only wires up the UserManager, which we mock away.
-  AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  // A jest.fn so a test can read the props it was given (e.g. onSigninCallback).
+  AuthProvider: jest.fn(({ children }: { children: React.ReactNode }) => <>{children}</>),
   useAuth: jest.fn(),
 }));
 
@@ -63,12 +65,14 @@ const signinSilent = jest.fn();
 
 type OidcUser = { access_token: string; expired: boolean } | null | undefined;
 
+const signinRedirect = jest.fn();
+
 const buildAuth = (user: OidcUser) => ({
   isAuthenticated: !!user && !user.expired,
   isLoading: false,
   error: undefined,
   user,
-  signinRedirect: jest.fn(),
+  signinRedirect,
   signoutRedirect: jest.fn(),
   signinSilent,
   removeUser,
@@ -212,6 +216,78 @@ describe('OidcAuthProvider token lifecycle', () => {
       unmount();
 
       expect(setTokenRefresher).toHaveBeenCalledWith(undefined);
+    });
+  });
+
+  describe('return to the page the sign-in started from', () => {
+    const getOnSigninCallback = (): ((user: { state?: unknown } | undefined) => void) => {
+      const calls = (ReactOidcProvider as unknown as jest.Mock).mock.calls;
+      return calls[calls.length - 1][0].onSigninCallback;
+    };
+
+    it('sends the current path, query and hash as the sign-in state', () => {
+      window.history.replaceState({}, '', '/dashboards/abc?tab=2#w');
+      const LoginTrigger = () => {
+        const { login } = useAuthContext();
+        return <button onClick={() => login()}>login</button>;
+      };
+      (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(null));
+      const { getByRole } = render(
+        <AuthContextProvider>
+          <LoginTrigger />
+        </AuthContextProvider>,
+      );
+
+      fireEvent.click(getByRole('button', { name: 'login' }));
+
+      expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/dashboards/abc?tab=2#w' } });
+    });
+
+    it('restores the recorded path on the sign-in callback', () => {
+      renderWithUser(null);
+      window.history.replaceState({}, '', '/admin?code=abc&state=xyz');
+
+      getOnSigninCallback()({ state: { returnTo: '/dashboards/abc?tab=2' } });
+
+      expect(window.location.pathname + window.location.search).toBe('/dashboards/abc?tab=2');
+    });
+
+    it('only strips the callback params when there is no usable recorded path', () => {
+      renderWithUser(null);
+      window.history.replaceState({}, '', '/admin?code=abc&state=xyz');
+
+      getOnSigninCallback()({ state: { returnTo: '//evil.example/' } });
+
+      expect(window.location.pathname + window.location.search).toBe('/admin');
+    });
+  });
+
+  describe('loading gate', () => {
+    const AuthState = () => <span data-testid="loading">{String(useAuthContext().isLoading)}</span>;
+
+    const renderWhileLoading = (activeNavigator?: string) => {
+      (useReactOidcAuth as jest.Mock).mockReturnValue({
+        ...buildAuth({ access_token: 'valid-token', expired: false }),
+        isLoading: true,
+        activeNavigator,
+      });
+      return render(
+        <AuthContextProvider>
+          <AuthState />
+        </AuthContextProvider>,
+      );
+    };
+
+    it('hides the app while the initial session is being restored', () => {
+      const { queryByTestId } = renderWhileLoading();
+
+      expect(queryByTestId('loading')).not.toBeInTheDocument();
+    });
+
+    it('keeps the app mounted and not loading during a silent renew', () => {
+      const { getByTestId } = renderWhileLoading('signinSilent');
+
+      expect(getByTestId('loading')).toHaveTextContent('false');
     });
   });
 });

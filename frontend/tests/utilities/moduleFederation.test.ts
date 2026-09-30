@@ -137,7 +137,39 @@ describe('loadRemotes', () => {
 
     const result = await loadRemotes([toConfig(okUrl), toConfig(badUrl)]);
 
-    expect(result).toEqual({ loaded: [singlePage], failed: [badUrl] });
+    expect(result).toEqual({ loaded: [{ ...singlePage, requiresAuth: false }], failed: [badUrl] });
+  });
+
+  it.each<[string, unknown, boolean, boolean]>([
+    ['neither flag', undefined, false, false],
+    ["only the plugin's requiresAuth", true, false, true],
+    ["only the operator's mustBeLoggedIn", undefined, true, true],
+    ['both flags', true, true, true],
+    ['a malformed truthy requiresAuth', 'false', false, true],
+  ])('requires a signed-in user with %s', async (_label, requiresAuth, mustBeLoggedIn, expected) => {
+    const url = 'https://remote.example/mf-manifest.json';
+    loadRemote.mockResolvedValue({ ...singlePage, requiresAuth });
+
+    const result = await loadRemotes([{ ...toConfig(url), mustBeLoggedIn }]);
+
+    expect(result.loaded[0].requiresAuth).toBe(expected);
+  });
+
+  it('restores the real console after overlapping loads', async () => {
+    const realError = console.error;
+    const realWarn = console.warn;
+    const resolvers: ((module: RemotePlugin) => void)[] = [];
+    loadRemote.mockImplementation(() => new Promise(resolve => resolvers.push(resolve)));
+
+    const first = loadRemotes([toConfig('https://first.example/mf-manifest.json')]);
+    const second = loadRemotes([toConfig('https://second.example/mf-manifest.json')]);
+    resolvers[0](singlePage);
+    await first;
+    resolvers[1](singlePage);
+    await second;
+
+    expect(console.error).toBe(realError);
+    expect(console.warn).toBe(realWarn);
   });
 
   it('ignores disabled remotes entirely', async () => {

@@ -8,6 +8,7 @@ import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken, getToken } from './tokenStore';
 import { setTokenRefresher } from './tokenRefresher';
 import { getEmailFromAccessToken } from './tokenClaims';
+import { getCurrentPath, getReturnTo, type SigninState } from './signinReturnTo';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 
@@ -43,9 +44,9 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
         loadUserInfo
         revokeTokensOnSignout
         userStore={new WebStorageStateStore({ store: window.localStorage })}
-        onSigninCallback={() => {
-          const url = new URL(window.location.href);
-          window.history.replaceState({}, document.title, url.pathname);
+        onSigninCallback={user => {
+          // Runs before the provider stops loading, so the router is created on this URL.
+          window.history.replaceState({}, document.title, getReturnTo(user?.state) ?? window.location.pathname);
         }}
       >
         <InnerProvider authMode={authConfig.authMode}>{children}</InnerProvider>
@@ -123,12 +124,17 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   const accessToken = reactOidcAuth.user?.access_token;
   const isEmailBasedAuth = useMemo(() => !!getEmailFromAccessToken(accessToken), [accessToken]);
 
+  // react-oidc-context also sets isLoading during every sign-in/out call (activeNavigator is set
+  // then), including the silent renew above. Only the initial session restore leaves sign-in state
+  // unknown; hiding the app for the others would remount it and lose page state.
+  const isRestoringSession = reactOidcAuth.isLoading && !reactOidcAuth.activeNavigator;
+
   const value: AuthContext = {
     isAuthenticated: !!reactOidcAuth.isAuthenticated,
-    isLoading: reactOidcAuth.isLoading,
+    isLoading: isRestoringSession,
     error: reactOidcAuth.error,
     user: reactOidcAuth.user,
-    login: () => reactOidcAuth.signinRedirect(),
+    login: () => reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath() } satisfies SigninState }),
     logout: () => {
       clearToken();
       reactOidcAuth.signoutRedirect();
@@ -137,7 +143,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     isEmailBasedAuth,
   };
 
-  return <authContext.Provider value={value}>{reactOidcAuth.isLoading ? null : children}</authContext.Provider>;
+  return <authContext.Provider value={value}>{isRestoringSession ? null : children}</authContext.Provider>;
 }
 
 function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
@@ -146,7 +152,9 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContext = {
     isAuthenticated: passwordAuth.isAuthenticated,
-    isLoading: passwordAuth.isLoading,
+    // The session is read synchronously from storage, so sign-in state is always known. A login
+    // in progress shows in the modal; reporting it here would blank the page behind it.
+    isLoading: false,
     error: passwordAuth.error,
     user: passwordAuth.user,
     login: () => setShowLoginModal(true),
@@ -160,7 +168,7 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <authContext.Provider value={value}>
-      {passwordAuth.isLoading ? null : children}
+      {children}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
@@ -173,7 +181,8 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
 function NoAuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContext = {
-    isAuthenticated: true,
+    // Nobody can sign in on a deployment without an identity system.
+    isAuthenticated: false,
     isLoading: false,
     error: undefined,
     user: undefined,

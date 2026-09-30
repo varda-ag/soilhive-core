@@ -39,8 +39,8 @@ Remotes are **not** hardcoded in the frontend source. Each one is an entry in th
 |---|---|
 | `url` | The remote's manifest URL (`mf-manifest.json`) — also used as the remote's registration name |
 | `enabled` | Whether the host should load this remote at all |
-| `mustBeLoggedIn` | Restricts the plugin to authenticated users |
-| `enableACL` / `acl` | Restricts the plugin to users in the listed ACL groups |
+| `mustBeLoggedIn` | Restricts the plugin to signed-in users, on top of the plugin's own `requiresAuth` |
+| `enableACL` / `acl` | Restricts the plugin to users in the listed ACL groups. Not enforced yet |
 
 The default theme config ships with `plugins: []` — no remotes registered — so a fresh environment shows no plugin pages until one is added. Nothing seeds a plugin entry automatically: running `frontend-plugin-example` locally (`module_example`, served at `http://localhost:3333/mf-manifest.json`) only makes the remote reachable — to actually see it in the host, a dev still has to add a matching entry to `ThemeConfig.plugins` directly (there's no UI for this yet) with `enabled: true`.
 
@@ -97,6 +97,8 @@ const route = 'my-plugin-page'; // becomes the URL path /my-plugin-page in the h
 
 export { pluginId, name, route, type, Page };
 ```
+
+Export `requiresAuth = true` if the plugin only works for a signed-in user. It defaults to `false`. The host then hides the plugin's menu entry from anonymous visitors and shows a login prompt at its route instead of `Page`. On a deployment with no identity system the plugin is not loaded at all. The operator's `mustBeLoggedIn` has the same effect, and either one is enough.
 
 `pluginId` is authored by the plugin, not derived from its config `url`, so it stays stable if the plugin is re-hosted at a different URL. It's also the id you pass to `context.usePluginConfig` (see [PluginContext](#plugincontext)) to namespace your plugin's own persisted settings. If two enabled plugins resolve to the same `pluginId`, the host keeps whichever loaded first, drops the rest, and shows an error notification — it does not crash the app.
 

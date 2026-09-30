@@ -346,4 +346,40 @@ describe('Header component', () => {
     expect(externalLink).toHaveAttribute('target', '_blank');
     expect(externalLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
+
+  describe('plugins that require a signed-in user', () => {
+    beforeEach(() => {
+      (useRemotes as jest.Mock).mockReturnValue({
+        plugins: [
+          { ...singlePagePlugin, requiresAuth: true },
+          { ...newTabPlugin, requiresAuth: true },
+        ],
+        isLoadingRemotes: false,
+      });
+    });
+
+    it('hides their menu entries from an anonymous visitor', () => {
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Header />
+        </MemoryRouter>,
+      );
+
+      expect(screen.queryByRole('link', { name: 'single-page-module' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'new-tab-module' })).not.toBeInTheDocument();
+    });
+
+    it('shows their menu entries to a signed-in user', () => {
+      (useAuthContext as jest.Mock).mockReturnValue({ isAuthenticated: true });
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Header />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByRole('link', { name: 'single-page-module' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'new-tab-module' })).toBeInTheDocument();
+    });
+  });
 });

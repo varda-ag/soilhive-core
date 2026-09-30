@@ -71,14 +71,14 @@ Set the following environment variables in the backend of your application:
 ```bash
 OIDC_AUTHORITY=http://localhost:8080/realms/<your-realm-name>
 OIDC_CLIENT_ID=<your-client-id>
-OIDC_REDIRECT_URI=http://<BASE_APP_URL>/admin
+OIDC_REDIRECT_URI=http://<BASE_APP_URL>
 OIDC_POST_LOGOUT_REDIRECT_URI=http://<BASE_APP_URL>
 OIDC_SILENT_REDIRECT_URI=http://<BASE_APP_URL>
 OIDC_SCOPE=openid
 ```
 
 ## 12. Test Authentication
-When you try to access the admin page, you should be redirected to Keycloak for authentication.
+Open the admin page while logged out and click **Log in**. You should be redirected to Keycloak, and back to the admin page after logging in.
 
 ## Important: HTTP/HTTPS Considerations
 ⚠️ **In this configuration, Keycloak runs on HTTP (not HTTPS).**

@@ -174,6 +174,27 @@ mf.registerShared({
 
 const store = {};
 
+// Counted so overlapping loadRemotes calls restore the real console only when the last one ends;
+// a per-call save/restore lets the second call save the first one's no-ops and keep them for good.
+let consoleMuteCount = 0;
+let mutedConsole: Pick<Console, 'error' | 'warn'> | undefined;
+
+function muteConsole() {
+  if (consoleMuteCount++ === 0) {
+    mutedConsole = { error: console.error, warn: console.warn };
+    console.error = () => {};
+    console.warn = () => {};
+  }
+}
+
+function unmuteConsole() {
+  if (--consoleMuteCount === 0 && mutedConsole) {
+    console.error = mutedConsole.error;
+    console.warn = mutedConsole.warn;
+    mutedConsole = undefined;
+  }
+}
+
 /**
  * Register and load the given remotes, returning the modules that loaded
  * successfully and the urls of the ones that didn't.
@@ -192,13 +213,13 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
   // The MF runtime logs failures via console.warn (through AsyncWaterfallHook's
   // processError → warn() → logger.warn → console.warn) before rethrowing them.
   // The fallbackPlugin above ensures a silent <div /> is used instead.
-  const _origConsoleError = console.error;
-  const _origConsoleWarn = console.warn;
-  console.error = () => {};
-  console.warn = () => {};
-  const remoteModules = await Promise.all(enabled.map(remote => mf.loadRemote<RemotePlugin>(remote.url).catch(() => null)));
-  console.error = _origConsoleError;
-  console.warn = _origConsoleWarn;
+  muteConsole();
+  let remoteModules: (RemotePlugin | null)[];
+  try {
+    remoteModules = await Promise.all(enabled.map(remote => mf.loadRemote<RemotePlugin>(remote.url).catch(() => null)));
+  } finally {
+    unmuteConsole();
+  }
 
   const loaded: RemotePlugin[] = [];
   const failed: string[] = [];
@@ -210,7 +231,10 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
     if (!module || failedRemoteUrls.delete(url)) {
       failed.push(url);
     } else {
-      loaded.push(module);
+      // Copied rather than mutated: a loaded module is an ES module namespace,
+      // which is not extensible. Any truthy value gates, so a malformed flag
+      // fails closed.
+      loaded.push({ ...module, requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn });
     }
   });
 
