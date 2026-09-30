@@ -209,6 +209,29 @@ exports[`AdminSidebar renders sidebar for user with all permissions and matches 
                 Map-based filters
               </span>
             </a>
+            <a
+              aria-disabled="false"
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/export-settings"
+            >
+              <span
+                class="LinkWrapper"
+              >
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
+              <span
+                class="LinkTitle"
+              >
+                Export settings
+              </span>
+            </a>
           </nav>
         </div>
       </div>
@@ -314,6 +337,29 @@ exports[`AdminSidebar renders sidebar for user with only ADMIN_PORTAL_DATA_MENU 
                 class="LinkTitle"
               >
                 Map-based filters
+              </span>
+            </a>
+            <a
+              aria-disabled="false"
+              class="Link"
+              data-discover="true"
+              data-testid="sh-admin-sidebarlink"
+              href="/admin/export-settings"
+            >
+              <span
+                class="LinkWrapper"
+              >
+                <svg
+                  class="LinkIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+              </span>
+              <span
+                class="LinkTitle"
+              >
+                Export settings
               </span>
             </a>
           </nav>

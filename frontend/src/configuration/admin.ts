@@ -8,6 +8,7 @@ export const ADMIN_ROUTES = {
   LOOK_AND_FEEL: 'look-and-feel',
   DATASETS: 'datasets',
   FILTERS: 'filters',
+  EXPORT_SETTINGS: 'export-settings',
 };
 
 export const LOOK_AND_FEEL_ROUTES = {
@@ -25,6 +26,7 @@ export const ADMIN_PATHS = {
   LOOK_AND_FEEL_COLORS: `${ADMIN_ROOT}/${ADMIN_ROUTES.LOOK_AND_FEEL}/${LOOK_AND_FEEL_ROUTES.COLORS}`,
   DATASETS: `${ADMIN_ROOT}/${ADMIN_ROUTES.DATASETS}`,
   FILTERS: `${ADMIN_ROOT}/${ADMIN_ROUTES.FILTERS}`,
+  EXPORT_SETTINGS: `${ADMIN_ROOT}/${ADMIN_ROUTES.EXPORT_SETTINGS}`,
 };
 
 export const PAGE_TITLE_KEYS = {
@@ -37,4 +39,5 @@ export const PAGE_TITLE_KEYS = {
   [ADMIN_PATHS.LOOK_AND_FEEL_COLORS]: 'look_and_feel.title',
   [ADMIN_PATHS.DATASETS]: 'datasets.title',
   [ADMIN_PATHS.FILTERS]: 'filters.title',
+  [ADMIN_PATHS.EXPORT_SETTINGS]: 'export_settings.title',
 };

@@ -23,6 +23,7 @@ jest.mock('../../src/pages/AdminPortal', () => ({
   DatasetsPublication: () => <div>DatasetsPublication page</div>,
   LookAndFeel: () => <div>LookAndFeel page</div>,
   MapBasedFilters: () => <div>MapBasedFilters page</div>,
+  ExportSettings: () => <div>ExportSettings page</div>,
   MapSettings: () => <div>MapSettings page</div>,
 }));
 
@@ -174,6 +175,13 @@ describe('AdminPortalModule', () => {
 
     expect(screen.getByText('MapBasedFilters page')).toBeInTheDocument();
     expect(screen.getByTestId('page-title')).toHaveTextContent('SoilHive - Map-based filters');
+  });
+
+  it('renders export settings page', () => {
+    renderWithRouter(`${ADMIN_ROOT}/${ADMIN_ROUTES.EXPORT_SETTINGS}`);
+
+    expect(screen.getByText('ExportSettings page')).toBeInTheDocument();
+    expect(screen.getByTestId('page-title')).toHaveTextContent('SoilHive - Export settings');
   });
 
   it('wraps the module in IngestionFlowProvider', () => {

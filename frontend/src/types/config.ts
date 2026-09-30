@@ -7,6 +7,14 @@ export type DaiConfig = {
   defaultValue: boolean;
 };
 
+// Enforced by the backend export job (docs/adr/0042). null means not limited.
+export type ExportLimits = {
+  maxAreaM2: number | null;
+  maxObservations: number | null;
+  maxRasterLayers: number | null;
+  exemptAdmins: boolean;
+};
+
 export type ThemeConfig = {
   colors: ThemeColors;
   defaultColors: ThemeColors | undefined;
@@ -18,6 +26,7 @@ export type ThemeConfig = {
   initialBbox: [number, number, number, number];
   plugins: Plugin[];
   daiConfig: DaiConfig;
+  exportLimits: ExportLimits;
 };
 
 export type ColorsConfigField = {

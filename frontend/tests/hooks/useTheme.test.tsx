@@ -286,6 +286,18 @@ describe('ThemeProvider / useTheme', () => {
     expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'saveMapSettingsSuccess', type: 'success' }));
   });
 
+  it('saveExportLimits calls saveConfig with the export limits and shows notification', async () => {
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    const exportLimits = { maxAreaM2: 1e9, maxObservations: null, maxRasterLayers: 10, exemptAdmins: true };
+
+    await act(async () => {
+      await result.current.saveExportLimits(exportLimits);
+    });
+
+    expect(saveThemeConfigMock).toHaveBeenCalledWith({ ...mockThemeConfig, exportLimits });
+    expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'saveExportLimitsSuccess', type: 'success' }));
+  });
+
   it('savePrivacyPolicy calls saveConfig with html payload and sets latestUpdate', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
 

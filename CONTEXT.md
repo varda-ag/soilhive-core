@@ -197,11 +197,15 @@ One request and the outcome its **Run** reached, kept together so the outcome su
 _Avoid_: Filter (a persisted scope, deduplicated per owner), query, job (the queue record that computes an answer, not the record of one), **Soil Statistics** (one Statistics Type's payload, not the record carrying it), **Soil Index** (a Run's product, held as scored geometry and never a Data Request), cache entry (an identical request is never answered from an earlier one), export
 
 **Export**:
-One execution of a download request: a **Filter** and a set of **Datasets** resolved into files in the caller's chosen formats. Identified by the id of the job that runs it, and the unit that progress, failure and the size limit are all attributed to — so "the Export is too large" is always a statement about how many **Observations** it names, never about how big its files turned out. Two Exports of an identical request are two Exports, and neither supersedes the other.
+One execution of a download request: a **Filter** and a set of **Datasets** resolved into files in the caller's chosen formats. Identified by the id of the job that runs it, and the unit that progress, failure and size limits are all attributed to — so "the Export is too large" is always a statement about what it names, never about how big its files turned out. It names two counts that are never added together: its **Observations** and its **Raster Layers**. Two Exports of an identical request are two Exports, and neither supersedes the other.
 _Avoid_: Download (the act of retrieving the **Export Bundle**, not of producing it), **Data Request** (a historical answer that is never recomputed — an Export is recomputed every time it is asked for), report, extract, query
 
+**Export Limit**:
+An administrator-set bound on an **Export**'s size, protecting server load rather than the data: its **Filter**'s area (the sum of its geometries' areas; no geometries exceeds any area limit), its **Observations**, or its **Raster Layers**. Any combination may be set, and none means unlimited. An Export over any one fails, judged when it starts running. Applies to **Privileged callers** too, unless administrators (the data-admin and super-admin scopes) are exempted. Distinct from the XLSX record cap, which belongs to one format and is not set by administrators.
+_Avoid_: Quota (implies a per-caller allowance over time), export size (ambiguous with the **Export Bundle**'s bytes), count limit (there are two counts)
+
 **Export Bundle**:
-The single ZIP an **Export** produces: a readme PDF, one file or worksheet per **Soil Property**, and one folder per exported **Raster Layer**. It is the artifact, never the request — its size is measured in bytes and its shape depends on the chosen formats, while the Export that produced it is measured in **Observations**. An Export that fails produces no Export Bundle at all; there is no partial one.
+The single ZIP an **Export** produces: a readme PDF, one file or worksheet per **Soil Property**, and one folder per exported **Raster Layer**. It is the artifact, never the request — its size is measured in bytes and its shape depends on the chosen formats, while the Export that produced it is measured in **Observations** and **Raster Layers**. An Export that fails produces no Export Bundle at all; there is no partial one.
 _Avoid_: **Export** (the execution that produces it), the ZIP/the archive (names the container, and "archive" already means the reversible retirement of a **Dataset**), the download, output files
 
 **Ingestion Status**:
@@ -217,7 +221,7 @@ A Dataset with a Bulk Load, Raster Load or **Purge** submitted but not yet start
 _Avoid_: QUEUED status, pending (an Ingestion Status), waiting
 
 **Privileged caller**:
-A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject.
+A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. It does not bypass **Export Limits** unless administrators are exempted from them. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject.
 _Avoid_: Admin (ambiguous across the three scopes, and "data admin" also names the human role that curates Datasets), role, superuser, owner
 
 **Archive**:
@@ -327,6 +331,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.
 
 - **"ID" almost never means the primary key** — see **Public identifier**. "dataset ID" means the Dataset's `slug`: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. The same holds inside a Band Mapping: an additional resource's `file_id` is a **File slug**, resolved through slug history, so a File renamed after the mapping was written still resolves. In domain discussions, say **slug** when you mean the public identifier and reserve "primary key" for the internal UUID — never bare "ID" for either.
+- Export failure messages say **"records"** for **Observations**, the word a user sees as rows in their files. It is a UI label only; in domain discussions and on admin pages say Observations.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.

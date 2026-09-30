@@ -233,6 +233,22 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'Alternatively, narrow the area of interest, the date or depth range, or the selected datasets until the selection is under {max_records} records.',
     ],
   },
+  EX_AREA_LIMIT_EXCEEDED: {
+    message: 'Your area of interest covers {area_km2} km², more than the {max_area_km2} km² allowed per export.',
+    actions: ['Draw a smaller area of interest.'],
+  },
+  EX_AREA_LIMIT_NO_AOI: {
+    message: 'Exports are limited to {max_area_km2} km², and your selection has no area of interest.',
+    actions: ['Draw an area of interest on the map and export again.'],
+  },
+  EX_RASTER_LAYER_LIMIT_EXCEEDED: {
+    message: 'Your selection contains {layer_count} raster layers, more than the {max_layers} allowed per export.',
+    actions: ['Narrow the area of interest, the date or depth range, the soil properties, or the selected datasets.'],
+  },
+  EX_OBSERVATION_LIMIT_EXCEEDED: {
+    message: 'Your selection contains {record_count} records, more than the {max_records} allowed per export.',
+    actions: ['Narrow the area of interest or the selected datasets.'],
+  },
   BD_TIMEOUT: {
     message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
     actions: ['Try deleting again; if it keeps timing out, contact support'],

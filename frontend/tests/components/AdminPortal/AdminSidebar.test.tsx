@@ -65,7 +65,7 @@ describe('AdminSidebar', () => {
     const { container } = renderSidebar();
 
     expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(7);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(8);
     expect(container).toMatchSnapshot();
   });
 
@@ -80,7 +80,7 @@ describe('AdminSidebar', () => {
     const { container } = renderSidebar(`${ADMIN_ROOT}/datasets`);
 
     expect(screen.getByTestId('sh-admin-sidebar')).toBeInTheDocument();
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(2);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(3);
     expect(container).toMatchSnapshot();
   });
 
@@ -102,7 +102,7 @@ describe('AdminSidebar', () => {
   it('renders translated link titles and logout title when expanded', () => {
     renderSidebar();
 
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(7);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(8);
     expect(screen.getByText('Terms of use')).toBeInTheDocument();
     expect(screen.getByText('Privacy policy')).toBeInTheDocument();
     expect(screen.getByText('Notification Banner')).toBeInTheDocument();
@@ -110,6 +110,7 @@ describe('AdminSidebar', () => {
     expect(screen.getByText('Look & Feel')).toBeInTheDocument();
     expect(screen.getByText('Datasets publication')).toBeInTheDocument();
     expect(screen.getByText('Map-based filters')).toBeInTheDocument();
+    expect(screen.getByText('Export settings')).toBeInTheDocument();
 
     expect(screen.getByTestId('sh-admin-sidebar-logout')).toBeInTheDocument();
     expect(screen.getByText('Logout')).toBeInTheDocument();
@@ -120,7 +121,7 @@ describe('AdminSidebar', () => {
 
     fireEvent.click(container.querySelector('.Collapser') as Element);
 
-    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(7);
+    expect(screen.getAllByTestId('sh-admin-sidebarlink')).toHaveLength(8);
     expect(screen.queryByText('Terms of use')).not.toBeInTheDocument();
     expect(screen.queryByText('Privacy policy')).not.toBeInTheDocument();
     expect(screen.queryByText('Notification Banner')).not.toBeInTheDocument();
@@ -128,6 +129,7 @@ describe('AdminSidebar', () => {
     expect(screen.queryByText('Look & Feel')).not.toBeInTheDocument();
     expect(screen.queryByText('Datasets publication')).not.toBeInTheDocument();
     expect(screen.queryByText('Map-based filters')).not.toBeInTheDocument();
+    expect(screen.queryByText('Export settings')).not.toBeInTheDocument();
 
     expect(screen.getByTestId('sh-admin-sidebar-logout')).toBeInTheDocument();
     expect(screen.queryByText('Logout')).not.toBeInTheDocument();
