@@ -212,6 +212,10 @@ _Avoid_: State, stage, publication state, visibility (the access attribute), "ac
 The Ingestion Status a Dataset must hold to be **listed** — to appear in the catalog and in every filter, coverage and DAI result. It is not a release of the data: a Dataset's soil data is readable through `/soil-data` by anyone holding its slug at any Ingestion Status, subject only to **Visibility** and **Entitlement**. Say "listed", never "released".
 _Avoid_: Live, public (that is a **Visibility** value), released, available, approved
 
+**Queued**:
+A Dataset with a Bulk Load, Raster Load or **Purge** submitted but not yet started. A fact about its pending work, not an **Ingestion Status**: it holds alongside whatever status the Dataset has, and ends when the work starts or is withdrawn (docs/adr/0042).
+_Avoid_: QUEUED status, pending (an Ingestion Status), waiting
+
 **Privileged caller**:
 A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject.
 _Avoid_: Admin (ambiguous across the three scopes, and "data admin" also names the human role that curates Datasets), role, superuser, owner
@@ -280,6 +284,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Data Request** is attached to at most one plugin config item, fixed at submission, which must already exist; a **Plugin** only ever submits attached Data Requests, and decides itself when each one is destroyed
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
 - An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
+- A **Dataset** accepts no edits while it has a Bulk Load, Raster Load or **Purge** Queued or running; being **Queued** is only the first part of that window
 - **Ingestion Status**, **Visibility** and **Entitlement** are three independent attributes of a Dataset: the first decides whether it is listed, the other two decide what may be done with its data
 
 ## Example dialogue

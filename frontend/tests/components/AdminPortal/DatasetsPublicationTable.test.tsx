@@ -137,6 +137,13 @@ describe('DatasetsPublicationTable', () => {
     expect(screen.getByTestId('row-3')).toHaveClass('sh-row-error');
   });
 
+  it('rowClassName does not highlight a LOADED row while it is queued', () => {
+    const queued = [{ ...datasets[1], id: '9', isQueued: true }];
+    render(<DatasetsPublicationTable {...defaultProps} datasets={queued as any} />);
+
+    expect(screen.getByTestId('row-9')).not.toHaveClass('sh-row-highlighted');
+  });
+
   it('rowClassName returns undefined for non-LOADED status without errors', () => {
     render(<DatasetsPublicationTable {...defaultProps} />);
 
@@ -220,6 +227,20 @@ describe('DatasetsPublicationTable', () => {
 
       const sorted = statusCol.sortFunction({ data, order: 1 });
       expect(sorted.map((r: any) => r.status)).toEqual(['PENDING', 'ONGOING', 'LOADED', 'PUBLISHED']);
+    });
+
+    it('sorts a queued row between PENDING and ONGOING, whatever its status', () => {
+      render(<DatasetsPublicationTable {...defaultProps} />);
+
+      const statusCol = capturedColumns.find((c: any) => c.value === 'status');
+      const data = [
+        { id: '1', name: 'A', status: 'ONGOING' },
+        { id: '2', name: 'B', status: 'PUBLISHED', isQueued: true },
+        { id: '3', name: 'C', status: 'PENDING' },
+      ];
+
+      const sorted = statusCol.sortFunction({ data, order: 1 });
+      expect(sorted.map((r: any) => r.id)).toEqual(['3', '2', '1']);
     });
 
     it('sorts descending by status order', () => {

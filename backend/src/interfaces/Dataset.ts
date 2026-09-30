@@ -2,6 +2,7 @@ import type { Polygon } from 'geojson';
 import { GISDataType, IngestionStatus } from '../types/data';
 import { Capability } from '../types/enums';
 import { CleaningReport } from './CleaningReport';
+import { QueuedJob } from './Job';
 
 export interface MeasuredProperty {
   soil_property_id: string;
@@ -46,4 +47,5 @@ export interface Dataset {
   inferred_properties?: string[] | null;
   preprocessing_steps?: string | null;
   related_resources?: string[] | null;
+  queued_job?: QueuedJob | null;
 }

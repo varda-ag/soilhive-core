@@ -11,6 +11,12 @@ export type AnyJob =
   | DataRequestJob
   | SoilIndexJob;
 
+/** A job pg-boss has not picked up yet, as a Dataset's `queued_job` exposes it (docs/adr/0042). */
+export interface QueuedJob {
+  id: string;
+  queue: string;
+}
+
 export interface Job {
   id: string | null;
   queue: string;

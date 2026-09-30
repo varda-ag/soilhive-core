@@ -228,6 +228,7 @@
             },
             "status": {
                 "PENDING": "Draft",
+                "QUEUED": "Queued",
                 "ONGOING": "Loading",
                 "LOADED": "Loaded",
                 "PUBLISHED": "Published"

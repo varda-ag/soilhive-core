@@ -16,6 +16,7 @@ const datasetFileMappingService = new DatasetFileMappingService();
 
 export const getDatasets = async (req: Request, res: Response) => {
   const data = await datasetService.getDatasets(req.customData);
+  await datasetService.decorateWithQueuedJobs(req.customData, data);
   res.json(idToSlug(data));
 };
 
@@ -29,6 +30,7 @@ export const getDataset = async (req: Request, res: Response) => {
     return;
   }
 
+  await datasetService.decorateWithQueuedJobs(req.customData, [data]);
   res.json(idToSlug(data));
 };
 
@@ -40,17 +42,23 @@ export const createDataset = async (req: Request, res: Response) => {
 
 export const updateDataset = async (req: Request, res: Response) => {
   const input: UpdateDatasetInput = req.body;
+  await datasetService.assertEditable(req.customData, req.params['datasetId']! as string);
   const data = await datasetService.updateDataset(req.customData, req.params['datasetId']! as string, input);
   res.json(idToSlug(data));
 };
 
 export const deleteDataset = async (req: Request, res: Response) => {
+  await datasetService.assertEditable(req.customData, req.params['datasetId']! as string);
   await datasetService.deleteDataset(req.customData, req.params['datasetId']! as string);
   res.status(StatusCodes.NO_CONTENT).send();
 };
 
 export const postSoilData = async (req: Request, res: Response) => {
   const datasetFileMappingId = req.params['datasetFileMappingId'] as string;
+  // An internal request is the running bulk load writing its own batches: locking it would fail every load
+  if (!req.customData.token?.isInternalRequest) {
+    await datasetService.assertEditable(req.customData, req.params['datasetId'] as string);
+  }
   const datasetFileMapping = await datasetFileMappingService.getDatasetFileMapping(req.customData, datasetFileMappingId);
   const dataMappingConfig = await dataMappingService.parseDataMapping(req.customData, datasetFileMapping.data_mapping_id as string);
   const dataset = await datasetService.getDataset(req.customData, req.params['datasetId'] as string);

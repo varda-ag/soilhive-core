@@ -108,6 +108,17 @@ describe('DatasetsTableActionTemplate', () => {
     });
   });
 
+  describe('queued', () => {
+    it.each([IngestionStatus.PENDING, IngestionStatus.LOADED, IngestionStatus.PUBLISHED])('renders no action buttons for %s', status => {
+      const dataset = { id: '5', name: 'Dataset', updated_at: null, status, isQueued: true };
+      render(<DatasetsTableActionTemplate {...baseProps} dataset={dataset} />);
+
+      expect(screen.queryByTestId('btn-publish')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-dataset-edit')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('sh-dataset-delete')).not.toBeInTheDocument();
+    });
+  });
+
   describe('ONGOING status', () => {
     const dataset = { id: '4', name: 'Dataset', updated_at: null, status: IngestionStatus.ONGOING };
 
