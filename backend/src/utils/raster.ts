@@ -6,6 +6,8 @@ import FileService from '../services/FileService';
 import ConfigService from '../services/ConfigService';
 import { StorageModes } from '../types/enums';
 import { GdalCLI } from './GdalCLI';
+import { log } from './logger';
+import { getErrorMessage } from './error';
 
 export interface RasterMeta {
   nodata: number | null;
@@ -14,6 +16,21 @@ export interface RasterMeta {
   epsg?: number;
   wkt?: string;
 }
+
+const RESOLUTION_UNAVAILABLE = -1;
+
+const FULL_GLOBE_BBOX: Polygon = {
+  type: 'Polygon',
+  coordinates: [
+    [
+      [-180, -90],
+      [180, -90],
+      [180, 90],
+      [-180, 90],
+      [-180, -90],
+    ],
+  ],
+};
 
 /**
  * Opens a GeoTIFF for reading, handling S3 (presigned URL) and local file paths.
@@ -51,6 +68,74 @@ export function isGeographicCrs(wkt?: string): boolean {
   return /GEOGCRS\[|GEOGCS\[/.test(wkt);
 }
 
+const METRIC_UNIT = /(?:LENGTHUNIT|UNIT)\["met(?:re|er)",\s*1(?:\.0+)?\s*[,\]]/i;
+
+/**
+ * Whether a projected CRS's axis unit is already meters, per its WKT (A pixel's ground
+ * size is then just its native width/height for an equidistant projection).
+ */
+export function isMetricProjectedCrs(wkt?: string): boolean {
+  return !!wkt && METRIC_UNIT.test(wkt);
+}
+
+/**
+ * Builds the canonical bbox rectangle — [minX,minY] → [maxX,minY] → [maxX,maxY] → [minX,maxY] →
+ * back to [minX,minY] — from the envelope of an arbitrary set of points, regardless of what order
+ * they're given in.
+ */
+function envelopeBbox(points: [number, number][]): Polygon {
+  const xs = points.map(([x]) => x);
+  const ys = points.map(([, y]) => y);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  const maxX = Math.max(...xs);
+  const maxY = Math.max(...ys);
+  return {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [minX, minY],
+        [maxX, minY],
+        [maxX, maxY],
+        [minX, maxY],
+        [minX, minY],
+      ],
+    ],
+  };
+}
+
+/**
+ * Reprojects the raster's own bbox corners to WGS84 directly. Returns null when PROJ can't invert one of the two corners.
+ */
+async function reprojectBboxCorners(
+  wkt: string,
+  xMin: number,
+  yMin: number,
+  xMax: number,
+  yMax: number,
+  cogPath: string,
+  band: number,
+): Promise<Polygon | null> {
+  try {
+    const corners = await GdalCLI.transformPoints(wkt, [
+      [xMin, yMin],
+      [xMax, yMax],
+    ]);
+    if (!corners.flat().every(Number.isFinite)) {
+      throw new Error(`reprojected corner(s) not finite: ${JSON.stringify(corners)}`);
+    }
+    return envelopeBbox(corners);
+  } catch (error) {
+    log.warn("Could not reproject raster bbox corners either; storing this raster layer's bbox as the whole globe", {
+      cogPath,
+      band,
+      wkt,
+      error: getErrorMessage(error),
+    });
+    return null;
+  }
+}
+
 /**
  * Reads raster metadata (nodata, pixel resolution, bbox) via gdalinfo for one band.
  *
@@ -79,46 +164,52 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   if (isGeo) {
     resolution = Math.round(Math.abs(pixW) * 111320);
   } else {
-    // Projected CRS units aren't necessarily meters (e.g. state-plane feet), so measure the ground
-    // distance between two adjacent pixel corners .
-    const [corner0, corner1] = await GdalCLI.transformPoints(info.coordinateSystem!.wkt!, [
-      [xMin, yMax],
-      [xMin + pixW, yMax],
-    ]);
-    resolution = Math.round(haversineDistanceMeters(corner0!, corner1!));
+    try {
+      const [corner0, corner1] = await GdalCLI.transformPoints(info.coordinateSystem!.wkt!, [
+        [xMin, yMax],
+        [xMin + pixW, yMax],
+      ]);
+      const measured = haversineDistanceMeters(corner0!, corner1!);
+      if (!Number.isFinite(measured)) {
+        throw new Error(`reprojected corner(s) not finite: ${JSON.stringify([corner0, corner1])}`);
+      }
+      resolution = Math.round(measured);
+    } catch (error) {
+      if (isMetricProjectedCrs(info.coordinateSystem?.wkt)) {
+        resolution = Math.round(Math.abs(pixW));
+      } else {
+        log.warn('Could not compute raster resolution; storing resolution_m as unavailable', {
+          cogPath,
+          band,
+          wkt: info.coordinateSystem?.wkt,
+          error: getErrorMessage(error),
+        });
+        resolution = RESOLUTION_UNAVAILABLE;
+      }
+    }
   }
 
-  // raster_layers.bbox is always stored in EPSG:4326, so a raster kept in its native CRS (see
-  // RasterIngestService.checkFileFormat, which no longer warps non-4326 rasters at ingest) has its
+  // raster_layers.bbox is always stored in EPSG:4326, so a raster kept in its native CRS has its
   // extent reprojected here — the same way computeRasterFootprints reprojects footprint geometries
   // — rather than storing native-CRS coordinates mislabeled as degrees.
   const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
-  let bboxMinX = xMin;
-  let bboxMinY = yMin;
-  let bboxMaxX = xMax;
-  let bboxMaxY = yMax;
+  let bbox: Polygon;
   // A projected CRS always needs reprojecting, whether or not it has a registered EPSG code
   if (!isGeo || (epsg !== undefined && epsg !== 4326)) {
-    const corners = await GdalCLI.transformPoints(info.coordinateSystem!.wkt!, [
+    const wgs84Ring = info.wgs84Extent?.coordinates?.[0];
+    if (wgs84Ring && wgs84Ring.length > 0) {
+      bbox = envelopeBbox(wgs84Ring as [number, number][]);
+    } else {
+      // gdalinfo gave up; fall back to reprojecting the raster's own corners directly
+      // before falling back to full globe extent.
+      bbox = (await reprojectBboxCorners(info.coordinateSystem!.wkt!, xMin, yMin, xMax, yMax, cogPath, band)) ?? FULL_GLOBE_BBOX;
+    }
+  } else {
+    bbox = envelopeBbox([
       [xMin, yMin],
       [xMax, yMax],
     ]);
-    [bboxMinX, bboxMinY] = corners[0]!;
-    [bboxMaxX, bboxMaxY] = corners[1]!;
   }
-
-  const bbox: Polygon = {
-    type: 'Polygon',
-    coordinates: [
-      [
-        [bboxMinX, bboxMinY],
-        [bboxMaxX, bboxMinY],
-        [bboxMaxX, bboxMaxY],
-        [bboxMinX, bboxMaxY],
-        [bboxMinX, bboxMinY],
-      ],
-    ],
-  };
 
   return {
     nodata,
