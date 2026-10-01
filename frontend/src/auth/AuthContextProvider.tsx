@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { AuthConfig } from './AuthConfig';
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from './AuthContext';
@@ -6,8 +6,9 @@ import { usePasswordAuth } from './usePasswordAuth';
 import { LoginModal } from './LoginModal';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken, getToken } from './tokenStore';
-import { setTokenRefresher } from './tokenRefresher';
+import { refreshAccessToken, setTokenRefresher } from './tokenRefresher';
 import { getEmailFromAccessToken } from './tokenClaims';
+import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from './signinReturnTo';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 
@@ -43,9 +44,9 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
         loadUserInfo
         revokeTokensOnSignout
         userStore={new WebStorageStateStore({ store: window.localStorage })}
-        onSigninCallback={() => {
-          const url = new URL(window.location.href);
-          window.history.replaceState({}, document.title, url.pathname);
+        onSigninCallback={user => {
+          // Runs before the provider stops loading, so the router is created on this URL.
+          window.history.replaceState({}, document.title, getReturnTo(user?.state) ?? window.location.pathname);
         }}
       >
         <InnerProvider authMode={authConfig.authMode}>{children}</InnerProvider>
@@ -85,11 +86,16 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
 
   // react-oidc-context does not subscribe to accessTokenExpired, so on expiry
   // it never clears the user and the stale token keeps being used. Handle it
-  // explicitly: drop the token and remove the user so isAuthenticated flips to
+  // explicitly: first try a silent renew, since the scheduled one may only have
+  // missed its window (throttled tab, machine sleep), and signing out would
+  // replace any page that needs a signed-in user, losing its state. Only if
+  // that fails, drop the token and remove the user so isAuthenticated flips to
   // false (login UI reappears). This is a quiet logout, not a forced re-login.
   const { events, removeUser } = reactOidcAuth;
   useEffect(() => {
-    const handleExpired = () => {
+    const handleExpired = async () => {
+      // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
+      if (await refreshAccessToken()) return;
       clearToken();
       removeUser();
     };
@@ -123,12 +129,17 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   const accessToken = reactOidcAuth.user?.access_token;
   const isEmailBasedAuth = useMemo(() => !!getEmailFromAccessToken(accessToken), [accessToken]);
 
+  // react-oidc-context also sets isLoading during every sign-in/out call (activeNavigator is set
+  // then), including the silent renew above. Only the initial session restore leaves sign-in state
+  // unknown; hiding the app for the others would remount it and lose page state.
+  const isRestoringSession = reactOidcAuth.isLoading && !reactOidcAuth.activeNavigator;
+
   const value: AuthContext = {
     isAuthenticated: !!reactOidcAuth.isAuthenticated,
-    isLoading: reactOidcAuth.isLoading,
+    isLoading: isRestoringSession,
     error: reactOidcAuth.error,
     user: reactOidcAuth.user,
-    login: () => reactOidcAuth.signinRedirect(),
+    login: () => reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath() } satisfies SigninState }),
     logout: () => {
       clearToken();
       reactOidcAuth.signoutRedirect();
@@ -137,7 +148,27 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     isEmailBasedAuth,
   };
 
-  return <authContext.Provider value={value}>{reactOidcAuth.isLoading ? null : children}</authContext.Provider>;
+  return (
+    <authContext.Provider value={value}>
+      {isRestoringSession ? null : <WithoutCallbackParams>{children}</WithoutCallbackParams>}
+    </authContext.Provider>
+  );
+}
+
+// Holds the app back until the URL carries no sign-in callback params. onSigninCallback replaces the
+// URL on success, but a failed callback leaves them there, and every reload would replay it, fail
+// again and leave the stored session unread. Cleared before the app mounts, so the router is created
+// on the clean URL.
+function WithoutCallbackParams({ children }: { children: React.ReactNode }) {
+  const [isUrlClean, setIsUrlClean] = useState(() => !hasCallbackParams());
+
+  useLayoutEffect(() => {
+    if (isUrlClean) return;
+    window.history.replaceState({}, document.title, getCurrentPath());
+    setIsUrlClean(true);
+  }, [isUrlClean]);
+
+  return isUrlClean ? <>{children}</> : null;
 }
 
 function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
@@ -146,7 +177,9 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContext = {
     isAuthenticated: passwordAuth.isAuthenticated,
-    isLoading: passwordAuth.isLoading,
+    // The session is read synchronously from storage, so sign-in state is always known. A login
+    // in progress shows in the modal; reporting it here would blank the page behind it.
+    isLoading: false,
     error: passwordAuth.error,
     user: passwordAuth.user,
     login: () => setShowLoginModal(true),
@@ -160,7 +193,7 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <authContext.Provider value={value}>
-      {passwordAuth.isLoading ? null : children}
+      {children}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
@@ -173,7 +206,8 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
 
 function NoAuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContext = {
-    isAuthenticated: true,
+    // Nobody can sign in on a deployment without an identity system.
+    isAuthenticated: false,
     isLoading: false,
     error: undefined,
     user: undefined,
