@@ -59,6 +59,9 @@ export interface GdalInfoOutput {
   wgs84Extent?: { type: string; coordinates: number[][][] };
 }
 
+/** An EPSG:4326 extent. */
+export type Envelope = [west: number, south: number, east: number, north: number];
+
 export class GdalCLI {
   static async gdalinfo(filePath: string): Promise<GdalInfoOutput> {
     const stdout = await GdalCLI.run('gdalinfo', ['-json', filePath]);
@@ -115,6 +118,10 @@ export class GdalCLI {
    * string as returned by gdalinfo's `coordinateSystem.wkt`) in one process rather than one per
    * point — the caller batches everything it needs transformed into a single call. `dstSrs`
    * defaults to EPSG:4326, the CRS footprints/bboxes are always stored in.
+   *
+   * A point PROJ can't transform (in a gap of an interrupted projection, or off the globe) comes
+   * back as [NaN, NaN]: gdaltransform prints `transformation failed.` in its place and still exits
+   * 0, so only a failure of the run itself rejects.
    */
   static async transformPoints(srcSrs: string, points: [number, number][], dstSrs: string = 'EPSG:4326'): Promise<[number, number][]> {
     if (points.length === 0) return [];
@@ -254,6 +261,21 @@ export class GdalCLI {
     const entries: any[] = Array.isArray(srs.id) ? srs.id : [srs.id];
     const epsg = entries.find(e => e.authority === 'EPSG');
     return epsg ? Number(epsg.code) : undefined;
+  }
+
+  /**
+   * The envelope of gdalinfo's `wgs84Extent`, or undefined unless that ring holds all four of the
+   * raster's corners. gdalinfo silently leaves out every corner PROJ can't transform (one in a gap
+   * of an interrupted projection, or off the globe), so a partial ring's envelope can be any
+   * fraction of the raster — down to a zero-area line through the two corners that remain.
+   */
+  static extractWgs84Envelope(wgs84Extent?: GdalInfoOutput['wgs84Extent']): Envelope | undefined {
+    const ring = wgs84Extent?.coordinates?.[0];
+    // Four corners plus the closing repeat of the first
+    if (!ring || ring.length !== 5 || !ring.flat().every(Number.isFinite)) return undefined;
+    const lons = ring.map(([lon]) => lon!);
+    const lats = ring.map(([, lat]) => lat!);
+    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
   }
 
   // The CRS's own EPSG code is a depth-1 ID["EPSG", n] (a direct child of the outer PROJCRS[/
