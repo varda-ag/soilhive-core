@@ -41,7 +41,7 @@ export interface PluginContext {
   usePluginConfig: <T>(pluginId: string, id: string, defaultConfig?: T) => PluginConfigResult<T>;
   // Read-only batch counterpart to usePluginConfig: fetches multiple ids in one
   // request. Missing ids are simply absent from the returned map.
-  usePluginConfigs: <T>(pluginId: string, ids: string[]) => PluginQueryResult<Record<string, T>>;
+  usePluginConfigs: <T>(pluginId: string, ids: string[], polling?: number) => PluginQueryResult<Record<string, T>>;
   usePluginConfigEntitlements: (pluginId: string, configId: string) => PluginQueryResult<PluginConfigEntitlements>;
   usePluginConfigEntitlementsMutation: (
     pluginId: string,

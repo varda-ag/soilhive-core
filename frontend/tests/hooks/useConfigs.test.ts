@@ -32,6 +32,22 @@ describe('useConfigs', () => {
     expect(result.current.data).toBe(data);
   });
 
+  it('passes polling as refetchInterval when provided', () => {
+    useApiQueryMock.mockReturnValue({ data: {}, isLoading: false, isError: false });
+
+    renderHook(() => useConfigs(['a'], 5000));
+
+    expect(useApiQuery).toHaveBeenCalledWith(expect.objectContaining({ refetchInterval: 5000 }));
+  });
+
+  it('disables refetchInterval when polling is not provided', () => {
+    useApiQueryMock.mockReturnValue({ data: {}, isLoading: false, isError: false });
+
+    renderHook(() => useConfigs(['a']));
+
+    expect(useApiQuery).toHaveBeenCalledWith(expect.objectContaining({ refetchInterval: false }));
+  });
+
   it('disables the query and defaults data to {} when ids is empty', () => {
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false, isError: false });
 

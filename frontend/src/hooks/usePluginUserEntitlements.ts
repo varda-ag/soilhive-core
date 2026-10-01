@@ -10,7 +10,7 @@ const SCOPE_MAP: Record<PluginEntitlementScope, EntitlementScope> = {
 // Filters the host's full grant map down to the calling plugin's own plugin:{pluginId}:
 // entries and strips the prefix, mirroring usePluginConfigs — see ADR 0036.
 export function usePluginUserEntitlements(pluginId: string, scope: PluginEntitlementScope) {
-  const { data, isLoading, isError } = useUserEntitlements(SCOPE_MAP[scope]);
+  const { data, isLoading, isError, refetch } = useUserEntitlements(SCOPE_MAP[scope]);
   const prefix = `plugin:${pluginId}:`;
 
   const filtered: PluginConfigEntitlements = Object.fromEntries(
@@ -19,5 +19,5 @@ export function usePluginUserEntitlements(pluginId: string, scope: PluginEntitle
       .map(([key, capabilities]) => [key.slice(prefix.length), capabilities as PluginConfigEntitlements[string]]),
   );
 
-  return { data: filtered, isLoading, isError };
+  return { data: filtered, isLoading, isError, refetch };
 }

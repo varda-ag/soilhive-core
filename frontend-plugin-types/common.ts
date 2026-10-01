@@ -9,6 +9,7 @@ export interface PluginQueryResult<T> {
   data: T | undefined;
   isLoading: boolean;
   isError: boolean;
+  refetch?: () => Promise<unknown>;
 }
 
 export interface PluginConfigResult<T> {

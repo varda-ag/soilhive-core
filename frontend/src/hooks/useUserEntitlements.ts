@@ -13,5 +13,6 @@ export function useUserEntitlements(scope: EntitlementScope) {
     parameters: [['scope', scope]],
     queryKey: ['entitlements', scope],
     enabled: isAuthenticated,
+    disableCache: true,
   });
 }
