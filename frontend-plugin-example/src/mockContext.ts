@@ -21,7 +21,7 @@ import type {
  * The context hooks are plain functions from the plugin's point of view, so the
  * local preview can satisfy them with static data instead of real hooks.
  */
-const query = <T>(data: T): PluginQueryResult<T> => ({ data, isLoading: false, isError: false });
+const query = <T>(data: T): PluginQueryResult<T> => ({ data, isLoading: false, isError: false, refetch: async () => {} });
 
 const storedFilter: PluginStoredDataFilter = {
   id: 'mock-filter-id',
