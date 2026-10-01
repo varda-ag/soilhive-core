@@ -267,6 +267,55 @@ describe('GdalCLI.transformPoints', () => {
       runSpy.mockRestore();
     }
   });
+
+  it("returns NaN for a point PROJ can't transform, rather than rejecting the whole batch", async () => {
+    // Interrupted Goode Homolosine: the first point is off the globe, its false origin is not
+    const [offGlobe, origin] = await GdalCLI.transformPoints('ESRI:54052', [
+      [-19949750, 8361000],
+      [0, 0],
+    ]);
+    expect(offGlobe).toEqual([NaN, NaN]);
+    expect(origin![0]).toBeCloseTo(0, 6);
+    expect(origin![1]).toBeCloseTo(0, 6);
+  });
+});
+
+describe('GdalCLI.extractWgs84Envelope', () => {
+  // Both captured from gdalinfo -json, for an Interrupted Goode Homolosine raster
+  const ALL_CORNERS = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-52.0933024, 59.5825578],
+        [-59.0118798, 49.6501684],
+        [-20.2490162, 49.6501684],
+        [-28.7307838, 59.5825578],
+        [-52.0933024, 59.5825578],
+      ],
+    ],
+  };
+  // Both top corners are off the globe, so gdalinfo leaves them out of the ring
+  const BOTTOM_CORNERS_ONLY = {
+    type: 'Polygon',
+    coordinates: [
+      [
+        [-136.5284921, 17.9663057],
+        [-1.537846, 17.9663057],
+      ],
+    ],
+  };
+
+  it('returns the envelope of a ring holding all four corners', () => {
+    expect(GdalCLI.extractWgs84Envelope(ALL_CORNERS)).toEqual([-59.0118798, 49.6501684, -20.2490162, 59.5825578]);
+  });
+
+  it('returns undefined for a ring missing corners, rather than the envelope of the ones left', () => {
+    expect(GdalCLI.extractWgs84Envelope(BOTTOM_CORNERS_ONLY)).toBeUndefined();
+  });
+
+  it('returns undefined when gdalinfo reports no wgs84Extent at all', () => {
+    expect(GdalCLI.extractWgs84Envelope(undefined)).toBeUndefined();
+  });
 });
 
 describe('GdalCLI.extractEpsgFromWkt', () => {

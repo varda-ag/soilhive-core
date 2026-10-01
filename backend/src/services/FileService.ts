@@ -615,7 +615,7 @@ export default class FileService {
       }));
 
       const epsg = GdalCLI.extractEpsgFromWkt(gdalInfo.coordinateSystem?.wkt);
-      const extent = FileService.extractWgs84Extent(gdalInfo.wgs84Extent);
+      const extent = GdalCLI.extractWgs84Envelope(gdalInfo.wgs84Extent);
       const size: [number, number] = gdalInfo.size ?? [0, 0];
 
       const metadata: FileMetadata = {
@@ -640,14 +640,6 @@ export default class FileService {
       }
       throw new ErrorResponse(`Failed to extract metadata: ${error}`, StatusCodes.BAD_REQUEST);
     }
-  }
-
-  private static extractWgs84Extent(wgs84Extent?: { coordinates: number[][][] }): [number, number, number, number] | undefined {
-    const ring = wgs84Extent?.coordinates?.[0];
-    if (!ring || ring.length === 0) return undefined;
-    const lons = ring.map(([lon]) => lon!);
-    const lats = ring.map(([, lat]) => lat!);
-    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
   }
 
   fileToDB = async (requestData: RequestData, fileId: string) => {

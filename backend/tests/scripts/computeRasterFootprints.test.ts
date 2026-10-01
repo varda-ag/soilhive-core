@@ -13,6 +13,8 @@ const NODATA_F32_FILE = 'nodata_34e38_f32.tif';
 // Lambert Azimuthal Equal Area, no EPSG code — exercises the srcSrs-detection path and
 // gdal_footprint's own -t_srs reprojection, not gdaltransform.
 const CUSTOM_CRS_FILE = 'epsg8807_1b_250m.tif';
+// Interrupted Goode Homolosine with both left corners off the globe (see raster.test.ts)
+const HOMOLOSINE_PARTIAL_FILE = 'homolosine_partial_1b_100km.tif';
 
 /** A gdal_translate/gdal_footprint temp artifact this module creates directly in os.tmpdir(). */
 const isFootprintTempFile = (p: string): boolean => path.dirname(p) === os.tmpdir() && path.basename(p).startsWith('footprint-');
@@ -75,6 +77,27 @@ describe('streamRasterFootprints', () => {
         }
       }
     }
+  });
+
+  it("finds footprints for a raster whose corners don't all reproject", async () => {
+    // Sizing the tile grid from two diagonal corners, one of them off the globe, made it NaN by NaN:
+    // the run went through no tiles, and found no footprints, without failing.
+    const batches: MultiPolygon[][] = [];
+    let totalTiles = 0;
+
+    await streamRasterFootprints(
+      HOMOLOSINE_PARTIAL_FILE,
+      1,
+      async tiles => {
+        batches.push(tiles);
+      },
+      async (_tilesProcessed, total) => {
+        totalTiles = total;
+      },
+    );
+
+    expect(totalTiles).toBeGreaterThan(0);
+    expect(batches.flat().length).toBeGreaterThan(0);
   });
 
   it('leaves no temp files behind in os.tmpdir() after a successful run', async () => {

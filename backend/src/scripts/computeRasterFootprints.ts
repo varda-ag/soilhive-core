@@ -6,7 +6,7 @@ import path from 'path';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
 import { log, timed } from '../utils/logger';
-import { isGeographicCrs } from '../utils/raster';
+import { wgs84Envelope } from '../utils/raster';
 
 const MAX_TILES = (256 * 256) / 16;
 // Exported so tests can override it directly.
@@ -106,10 +106,6 @@ export async function streamRasterFootprints(
       const gt = info.geoTransform;
       if (!gt) throw new Error('Raster has no geoTransform');
 
-      const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
-      const isGeo = isGeographicCrs(info.coordinateSystem?.wkt);
-      const srcSrs = !isGeo || (epsg !== undefined && epsg !== 4326) ? info.coordinateSystem!.wkt! : null;
-
       const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
       const xMin = gt[0]!;
       const yMax = gt[3]!;
@@ -123,21 +119,10 @@ export async function streamRasterFootprints(
       // constant as if it were one.
       const rasterWidthNative = xMax - xMin;
       const rasterHeightNative = yMax - yMin;
-      let gridWidthDeg = rasterWidthNative;
-      let gridHeightDeg = rasterHeightNative;
-      if (srcSrs) {
-        const corners = await GdalCLI.transformPoints(srcSrs, [
-          [xMin, yMin],
-          [xMax, yMax],
-        ]);
-        const [lonMin, latMin] = corners[0]!;
-        const [lonMax, latMax] = corners[1]!;
-        gridWidthDeg = Math.abs(lonMax - lonMin);
-        gridHeightDeg = Math.abs(latMax - latMin);
-      }
+      const [west, south, east, north] = await wgs84Envelope(info, xMin, yMin, xMax, yMax);
 
       const nativePixelSize = Math.abs(pixWFull);
-      const { nCols, nRows } = computeGrid(gridWidthDeg, gridHeightDeg);
+      const { nCols, nRows } = computeGrid(east - west, north - south);
       const tileW = rasterWidthNative / nCols;
       const tileH = rasterHeightNative / nRows;
       const tileMinDim = Math.min(tileW, tileH);
@@ -248,6 +233,12 @@ export async function streamRasterFootprints(
           'unlimited',
           '-t_srs',
           'EPSG:4326',
+          // A valid pixel on the edge of an interrupted projection's lobe (Goode Homolosine) has
+          // outer corners past that edge, which PROJ can't reproject; this drops those vertices
+          // instead of failing the whole footprint.
+          '--config',
+          'OGR_ENABLE_PARTIAL_REPROJECTION',
+          'TRUE',
           '-of',
           'GeoJSON',
           '-q',

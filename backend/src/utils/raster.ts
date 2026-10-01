@@ -2,12 +2,12 @@ import type GeoTIFF from 'geotiff';
 import type { GeoTIFFImage } from 'geotiff';
 import { fromFile, fromUrl } from 'geotiff';
 import type { Polygon } from 'geojson';
+import * as turf from '@turf/turf';
 import FileService from '../services/FileService';
 import ConfigService from '../services/ConfigService';
 import { StorageModes } from '../types/enums';
-import { GdalCLI } from './GdalCLI';
+import { GdalCLI, type Envelope, type GdalInfoOutput } from './GdalCLI';
 import { log } from './logger';
-import { getErrorMessage } from './error';
 
 export interface RasterMeta {
   nodata: number | null;
@@ -19,18 +19,8 @@ export interface RasterMeta {
 
 const RESOLUTION_UNAVAILABLE = -1;
 
-const FULL_GLOBE_BBOX: Polygon = {
-  type: 'Polygon',
-  coordinates: [
-    [
-      [-180, -90],
-      [180, -90],
-      [180, 90],
-      [-180, 90],
-      [-180, -90],
-    ],
-  ],
-};
+// Points per side of the lattice sampled across a raster whose corners don't all reproject
+const ENVELOPE_SAMPLES_PER_SIDE = 21;
 
 /**
  * Opens a GeoTIFF for reading, handling S3 (presigned URL) and local file paths.
@@ -68,72 +58,54 @@ export function isGeographicCrs(wkt?: string): boolean {
   return /GEOGCRS\[|GEOGCS\[/.test(wkt);
 }
 
-const METRIC_UNIT = /(?:LENGTHUNIT|UNIT)\["met(?:re|er)",\s*1(?:\.0+)?\s*[,\]]/i;
+// The unit a projected CRS's coordinates are in. WKT2 states it on each AXIS (or once after them
+// all) following CS[...]; WKT1 states it as PROJCS's own UNIT, after PROJECTION and its PARAMETERs.
+// Every unit before those — the ellipsoid's, a conversion parameter's — measures something else,
+// and is in metres even for a CRS whose coordinates are in feet.
+const AXIS_UNIT = /(?:\bCS\[|\bPROJECTION\[)[\s\S]*?\b(?:LENGTHUNIT|UNIT)\["([^"]*)",\s*([^,\]\s]+)/;
 
 /**
  * Whether a projected CRS's axis unit is already meters, per its WKT (A pixel's ground
  * size is then just its native width/height for an equidistant projection).
  */
 export function isMetricProjectedCrs(wkt?: string): boolean {
-  return !!wkt && METRIC_UNIT.test(wkt);
+  const match = wkt ? AXIS_UNIT.exec(wkt) : null;
+  return !!match && /^met(?:re|er)$/i.test(match[1]!) && Number(match[2]) === 1;
 }
 
 /**
- * Builds the canonical bbox rectangle — [minX,minY] → [maxX,minY] → [maxX,maxY] → [minX,maxY] →
- * back to [minX,minY] — from the envelope of an arbitrary set of points, regardless of what order
- * they're given in.
+ * The raster's extent in EPSG:4326, given its native extent in its own CRS's units.
+ *
+ * raster_layers.bbox is always stored in EPSG:4326, so a raster kept in its native CRS has its
+ * extent reprojected here — the same way computeRasterFootprints reprojects footprint geometries
+ * — rather than storing native-CRS coordinates mislabeled as degrees.
+ *
+ * gdalinfo's own wgs84Extent is used when it holds all four corners. An interrupted projection
+ * (Goode Homolosine) can leave corners in the gaps between its lobes or off the globe, so a
+ * lattice of points across the raster is sampled instead, keeping the envelope of the ones that
+ * reproject. Throws when none do: such a raster has no ground to place.
  */
-function envelopeBbox(points: [number, number][]): Polygon {
-  const xs = points.map(([x]) => x);
-  const ys = points.map(([, y]) => y);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const maxX = Math.max(...xs);
-  const maxY = Math.max(...ys);
-  return {
-    type: 'Polygon',
-    coordinates: [
-      [
-        [minX, minY],
-        [maxX, minY],
-        [maxX, maxY],
-        [minX, maxY],
-        [minX, minY],
-      ],
-    ],
-  };
-}
-
-/**
- * Reprojects the raster's own bbox corners to WGS84 directly. Returns null when PROJ can't invert one of the two corners.
- */
-async function reprojectBboxCorners(
-  wkt: string,
-  xMin: number,
-  yMin: number,
-  xMax: number,
-  yMax: number,
-  cogPath: string,
-  band: number,
-): Promise<Polygon | null> {
-  try {
-    const corners = await GdalCLI.transformPoints(wkt, [
-      [xMin, yMin],
-      [xMax, yMax],
-    ]);
-    if (!corners.flat().every(Number.isFinite)) {
-      throw new Error(`reprojected corner(s) not finite: ${JSON.stringify(corners)}`);
-    }
-    return envelopeBbox(corners);
-  } catch (error) {
-    log.warn("Could not reproject raster bbox corners either; storing this raster layer's bbox as the whole globe", {
-      cogPath,
-      band,
-      wkt,
-      error: getErrorMessage(error),
-    });
-    return null;
+export async function wgs84Envelope(info: GdalInfoOutput, xMin: number, yMin: number, xMax: number, yMax: number): Promise<Envelope> {
+  const wkt = info.coordinateSystem?.wkt;
+  const epsg = GdalCLI.extractEpsgFromWkt(wkt);
+  // A projected CRS always needs reprojecting, whether or not it has a registered EPSG code
+  if (isGeographicCrs(wkt) && (epsg === undefined || epsg === 4326)) {
+    return [Math.min(xMin, xMax), Math.min(yMin, yMax), Math.max(xMin, xMax), Math.max(yMin, yMax)];
   }
+
+  const fromGdalinfo = GdalCLI.extractWgs84Envelope(info.wgs84Extent);
+  if (fromGdalinfo) return fromGdalinfo;
+
+  const n = ENVELOPE_SAMPLES_PER_SIDE;
+  const lattice = Array.from({ length: n * n }, (_, k): [number, number] => [
+    xMin + ((xMax - xMin) * Math.floor(k / n)) / (n - 1),
+    yMin + ((yMax - yMin) * (k % n)) / (n - 1),
+  ]);
+  const reprojected = (await GdalCLI.transformPoints(wkt!, lattice)).filter(point => point.every(Number.isFinite));
+  if (reprojected.length === 0) {
+    throw new Error("No point across the raster's extent reprojects to EPSG:4326");
+  }
+  return turf.bbox(turf.multiPoint(reprojected)) as Envelope;
 }
 
 /**
@@ -159,64 +131,41 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
 
   const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
 
-  const isGeo = isGeographicCrs(info.coordinateSystem?.wkt);
+  const wkt = info.coordinateSystem?.wkt;
   let resolution: number;
-  if (isGeo) {
+  if (isGeographicCrs(wkt)) {
     resolution = Math.round(Math.abs(pixW) * 111320);
   } else {
-    try {
-      const [corner0, corner1] = await GdalCLI.transformPoints(info.coordinateSystem!.wkt!, [
-        [xMin, yMax],
-        [xMin + pixW, yMax],
-      ]);
-      const measured = haversineDistanceMeters(corner0!, corner1!);
-      if (!Number.isFinite(measured)) {
-        throw new Error(`reprojected corner(s) not finite: ${JSON.stringify([corner0, corner1])}`);
-      }
+    // Projected CRS units aren't necessarily meters (e.g. state-plane feet), so measure the ground
+    // distance across one pixel — at the raster's centre, since its corners are the likeliest
+    // points to fall in a gap of an interrupted projection, or off the globe.
+    const centreX = (xMin + xMax) / 2;
+    const centreY = (yMin + yMax) / 2;
+    const [start, end] = await GdalCLI.transformPoints(wkt!, [
+      [centreX, centreY],
+      [centreX + pixW, centreY],
+    ]);
+    const measured = haversineDistanceMeters(start!, end!);
+    if (Number.isFinite(measured)) {
       resolution = Math.round(measured);
-    } catch (error) {
-      if (isMetricProjectedCrs(info.coordinateSystem?.wkt)) {
-        resolution = Math.round(Math.abs(pixW));
-      } else {
-        log.warn('Could not compute raster resolution; storing resolution_m as unavailable', {
-          cogPath,
-          band,
-          wkt: info.coordinateSystem?.wkt,
-          error: getErrorMessage(error),
-        });
-        resolution = RESOLUTION_UNAVAILABLE;
-      }
+    } else if (isMetricProjectedCrs(wkt)) {
+      log.warn("Could not reproject the raster's centre pixel; storing its native width as resolution_m", { cogPath, band, wkt });
+      resolution = Math.round(Math.abs(pixW));
+    } else {
+      log.warn("Could not reproject the raster's centre pixel; storing resolution_m as unavailable", { cogPath, band, wkt });
+      resolution = RESOLUTION_UNAVAILABLE;
     }
   }
 
-  // raster_layers.bbox is always stored in EPSG:4326, so a raster kept in its native CRS has its
-  // extent reprojected here — the same way computeRasterFootprints reprojects footprint geometries
-  // — rather than storing native-CRS coordinates mislabeled as degrees.
-  const epsg = GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt);
-  let bbox: Polygon;
-  // A projected CRS always needs reprojecting, whether or not it has a registered EPSG code
-  if (!isGeo || (epsg !== undefined && epsg !== 4326)) {
-    const wgs84Ring = info.wgs84Extent?.coordinates?.[0];
-    if (wgs84Ring && wgs84Ring.length > 0) {
-      bbox = envelopeBbox(wgs84Ring as [number, number][]);
-    } else {
-      // gdalinfo gave up; fall back to reprojecting the raster's own corners directly
-      // before falling back to full globe extent.
-      bbox = (await reprojectBboxCorners(info.coordinateSystem!.wkt!, xMin, yMin, xMax, yMax, cogPath, band)) ?? FULL_GLOBE_BBOX;
-    }
-  } else {
-    bbox = envelopeBbox([
-      [xMin, yMin],
-      [xMax, yMax],
-    ]);
-  }
+  const bbox: Polygon = turf.bboxPolygon(await wgs84Envelope(info, xMin, yMin, xMax, yMax)).geometry;
+  const epsg = GdalCLI.extractEpsgFromWkt(wkt);
 
   return {
     nodata,
     resolution,
     bbox,
     ...(epsg !== undefined && { epsg }),
-    ...(info.coordinateSystem?.wkt && { wkt: info.coordinateSystem.wkt }),
+    ...(wkt && { wkt }),
   };
 }
 
