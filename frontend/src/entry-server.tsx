@@ -163,11 +163,11 @@ export async function render(
   // Prefetch theme config so ThemeProvider has data during renderToString.
   // Logo is intentionally excluded — URL.createObjectURL() is browser-only.
   await queryClient.prefetchQuery({
-    queryKey: ['/config/theme'],
+    queryKey: ['/configs/theme'],
     queryFn: async () => {
       const headers: HeadersInit = { 'Content-Type': 'application/json' };
       if (context?.authToken) headers['Authorization'] = `Bearer ${context.authToken}`;
-      const res = await fetch(`${backendUrl}/config/theme`, { headers });
+      const res = await fetch(`${backendUrl}/configs/theme`, { headers });
       if (res.status === 404) return null;
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();

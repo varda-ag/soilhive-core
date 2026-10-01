@@ -10,7 +10,7 @@ import { QueryRunner } from 'typeorm';
 const SYSTEM_CONFIG_IDS = ['frontend-logo', 'theme'] as const;
 
 /**
- * Grants EVERYONE `read` on the known public system config ids, so GET /config/{configId} on them
+ * Grants EVERYONE `read` on the known public system config ids, so GET /configs/{configId} on them
  * keeps working anonymously now that it's entitlements-gated (see ADR-0037).
  *
  * A live 'everyone' row may already exist (e.g. a dataset grant made via the API), so this

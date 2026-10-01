@@ -5,7 +5,7 @@ type MetadataResponse = { id: string; data: MetadataPayload };
 
 export function useMetadataMutation() {
   return useApiMutation<MetadataResponse, MetadataPayload>({
-    endpoint: '/config/metadata',
+    endpoint: '/configs/metadata',
     method: 'PUT',
   });
 }

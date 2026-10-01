@@ -642,9 +642,9 @@ describe('Testing /data-requests routes', () => {
     /** A fresh plugin config item: the author claims write, the reader is granted read. */
     const claimConfig = async (): Promise<string> => {
       const configId = `plugin:dashboards:dashboards:${uuidv4()}`;
-      await request(app).put(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(200);
+      await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(200);
       await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${author()}`)
         .send({ [authorEmail]: ['write'], [readerEmail]: ['read'] })
         .expect(200);
@@ -692,7 +692,7 @@ describe('Testing /data-requests routes', () => {
       // after its cascade had already run.
       it('rejects a soft-deleted config item', async () => {
         const configId = await claimConfig();
-        await request(app).delete(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
 
         const res = await submitAttached(configId);
         expect(res.statusCode).toBe(404);
@@ -717,7 +717,7 @@ describe('Testing /data-requests routes', () => {
       it("counts everyone's read, so a public dashboard is readable without a token", async () => {
         const configId = await claimConfig();
         await request(app)
-          .put(`/config/${configId}/entitlements`)
+          .put(`/configs/${configId}/entitlements`)
           .set('Authorization', `Bearer ${author()}`)
           .send({ [authorEmail]: ['write'], everyone: ['read'] })
           .expect(200);
@@ -754,7 +754,7 @@ describe('Testing /data-requests routes', () => {
       });
     });
 
-    describe('DELETE /config/{configId}', () => {
+    describe('DELETE /configs/{configId}', () => {
       it('destroys every request attached to the item, running or completed, and nothing else', async () => {
         const configId = await claimConfig();
         const running = await createAttached(configId);
@@ -762,7 +762,7 @@ describe('Testing /data-requests routes', () => {
         await finishRun(completed.body.id, configId);
         const unattached = await submit(await descriptive(await createFilter([polygon]))).expect(201);
 
-        await request(app).delete(`/config/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
 
         await request(app).get(`/data-requests/${running.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
         await request(app).get(`/data-requests/${completed.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);

@@ -20,7 +20,7 @@ const emptyEntitlements = (): Entitlements => ({ datasets: Object.create(null), 
 /**
  * Scopes whose keys are entity slugs, and so carry an identity that survives a rename.
  *
- * `CONFIGS` keys are freeform ids chosen by the caller of `PUT /config/{configId}`, with no entity
+ * `CONFIGS` keys are freeform ids chosen by the caller of `PUT /configs/{configId}`, with no entity
  * behind them. Resolving one through `slug_history` would alias it to every slug some unrelated
  * entity has ever held, so a config id that happens to equal a renamed dataset's old slug would
  * read, and delete, the grants of the config id equal to its new one. `getUserEntitlements` draws
@@ -374,7 +374,7 @@ export default class EntitlementService {
     return grantsConfig(requestData.entitlements[EntitlementScope.CONFIGS]?.[key], Capability.READ);
   };
 
-  /** Read gate for `GET /config/{configId}(/entitlements)` and `GET /config` (see ADR 0037). */
+  /** Read gate for `GET /configs/{configId}(/entitlements)` and `GET /configs` (see ADR 0037). */
   assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
     if (!this.canReadConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have read entitlement for config ${key}`, StatusCodes.FORBIDDEN);
@@ -404,7 +404,7 @@ export default class EntitlementService {
     return grantsConfig(capabilities, capability);
   };
 
-  /** Write gate for `PUT /config/{configId}/entitlements` and `DELETE /config/{configId}` (see ADR 0037). */
+  /** Write gate for `PUT /configs/{configId}/entitlements` and `DELETE /configs/{configId}` (see ADR 0037). */
   assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
     if (!this.canWriteConfig(requestData, key)) {
       throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
@@ -445,7 +445,7 @@ export default class EntitlementService {
   };
 
   /**
-   * `PUT /config/{configId}/entitlements`'s single entry point: composes the write gate with the
+   * `PUT /configs/{configId}/entitlements`'s single entry point: composes the write gate with the
    * generic writer so a caller can't reach `setEntityEntitlements(CONFIGS, ...)` without the check
    * running first — the gate has no other production caller to enforce that ordering itself.
    */
@@ -455,7 +455,7 @@ export default class EntitlementService {
   };
 
   /**
-   * `GET /config/{configId}/entitlements`'s single entry point: composes the read gate with the
+   * `GET /configs/{configId}/entitlements`'s single entry point: composes the read gate with the
    * generic reader, same reasoning as `setConfigEntitlement`.
    *
    * The generic reader returns every subject holding a grant — every other subject's email/id, not

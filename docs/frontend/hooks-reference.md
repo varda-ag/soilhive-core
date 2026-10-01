@@ -55,7 +55,7 @@ Fetches and enriches a single dataset by id. Combines the `/datasets/:id` respon
 Fetches the list of soil properties from `/soil-properties`. Used widely in filter UIs and dataset forms.
 
 ### `useConfig(id)`
-Fetches a theme config object from `/config/:id`.
+Fetches a theme config object from `/configs/:id`.
 
 ### `useDataFilterQuery(filters)`
 Fires a filtered dataset query against the backend based on the current filter state from `AvailabilityContext` and geometry from `AvailabilityMapContext`.

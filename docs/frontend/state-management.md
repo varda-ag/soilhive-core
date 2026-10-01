@@ -85,7 +85,7 @@ Key values:
 **File:** `src/contexts/ThemeContext.tsx`  
 **Hook:** `useTheme()` from `src/hooks/useTheme.ts`
 
-Loads branding and content configuration from the backend (`/config/theme`). Provides colors, terms and conditions HTML, privacy policy HTML, the initial map bounding box, and the notification banner config. Used by the layout and any component that needs brand-aware defaults.
+Loads branding and content configuration from the backend (`/configs/theme`). Provides colors, terms and conditions HTML, privacy policy HTML, the initial map bounding box, and the notification banner config. Used by the layout and any component that needs brand-aware defaults.
 
 ### DownloadsContext
 

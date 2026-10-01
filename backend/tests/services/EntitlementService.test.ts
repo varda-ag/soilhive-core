@@ -793,7 +793,7 @@ describe('EntitlementService', () => {
     });
 
     // Reproduces a real race: the same subject winning first access on several distinct fresh
-    // plugin: ids concurrently (e.g. several PUT /config/plugin:{pluginId}:{id} requests in
+    // plugin: ids concurrently (e.g. several PUT /configs/plugin:{pluginId}:{id} requests in
     // flight at once). Each request is its own transaction/connection, all targeting the same
     // EntitlementsEntity row (keyed by subject) but different keys within its `configs` object —
     // a non-atomic read-modify-write (findOneBy + save) loses all but the last writer's key.

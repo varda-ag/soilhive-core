@@ -6,7 +6,6 @@ export const QUERY_STALE_TIME = 600000; // Caching the responses for 10 minutes 
 
 export const REST_END_POINTS = {
   LOGO: 'frontend/logo',
-  CONFIG: 'config/:id',
   DOWNLOADS: 'downloads',
   JOBS: 'jobs',
   DATA_REQUESTS: 'data-requests',

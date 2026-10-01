@@ -32,7 +32,7 @@ export default class ConfigService {
   };
 
   /**
-   * `PUT /config/{configId}`. A caller who already holds `WRITE` (or is privileged) upserts as
+   * `PUT /configs/{configId}`. A caller who already holds `WRITE` (or is privileged) upserts as
    * before. Otherwise, only a fresh `plugin:` id is eligible for first access: a conflict-
    * detecting insert (`ON CONFLICT DO NOTHING`, not `upsert`, which would let a concurrent racer
    * silently overwrite the winner) either claims the id — granting the caller `WRITE` on it in
