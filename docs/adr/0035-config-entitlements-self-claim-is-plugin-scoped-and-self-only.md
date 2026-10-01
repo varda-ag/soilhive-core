@@ -60,7 +60,7 @@ subjects (e.g. `everyone`) before anyone holds `write` at all.
   `GET`, not the full subject list; `write` is required to see (and so manage) every grant. This
   differs from `GET /datasets/{datasetId}/entitlements`, which stays fully admin-only and always
   returns every subject.
-- `ConfigService.deleteConfig` (a soft delete) does not clear the id's Entitlements. Deleting a
-  config's value does not free its id back up for self-service — it stays claimed by whoever
-  already holds `write`, or requires an admin. Revisit alongside the follow-up above if "delete
-  frees the id" becomes desired behavior.
+- **Amended (SP-5714):** deleting a plugin config item also destroys its Entitlements, for every
+  Subject; host config items keep theirs. Deleting still does not free the id for self-service:
+  the soft-deleted row blocks first access (ADR 0037), so only a Privileged caller can write it
+  again.

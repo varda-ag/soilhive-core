@@ -8,6 +8,7 @@ import { writeSoilIndexRun } from '../../src/data-layer/SoilIndex';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { sleep } from '../../src/utils/utils';
 import { getDataAdminToken, getUserToken } from '../helper';
+import { EVERYONE } from '../../src/constants/constants';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import { addCategory, addDataset, addSoilProperty } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
@@ -688,8 +689,8 @@ describe('Testing /data-requests routes', () => {
         expect(res.statusCode).toBe(403);
       });
 
-      // Write survives a soft delete, so without this a stale page could attach to a deleted item
-      // after its cascade had already run.
+      // Existence is checked before write, so this is a 404 although the delete also dropped the
+      // author's grant; it is also what stops a Privileged caller, who needs no grant.
       it('rejects a soft-deleted config item', async () => {
         const configId = await claimConfig();
         await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
@@ -775,6 +776,36 @@ describe('Testing /data-requests routes', () => {
           [running.body.id, completed.body.id],
         ]);
         expect(jobs).toEqual([{ id: running.body.id, state: 'cancelled' }]);
+      });
+
+      it('destroys every grant on the item, EVERYONE included, and none on other items', async () => {
+        const configId = await claimConfig();
+        const otherId = await claimConfig();
+        await request(app)
+          .put(`/configs/${configId}/entitlements`)
+          .set('Authorization', `Bearer ${author()}`)
+          .send({ [authorEmail]: ['write'], [readerEmail]: ['read'], [EVERYONE]: ['read'] })
+          .expect(200);
+
+        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+
+        const entityManager = await getEntityManager();
+        const rows: { id: string; configs: unknown }[] = await entityManager.query(
+          `SELECT id, data->'configs' AS configs FROM entitlements`,
+        );
+        expect(Object.fromEntries(rows.map(({ id, configs }) => [id, configs]))).toEqual({
+          [authorEmail]: { [otherId]: ['write'] },
+          [readerEmail]: { [otherId]: ['read'] },
+          [EVERYONE]: {},
+        });
+      });
+
+      it('is final: the former author can neither save nor delete the item again', async () => {
+        const configId = await claimConfig();
+        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+
+        await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(403);
+        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(403);
       });
     });
   });

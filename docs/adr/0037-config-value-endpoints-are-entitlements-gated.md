@@ -48,10 +48,11 @@ divergent bootstrap paths open at once.
   unbounded number of config rows, each up to `JSON_PAYLOAD_LIMIT` of arbitrary JSON. Accepted for
   this ticket, same reasoning as plugin-id squatting above: revisit (a per-subject row quota, or a
   tighter `ConfigItem` schema) if abuse is observed.
-- `ConfigService.deleteConfig`'s soft delete still does not clear a config id's Entitlements grant,
-  and — as a side effect of using `ON CONFLICT (id)` for the bootstrap check — a soft-deleted row
-  still blocks a new first-access claim on the same id (the row's primary key still exists). A
-  deleted config id therefore stays locked to whoever already holds `write`, or requires an admin,
-  unchanged from before this ADR.
+- **Amended (SP-5714):** `ConfigService.deleteConfig` also destroys a plugin config id's
+  Entitlements, for every Subject, so a deleted item leaves every `GET /entitlements` listing and a
+  co-editor's stale save cannot resurrect it. Host config ids keep theirs: an admin deleting and
+  re-saving `theme` must not lose `everyone`'s `read`. A soft-deleted row still blocks a new
+  first-access claim on the same id (`ON CONFLICT (id)`), so a deleted plugin id can only be
+  written again by a Privileged caller.
 - `GET /configs/{configId}/entitlements` keeps its existing lack of a first-access bypass (ADR
   0035) — unaffected by this change.

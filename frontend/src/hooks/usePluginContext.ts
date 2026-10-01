@@ -29,6 +29,7 @@ import { useSoilProperties as useHostSoilProperties } from './useSoilProperties'
 import useHostTheme from './useTheme';
 import usePluginConfig from './usePluginConfig';
 import usePluginConfigs from './usePluginConfigs';
+import usePluginConfigDelete from './usePluginConfigDelete';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from './usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from './usePluginUserEntitlements';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from './usePluginDataRequest';
@@ -142,6 +143,7 @@ export function usePluginContext(): PluginContext {
       // so it's passed through directly rather than wrapped like the hooks above.
       usePluginConfig,
       usePluginConfigs,
+      usePluginConfigDelete,
       // Already matches PluginContext's signature (pluginId, configId), so passed
       // through directly, same as usePluginConfig/usePluginConfigs above.
       usePluginConfigEntitlements,

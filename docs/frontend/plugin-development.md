@@ -256,6 +256,22 @@ Use `['read', 'write']` instead of `['read']` if every user should be able to ed
 
 Give an id a `{kind}:` prefix to mark what it represents, e.g. `dashboards:{id}` for a dashboard. `context.usePluginUserEntitlements(pluginId, 'dashboards')` lists only your ids of that kind, with the `dashboards:` prefix kept, so they can be passed straight back to `usePluginConfig`/`usePluginConfigs`.
 
+#### Deleting a config
+
+`context.usePluginConfigDelete(pluginId)` deletes a config for everyone. Its grants and its attached Data Requests go with it, and nobody can save under that id again. Delete from a list, not from the config's own open page:
+
+```tsx
+const { data: dashboards } = context.usePluginUserEntitlements(pluginId, 'dashboards');
+const { mutateAsync: deleteConfig } = context.usePluginConfigDelete(pluginId);
+
+// Only callers with write can delete, so show the button only to them.
+Object.entries(dashboards ?? {})
+  .filter(([, capabilities]) => capabilities.includes('write'))
+  .map(([id]) => <button onClick={() => deleteConfig({ id })}>Delete</button>);
+```
+
+`mutateAsync` resolves once the config has left every listing. It also resolves when there is nothing you can delete (already deleted, or no `write`), and rejects only on a server or network error.
+
 ### Batch-fetching multiple config ids
 
 Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map:

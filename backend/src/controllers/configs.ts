@@ -23,8 +23,9 @@ export const getConfig = async (req: Request, res: Response) => {
 export const deleteConfig = async (req: Request, res: Response) => {
   const id = req.params['configId']! as string;
   await configService.deleteConfig(req.customData, id);
-  // Only a plugin config item can have Data Requests attached (docs/adr/0041). Run here rather than
-  // in ConfigService, whose import graph would otherwise close a load-order cycle through JobService.
+  // Only a plugin config item can have Data Requests attached (docs/adr/0041). Not in ConfigService:
+  // importing DataRequestService there closes a cycle through JobService and FileService, which
+  // crashes module-level instances elsewhere whenever PgBoss is loaded first.
   if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
     await dataRequestService.deleteAttachedDataRequests(req.customData, id);
   }

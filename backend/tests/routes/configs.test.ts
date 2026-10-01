@@ -88,6 +88,17 @@ describe('Testing /configs/{id} routes', () => {
     expect(row2).not.toBeNull();
   });
 
+  // A plugin config delete needs pg-boss, so its tests live in data-requests.test.ts.
+  it('DELETE on a host config keeps its entitlements', async () => {
+    await createTestConfigInDB({ key: 'value' });
+    await grantConfigCapability(EVERYONE, ID, ['read']);
+
+    const res = await request(app).delete('/configs/test-config').set(superAdminAuthHeader);
+
+    expect(res.statusCode).toBe(204);
+    expect(await getConfigGrants()).toEqual({ [EVERYONE]: { [ID]: ['read'] } });
+  });
+
   it('Exports all the configs', async () => {
     const a = { customValue: 123.456 };
     const b = { anotherValue: 'test' };
@@ -219,6 +230,13 @@ const getTestConfigFromDBById = async (id: string) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository('JsonStorage');
   return await repo.findOneBy({ id });
+};
+
+/** Every subject's `data.configs`, keyed by subject. */
+const getConfigGrants = async (): Promise<Record<string, unknown>> => {
+  const dataSource = await getDataSource();
+  const rows: { id: string; configs: unknown }[] = await dataSource.query(`SELECT id, data->'configs' AS configs FROM entitlements`);
+  return Object.fromEntries(rows.map(({ id, configs }) => [id, configs]));
 };
 
 /** Merges `{capabilities}` under `data.configs[configId]` for `subject`, on top of any existing grants. */
