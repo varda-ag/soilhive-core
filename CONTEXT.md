@@ -81,7 +81,7 @@ A person using the frontend with a live session. A deployment with no identity s
 _Avoid_: Authenticated (also names the deployment's auth mode), logged in, auth
 
 **Entitlement**:
-A **Capability** (`preview`, `download`, `obfuscate_as_points`, `obfuscate_as_polygons`, `read`, `write`) granted to one **Subject** or to `everyone`, over one of two scopes: a Dataset, or a config item (`PUT /config/{configId}`, keyed by its freeform id rather than a slug). Consulted only for private Datasets — a public Dataset needs none; a config item has no Visibility and is always consulted. Datasets draw from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's raw token exists — config items are local-only, the external endpoint has no notion of them. Entitlements are the access axis; **Visibility** is the attribute axis (Datasets only), and neither substitutes for the other. A non-admin caller may self-claim `write` on a plugin-owned (`plugin:{pluginId}:{id}`) config item's own Entitlements the first time it is accessed — never on a Dataset's (see ADR 0035). A Dataset Entitlement's lifetime is bound to the Dataset's *data*, not its record: it survives an **Archive** and is destroyed by a **Purge**, and only the locally held rows are, since the external endpoint's answers are outside the system's reach.
+A **Capability** (`preview`, `download`, `obfuscate_as_points`, `obfuscate_as_polygons`, `read`, `write`) granted to one **Subject** or to `everyone`, over one of two scopes: a Dataset, or a config item (`PUT /configs/{configId}`, keyed by its freeform id rather than a slug). Consulted only for private Datasets — a public Dataset needs none; a config item has no Visibility and is always consulted. Datasets draw from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's raw token exists — config items are local-only, the external endpoint has no notion of them. Entitlements are the access axis; **Visibility** is the attribute axis (Datasets only), and neither substitutes for the other. A non-admin caller may self-claim `write` on a plugin-owned (`plugin:{pluginId}:{id}`) config item's own Entitlements the first time it is accessed — never on a Dataset's (see ADR 0035). A Dataset Entitlement's lifetime is bound to the Dataset's *data*, not its record: it survives an **Archive** and is destroyed by a **Purge**, and only the locally held rows are, since the external endpoint's answers are outside the system's reach.
 _Avoid_: Permission, access right, grant, role
 
 **Data Availability Index (DAI)**:
@@ -256,6 +256,10 @@ _Avoid_: Plugin props, context (too generic — always say "Plugin Context")
 The metadata a Plugin exposes describing how the host should mount it: its `PluginType` (`single-page`, `new-tab`, or `map-info-card`), whether it gets a menu item, its route, and its `Page` component. Defined in the host's `src/types/plugins.ts`, not in `frontend-plugin-types`. The Plugin-to-host half of the contract — the mirror image of Plugin Context, not an overlapping concept.
 _Avoid_: Plugin (too generic when the mounting metadata specifically is meant), plugin config
 
+**Config item**:
+A JSON document the platform stores under a freeform id chosen by whoever first writes it, belonging either to the host or to one **Plugin** (see **Plugin Namespace**). It has no **Visibility**; every read and write consults its **Entitlements**. What the deployment reports about its own auth and storage setup is *not* a config item: that comes from the environment, is never stored, has no id and consults no Entitlement.
+_Avoid_: Config bare (see Flagged ambiguities), setting, preference
+
 **Plugin Namespace**:
 The `plugin:{pluginId}:` prefix that marks a config item as owned by one **Plugin**; a config id without it belongs to the host.
 _Avoid_: Plugin prefix
@@ -331,6 +335,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 ## Flagged ambiguities
 
+- **"Config" names two things.** A **Config item** is stored, owned and entitlement-gated; the deployment's auth and storage configuration is derived from the environment and is neither. The API keeps the singular `config` for the latter and the plural `configs` for the collection of Config items.
 - **"scope" names both storage namespaces and Config Kinds.** `GET /entitlements?scope=` accepts `datasets`, `configs` and `dashboards`, but only the first two are namespaces. Resolved: `dashboards` is a **Config Kind**, a filtered view over `configs`; the query param keeps its name because it is API.
 - **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: it means **listed only**. Every dataset-listing path pins `status = 'PUBLISHED'`, but `/soil-data` deliberately does not — an unpublished Dataset's Observations are readable by anyone holding its slug, gated by **Visibility** and **Entitlement** and nothing else. So "unpublished datasets aren't visible" is true of the catalog and false of the data. Always say *where*.
 - **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.

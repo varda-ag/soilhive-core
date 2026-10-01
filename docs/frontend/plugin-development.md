@@ -367,7 +367,7 @@ A result is never recomputed, so `created_at` tells how old the figures are. `re
 
 ## Registering your plugin with the host
 
-Scaffolding and syncing a plugin does not make it appear in the host. That is a separate step, and it currently has no UI. You must add an entry directly to the host's `ThemeConfig.plugins` — for example through `PUT /config/theme`, or directly in the database — with `url` pointing at your remote's `mf-manifest.json`.
+Scaffolding and syncing a plugin does not make it appear in the host. That is a separate step, and it currently has no UI. You must add an entry directly to the host's `ThemeConfig.plugins` — for example through `PUT /configs/theme`, or directly in the database — with `url` pointing at your remote's `mf-manifest.json`.
 
 See [Module Federation § Configuring remotes](./module-federation.md#configuring-remotes) for the full field list: `enabled`, `mustBeLoggedIn`, `enableACL`, `acl`.
 

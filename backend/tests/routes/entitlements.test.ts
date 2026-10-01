@@ -92,7 +92,7 @@ describe('Testing entitlements routes', () => {
     });
   });
 
-  describe('GET /config/{configId}/entitlements', () => {
+  describe('GET /configs/{configId}/entitlements', () => {
     const configId = 'test_config_1';
 
     beforeEach(async () => {
@@ -104,7 +104,7 @@ describe('Testing entitlements routes', () => {
     });
 
     it('responds with the list of entitlements', async () => {
-      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      const res = await request(app).get(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual({ everyone: ['download'] });
     });
@@ -112,7 +112,7 @@ describe('Testing entitlements routes', () => {
     it('rejects a non-admin caller with no READ/WRITE capability for the config', async () => {
       const nonAdminToken = getUserToken('reader-id', 'reader@example.com');
 
-      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${nonAdminToken}`);
+      const res = await request(app).get(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${nonAdminToken}`);
 
       expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
@@ -120,12 +120,12 @@ describe('Testing entitlements routes', () => {
     it('allows a non-admin caller holding READ for the config', async () => {
       const readerEmail = 'reader-with-read@example.com';
       await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${token}`)
         .send({ everyone: ['download'], [readerEmail]: ['read'] });
       const readerToken = getUserToken('reader-with-read-id', readerEmail);
 
-      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${readerToken}`);
+      const res = await request(app).get(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${readerToken}`);
 
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual({ everyone: ['download'], [readerEmail]: ['read'] });
@@ -135,12 +135,12 @@ describe('Testing entitlements routes', () => {
       const readerEmail = 'reader-only@example.com';
       const otherEmail = 'someone-else@example.com';
       await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${token}`)
         .send({ [readerEmail]: ['read'], [otherEmail]: ['write'] });
       const readerToken = getUserToken('reader-only-id', readerEmail);
 
-      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${readerToken}`);
+      const res = await request(app).get(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${readerToken}`);
 
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual({ [readerEmail]: ['read'] });
@@ -150,42 +150,42 @@ describe('Testing entitlements routes', () => {
       const writerEmail = 'reader-with-write@example.com';
       const otherEmail = 'someone-else@example.com';
       await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${token}`)
         .send({ everyone: ['download'], [writerEmail]: ['write'], [otherEmail]: ['read'] });
       const writerToken = getUserToken('reader-with-write-id', writerEmail);
 
-      const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${writerToken}`);
+      const res = await request(app).get(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${writerToken}`);
 
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toEqual({ everyone: ['download'], [writerEmail]: ['write'], [otherEmail]: ['read'] });
     });
 
     it('returns 401 with no token', async () => {
-      const res = await request(app).get(`/config/${configId}/entitlements`);
+      const res = await request(app).get(`/configs/${configId}/entitlements`);
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
     });
   });
 
-  describe('PUT /config/{configId}/entitlements', () => {
+  describe('PUT /configs/{configId}/entitlements', () => {
     const configId = 'test_config_1';
 
     it.each([{}, { everyone: ['download'], [userEmail]: ['preview'] }, { everyone: ['download'], [userEmail]: ['read'] }])(
       'changes the config entitlements',
       async payload => {
-        const putRes = await request(app).put(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`).send(payload);
+        const putRes = await request(app).put(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${token}`).send(payload);
         expect(putRes.statusCode).toBe(StatusCodes.OK);
-        const res = await request(app).get(`/config/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
+        const res = await request(app).get(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${token}`);
         expect(res.body).toEqual(payload);
       },
     );
 
-    it('rejects a non-admin caller with no existing WRITE grant, even for a fresh plugin-owned config (no more self-service first access on this endpoint — see PUT /config/{configId})', async () => {
+    it('rejects a non-admin caller with no existing WRITE grant, even for a fresh plugin-owned config (no more self-service first access on this endpoint — see PUT /configs/{configId})', async () => {
       const callerToken = getUserToken('first-access-id', 'first-access@example.com');
       const pluginConfigId = 'plugin:my-plugin:settings';
 
       const res = await request(app)
-        .put(`/config/${pluginConfigId}/entitlements`)
+        .put(`/configs/${pluginConfigId}/entitlements`)
         .set('Authorization', `Bearer ${callerToken}`)
         .send({ 'first-access@example.com': [Capability.WRITE] });
 
@@ -196,7 +196,7 @@ describe('Testing entitlements routes', () => {
       const callerToken = getUserToken('first-access-id', 'first-access@example.com');
 
       const res = await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${callerToken}`)
         .send({ 'first-access@example.com': [Capability.WRITE] });
 
@@ -209,7 +209,7 @@ describe('Testing entitlements routes', () => {
       const nonAdminToken = getUserToken('existing-config-id', 'existing-config@example.com');
 
       const res = await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${nonAdminToken}`)
         .send({ 'existing-config@example.com': [Capability.WRITE] });
 
@@ -218,13 +218,13 @@ describe('Testing entitlements routes', () => {
 
     it('rejects a non-admin caller lacking WRITE once the config already has grants', async () => {
       await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${token}`)
         .send({ [userEmail]: [Capability.READ] });
       const noWriteToken = getUserToken('no-write-id', 'no-write@example.com');
 
       const res = await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${noWriteToken}`)
         .send({ 'no-write@example.com': [Capability.READ] });
 
@@ -234,13 +234,13 @@ describe('Testing entitlements routes', () => {
     it('allows a non-admin caller holding WRITE on the config even though grants already exist', async () => {
       const writeHolderEmail = 'write-holder@example.com';
       await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${token}`)
         .send({ [writeHolderEmail]: [Capability.WRITE] });
       const writeHolderToken = getUserToken('write-holder-id', writeHolderEmail);
 
       const res = await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${writeHolderToken}`)
         .send({ [writeHolderEmail]: [Capability.WRITE], [userEmail]: [Capability.READ] });
 
@@ -248,7 +248,7 @@ describe('Testing entitlements routes', () => {
     });
 
     it('returns 401 with no token', async () => {
-      const res = await request(app).put(`/config/${configId}/entitlements`).send({});
+      const res = await request(app).put(`/configs/${configId}/entitlements`).send({});
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
     });
 
@@ -256,7 +256,7 @@ describe('Testing entitlements routes', () => {
       const poisonToken = getUserToken('poison-id', 'poison@example.com');
 
       const res = await request(app)
-        .put(`/config/${configId}/entitlements`)
+        .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${poisonToken}`)
         .send({ everyone: { poisoned: true } });
 
@@ -265,13 +265,13 @@ describe('Testing entitlements routes', () => {
   });
 
   describe('Scope isolation between datasets and configs', () => {
-    it('does not leak PUT /config/{id}/entitlements into GET /datasets/{id}/entitlements, or vice versa, for a colliding id', async () => {
+    it('does not leak PUT /configs/{id}/entitlements into GET /datasets/{id}/entitlements, or vice versa, for a colliding id', async () => {
       // Reuses the dataset slug seeded in the top-level beforeEach as the config id
       const collisionId = slug;
       const configPayload = { everyone: ['preview'] };
 
       const putConfigRes = await request(app)
-        .put(`/config/${collisionId}/entitlements`)
+        .put(`/configs/${collisionId}/entitlements`)
         .set('Authorization', `Bearer ${token}`)
         .send(configPayload);
       expect(putConfigRes.statusCode).toBe(StatusCodes.OK);
@@ -282,7 +282,7 @@ describe('Testing entitlements routes', () => {
       expect(datasetRes.body).toEqual({ everyone: ['download'], [userEmail]: ['preview'] });
 
       // And the config entitlements must be exactly what was PUT, not merged with the dataset's
-      const configRes = await request(app).get(`/config/${collisionId}/entitlements`).set('Authorization', `Bearer ${token}`);
+      const configRes = await request(app).get(`/configs/${collisionId}/entitlements`).set('Authorization', `Bearer ${token}`);
       expect(configRes.statusCode).toBe(StatusCodes.OK);
       expect(configRes.body).toEqual(configPayload);
     });

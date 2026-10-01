@@ -14,14 +14,14 @@ describe('useConfigEntitlements', () => {
     jest.clearAllMocks();
   });
 
-  it('fetches /config/{configId}/entitlements with the expected options', () => {
+  it('fetches /configs/{configId}/entitlements with the expected options', () => {
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false, isError: false });
 
     renderHook(() => useConfigEntitlements('abc'));
 
     expect(useApiQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        endpoint: '/config/abc/entitlements',
+        endpoint: '/configs/abc/entitlements',
         method: 'GET',
         queryKey: ['config-entitlements', 'abc'],
         enabled: true,
@@ -44,14 +44,14 @@ describe('useConfigEntitlementsMutation', () => {
     jest.clearAllMocks();
   });
 
-  it('PUTs to /config/{configId}/entitlements', () => {
+  it('PUTs to /configs/{configId}/entitlements', () => {
     useApiMutationMock.mockReturnValue({ mutateAsync: jest.fn(), isPending: false, isError: false });
 
     renderHook(() => useConfigEntitlementsMutation('abc'));
 
     expect(useApiMutation).toHaveBeenCalledWith(
       expect.objectContaining({
-        endpoint: '/config/abc/entitlements',
+        endpoint: '/configs/abc/entitlements',
         method: 'PUT',
       }),
     );

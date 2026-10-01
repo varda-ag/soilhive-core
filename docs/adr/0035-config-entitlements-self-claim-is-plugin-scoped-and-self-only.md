@@ -2,7 +2,7 @@
 
 ADR 0032 namespaced Entitlements by scope but left `configs` read-only: nothing called
 `setEntityEntitlements(CONFIGS, ...)`, and no endpoint let a caller write one. This ticket adds
-that write path — `PUT`/`GET /config/{configId}/entitlements` — and with it, the question ADR
+that write path — `PUT`/`GET /configs/{configId}/entitlements` — and with it, the question ADR
 0032 deferred: who may hold `write` on a config item's Entitlements at all, given no admin has to
 create them first the way a Dataset's row already exists before anyone requests access to it.
 
@@ -42,7 +42,7 @@ subjects (e.g. `everyone`) before anyone holds `write` at all.
 
 - Nothing today ties a `plugin:{pluginId}:...` id's `pluginId` segment to the caller — any
   authenticated, non-admin user can be first to claim any plugin's config id, not only that
-  plugin's own users. Accepted for now: `PUT`/`GET`/`DELETE /config/{configId}` (the config's
+  plugin's own users. Accepted for now: `PUT`/`GET`/`DELETE /configs/{configId}` (the config's
   actual value) stay admin-only and consult no Entitlement, so a squatted claim currently controls
   nothing beyond the Entitlements row itself. A planned follow-up opens those endpoints to
   non-admins, gated by these same capabilities — at which point plugin-id ownership needs
@@ -53,7 +53,7 @@ subjects (e.g. `everyone`) before anyone holds `write` at all.
   (`setEntityEntitlements` is a full delete-then-insert). Deferred to the same follow-up above,
   where first access is expected to move onto the config value's write path and become atomic via
   `JsonStorage`'s existing primary key, rather than being patched here in isolation.
-- `GET /config/{configId}/entitlements` has no analogous first-access bypass — a non-admin caller
+- `GET /configs/{configId}/entitlements` has no analogous first-access bypass — a non-admin caller
   checking whether they already own an unclaimed id gets a 403, which must be read as "unclaimed",
   not "denied" (documented on that operation in `openapi.yaml`).
 - A caller holding only `read` (not `write`) is shown only their own grant plus `everyone`'s on

@@ -49,7 +49,7 @@ describe('useConfig', () => {
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, configId);
     expect(mutateAsync).toHaveBeenCalledWith({ updated: true });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: [`/config/${configId}`] });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: [`/configs/${configId}`] });
     // Already had the grant, nothing changed on the entitlements side — no need to refetch it.
     expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
   });
@@ -67,7 +67,7 @@ describe('useConfig', () => {
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, configId);
     expect(mutateAsync).toHaveBeenCalledWith({ updated: true });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: [`/config/${configId}`] });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: [`/configs/${configId}`] });
     // The caller just self-granted WRITE on the backend — the cached CONFIGS entitlements
     // (fetched once and reused by can()) don't know about it yet without a refetch.
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
@@ -85,14 +85,14 @@ describe('useConfig', () => {
     expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
-  it('fetches GET /config/{id} with the token when one exists, so an anonymous visit stays anonymous but a caller does not lose access to their own entitled configs', () => {
+  it('fetches GET /configs/{id} with the token when one exists, so an anonymous visit stays anonymous but a caller does not lose access to their own entitled configs', () => {
     useEntitlementsMock.mockReturnValue({ can: jest.fn().mockReturnValue(false) });
 
     renderHook(() => useConfig(configId));
 
     expect(useApiQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        endpoint: `/config/${configId}`,
+        endpoint: `/configs/${configId}`,
         method: 'GET',
         notFoundAsNull: true,
       }),

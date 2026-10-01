@@ -130,7 +130,7 @@ const soilData: PluginSoilDataResult = {
 };
 
 // Mirrors the other mocks above: a static value, no real persistence. saveConfig
-// is a no-op since there's no host-backed /config endpoint in local preview.
+// is a no-op since there's no host-backed /configs endpoint in local preview.
 const pluginConfig = <T>(defaultConfig?: T): PluginConfigResult<T> => ({
   config: defaultConfig,
   isLoading: false,

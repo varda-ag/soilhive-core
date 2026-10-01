@@ -107,7 +107,7 @@ paths:
                     type: string
                   expires_in:
                     type: integer
-  /config/{configId}:
+  /configs/{configId}:
     parameters:
       - name: configId
         in: path
@@ -116,7 +116,7 @@ paths:
           type: string
         description: Unique identifier for the configuration
     put:
-      x-eov-operation-handler: controllers/config
+      x-eov-operation-handler: controllers/configs
       x-eov-operation-id: putConfig
       x-entitlements-required: true
       summary: Create or update configuration item
@@ -129,7 +129,7 @@ paths:
         caller who wins it is self-granted WRITE in the same request. Any other configId (a
         system config not matching that convention) is first-access only for a privileged caller.
       tags:
-        - config
+        - configs
       security:
         - bearerAuth: []
       requestBody:
@@ -152,7 +152,7 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
     get:
-      x-eov-operation-handler: controllers/config
+      x-eov-operation-handler: controllers/configs
       x-eov-operation-id: getConfig
       x-entitlements-required: true
       summary: Retrieve configuration item
@@ -161,7 +161,7 @@ paths:
         login. Requires READ or WRITE on the config (EVERYONE's grants count), or a privileged
         caller; an anonymous caller relies solely on an EVERYONE grant.
       tags:
-        - config
+        - configs
       responses:
         '200':
           description: Configuration object
@@ -174,7 +174,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
-      x-eov-operation-handler: controllers/config
+      x-eov-operation-handler: controllers/configs
       x-eov-operation-id: deleteConfig
       x-entitlements-required: true
       summary: Delete configuration item
@@ -183,7 +183,7 @@ paths:
         caller. No first-access bypass — deleting is not a way to first-access an id. Also destroys
         every data request attached to the config.
       tags:
-        - config
+        - configs
       security:
         - bearerAuth: []
       responses:
@@ -194,18 +194,18 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
-  /config:
+  /configs:
     get:
-      x-eov-operation-handler: controllers/config
+      x-eov-operation-handler: controllers/configs
       x-eov-operation-id: getConfigs
       x-entitlements-required: true
       summary: Retrieve multiple configuration items by id
       description: >-
-        No security scheme: stays anonymous-friendly, same as GET /config/{configId}. Ids the
+        No security scheme: stays anonymous-friendly, same as GET /configs/{configId}. Ids the
         caller lacks READ/WRITE on (EVERYONE's grants count) are silently omitted from the
         response, the same precedent already used for ids that don't exist.
       tags:
-        - config
+        - configs
       parameters:
         - in: query
           name: ids
@@ -227,13 +227,13 @@ paths:
                 type: object
                 additionalProperties: {}
 
-  /config-export:
+  /configs-export:
     post:
-      x-eov-operation-handler: controllers/config
+      x-eov-operation-handler: controllers/configs
       x-eov-operation-id: exportConfigs
       summary: Exports all configuration items
       tags:
-        - config
+        - configs
       security:
         - bearerAuth: [super-admin]
       responses:
@@ -1015,7 +1015,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
-  /config/{configId}/entitlements:
+  /configs/{configId}/entitlements:
     get:
       x-eov-operation-handler: controllers/entitlements
       x-eov-operation-id: getConfigEntitlements
@@ -1032,7 +1032,7 @@ paths:
         "unclaimed", not "denied" — a caller intending to self-claim a plugin:{pluginId}:{id} config
         should attempt PUT (which does have the bypass) rather than treat this 403 as final.
       tags:
-        - config
+        - configs
       security:
         - bearerAuth: []
       parameters:
@@ -1063,10 +1063,10 @@ paths:
       description: >-
         Requires a privileged caller, or a non-admin caller already holding WRITE on the config.
         No first-access bypass: first access to a fresh plugin:{pluginId}:{id} config now happens
-        through PUT /config/{configId} itself (its own conflict-detecting insert self-grants the
+        through PUT /configs/{configId} itself (its own conflict-detecting insert self-grants the
         winner WRITE in the same request), not through this endpoint.
       tags:
-        - config
+        - configs
       security:
         - bearerAuth: []
       parameters:

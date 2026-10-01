@@ -8,7 +8,7 @@ import { EVERYONE } from '../../src/constants/constants';
 
 const ID = 'test-config';
 
-describe('Testing /config/{id} routes', () => {
+describe('Testing /configs/{id} routes', () => {
   let superAdminAuthHeader: IncomingHttpHeaders;
   beforeAll(async () => {
     // Get super admin token
@@ -17,7 +17,7 @@ describe('Testing /config/{id} routes', () => {
   });
   it('PUT saves the config', async () => {
     const data = { customValue: 123.456 };
-    const res = await request(app).put('/config/test-config').set(superAdminAuthHeader).send(data);
+    const res = await request(app).put('/configs/test-config').set(superAdminAuthHeader).send(data);
     expect(res.statusCode).toBe(200);
     const row = await getTestConfigFromDB();
     expect(row).toBeDefined();
@@ -26,13 +26,13 @@ describe('Testing /config/{id} routes', () => {
   });
 
   it('GET responds with not found for a privileged caller', async () => {
-    const res = await request(app).get('/config/wrong-id').set(superAdminAuthHeader);
+    const res = await request(app).get('/configs/wrong-id').set(superAdminAuthHeader);
     expect(res.statusCode).toBe(404);
   });
 
   it('GET responds with 403 for an anonymous caller with no READ/WRITE grant', async () => {
     await createTestConfigInDB({ key: 'value' });
-    const res = await request(app).get('/config/test-config');
+    const res = await request(app).get('/configs/test-config');
     expect(res.statusCode).toBe(403);
   });
 
@@ -40,7 +40,7 @@ describe('Testing /config/{id} routes', () => {
     const data = { key: 'value' };
     await createTestConfigInDB(data);
     await grantConfigCapability(EVERYONE, ID, ['read']);
-    const res = await request(app).get('/config/test-config');
+    const res = await request(app).get('/configs/test-config');
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual(data);
   });
@@ -52,7 +52,7 @@ describe('Testing /config/{id} routes', () => {
     const token = getUserToken('reader-id', subjectEmail);
     await grantConfigCapability(subjectEmail, ID, ['read']);
 
-    const res = await request(app).get('/config/test-config').set('Authorization', `Bearer ${token}`);
+    const res = await request(app).get('/configs/test-config').set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual(data);
   });
@@ -60,7 +60,7 @@ describe('Testing /config/{id} routes', () => {
   it('DELETE removes the config', async () => {
     const data = { key: 'value' };
     await createTestConfigInDB(data);
-    const res = await request(app).delete('/config/test-config').set(superAdminAuthHeader);
+    const res = await request(app).delete('/configs/test-config').set(superAdminAuthHeader);
     expect(res.statusCode).toBe(204);
     const row = await getTestConfigFromDB();
     expect(row).toBeNull();
@@ -71,7 +71,7 @@ describe('Testing /config/{id} routes', () => {
     await createTestConfigInDB(data);
     const token = getUserToken('no-grant-id', 'no-grant@example.com');
 
-    const res = await request(app).delete('/config/test-config').set('Authorization', `Bearer ${token}`);
+    const res = await request(app).delete('/configs/test-config').set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(403);
     const row = await getTestConfigFromDB();
     expect(row).not.toBeNull();
@@ -80,10 +80,10 @@ describe('Testing /config/{id} routes', () => {
   it('Deletes (soft) an existing config, then creates it again: it should be restored', async () => {
     const data = { key: 'value' };
     await createTestConfigInDB(data);
-    await request(app).delete('/config/test-config').set(superAdminAuthHeader);
+    await request(app).delete('/configs/test-config').set(superAdminAuthHeader);
     const row = await getTestConfigFromDB();
     expect(row).toBeNull();
-    await request(app).put('/config/test-config').set(superAdminAuthHeader).send(data);
+    await request(app).put('/configs/test-config').set(superAdminAuthHeader).send(data);
     const row2 = await getTestConfigFromDB();
     expect(row2).not.toBeNull();
   });
@@ -91,9 +91,9 @@ describe('Testing /config/{id} routes', () => {
   it('Exports all the configs', async () => {
     const a = { customValue: 123.456 };
     const b = { anotherValue: 'test' };
-    await request(app).put('/config/a').set(superAdminAuthHeader).send(a);
-    await request(app).put('/config/b').set(superAdminAuthHeader).send(b);
-    const res = await request(app).post('/config-export').set(superAdminAuthHeader);
+    await request(app).put('/configs/a').set(superAdminAuthHeader).send(a);
+    await request(app).put('/configs/b').set(superAdminAuthHeader).send(b);
+    const res = await request(app).post('/configs-export').set(superAdminAuthHeader);
     expect(res.body).toEqual({
       a: a,
       b: b,
@@ -102,7 +102,7 @@ describe('Testing /config/{id} routes', () => {
 
   it('Tries to save a config without authorization', async () => {
     const data = { customValue: 123.456 };
-    const res = await request(app).put('/config/test-config').send(data);
+    const res = await request(app).put('/configs/test-config').send(data);
     expect(res.statusCode).toBe(401);
   });
 
@@ -112,7 +112,7 @@ describe('Testing /config/{id} routes', () => {
     const token = getUserToken('claimant-id', subjectEmail);
     const data = { setting: true };
 
-    const res = await request(app).put(`/config/${pluginConfigId}`).set('Authorization', `Bearer ${token}`).send(data);
+    const res = await request(app).put(`/configs/${pluginConfigId}`).set('Authorization', `Bearer ${token}`).send(data);
 
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual(data);
@@ -124,10 +124,10 @@ describe('Testing /config/{id} routes', () => {
   it('PUT rejects a different non-admin caller from claiming a plugin: id someone else already won', async () => {
     const pluginConfigId = 'plugin:acme:widget';
     const firstToken = getUserToken('first-id', 'first@example.com');
-    await request(app).put(`/config/${pluginConfigId}`).set('Authorization', `Bearer ${firstToken}`).send({ setting: 1 });
+    await request(app).put(`/configs/${pluginConfigId}`).set('Authorization', `Bearer ${firstToken}`).send({ setting: 1 });
 
     const secondToken = getUserToken('second-id', 'second@example.com');
-    const res = await request(app).put(`/config/${pluginConfigId}`).set('Authorization', `Bearer ${secondToken}`).send({ setting: 2 });
+    const res = await request(app).put(`/configs/${pluginConfigId}`).set('Authorization', `Bearer ${secondToken}`).send({ setting: 2 });
 
     expect(res.statusCode).toBe(403);
   });
@@ -135,7 +135,7 @@ describe('Testing /config/{id} routes', () => {
   it('PUT rejects a non-admin caller with no grant on a system (non-plugin) config id, even when unclaimed', async () => {
     const token = getUserToken('no-grant-id', 'no-grant@example.com');
 
-    const res = await request(app).put('/config/theme').set('Authorization', `Bearer ${token}`).send({ mode: 'dark' });
+    const res = await request(app).put('/configs/theme').set('Authorization', `Bearer ${token}`).send({ mode: 'dark' });
 
     expect(res.statusCode).toBe(403);
     const row = await getTestConfigFromDBById('theme');
@@ -143,7 +143,7 @@ describe('Testing /config/{id} routes', () => {
   });
 });
 
-describe('Testing GET /config routes', () => {
+describe('Testing GET /configs routes', () => {
   let superAdminAuthHeader: IncomingHttpHeaders;
   beforeAll(async () => {
     const token = await getSuperAdminToken();
@@ -153,17 +153,17 @@ describe('Testing GET /config routes', () => {
   it('Returns the requested configs keyed by id for a privileged caller', async () => {
     const dataA = { customValue: 123.456 };
     const dataB = { anotherValue: 'test' };
-    await request(app).put('/config/a').set(superAdminAuthHeader).send(dataA);
-    await request(app).put('/config/b').set(superAdminAuthHeader).send(dataB);
-    const res = await request(app).get('/config').query({ ids: 'a,b' }).set(superAdminAuthHeader);
+    await request(app).put('/configs/a').set(superAdminAuthHeader).send(dataA);
+    await request(app).put('/configs/b').set(superAdminAuthHeader).send(dataB);
+    const res = await request(app).get('/configs').query({ ids: 'a,b' }).set(superAdminAuthHeader);
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual({ a: dataA, b: dataB });
   });
 
   it('Silently omits ids that do not exist, for a privileged caller', async () => {
     const dataA = { customValue: 123.456 };
-    await request(app).put('/config/a').set(superAdminAuthHeader).send(dataA);
-    const res = await request(app).get('/config').query({ ids: 'a,doesnotexist' }).set(superAdminAuthHeader);
+    await request(app).put('/configs/a').set(superAdminAuthHeader).send(dataA);
+    const res = await request(app).get('/configs').query({ ids: 'a,doesnotexist' }).set(superAdminAuthHeader);
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual({ a: dataA });
   });
@@ -171,36 +171,36 @@ describe('Testing GET /config routes', () => {
   it('Silently omits ids an anonymous caller lacks READ/WRITE on, alongside ids that do not exist', async () => {
     const dataA = { customValue: 123.456 };
     const dataB = { anotherValue: 'test' };
-    await request(app).put('/config/a').set(superAdminAuthHeader).send(dataA);
-    await request(app).put('/config/b').set(superAdminAuthHeader).send(dataB);
+    await request(app).put('/configs/a').set(superAdminAuthHeader).send(dataA);
+    await request(app).put('/configs/b').set(superAdminAuthHeader).send(dataB);
     await grantConfigCapability(EVERYONE, 'a', ['read']);
 
-    const res = await request(app).get('/config').query({ ids: 'a,b,doesnotexist' });
+    const res = await request(app).get('/configs').query({ ids: 'a,b,doesnotexist' });
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual({ a: dataA });
   });
 
   it('Missing ids query param should fail', async () => {
-    const res = await request(app).get('/config');
+    const res = await request(app).get('/configs');
     expect(res.statusCode).toBe(400);
     expect(res.body.detail).toContain("must have required property 'ids'");
   });
 
   it('Empty ids query param should fail', async () => {
-    const res = await request(app).get('/config?ids=');
+    const res = await request(app).get('/configs?ids=');
     expect(res.statusCode).toBe(400);
     expect(res.body.detail).toContain("Empty value found for query parameter 'ids'");
   });
 
   it('More than 100 ids should fail', async () => {
     const ids = Array.from({ length: 101 }, (_, i) => `id${i}`).join(',');
-    const res = await request(app).get('/config').query({ ids });
+    const res = await request(app).get('/configs').query({ ids });
     expect(res.statusCode).toBe(400);
     expect(res.body.detail).toContain('must NOT have more than 100 items');
   });
 
   it('All requested ids non-existent returns an empty object', async () => {
-    const res = await request(app).get('/config').query({ ids: 'doesnotexist1,doesnotexist2' });
+    const res = await request(app).get('/configs').query({ ids: 'doesnotexist1,doesnotexist2' });
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual({});
   });

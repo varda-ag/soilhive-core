@@ -5,7 +5,7 @@ import { useEntitlements } from './useEntitlementsHook';
 import { Capability, EntitlementScope } from 'types/backend';
 import { PLUGIN_CONFIG_ID_PATTERN } from './pluginConfigId';
 
-const getConfigEndpoint = (id: string) => `/config/${id}`;
+const getConfigEndpoint = (id: string) => `/configs/${id}`;
 
 const useConfig = <T>(id: string, defaultConfig?: T) => {
   const { can } = useEntitlements(EntitlementScope.CONFIGS);

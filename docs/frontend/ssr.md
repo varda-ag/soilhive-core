@@ -41,7 +41,7 @@ Browser → GET /datasets/abc
           ├─ prefetchQuery(['dataset', 'abc'])
           ├─ prefetchQuery(['licenses'])
           ├─ prefetchQuery(['soilProperties'])
-          ├─ prefetchQuery(['/config/theme'])
+          ├─ prefetchQuery(['/configs/theme'])
           │
           ▼
    renderToString(<MetadataPage />)

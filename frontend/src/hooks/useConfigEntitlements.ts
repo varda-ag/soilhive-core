@@ -4,7 +4,7 @@ import { useApiMutation } from './useApiMutation';
 
 export function useConfigEntitlements(configId: string | undefined) {
   return useApiQuery<ConfigEntitlements>({
-    endpoint: `/config/${configId}/entitlements`,
+    endpoint: `/configs/${configId}/entitlements`,
     method: 'GET',
     queryKey: ['config-entitlements', configId],
     enabled: !!configId,
@@ -14,7 +14,7 @@ export function useConfigEntitlements(configId: string | undefined) {
 
 export function useConfigEntitlementsMutation(configId: string) {
   return useApiMutation<ConfigEntitlements, ConfigEntitlements>({
-    endpoint: `/config/${configId}/entitlements`,
+    endpoint: `/configs/${configId}/entitlements`,
     method: 'PUT',
   });
 }

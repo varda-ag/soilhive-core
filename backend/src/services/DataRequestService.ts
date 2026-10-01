@@ -129,7 +129,7 @@ export default class DataRequestService {
   };
 
   /**
-   * Destroys every Data Request attached to a config item, as `DELETE /config/{configId}` does
+   * Destroys every Data Request attached to a config item, as `DELETE /configs/{configId}` does
    * (docs/adr/0041). The caller has already been checked for `write` on the item.
    */
   deleteAttachedDataRequests = async (requestData: RequestData, configId: string): Promise<void> => {

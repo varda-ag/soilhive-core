@@ -11,7 +11,7 @@ describe('useConfigs', () => {
     jest.clearAllMocks();
   });
 
-  it('fetches /config with comma-separated ids and returns the resolved data', () => {
+  it('fetches /configs with comma-separated ids and returns the resolved data', () => {
     const data = { a: { foo: 1 }, b: { foo: 2 } };
     useApiQueryMock.mockReturnValue({ data, isLoading: false, isError: false });
 
@@ -19,14 +19,14 @@ describe('useConfigs', () => {
 
     expect(useApiQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        endpoint: '/config',
+        endpoint: '/configs',
         method: 'GET',
         parameters: [['ids', 'a,b']],
-        queryKey: ['/config', ['a', 'b']],
+        queryKey: ['/configs', ['a', 'b']],
         enabled: true,
       }),
     );
-    // authenticate must not be forced false — GET /config is entitlements-gated, so a logged-in
+    // authenticate must not be forced false — GET /configs is entitlements-gated, so a logged-in
     // caller's token must be sent or their own entitled (non-EVERYONE) configs get silently omitted.
     expect(useApiQuery).not.toHaveBeenCalledWith(expect.objectContaining({ authenticate: false }));
     expect(result.current.data).toBe(data);

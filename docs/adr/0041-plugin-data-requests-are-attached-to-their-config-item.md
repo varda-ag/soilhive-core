@@ -1,6 +1,6 @@
 # Plugin Data Requests are attached to their config item
 
-Plugins store Data Request ids in their plugin config. Under ADR 0037 (bearer capability) every reader of that config could then destroy the results. So a Plugin submits every Data Request **attached** to one of its own config items: `POST /data-requests` takes `config_id`, requires `write` on it, and refuses an item that does not exist or is soft-deleted. `GET` needs `read` on the item and `DELETE` needs `write`, answering 404 before 403. `DELETE /config/{id}` destroys every Data Request attached to it. Unattached Data Requests keep ADR 0037's bearer semantics.
+Plugins store Data Request ids in their plugin config. Under ADR 0037 (bearer capability) every reader of that config could then destroy the results. So a Plugin submits every Data Request **attached** to one of its own config items: `POST /data-requests` takes `config_id`, requires `write` on it, and refuses an item that does not exist or is soft-deleted. `GET` needs `read` on the item and `DELETE` needs `write`, answering 404 before 403. `DELETE /configs/{id}` destroys every Data Request attached to it. Unattached Data Requests keep ADR 0037's bearer semantics.
 
 ## Considered options
 

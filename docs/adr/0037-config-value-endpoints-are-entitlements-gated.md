@@ -1,7 +1,7 @@
 # Config value endpoints become entitlements-gated; first access moves to the value's own write
 
 ADR 0035 added self-service `write` on a config's Entitlements, but left `GET`/`PUT`/`DELETE
-/config/{configId}` (the config's actual value) admin-only and consulting no Entitlement — a
+/configs/{configId}` (the config's actual value) admin-only and consulting no Entitlement — a
 squatted Entitlements claim controlled nothing yet, and opening the value endpoints was
 explicitly deferred to a follow-up ticket. This is that ticket.
 
@@ -9,12 +9,12 @@ We decided `GET` now requires `read` and `PUT`/`DELETE` require `write` on
 `EntitlementScope.CONFIGS`, replacing the previous `super-admin`/`data-admin`-only gate (`GET` was
 previously wide open, with no gate at all). Privileged callers keep bypassing entitlement checks,
 same as everywhere else. First access — self-claiming a fresh `plugin:{pluginId}:{id}` — moves off
-`PUT /config/{configId}/entitlements` and onto `PUT /config/{configId}` itself: the config row's
+`PUT /configs/{configId}/entitlements` and onto `PUT /configs/{configId}` itself: the config row's
 own insert (`INSERT ... ON CONFLICT (id) DO NOTHING`, checked via `RETURNING id` — an empty result
 means the row was lost to the conflict; affected-row-count-style signals like `identifiers` are
 unreliable here since `id` is a caller-supplied, not DB-generated, primary key) is the atomic
 gate, and the caller who wins it is self-granted `write` in the same request transaction.
-`PUT /config/{configId}/entitlements`'s own first-access bypass is removed — it now always
+`PUT /configs/{configId}/entitlements`'s own first-access bypass is removed — it now always
 requires an existing `write` grant, closing the race ADR 0035 documented instead of leaving two
 divergent bootstrap paths open at once.
 
@@ -53,5 +53,5 @@ divergent bootstrap paths open at once.
   still blocks a new first-access claim on the same id (the row's primary key still exists). A
   deleted config id therefore stays locked to whoever already holds `write`, or requires an admin,
   unchanged from before this ADR.
-- `GET /config/{configId}/entitlements` keeps its existing lack of a first-access bypass (ADR
+- `GET /configs/{configId}/entitlements` keeps its existing lack of a first-access bypass (ADR
   0035) — unaffected by this change.
