@@ -31,6 +31,10 @@ export interface RemotePlugin {
   hasMenuItem?: boolean;
   route?: string;
   targetUrl?: string;
+  // True if the plugin only works for a signed-in user. loadRemotes folds the
+  // operator's Plugin.mustBeLoggedIn into it, so after loading it is the
+  // effective requirement (ADR 0042).
+  requiresAuth?: boolean;
   // Specialized plugins below pin the exact component props.
   Page?: React.ComponentType<any>;
 }

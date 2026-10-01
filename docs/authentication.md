@@ -39,7 +39,7 @@ Set the following backend environment variables to enable OIDC authentication (s
 
 - `OIDC_AUTHORITY`: Identity provider URL (e.g., `https://<BASE_KEYCLOAK_URL>/realms/<realm>` for Keycloak)
 - `OIDC_CLIENT_ID`: Client name as configured in your identity provider
-- `OIDC_REDIRECT_URI`: URL to redirect after successful login (e.g., `http://<BASE_APP_URL>/admin`)
+- `OIDC_REDIRECT_URI`: URL the identity provider redirects to after login, typically the app main page (e.g., `http://<BASE_APP_URL>`). The app then returns the user to the page they logged in from
 - `OIDC_POST_LOGOUT_REDIRECT_URI`: URL to redirect after logout (typically the app main page)
 - `OIDC_SILENT_REDIRECT_URI`: URL to redirect after token refresh (typically the app main page)
 - `OIDC_SCOPE`: Set to `openid`

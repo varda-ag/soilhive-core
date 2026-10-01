@@ -54,7 +54,7 @@ services:
       OIDC_JWKS_URL: http://keycloak:8080/realms/soilhive/protocol/openid-connect/certs
       OIDC_AUTHORITY: http://localhost:8080/realms/soilhive
       OIDC_CLIENT_ID: soilhive
-      OIDC_REDIRECT_URI: http://localhost:3000/admin
+      OIDC_REDIRECT_URI: http://localhost:3000/
       OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:3000/
       OIDC_SILENT_REDIRECT_URI: http://localhost:3000/
       OIDC_SCOPE: openid
