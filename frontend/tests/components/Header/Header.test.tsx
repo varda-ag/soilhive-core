@@ -346,4 +346,42 @@ describe('Header component', () => {
     expect(externalLink).toHaveAttribute('target', '_blank');
     expect(externalLink).toHaveAttribute('rel', 'noopener noreferrer');
   });
+
+  describe('plugins that require a signed-in user', () => {
+    beforeEach(() => {
+      (useRemotes as jest.Mock).mockReturnValue({
+        plugins: [
+          { ...singlePagePlugin, requiresAuth: true },
+          { ...newTabPlugin, requiresAuth: true },
+        ],
+        isLoadingRemotes: false,
+      });
+    });
+
+    it('shows their menu entries to an anonymous visitor', () => {
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Header />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByRole('link', { name: 'single-page-module' })).toHaveAttribute('href', '/single-page-route');
+      expect(screen.getByRole('link', { name: 'new-tab-module' })).toHaveAttribute('href', 'https://example.com/plugin');
+    });
+
+    it('opens a new-tab entry for an anonymous visitor rather than asking them to log in', () => {
+      const login = jest.fn();
+      (useAuthContext as jest.Mock).mockReturnValue({ isAuthenticated: false, login });
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Header />
+        </MemoryRouter>,
+      );
+      const followed = fireEvent.click(screen.getByRole('link', { name: 'new-tab-module' }));
+
+      expect(followed).toBe(true);
+      expect(login).not.toHaveBeenCalled();
+    });
+  });
 });

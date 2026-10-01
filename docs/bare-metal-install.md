@@ -185,7 +185,7 @@ SELF_SIGNING_SECRET=put-any-random-string-here
 ## OIDC mode — overrides password mode when set
 # OIDC_AUTHORITY=https://<keycloak-host>/realms/<realm>
 # OIDC_CLIENT_ID=soilhive
-# OIDC_REDIRECT_URI=http://localhost:3000/admin
+# OIDC_REDIRECT_URI=http://localhost:3000
 # OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:3000
 # OIDC_SILENT_REDIRECT_URI=http://localhost:3000
 # OIDC_SCOPE=openid

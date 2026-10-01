@@ -207,7 +207,7 @@ For an "upload via a button" flow instead of drag-and-drop, use the `onUploadCli
 
 Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, stored filters by id, the logged-in user, your plugin's own persisted config, and dataset metadata URLs.
 
-See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`.
+See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`, plus an optional `requiresAuth`.
 
 ### Persisting your plugin's own config
 

@@ -16,7 +16,12 @@
         "login_title": "Login",
         "password_placeholder": "Password",
         "cancel": "Cancel",
-        "logging_in": "Logging in ..."
+        "logging_in": "Logging in ...",
+        "sign_in_prompt": {
+            "title": "Log in to use {{name}}",
+            "admin_portal": "the Admin Portal",
+            "message": "You need to be logged in to view this page."
+        }
     },
     "logo": "Logo",
     "nav_menu": {

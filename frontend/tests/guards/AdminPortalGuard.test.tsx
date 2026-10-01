@@ -7,6 +7,15 @@ jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
 }));
 
+jest.mock('components/Header/Header', () => ({
+  __esModule: true,
+  default: () => <div data-testid="header">Header</div>,
+}));
+
+jest.mock('components/SignInPrompt/SignInPrompt', () => ({
+  SignInPrompt: ({ title }: { title: string }) => <div data-testid="sign-in-prompt">{title}</div>,
+}));
+
 jest.mock('../../src/layouts', () => ({
   AdminPortalLayout: () => <div data-testid="admin-portal-layout">AdminPortalLayout</div>,
 }));
@@ -36,6 +45,8 @@ describe('AdminPortalGuard', () => {
 
     (useAuthContext as jest.Mock).mockReturnValue({
       isLoading: false,
+      isAuthenticated: true,
+      authMode: 'oidc',
     });
   });
 
@@ -72,5 +83,27 @@ describe('AdminPortalGuard', () => {
 
     expect(screen.getByTestId('admin-portal-layout')).toBeInTheDocument();
     expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
+  });
+
+  it('asks an anonymous visitor to sign in instead of redirecting', () => {
+    (useAuthContext as jest.Mock).mockReturnValue({ isLoading: false, isAuthenticated: false, authMode: 'oidc' });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => false });
+
+    render(<AdminPortalGuard />);
+
+    expect(screen.getByTestId('header')).toBeInTheDocument();
+    expect(screen.getByTestId('sign-in-prompt')).toBeInTheDocument();
+    expect(screen.queryByTestId('navigate')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('admin-portal-layout')).not.toBeInTheDocument();
+  });
+
+  it('redirects home on a deployment with no sign-in', () => {
+    (useAuthContext as jest.Mock).mockReturnValue({ isLoading: false, isAuthenticated: false, authMode: 'none' });
+    (useEntitlements as jest.Mock).mockReturnValue({ can: () => false });
+
+    render(<AdminPortalGuard />);
+
+    expect(screen.getByTestId('navigate')).toHaveTextContent('Navigate to: /');
+    expect(screen.queryByTestId('sign-in-prompt')).not.toBeInTheDocument();
   });
 });
