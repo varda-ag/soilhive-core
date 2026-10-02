@@ -3,6 +3,7 @@ import path from 'node:path';
 import express, { type Request } from 'express';
 import compression from 'compression';
 import { render, matchSSRRoute } from '../src/entry-server';
+import { isTokenExpired } from '../src/auth/tokenClaims';
 
 // Rsbuild compiles this to dist/server/index.cjs so __dirname is always
 // dist/server/ at runtime.  Client assets are always at dist/client/.
@@ -89,21 +90,8 @@ function readTokenCookie(req: Request): string | null {
 
 function resolveAuthToken(req: Request): string | null {
   const bearer = readTokenCookie(req) ?? req.headers.authorization?.match(/^Bearer (.+)$/)?.[1];
-  if (!bearer) return null;
-
-  // Decode JWT payload to check expiry (no signature verification needed —
-  // the backend will reject a tampered token when we forward it as Bearer).
-  try {
-    const payloadB64 = bearer.split('.')[1];
-    if (!payloadB64) return null;
-    const { exp } = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
-    const BUFFER_MS = 30_000;
-    if (exp && exp * 1000 <= Date.now() + BUFFER_MS) return null; // expired
-  } catch {
-    console.warn('Failed to decode auth token payload; proceeding without auth');
-    return null;
-  }
-
+  // Same check as SsrAuthContextProvider on the client, so the hydrated page agrees with this render.
+  if (!bearer || isTokenExpired(bearer)) return null;
   return bearer;
 }
 
