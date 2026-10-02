@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import { usePluginContext } from 'hooks/usePluginContext';
 import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
+import usePluginConfigDelete from 'hooks/usePluginConfigDelete';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
 import { useFilter } from 'hooks/useFilter';
@@ -33,6 +34,7 @@ jest.mock('hooks/useSoilProperties', () => ({ useSoilProperties: jest.fn() }));
 // graph; mock it like the other host hooks above so importing usePluginContext stays cheap.
 jest.mock('hooks/usePluginConfig', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/usePluginConfigs', () => ({ __esModule: true, default: jest.fn() }));
+jest.mock('hooks/usePluginConfigDelete', () => ({ __esModule: true, default: jest.fn() }));
 jest.mock('hooks/usePluginConfigEntitlements', () => ({
   usePluginConfigEntitlements: jest.fn(),
   usePluginConfigEntitlementsMutation: jest.fn(),
@@ -78,6 +80,12 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.usePluginConfigs).toBe(usePluginConfigs);
+  });
+
+  it('passes usePluginConfigDelete through unchanged, since its signature already matches PluginContext', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.usePluginConfigDelete).toBe(usePluginConfigDelete);
   });
 
   it('passes usePluginConfigEntitlements through unchanged, since its signature already matches PluginContext', () => {

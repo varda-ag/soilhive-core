@@ -181,7 +181,8 @@ paths:
       description: >-
         Requires an existing WRITE grant on the config (EVERYONE's grants count), or a privileged
         caller. No first-access bypass — deleting is not a way to first-access an id. Also destroys
-        every data request attached to the config.
+        every data request attached to the config and, for a plugin:{pluginId}:{id} config, every
+        subject's entitlements on it, so only a privileged caller can write that id again.
       tags:
         - configs
       security:

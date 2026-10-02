@@ -297,6 +297,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A new-tab **Plugin** is never gated on a **Signed-in user**, whatever its flags say: its page is outside the host, so it is listed and opens for everyone, on every deployment
 - A config item has at most one **Config Kind**, and only when a non-empty id follows the `{kind}:` prefix; the **Plugin** chooses it, and the host adds and strips only the **Plugin Namespace**
 - A **Data Request** is attached to at most one plugin config item, fixed at submission, which must already exist; a **Plugin** only ever submits attached Data Requests, and decides itself when each one is destroyed
+- Deleting a plugin config item is final for every **Subject**: its **Entitlements** and attached **Data Requests** go with it, so it leaves every listing and no non-privileged caller can save under its id again. Deleting a host config item keeps its Entitlements
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
 - An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
 - A **Dataset** accepts no edits while it has a Bulk Load, Raster Load or **Purge** Queued or running; being **Queued** is only the first part of that window

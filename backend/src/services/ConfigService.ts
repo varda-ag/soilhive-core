@@ -9,6 +9,7 @@ import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from './EntitlementService';
+import { EntitlementScope } from '../types/Entitlements';
 
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
 const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
@@ -82,10 +83,16 @@ export default class ConfigService {
     return data;
   };
 
+  // A plugin item's grants go with it, for every subject; a host item keeps them, so deleting and
+  // re-saving `theme` doesn't drop EVERYONE's read (ADR 0037). Attached Data Requests are destroyed
+  // by the controller (see controllers/configs.ts).
   deleteConfig = async (requestData: RequestData, id: string): Promise<void> => {
     await entitlementService.assertCanWriteConfigEntitlement(requestData, id);
     const repo = requestData.entityManager.getRepository(JsonStorage);
     await repo.softDelete({ id });
+    if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
+      await entitlementService.deleteEntityEntitlements(requestData, EntitlementScope.CONFIGS, id);
+    }
   };
 
   /**

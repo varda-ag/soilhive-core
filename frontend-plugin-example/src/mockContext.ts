@@ -141,6 +141,13 @@ const pluginConfig = <T>(defaultConfig?: T): PluginConfigResult<T> => ({
 // Static stand-in for the batch endpoint: no ids are pre-populated in local preview.
 const pluginConfigs = <T>(): PluginQueryResult<Record<string, T>> => query({});
 
+// A no-op, same as saveConfig above.
+const pluginConfigDelete: PluginMutationResult<{ id: string }, void> = {
+  mutateAsync: async () => {},
+  isPending: false,
+  isError: false,
+};
+
 // Static stand-ins for the entitlements endpoints: no grants in local preview,
 // and the mutation is a no-op, same as saveConfig above.
 const configEntitlements: PluginConfigEntitlements = {};
@@ -189,6 +196,7 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   useSoilData: () => soilData,
   usePluginConfig: (_pluginId, _id, defaultConfig) => pluginConfig(defaultConfig),
   usePluginConfigs: () => pluginConfigs(),
+  usePluginConfigDelete: () => pluginConfigDelete,
   usePluginConfigEntitlements: () => query(configEntitlements),
   usePluginConfigEntitlementsMutation: () => configEntitlementsMutation(),
   usePluginUserEntitlements: () => query(configEntitlements),

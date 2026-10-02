@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useApiMutation } from 'hooks/useApiMutation';
-import { useConfigEntitlements, useConfigEntitlementsMutation } from 'hooks/useConfigEntitlements';
+import { retryConfigEntitlements, useConfigEntitlements, useConfigEntitlementsMutation } from 'hooks/useConfigEntitlements';
 
 jest.mock('hooks/useApiQuery', () => ({ useApiQuery: jest.fn() }));
 jest.mock('hooks/useApiMutation', () => ({ useApiMutation: jest.fn() }));
@@ -25,6 +25,7 @@ describe('useConfigEntitlements', () => {
         method: 'GET',
         queryKey: ['config-entitlements', 'abc'],
         enabled: true,
+        retry: retryConfigEntitlements,
         showErrorNotification: false,
       }),
     );
@@ -36,6 +37,20 @@ describe('useConfigEntitlements', () => {
     renderHook(() => useConfigEntitlements(undefined));
 
     expect(useApiQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
+  });
+});
+
+describe('retryConfigEntitlements', () => {
+  const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
+
+  it.each([403, 404])('does not retry a %i: the item is unreadable or gone, e.g. just deleted', status => {
+    expect(retryConfigEntitlements(0, httpError(status))).toBe(false);
+  });
+
+  it('retries a server or network error up to three times', () => {
+    expect(retryConfigEntitlements(0, httpError(500))).toBe(true);
+    expect(retryConfigEntitlements(2, new TypeError('Failed to fetch'))).toBe(true);
+    expect(retryConfigEntitlements(3, httpError(500))).toBe(false);
   });
 });
 
