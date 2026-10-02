@@ -26,6 +26,9 @@ const usePluginConfigDelete = (pluginId: string): PluginMutationResult<{ id: str
         queryClient.invalidateQueries({ queryKey: ['entitlements'] }),
         queryClient.invalidateQueries({ queryKey: ['/configs'] }),
         queryClient.invalidateQueries({ queryKey: [`/configs/${configId}`] }),
+        // Reset, not invalidated: the refetch of a deleted item's grants fails (403), and a failed
+        // refetch keeps the old data, so an open sharing panel would go on showing the old grants.
+        queryClient.resetQueries({ queryKey: ['config-entitlements', configId] }),
       ]);
     },
   });
