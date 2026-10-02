@@ -41,7 +41,7 @@ export interface PluginContext {
   usePluginConfig: <T>(pluginId: string, id: string, defaultConfig?: T) => PluginConfigResult<T>;
   // Read-only batch counterpart to usePluginConfig: fetches multiple ids in one
   // request. Missing ids are simply absent from the returned map.
-  usePluginConfigs: <T>(pluginId: string, ids: string[]) => PluginQueryResult<Record<string, T>>;
+  usePluginConfigs: <T>(pluginId: string, ids: string[], polling?: number) => PluginQueryResult<Record<string, T>>;
   // Deletes a config item for everyone, with its entitlements and attached Data Requests; final.
   // Resolves once the item has left every listing, and also when there is nothing the caller may
   // delete (already gone, or no write: show the button only with write). Rejects on server or

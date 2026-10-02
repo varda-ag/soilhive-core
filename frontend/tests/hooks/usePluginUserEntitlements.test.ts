@@ -21,6 +21,7 @@ describe('usePluginUserEntitlements', () => {
       },
       isLoading: false,
       isError: false,
+      refetch: jest.fn(),
     });
 
     const { result } = renderHook(() => usePluginUserEntitlements('myPlugin', 'configs'));
@@ -52,12 +53,21 @@ describe('usePluginUserEntitlements', () => {
   });
 
   it('passes isLoading/isError through unchanged and defaults data to {} while loading', () => {
-    useUserEntitlementsMock.mockReturnValue({ data: undefined, isLoading: true, isError: true });
+    useUserEntitlementsMock.mockReturnValue({ data: undefined, isLoading: true, isError: true, refetch: jest.fn() });
 
     const { result } = renderHook(() => usePluginUserEntitlements('myPlugin', 'configs'));
 
     expect(result.current.data).toEqual({});
     expect(result.current.isLoading).toBe(true);
     expect(result.current.isError).toBe(true);
+  });
+
+  it('passes refetch through unchanged', () => {
+    const refetch = jest.fn();
+    useUserEntitlementsMock.mockReturnValue({ data: {}, isLoading: false, isError: false, refetch });
+
+    const { result } = renderHook(() => usePluginUserEntitlements('myPlugin', 'configs'));
+
+    expect(result.current.refetch).toBe(refetch);
   });
 });

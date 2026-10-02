@@ -20,8 +20,16 @@ describe('usePluginConfigs', () => {
 
     const { result } = renderHook(() => usePluginConfigs('myPlugin', ['a', 'b']));
 
-    expect(useConfigs).toHaveBeenCalledWith(['plugin:myPlugin:a', 'plugin:myPlugin:b']);
+    expect(useConfigs).toHaveBeenCalledWith(['plugin:myPlugin:a', 'plugin:myPlugin:b'], undefined);
     expect(result.current.data).toEqual({ a: { foo: 1 }, b: { foo: 2 } });
+  });
+
+  it('forwards polling to useConfigs', () => {
+    useConfigsMock.mockReturnValue({ data: {}, isLoading: false, isError: false });
+
+    renderHook(() => usePluginConfigs('myPlugin', ['a'], 5000));
+
+    expect(useConfigs).toHaveBeenCalledWith(['plugin:myPlugin:a'], 5000);
   });
 
   it('omits ids missing from the response and passes isLoading/isError through unchanged', () => {
