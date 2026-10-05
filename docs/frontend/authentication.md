@@ -122,6 +122,8 @@ It is rendered at the app root level so it can appear over any route without unm
 
 ## SSR and auth
 
-For SSR routes the server reads the `Authorization: Bearer <token>` header sent by the browser's hydration request, validates its expiry (without verifying the signature — the backend does that), and passes the token to the React render function. This allows prefetched queries to include authenticated data in the initial HTML.
+For SSR routes the server reads the token from the `token` cookie, which `tokenStore` mirrors from `localStorage` (falling back to an `Authorization: Bearer` header), and passes it to the React render function so prefetched queries include authenticated data. An expired token is dropped and the page renders anonymously; the signature is not verified, the backend does that.
+
+On hydration, `SsrAuthContextProvider` applies the same expiry check (`isTokenExpired`, 30s buffer) and clears an expired token from storage, so the page agrees with the anonymous render and never sends the stale token. It does not attempt a silent renew; the main app does that on the next visit.
 
 See [ssr.md](ssr.md) for the full server-side rendering flow.

@@ -7,7 +7,7 @@ import { LoginModal } from './LoginModal';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken, getToken } from './tokenStore';
 import { refreshAccessToken, setTokenRefresher } from './tokenRefresher';
-import { getEmailFromAccessToken } from './tokenClaims';
+import { getEmailFromAccessToken, isTokenExpired } from './tokenClaims';
 import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from './signinReturnTo';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
@@ -221,7 +221,15 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function SsrAuthContextProvider({ children }: { children: React.ReactNode }) {
-  const token = getToken();
+  // The server renders anonymously with an expired token, so the hydrated page must too, and clear it
+  // as the main app would. In render, not an effect: child effects, where queries start, run first.
+  const [token] = useState(() => {
+    const stored = getToken();
+    if (!stored || !isTokenExpired(stored)) return stored;
+    // Client only: the server never stored it, and clearToken touches localStorage.
+    if (typeof window !== 'undefined') clearToken();
+    return null;
+  });
   const value: AuthContext = {
     isAuthenticated: !!token,
     isLoading: false,
