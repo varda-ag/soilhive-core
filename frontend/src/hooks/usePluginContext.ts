@@ -33,6 +33,8 @@ import usePluginConfigDelete from './usePluginConfigDelete';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from './usePluginConfigEntitlements';
 import { usePluginUserEntitlements } from './usePluginUserEntitlements';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from './usePluginDataRequest';
+import { useSoilIndexScore, useSoilIndexTileSource } from './useSoilIndexTiles';
+import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexSubmit } from './usePluginSoilIndex';
 import { metadataUrl } from 'configuration/routes';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
@@ -152,6 +154,12 @@ export function usePluginContext(): PluginContext {
       useDataRequestSubmit: usePluginDataRequestSubmit,
       useDataRequest: usePluginDataRequest,
       useDataRequestDelete: usePluginDataRequestDelete,
+      useSoilIndexSubmit: usePluginSoilIndexSubmit,
+      useSoilIndex: usePluginSoilIndex,
+      useSoilIndexDelete: usePluginSoilIndexDelete,
+      // Already plugin-shaped: they return PluginContext's own types.
+      useSoilIndexTileSource,
+      useSoilIndexScore,
       // A plain function, not a hook: plugins call it while rendering a dataset
       // row, so it must not add a hook to their render order.
       metadataUrl,

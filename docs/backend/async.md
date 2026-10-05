@@ -372,40 +372,71 @@ POST /data-requests
 
 ## `soil-indexes`
 
-Computes a **soil index** — a single score per aggregation area, from a named methodology — over the areas matching a filter. The areas are resolved exactly as for `data-requests`; only the product differs.
+Computes a **soil index** — a set of scored geometries from a named methodology — within the areas matching a filter. The areas are resolved exactly as for `data-requests`; only the product differs.
 
-| `soil_index_type` | Product | Output key |
-|---|---|---|
-| `crea-index` | One scored GeoJSON Point per area | none — the scores are rows in the `soil_index` table, keyed by the job id as the run |
+| `soil_index_type` | Product |
+|---|---|
+| `crea-index` | **Mock:** 50,000 scored points spread over the areas in proportion to their size, each with a value in [0, 1) to 3 decimals and a year from 2015 to 2024. Seeded by area, so the same areas always get the same points. |
 
 > Not to be confused with the **DAI**, which is also an index but scores *data availability* per map cell and is computed by the `refresh-dai-stats` job. The two share nothing.
 
-**Trigger**
+**Endpoints.** A soil index run has its own resource, with the same rules as a data request (ADR 0044). `POST /jobs` no longer accepts `soil-indexes`, and `/jobs/{jobId}` answers 404 for one.
+
+| Endpoint | Does |
+|---|---|
+| `POST /soil-indexes` | Submits a run and returns it as `pending`. |
+| `GET /soil-indexes/{runId}` | Status, progress while the job exists, `message` on failure, the full `request` with its resolved `units[]`, and once completed `data: { score_count, bounds, tiles }`. Readable after the job is gone. |
+| `DELETE /soil-indexes/{runId}` | Cancels the run, or removes its finished job, and destroys its record, scores and tiles. Tiles a client already cached are not recalled. |
+
 ```json
-POST /jobs
+POST /soil-indexes
 {
-  "type": "soil-indexes",
   "soil_index_type": "crea-index",
   "filter_id": "<uuid>",
   "file_id": "<file_id>",
-  "label_field": "field_name"
+  "label_field": "field_name",
+  "config_id": "plugin:<pluginId>:<id>"
 }
 ```
 
-`soil_index_type` and `filter_id` are required, and there is **no default**: omitting the type is a `400`, not an implicit `crea-index`. Same rule as `statistics_type` — a run names the product it computes. `dataset_ids` and `histogram_bins` do not exist on this queue.
+`soil_index_type` and `filter_id` are required, and there is **no default**: omitting the type is a `400`, not an implicit `crea-index`. Same rule as `statistics_type` — a run names the product it computes.
+
+**Access.** The run id is the permission: anyone holding it may read and delete the run, with or without a token. A token at submission only decides which datasets the run may read. With `config_id` the run is **attached** to that plugin config item: submitting needs `write` on it, reading the run needs `read`, deleting it needs `write`, and deleting the config item destroys the run. Attaching never gates the run's scores and tiles, which stay readable by anyone holding the id.
 
 This queue runs **one job at a time per node** (`SOIL_INDEXES_CONCURRENCY`), which is the reason it exists: an index run is long, and while it shared the `data-requests` queue every data request behind it waited.
-
-> **The CREA values are currently mock data.**
 
 **Sequence of operations**
 
 1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given, and write `derived_filter_id`, `unit_count` and `units[]`.
-2. Resolve one representative point per unit.
-3. Score each point, write the rows into a fresh partition for the run, and attach it.
-4. Mark the job complete.
+2. Generate the scores.
+3. In one transaction: lock the job, and stop if it was cancelled; write the scores, numbered 1..n, into a fresh partition for the run; record the run as completed in `soil_index_runs`, with its bounds and detail zoom; attach the partition.
+4. Mark the job complete, and enqueue `soil-index-tiles` for the run.
 
-Every row carries its own `soil_index_type`. A run's pg-boss record is deleted after 30 days while its partition is permanent, so without it an old score would be a number with no methodology attached.
+A failure is recorded in `soil_index_runs` too, with its message, so it can still be read after the job is gone. A cancelled run leaves nothing. Every score carries its own `soil_index_type`.
+
+**Map tiles.** A completed run serves vector tiles straight from its partition (ADR 0043). None of these endpoints needs a token: the run id is the whole permission.
+
+| Endpoint | Returns |
+|---|---|
+| `GET /soil-indexes/{runId}/tiles` | TileJSON 3.0.0, with `tiles` paths relative to the API base. Cached for 5 minutes. |
+| `GET /soil-indexes/{runId}/tiles/{version}/{z}/{x}/{y}` | One gzipped MVT tile with one layer, `scores`, or `204` when nothing in it is drawn. Immutable. |
+| `GET /soil-indexes/{runId}/scores/{scoreId}` | One score's `value`, `year` and `metadata`, for example for a hover tooltip. Immutable. |
+
+From the run's **detail zoom** up, a tile's features are the scored geometries themselves, each with its score id as feature id. Below it, they are grid cells of 1/64 of the tile, one per cell and year, with the mean as `value` plus `min`, `max` and `count`. The detail zoom is the first zoom at which no tile holds more than `TILES_AGGREGATION_MAX_VERTICES` vertices. It is fixed when the run is written. Tiles are cut on request unless `soil-index-tiles` has stored them, and at most `TILES_CONCURRENCY` tile queries run at once per node. Runs written before tiles existed have no `soil_index_runs` row and serve no tiles.
+
+---
+
+## `soil-index-tiles`
+
+Pre-renders the heaviest tiles of one completed soil index run. Internal: enqueued by `soil-indexes`, never through `POST /jobs`, and nobody polls it. Until it finishes, every tile is still served, just cut on request.
+
+**Sequence of operations**
+
+1. Count the vertices in every tile of the run at every zoom, in one scan.
+2. Render every tile above `TILES_PRERENDER_MIN_VERTICES`, lowest zooms first, at most `TILES_PRERENDER_MAX_TILES`. Above the cap it logs a warning, and the remaining tiles are cut on request.
+3. Store them gzipped in a fresh `soil_index_tiles` partition for the run, then attach it. An attached partition means pre-rendering is done.
+
+Runs one job at a time per node.
 
 ---
 

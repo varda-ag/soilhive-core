@@ -9,6 +9,7 @@ import {
   RasterLoadJob,
   DataRequestJob,
   SoilIndexJob,
+  SoilIndexTilesJob,
 } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import {
@@ -35,6 +36,7 @@ import { refreshDaiStats } from '../data-layer/DaiStats';
 import { processRefreshDaiStats } from '../jobs/refresh-dai-stats/RefreshDaiStatsJob';
 import { processDataRequest } from '../jobs/data-requests/DataRequestJob';
 import { processSoilIndex } from '../jobs/soil-indexes/SoilIndexJob';
+import { processSoilIndexTiles } from '../jobs/soil-index-tiles/SoilIndexTilesJob';
 import { getEntity } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
@@ -223,6 +225,17 @@ const setupWorkers = async () => {
     async (jobs: Job<SoilIndexJob>[]) => {
       for (const job of jobs) {
         await runJob(JobQueues.SOIL_INDEXES, job, processSoilIndex);
+      }
+    },
+  );
+  // One Run's tiles at a time per node: pre-rendering is a background optimisation and must not
+  // compete with the tile requests it exists to spare.
+  await boss.work<SoilIndexTilesJob>(
+    JobQueues.SOIL_INDEX_TILES,
+    { ...options, localConcurrency: 1 },
+    async (jobs: Job<SoilIndexTilesJob>[]) => {
+      for (const job of jobs) {
+        await runJob(JobQueues.SOIL_INDEX_TILES, job, processSoilIndexTiles);
       }
     },
   );

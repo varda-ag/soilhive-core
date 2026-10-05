@@ -381,6 +381,95 @@ const useReplaceRequest = (context: PluginContext, dashboardId: string) => {
 
 A result is never recomputed, so `created_at` tells how old the figures are. `request.units` gives each `unit_id` in the results its label and area.
 
+### Computing a soil index (Soil Index Runs)
+
+A Soil Index Run scores the aggregation areas of a filter, and its scores are drawn as map tiles (next section). Three hooks cover its lifecycle, and they work exactly like the Data Request ones:
+
+- `context.useSoilIndexSubmit(pluginId, configId)` submits one, **attached** to your saved config item `configId`. The caller needs write on that item.
+- `context.useSoilIndex(id)` reads one and polls it until it is `completed` or `failed`. Once completed, `data.score_count`, `data.bounds` and `data.tiles` describe what it produced. Pass `undefined` to skip fetching.
+- `context.useSoilIndexDelete()` destroys one, with its scores and tiles. Deleting an id that is already gone also succeeds.
+
+Attaching gates the Run itself: reading it needs read on the config item, deleting it needs write, and deleting the config item deletes the Run. It does **not** protect the scores. Anyone holding the Run id can see its tiles and scores (see `soilhive-core` ADR 0044).
+
+```tsx
+const submit = context.useSoilIndexSubmit('my-plugin', dashboardId);
+const created = await submit.mutateAsync({ soil_index_type: 'crea-index', filter_id: filterId });
+// Store created.id in your config item, then show it once completed:
+const { data: soilIndexRun } = context.useSoilIndex(runId);
+if (soilIndexRun?.status === 'completed') return <SoilIndexLayer context={context} runId={runId} />;
+```
+
+`crea-index` is currently a mock: 50,000 points spread over the areas, with values from 0 to 1 and years from 2015 to 2024.
+
+### Showing a soil index on a map
+
+A completed Soil Index Run has vector tiles. Two hooks cover them:
+
+- `context.useSoilIndexTileSource(runId)` returns a MapLibre vector source, ready to spread into `<Source>`. Pass `undefined` to skip fetching.
+- `context.useSoilIndexScore(runId, scoreId)` reads one score's `value`, `year` and `metadata`, for example for a hover tooltip. Pass the hovered feature's id, or `undefined` when nothing is hovered. The host debounces it and fetches each score at most once.
+
+The tiles have one source-layer, `scores`. Zoomed in, each feature is one score: its feature id is the score's id, and it has `value` and an optional `year`. Zoomed out, each feature is a grid cell summarising one year's scores: `value` is their mean, and the cell also has `min`, `max` and `count`. Only cells have `count`, so `['has', 'count']` tells the two apart. Filter years and group them into Year Windows in the style itself, without new requests.
+
+Anyone holding the Run id can see its tiles and scores, as with its other results (see `soilhive-core` ADR 0043).
+
+```tsx
+import { useEffect, useState } from 'react';
+import { Layer, Source, useMap, type MapLayerMouseEvent } from 'react-map-gl/maplibre';
+import type { PluginContext } from 'frontend-plugin-types';
+
+// Rendered inside SoilhiveMap's children, so useMap() reaches its map.
+const SoilIndexLayer: React.FC<{ context: PluginContext; runId: string }> = ({ context, runId }) => {
+  const { current: map } = useMap();
+  const { data: source } = context.useSoilIndexTileSource(runId);
+  const [hovered, setHovered] = useState<{ id: number; isScore: boolean }>();
+  const { data: score } = context.useSoilIndexScore(runId, hovered?.isScore ? hovered.id : undefined);
+
+  useEffect(() => {
+    if (!map || !source) return;
+    const onMove = (event: MapLayerMouseEvent) => {
+      const feature = event.features?.[0];
+      setHovered(feature ? { id: Number(feature.id), isScore: feature.properties.count === undefined } : undefined);
+    };
+    const onLeave = () => setHovered(undefined);
+    map.on('mousemove', 'soil-index', onMove);
+    map.on('mouseleave', 'soil-index', onLeave);
+    return () => {
+      map.off('mousemove', 'soil-index', onMove);
+      map.off('mouseleave', 'soil-index', onLeave);
+    };
+  }, [map, source]);
+
+  useEffect(() => {
+    if (!map || !hovered) return;
+    const target = { source: 'soil-index', sourceLayer: 'scores', id: hovered.id };
+    map.setFeatureState(target, { hover: true });
+    return () => map.removeFeatureState(target, 'hover');
+  }, [map, hovered]);
+
+  if (!source) return null;
+  return (
+    <>
+      <Source id="soil-index" {...source}>
+        <Layer
+          id="soil-index"
+          type="fill"
+          source-layer="scores"
+          // 2016–2020 only. For 3-year windows, colour by ['*', ['floor', ['/', ['get', 'year'], 3]], 3].
+          filter={['all', ['>=', ['get', 'year'], 2016], ['<=', ['get', 'year'], 2020]]}
+          paint={{
+            'fill-color': ['interpolate', ['linear'], ['get', 'value'], 0, '#f7fcb9', 1, '#31a354'],
+            'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.9, 0.6],
+          }}
+        />
+      </Source>
+      {score && <pre className="tooltip">{JSON.stringify(score.metadata, null, 2)}</pre>}
+    </>
+  );
+};
+```
+
+This draws polygons and cells. If the Run scores points, add a `circle` layer filtered on `['==', ['geometry-type'], 'Point']`.
+
 ## Registering your plugin with the host
 
 Scaffolding and syncing a plugin does not make it appear in the host. That is a separate step, and it currently has no UI. You must add an entry directly to the host's `ThemeConfig.plugins` — for example through `PUT /configs/theme`, or directly in the database — with `url` pointing at your remote's `mf-manifest.json`.

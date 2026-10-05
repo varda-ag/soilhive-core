@@ -1,101 +1,67 @@
 import { SoilIndexJob } from '../../interfaces/Job';
-import { updateJobState } from '../../services/PgBoss';
-import { JobQueues } from '../../types/enums';
-import { round3 } from '../../utils/utils';
-import { log } from '../../utils/logger';
 import { SoilIndexFeature } from './types';
 import { RunContext } from '../runs/runContext';
-import { writeSoilIndexRun } from '../../data-layer/SoilIndex';
+import { getSoilIndexMockScores } from '../../utils/utils';
+
+const FIRST_YEAR = 2015;
+const YEARS = 10;
+
+/** A non-negative 30-bit hash of the SQL text expression `key`, stable across Runs. */
+const hashSql = (key: string): string => `(hashtext(${key}) & 1073741823)`;
 
 /**
- * MOCK — this is not the CREA index.
+ * The `crea-index` Soil Index Type. MOCK, not the CREA index: getSoilIndexMockScores() points
+ * (50,000 by default), whatever the size of the area, spread evenly over the Run's
+ * Aggregation Units, each with a value in [0, 1) and a year from FIRST_YEAR on.
+ *
+ * Points are generated per subdivision piece (docs/adr/0006), each piece's share in proportion to
+ * its area and the shares rounded by largest remainder so they total exactly that: a piece
+ * has at most 64 vertices, where a unit may have millions. Positions, values and years are seeded
+ * by unit and piece, so the same area always gets the same mock. Overlapping units each score
+ * their overlap.
  */
-const mockIndexValue = (unitId: string): number => {
-  let hash = 0;
-  for (let index = 0; index < unitId.length; index += 1) {
-    hash = (hash * 31 + unitId.charCodeAt(index)) | 0;
-  }
-  return round3(Math.abs(hash % 1000) / 1000);
-};
+export async function runCreaIndex(ctx: RunContext, _data: SoilIndexJob): Promise<SoilIndexFeature[]> {
+  const { entityManager, unitIds, report, assertNotCancelled } = ctx;
 
-/**
- * Representative Point for each Aggregation Unit: the centroid when it lies inside the
- * geometry, otherwise a guaranteed-interior point.
- */
-const representativePoints = async (ctx: RunContext, unitIds: string[]): Promise<Map<string, { lon: number; lat: number }>> => {
-  const schema = process.env.POSTGRES_SCHEMA;
-  const rows: { id: string; lon: number | null; lat: number | null }[] = await ctx.entityManager.query(
-    `SELECT ug.id, ST_X(p.pt) AS lon, ST_Y(p.pt) AS lat
-     FROM ${schema}.user_geometries ug
-     CROSS JOIN LATERAL (
-       SELECT CASE
-         WHEN ST_Within(ST_Centroid(ug.geom), ug.geom) THEN ST_Centroid(ug.geom)
-         ELSE ST_PointOnSurface(ug.geom)
-       END AS pt
-     ) p
-     WHERE ug.id = ANY($1::uuid[])`,
-    [unitIds],
+  await report(`Scoring ${unitIds.length} area(s)...`, 40);
+  const pieceKey = `unit_id::text || ':' || piece_id::text`;
+  const pointKey = `${pieceKey} || ':' || (point).path[1]`;
+  const rows: { unit_id: string; lon: number; lat: number; value: number; year: number }[] = await entityManager.query(
+    `WITH pieces AS (
+       SELECT piece.user_geometry_id AS unit_id, piece.id AS piece_id, piece.geom, ST_Area(piece.geom::geography) AS area
+       FROM ${process.env.POSTGRES_SCHEMA}.user_geometry_subdivisions piece
+       WHERE piece.user_geometry_id = ANY($1::uuid[])
+     ), quotas AS (
+       SELECT unit_id, piece_id, geom, $2::int * area / NULLIF(sum(area) OVER (), 0) AS exact
+       FROM pieces
+     ), allocated AS (
+       SELECT unit_id, piece_id, geom,
+              floor(exact)::int
+              + CASE WHEN row_number() OVER (ORDER BY exact - floor(exact) DESC, unit_id, piece_id)
+                          <= $2::int - sum(floor(exact)) OVER () THEN 1 ELSE 0 END AS n
+       FROM quotas
+       WHERE exact IS NOT NULL
+     ), generated AS (
+       SELECT unit_id, piece_id, ST_Dump(ST_GeneratePoints(geom, n, ${hashSql(pieceKey)} + 1)) AS point
+       FROM allocated
+       WHERE n > 0
+     )
+     SELECT unit_id,
+            round(ST_X((point).geom)::numeric, 6)::float8 AS lon,
+            round(ST_Y((point).geom)::numeric, 6)::float8 AS lat,
+            (floor(${hashSql(`${pointKey} || ':value'`)} / 1073741824.0 * 1000) / 1000)::float8 AS value,
+            ${FIRST_YEAR} + ${hashSql(`${pointKey} || ':year'`)} % ${YEARS} AS year
+     FROM generated
+     ORDER BY unit_id, piece_id, (point).path[1]`,
+    [unitIds, getSoilIndexMockScores()],
   );
 
-  const points = new Map<string, { lon: number; lat: number }>();
-  for (const row of rows) {
-    if (row.lon !== null && row.lat !== null) {
-      points.set(row.id, { lon: round3(Number(row.lon)), lat: round3(Number(row.lat)) });
-    }
-  }
-  return points;
-};
-
-/**
- * The `crea-index` Soil Index Type: one scored Point per Aggregation Unit.
- * The scores are written to the `soil_index` table, one row per Point, under this job's id as the Run.
- */
-export async function runCreaIndex(ctx: RunContext, data: SoilIndexJob): Promise<void> {
-  const { jobId, entityManager, units, unitIds, report, assertNotCancelled } = ctx;
-
-  await report(`Computing the CREA index over ${units.length} area(s)...`, 40);
-
-  await report('Locating areas...', 60);
-  const points = await representativePoints(ctx, unitIds);
-
-  // Driven by unitIds, not by the query rows, so the Features come back in Unit order. A
-  // Unit whose geometry yields no point is omitted rather than emitted with a null
-  // geometry: a Feature that cannot be placed is not a scored location.
-  const features: SoilIndexFeature[] = unitIds.flatMap(unitId => {
-    const point = points.get(unitId);
-    if (!point) {
-      log.warn('Aggregation unit produced no representative point', { job_id: jobId, unit_id: unitId });
-      return [];
-    }
-    return [
-      {
-        type: 'Feature' as const,
-        id: unitId,
-        geometry: { type: 'Point' as const, coordinates: [point.lon, point.lat] as [number, number] },
-        properties: { value: mockIndexValue(unitId) },
-      },
-    ];
-  });
-
-  // Checked once more before anything is persisted
   await assertNotCancelled();
 
-  await report('Storing scored areas...', 80);
-  const scored = await writeSoilIndexRun(entityManager, jobId, data.soil_index_type, features);
-
-  // Nothing of the output goes into job data: the scores are rows in `soil_index` keyed by
-  // this job's id as the Run, and the caller is already holding that id to poll with. The
-  // count reaches it only as prose, in the progress description below.
-  await updateJobState(jobId, {
-    progress_percentage: 100,
-    progress_description: `Completed: ${scored} scored area(s)`,
-  } as Partial<SoilIndexJob>);
-
-  log.info('Soil index job completed', {
-    job_id: jobId,
-    queue: JobQueues.SOIL_INDEXES,
-    soil_index_type: data.soil_index_type,
-    units: units.length,
-    features: features.length,
-  });
+  return rows.map(row => ({
+    type: 'Feature' as const,
+    id: row.unit_id,
+    geometry: { type: 'Point' as const, coordinates: [row.lon, row.lat] },
+    properties: { value: row.value, year: row.year },
+  }));
 }

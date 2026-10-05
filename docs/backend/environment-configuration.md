@@ -52,6 +52,15 @@ The `data-requests` and `soil-indexes` jobs ignore `JOB_LOCAL_CONCURRENCY` and s
 Shared by both, since both resolve their aggregation areas the same way:
 - `MAX_AGGREGATION_UNITS` (default `2000`): most aggregation areas a single job will report on. The job fails above this rather than dropping areas. `DATA_REQUESTS_MAX_UNITS` is the deprecated former name and is still honoured.
 
+`soil-indexes` only:
+- `SOIL_INDEX_MOCK_SCORES` (default `50000`): points the mock `crea-index` generates per run. The test environment sets `500`.
+
+Soil index map tiles (ADR 0043). Budgets count vertices, so a point costs one and a polygon its ring length:
+- `TILES_AGGREGATION_MAX_VERTICES` (default `50000`): most vertices a tile may hold before it shows grid cells instead of scored geometries. Fixed per run when the run is written, so a change affects later runs only.
+- `TILES_PRERENDER_MIN_VERTICES` (default `20000`): tiles holding more are rendered ahead of time by `soil-index-tiles`; the rest are cut on request.
+- `TILES_PRERENDER_MAX_TILES` (default `5000`): most tiles pre-rendered for one run. Above it the remaining heavy tiles are cut on request.
+- `TILES_CONCURRENCY` (default `10`): tile queries running at once per node, so map panning cannot take every connection from the pool.
+
 `data-requests` only:
 - `DATA_REQUESTS_MAX_CELLS` (default `200000`): budget for a `descriptive` result, in `overall` + `results` rows. Above it the job fails before aggregating.
 - `DATA_REQUESTS_MAX_CLASS_ENTRIES` (default `1000000`): budget for a `class-distribution` result, in rows × (classes + 1). Above it the job fails before aggregating; nothing is truncated.

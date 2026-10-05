@@ -11,37 +11,19 @@ import {
   findDataRequestAttachment,
   toDataRequestParameters,
 } from '../data-layer/DataRequests';
-import { JsonStorage } from '../entities/JsonStorage';
-import { PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
-import { Capability, DataRequestStatus, JobQueues } from '../types/enums';
+import { Capability, JobQueues } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
 import { log } from '../utils/logger';
-import EntitlementService from './EntitlementService';
 import JobService from './JobService';
-
-const entitlementService = new EntitlementService();
-
-/**
- * Job states that mean "this Data Request must be hidden".
- *
- * DELETE destroys the record but leaves the pg-boss row behind in `cancelled` state until
- * retention, so a read that trusted the job would keep answering 200 for a resource the caller has
- * already destroyed. Treating it as absent is the only reading consistent with DELETE, and it is
- * why `cancelled` is a state no client can observe (docs/adr/0037).
- */
-const GONE_JOB_STATES = ['cancelled'];
-
-/** Job states after which a `data_requests` row exists to be read. */
-const TERMINAL_JOB_STATES = ['completed', 'failed'];
-
-/** pg-boss state -> the vocabulary a Data Request reports. */
-const STATUS_BY_JOB_STATE: Record<string, DataRequestStatus> = {
-  created: DataRequestStatus.PENDING,
-  retry: DataRequestStatus.PENDING,
-  active: DataRequestStatus.RUNNING,
-  completed: DataRequestStatus.COMPLETED,
-  failed: DataRequestStatus.FAILED,
-};
+import {
+  assertCanAttach,
+  assertConfigAccess,
+  disposeJobs,
+  findLiveJob,
+  GONE_JOB_STATES,
+  statusOfJob,
+  TERMINAL_JOB_STATES,
+} from './runLifecycle';
 
 /**
  * The lifecycle of a Data Request: submit, read, destroy (docs/adr/0037).
@@ -69,7 +51,7 @@ export default class DataRequestService {
    */
   createDataRequest = async (requestData: RequestData, parameters: DataRequestJobParameters): Promise<DataRequest> => {
     if (parameters.config_id !== undefined) {
-      await this.assertCanAttach(requestData, parameters.config_id);
+      await assertCanAttach(requestData, parameters.config_id, 'data requests');
     }
     const job = await this.jobService.createJob(requestData, {
       ...parameters,
@@ -88,9 +70,9 @@ export default class DataRequestService {
    * which is why the row has to be self-sufficient rather than a supplement to the job.
    */
   getDataRequest = async (requestData: RequestData, id: string): Promise<DataRequest> => {
-    const job = await this.findLiveJob(id);
+    const job = await findLiveJob(this.jobService, JobQueues.DATA_REQUESTS, id);
     if (job) {
-      await this.assertConfigAccess(requestData, id, (job.data as DataRequestJob).config_id, Capability.READ);
+      await assertConfigAccess(requestData, `Data request '${id}'`, (job.data as DataRequestJob).config_id, Capability.READ);
       // The record is read only once the Run has terminated. `data` is unbounded, so fetching it
       // beside a job that is still running would pay for a payload that cannot exist yet.
       const record = TERMINAL_JOB_STATES.includes(job.status) ? await findDataRequest(requestData.entityManager, id) : null;
@@ -99,7 +81,7 @@ export default class DataRequestService {
 
     const record = await findDataRequest(requestData.entityManager, id);
     if (record) {
-      await this.assertConfigAccess(requestData, id, record.request.config_id, Capability.READ);
+      await assertConfigAccess(requestData, `Data request '${id}'`, record.request.config_id, Capability.READ);
       return this.fromRecord(record);
     }
 
@@ -111,17 +93,17 @@ export default class DataRequestService {
    * one was written. 204 when either happened, 404 when neither was there.
    */
   deleteDataRequest = async (requestData: RequestData, id: string): Promise<void> => {
-    const job = await this.findLiveJob(id);
+    const job = await findLiveJob(this.jobService, JobQueues.DATA_REQUESTS, id);
     const attachment = job
       ? { config_id: (job.data as DataRequestJob).config_id ?? null }
       : await findDataRequestAttachment(requestData.entityManager, id);
     if (!attachment) {
       throw new ErrorResponse(`Data request '${id}' not found`, StatusCodes.NOT_FOUND);
     }
-    await this.assertConfigAccess(requestData, id, attachment.config_id, Capability.WRITE);
+    await assertConfigAccess(requestData, `Data request '${id}'`, attachment.config_id, Capability.WRITE);
 
     if (job) {
-      await this.disposeJobs([job]);
+      await disposeJobs(this.jobService, JobQueues.DATA_REQUESTS, [job]);
     }
     const deleted = await deleteDataRequest(requestData.entityManager, id);
 
@@ -136,64 +118,10 @@ export default class DataRequestService {
     const jobs = (await this.jobService.findJobsInQueueByData(JobQueues.DATA_REQUESTS, { config_id: configId })).filter(
       job => !GONE_JOB_STATES.includes(job.status),
     );
-    await this.disposeJobs(jobs);
+    await disposeJobs(this.jobService, JobQueues.DATA_REQUESTS, jobs);
     const deleted = await deleteAttachedDataRequests(requestData.entityManager, configId);
 
     log.info('Attached data requests destroyed', { config_id: configId, disposed_jobs: jobs.length, deleted_records: deleted });
-  };
-
-  /**
-   * A terminated job cannot be cancelled (pg-boss only cancels below `completed`), so it is removed
-   * instead. A job still running is cancelled and kept: the worker learns it was cancelled by
-   * reading that job's own state.
-   */
-  private disposeJobs = async (jobs: Job[]): Promise<void> => {
-    const terminated = jobs.filter(job => TERMINAL_JOB_STATES.includes(job.status)).map(job => job.id!);
-    const running = jobs.filter(job => !TERMINAL_JOB_STATES.includes(job.status)).map(job => job.id!);
-    if (terminated.length > 0) {
-      await this.jobService.deleteJobInQueue(JobQueues.DATA_REQUESTS, terminated);
-    }
-    if (running.length > 0) {
-      await this.jobService.cancelJobInQueue(JobQueues.DATA_REQUESTS, running);
-    }
-  };
-
-  /**
-   * Attaching needs `write` on an existing plugin config item. `findOneBy` skips soft-deleted rows,
-   * so a deleted item cannot collect requests after its cascade has run.
-   */
-  private assertCanAttach = async (requestData: RequestData, configId: string): Promise<void> => {
-    if (!PLUGIN_CONFIG_ID_PATTERN.test(configId)) {
-      throw new ErrorResponse(
-        `Parameter config_id '${configId}' is not a plugin config id: use plugin:{pluginId}:{id}`,
-        StatusCodes.BAD_REQUEST,
-      );
-    }
-    const row = await requestData.entityManager.getRepository(JsonStorage).findOneBy({ id: configId });
-    if (!row) {
-      throw new ErrorResponse(`Config '${configId}' not found: save it before attaching data requests to it`, StatusCodes.NOT_FOUND);
-    }
-    if (!entitlementService.canWriteConfig(requestData, configId)) {
-      throw new ErrorResponse(`User does not have write entitlement for config ${configId}`, StatusCodes.FORBIDDEN);
-    }
-  };
-
-  /** An attached Data Request is gated by its config item; an unattached one by nothing but its id. */
-  private assertConfigAccess = async (
-    requestData: RequestData,
-    id: string,
-    configId: string | null | undefined,
-    capability: Capability.READ | Capability.WRITE,
-  ): Promise<void> => {
-    if (configId && !(await entitlementService.canAccessConfig(requestData, configId, capability))) {
-      throw new ErrorResponse(`Data request '${id}' requires ${capability} on its config`, StatusCodes.FORBIDDEN);
-    }
-  };
-
-  /** The job, unless it is in a state that reads as gone. */
-  private findLiveJob = async (id: string): Promise<Job | null> => {
-    const job = await this.jobService.findJobInQueue(JobQueues.DATA_REQUESTS, id);
-    return job && !GONE_JOB_STATES.includes(job.status) ? job : null;
   };
 
   /**
@@ -206,7 +134,7 @@ export default class DataRequestService {
    */
   private fromJob = (job: Job, record: DataRequestRecord | null): DataRequest => {
     const data = job.data as DataRequestJob;
-    const status = STATUS_BY_JOB_STATE[job.status] ?? DataRequestStatus.PENDING;
+    const status = statusOfJob(job);
 
     return {
       id: job.id!,
