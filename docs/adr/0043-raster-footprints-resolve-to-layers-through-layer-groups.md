@@ -49,7 +49,9 @@ Measured on the same AOI, with the same result (15 datasets, 167 layers):
 ## Consequences
 
 - **Groups are derived, never written directly.** The triggers are the only writers outside the
-  migration's backfill.
+  one-off backfill (`backend/scripts/backfill-raster-layer-groups.sql`). The migration leaves
+  existing footprints ungrouped to stay short, so the backfill must run right after it on every
+  environment with raster data. Until then `filterRaster` does not see those footprints.
 - **Mid-reingest visibility.** While a published layer is re-ingested, its links are deleted first.
   Until its footprints are re-inserted, `filterRaster` does not see that layer for them.
 - **Concurrent loads wait on each other.** They queue briefly on the advisory lock for each batch.

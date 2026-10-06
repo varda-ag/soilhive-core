@@ -4,15 +4,15 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * Layer groups: every footprint points at the set of layers that reference it, so filterRaster
  * resolves AOI → layers through ~1K group rows instead of millions of raster_layer_footprints rows
  * (see ADR-0043). Idempotent (IF NOT EXISTS throughout).
+ *
+ * Existing footprints are not grouped here, to keep the migration short: run
+ * backend/scripts/backfill-raster-layer-groups.sql right after it. Until then filterRaster
+ * does not see footprints that predate the migration.
  */
 export class RasterLayerGroups1790200000000 implements MigrationInterface {
   name = 'RasterLayerGroups1790200000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // The backfill aggregates the whole junction table: it outlasts the pool's 20s
-    // statement_timeout and would spill its per-footprint arrays at the default work_mem.
-    await queryRunner.query(`SET LOCAL statement_timeout = 0`);
-    await queryRunner.query(`SET LOCAL work_mem = '1GB'`);
 
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "raster_layer_groups" (
@@ -115,38 +115,6 @@ export class RasterLayerGroups1790200000000 implements MigrationInterface {
        FOR EACH STATEMENT EXECUTE FUNCTION refresh_raster_layer_groups()`,
     );
 
-    // Backfill: the trigger's statement, scoped to every footprint instead of changed_links.
-    await queryRunner.query(
-      `WITH affected AS MATERIALIZED (
-         SELECT rlf.raster_footprint_id AS footprint_id,
-                md5(string_agg(rlf.raster_layer_id::text, ',' ORDER BY rlf.raster_layer_id)) AS layer_ids_hash,
-                array_agg(rlf.raster_layer_id ORDER BY rlf.raster_layer_id) AS layer_ids
-         FROM "raster_layer_footprints" rlf
-         GROUP BY rlf.raster_footprint_id
-       ),
-       distinct_sets AS (
-         SELECT DISTINCT ON (layer_ids_hash) layer_ids_hash, layer_ids FROM affected
-       ),
-       upserted_groups AS (
-         INSERT INTO "raster_layer_groups" (layer_ids_hash)
-         SELECT layer_ids_hash FROM distinct_sets
-         ON CONFLICT (layer_ids_hash) DO UPDATE SET layer_ids_hash = EXCLUDED.layer_ids_hash
-         RETURNING id, layer_ids_hash
-       ),
-       inserted_members AS (
-         INSERT INTO "raster_layer_group_members" (layer_group_id, raster_layer_id)
-         SELECT g.id, unnest(s.layer_ids)
-         FROM upserted_groups g JOIN distinct_sets s USING (layer_ids_hash)
-         ON CONFLICT DO NOTHING
-       )
-       UPDATE "raster_footprints" rf SET layer_group_id = g.id
-       FROM affected a JOIN upserted_groups g USING (layer_ids_hash)
-       WHERE rf.id = a.footprint_id AND rf.layer_group_id IS DISTINCT FROM g.id`,
-    );
-    await queryRunner.query(
-      `DELETE FROM "raster_layer_groups" g
-       WHERE NOT EXISTS (SELECT 1 FROM "raster_footprints" rf WHERE rf.layer_group_id = g.id)`,
-    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
