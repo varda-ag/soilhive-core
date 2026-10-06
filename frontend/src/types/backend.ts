@@ -197,6 +197,7 @@ export interface SoilDataSample {
   property_acronym: string;
   standard_unit: string;
   value: number;
+  value_label: string | null;
   geometry: any;
   license_name: string;
   sampling_date: string | null;
