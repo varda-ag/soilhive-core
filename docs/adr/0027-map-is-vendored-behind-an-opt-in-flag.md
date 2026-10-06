@@ -1,4 +1,4 @@
-# ADR 0025: The map is vendored to plugins behind an opt-in `--with-map` flag, with three sub-features left out
+# The map is vendored to plugins behind an opt-in `--with-map` flag, with three sub-features left out
 
 **Status:** Accepted
 

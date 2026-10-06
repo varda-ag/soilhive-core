@@ -1,4 +1,4 @@
-# ADR 0005: Replace `gdal-async` in `GeoFileWriter` with CLI tools
+# Replace `gdal-async` in `GeoFileWriter` with CLI tools
 
 **Status:** Accepted
 

@@ -1,4 +1,4 @@
-# ADR 0017: Raster band mappings reuse `data_mappings`, with literal values instead of column references
+# Raster band mappings reuse `data_mappings`, with literal values instead of column references
 
 **Status:** Accepted
 

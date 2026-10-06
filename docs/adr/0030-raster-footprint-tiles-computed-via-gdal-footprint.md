@@ -1,4 +1,4 @@
-# ADR 0030: Raster footprint tiles are computed by `gdal_footprint`, not traced in JS
+# Raster footprint tiles are computed by `gdal_footprint`, not traced in JS
 
 **Status:** Accepted
 

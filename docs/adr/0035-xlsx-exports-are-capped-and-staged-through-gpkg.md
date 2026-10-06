@@ -1,4 +1,4 @@
-# ADR 0035: XLSX Exports are capped and staged through GPKG
+# XLSX Exports are capped and staged through GPKG
 
 **Status:** Accepted
 

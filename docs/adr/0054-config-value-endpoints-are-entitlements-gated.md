@@ -55,4 +55,4 @@ divergent bootstrap paths open at once.
   first-access claim on the same id (`ON CONFLICT (id)`), so a deleted plugin id can only be
   written again by a Privileged caller.
 - `GET /configs/{configId}/entitlements` keeps its existing lack of a first-access bypass (ADR
-  0035) — unaffected by this change.
+  0051) — unaffected by this change.

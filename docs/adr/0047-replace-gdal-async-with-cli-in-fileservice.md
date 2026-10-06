@@ -1,4 +1,4 @@
-# ADR 0004: Replace `gdal-async` with CLI tools in `FileService`
+# Replace `gdal-async` with CLI tools in `FileService`
 
 **Status:** Accepted
 

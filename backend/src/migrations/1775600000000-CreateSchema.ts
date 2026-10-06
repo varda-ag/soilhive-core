@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// See docs/adr/0006-precomputed-geometry-subdivision-table.md
+// See docs/adr/0048-precomputed-geometry-subdivision-table.md
 const SUBDIVIDE_MAX_VERTICES = 64;
 
 export class CreateSchema1775600000000 implements MigrationInterface {

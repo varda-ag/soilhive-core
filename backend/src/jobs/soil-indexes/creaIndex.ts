@@ -14,7 +14,7 @@ const hashSql = (key: string): string => `(hashtext(${key}) & 1073741823)`;
  * (50,000 by default), whatever the size of the area, spread evenly over the Run's
  * Aggregation Units, each with a value in [0, 1) and a year from FIRST_YEAR on.
  *
- * Points are generated per subdivision piece (docs/adr/0006), each piece's share in proportion to
+ * Points are generated per subdivision piece (docs/adr/0048), each piece's share in proportion to
  * its area and the shares rounded by largest remainder so they total exactly that: a piece
  * has at most 64 vertices, where a unit may have millions. Positions, values and years are seeded
  * by unit and piece, so the same area always gets the same mock. Overlapping units each score

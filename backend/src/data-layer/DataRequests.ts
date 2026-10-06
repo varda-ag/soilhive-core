@@ -49,7 +49,7 @@ export const stageObservations = async (
 
   // ── stage 1: units → Features ────────────────────────────────────────────────
   // DISTINCT is mandatory: a Feature intersects several subdivision pieces of the
-  // same unit (docs/adr/0006), which would otherwise multiply its Observations.
+  // same unit (docs/adr/0048), which would otherwise multiply its Observations.
   // Raster-filter parity with coverage comes free: buildRasterSql reads only the `aoi`
   // CTE, and matching_features ⊆ candidate_features = features ∩ aoi, so restricting
   // stage 1 to it is exact and still lets the unit_id be attached by the aoi join.

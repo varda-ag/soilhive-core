@@ -413,7 +413,7 @@ export default class EntitlementService {
 
   /**
    * Self-grants `WRITE` on `key` after `ConfigService.putConfig` wins a first-access race (ADR
-   * 0037). An atomic `INSERT ... ON CONFLICT DO UPDATE`, not `findOneBy` + `save`: the same
+   * 0054). An atomic `INSERT ... ON CONFLICT DO UPDATE`, not `findOneBy` + `save`: the same
    * subject can win several distinct ids concurrently, each its own transaction, all targeting
    * this one row — a read-modify-write would lose all but the last writer's key.
    *
