@@ -1,4 +1,4 @@
-# ADR 0043: Raster footprints resolve to layers through layer groups
+# ADR 0046: Raster footprints resolve to layers through layer groups
 
 **Status:** Accepted
 

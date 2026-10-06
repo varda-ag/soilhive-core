@@ -1,4 +1,4 @@
--- Backfill for migration 1790200000000-RasterLayerGroups (ADR-0043).
+-- Backfill for migration 1790200000000-RasterLayerGroups (ADR-0046).
 --
 -- The migration only creates the tables, column and triggers; it does not group the footprints
 -- that already exist. Until this runs, those footprints have a NULL layer_group_id and filterRaster
@@ -71,6 +71,6 @@ SELECT (SELECT count(*) FROM raster_layer_groups) AS layer_groups,
 COMMIT;
 
 -- A first run rewrites every footprint row. Reclaim the old versions now, rather than leave
--- filterRaster's heap-bound bbox pass (ADR-0043) reading them until autovacuum gets there, and
+-- filterRaster's heap-bound bbox pass (ADR-0046) reading them until autovacuum gets there, and
 -- give the planner statistics for layer_group_id. Outside the transaction: VACUUM can't run in one.
 VACUUM (ANALYZE) :"schema".raster_footprints;

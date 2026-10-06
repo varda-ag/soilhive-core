@@ -1,7 +1,7 @@
 import { Entity, Column, PrimaryColumn } from 'typeorm';
 
 /**
- * A distinct set of raster layers that reference the same footprints (ADR-0043). Written only by
+ * A distinct set of raster layers that reference the same footprints (ADR-0046). Written only by
  * the refresh_raster_layer_groups triggers on raster_layer_footprints — never by application code.
  */
 @Entity('raster_layer_groups')

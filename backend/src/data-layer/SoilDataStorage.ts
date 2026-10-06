@@ -330,7 +330,7 @@ export default class SoilDataStorage {
       ? await timed('filterRaster.vectorMaskCtes', () => getVectorMaskCtes(entityManager, filter))
       : [{ name: 'aoi', sql: selectGeometryPiecesByIds(), materialized: true }];
 
-    // AOI → layers goes through layer groups (ADR-0043): each footprint carries the group of
+    // AOI → layers goes through layer groups (ADR-0046): each footprint carries the group of
     // layers referencing it, so the spatial side yields ~1K group ids instead of millions of
     // raster_layer_footprints rows. Shaped after EXPLAIN ANALYZE on a 990-piece country AOI:
     //  - fp_candidates: one bbox-only bitmap pass over raster_footprints for all AOI pieces at

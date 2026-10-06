@@ -3,7 +3,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 /**
  * Layer groups: every footprint points at the set of layers that reference it, so filterRaster
  * resolves AOI → layers through ~1K group rows instead of millions of raster_layer_footprints rows
- * (see ADR-0043). Idempotent (IF NOT EXISTS throughout).
+ * (see ADR-0046). Idempotent (IF NOT EXISTS throughout).
  *
  * Existing footprints are not grouped here, to keep the migration short: run
  * backend/src/scripts/backfill-raster-layer-groups.sql right after it. Until then filterRaster

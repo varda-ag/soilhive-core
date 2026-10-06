@@ -2,7 +2,7 @@ import { Entity, PrimaryColumn, ManyToOne, JoinColumn } from 'typeorm';
 import RasterLayerGroupEntity from './RasterLayerGroup';
 import RasterLayerEntity from './RasterLayer';
 
-/** A layer of a raster_layer_groups set (ADR-0043); written only by the refresh_raster_layer_groups triggers. */
+/** A layer of a raster_layer_groups set (ADR-0046); written only by the refresh_raster_layer_groups triggers. */
 @Entity('raster_layer_group_members')
 export default class RasterLayerGroupMemberEntity {
   @PrimaryColumn('uuid')
