@@ -15,12 +15,14 @@ export enum CellDeleteReason {
   ZERO_VALUE = 'zero_value',
   OOB = 'out_of_bounds',
   BELOW_LOD = 'below_lod',
+  UNKNOWN_CLASS = 'unknown_class',
 }
 
 export enum CellModifyReason {
   DEPTH_ROUNDED = 'depth_rounded',
   VALUE_ROUNDED = 'value_rounded',
   UNIT_CONVERTED = 'unit_converted',
+  LABEL_RESOLVED = 'label_resolved',
 }
 
 export interface CleaningReport {

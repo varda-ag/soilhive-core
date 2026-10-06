@@ -1,3 +1,5 @@
+import { SoilPropertyClasses } from './SoilProperty';
+
 export interface PropertyMapping {
   property_id: string;
   conversion_id?: string;
@@ -10,4 +12,5 @@ export interface PropertyCleaningConfig extends PropertyMapping {
   conversion_formula?: string;
   standard_unit?: string;
   original_unit?: string;
+  classes?: SoilPropertyClasses | null;
 }

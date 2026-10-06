@@ -10,6 +10,8 @@ import ConfigService from '../services/ConfigService';
 import { VocabularyType } from '../types/data';
 import { CSV_HASHES_CONFIG_ID } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
+import { SoilPropertyClasses } from '../interfaces/SoilProperty';
+import { normalizeClassLabel } from '../utils/soilPropertyClasses';
 
 /**
  * Syncs vocabulary tables from the CSVs in backend/docs/data-model/, automatically on every boot (app.ts).
@@ -37,6 +39,7 @@ const CATEGORIES_CSV = '4f-soil-property-category-table.csv';
 const SOIL_PROPERTIES_CSV = '4c-soil-property-vocabulary-table.csv';
 const PROCEDURES_CSV = '4e-analytical-methodology-table.csv';
 const UNIT_CONVERSIONS_CSV = '5b-conversion-rules-table.csv';
+const SOIL_PROPERTY_CLASSES_CSV = '4g-soil-property-classes-table.csv';
 
 interface SyncResult {
   inserted: number;
@@ -73,6 +76,7 @@ interface csvHashes {
   soil_properties?: string;
   unit_converisons?: string;
   analytical_methodologies?: string;
+  soil_property_classes?: string;
 }
 
 interface LicenseRow {
@@ -489,6 +493,131 @@ async function syncUnitConversions(manager: EntityManager, dryRun: boolean, stor
   return { inserted, updated, orphaned, skipped: false, hash };
 }
 
+interface SoilPropertyClassRow {
+  property_code: string;
+  code: string;
+  label: string;
+  aliases?: string;
+}
+
+interface ClassesSyncResult extends FileSyncResult {
+  // Rows named a property that doesn't exist yet. The hash must not be stored then: the file
+  // itself won't change when the property is added later, so a stored hash would skip it for good.
+  missingProperties: boolean;
+}
+
+const INTEGER_RE = /^-?\d+$/;
+const NUMERIC_RE = /^-?\d+(\.\d+)?$/;
+
+/**
+ * Validates one property's rows and builds its classes object, or returns the problems found.
+ * Labels and aliases must be unique per property once normalized, so that a raw label resolves
+ * to exactly one code, and must not be numbers, so that they can't be mistaken for a code.
+ */
+function buildClasses(rows: SoilPropertyClassRow[]): { classes: SoilPropertyClasses } | { issues: string[] } {
+  const classes: SoilPropertyClasses = {};
+  const codeByName = new Map<string, string>();
+  const issues: string[] = [];
+
+  for (const row of rows) {
+    const code = row.code?.trim();
+    const label = row.label?.trim();
+    if (!code || !INTEGER_RE.test(code)) {
+      issues.push(`code "${row.code}" is not an integer`);
+      continue;
+    }
+    const key = String(Number(code));
+    if (classes[key]) {
+      issues.push(`code ${key} appears more than once`);
+      continue;
+    }
+    if (!label) {
+      issues.push(`code ${key} has no label`);
+      continue;
+    }
+    const aliases = (row.aliases ?? '')
+      .split(';')
+      .map(alias => alias.trim())
+      .filter(Boolean);
+
+    for (const name of [label, ...aliases]) {
+      const normalized = normalizeClassLabel(name);
+      if (NUMERIC_RE.test(normalized)) {
+        issues.push(`"${name}" (code ${key}) is a number`);
+        continue;
+      }
+      const existing = codeByName.get(normalized);
+      if (existing !== undefined && existing !== key) {
+        issues.push(`"${name}" is used by codes ${existing} and ${key}`);
+      }
+      codeByName.set(normalized, key);
+    }
+    classes[key] = aliases.length > 0 ? { label, aliases } : { label };
+  }
+
+  return issues.length > 0 ? { issues } : { classes };
+}
+
+/**
+ * Sets soil_properties.classes for each property in the CSV, matched by property_acronym the same
+ * way unit conversions are. A property whose rows don't validate keeps its current classes; one
+ * that has classes but is no longer in the CSV is left untouched and reported as an orphan.
+ */
+async function syncSoilPropertyClasses(
+  manager: EntityManager,
+  dryRun: boolean,
+  storedHash: string | undefined,
+): Promise<ClassesSyncResult> {
+  const raw = readRawCsv(SOIL_PROPERTY_CLASSES_CSV);
+  const hash = hashContent(raw);
+  if (hash === storedHash) {
+    return { inserted: 0, updated: 0, orphaned: [], skipped: true, hash, missingProperties: false };
+  }
+
+  const rowsByAcronym = new Map<string, SoilPropertyClassRow[]>();
+  for (const row of parseCsv<SoilPropertyClassRow>(raw)) {
+    const acronym = row.property_code?.trim();
+    if (!acronym) continue;
+    rowsByAcronym.set(acronym, [...(rowsByAcronym.get(acronym) ?? []), row]);
+  }
+
+  const propertyRows: { id: string; property_acronym: string }[] = await manager.query(`SELECT id, property_acronym FROM soil_properties`);
+  const propertyIdByAcronym = new Map(propertyRows.map(row => [row.property_acronym, row.id]));
+  const missingAcronyms: string[] = [];
+  const seen = new Set<string>();
+  let updated = 0;
+
+  for (const [acronym, rows] of rowsByAcronym) {
+    const propertyId = propertyIdByAcronym.get(acronym);
+    if (!propertyId) {
+      missingAcronyms.push(acronym);
+      continue;
+    }
+    seen.add(propertyId);
+
+    const result = buildClasses(rows);
+    if ('issues' in result) {
+      log.error('Soil property classes not synced — fix the CSV rows', { acronym, issues: result.issues });
+      continue;
+    }
+    if (!dryRun) {
+      await manager.query(`UPDATE soil_properties SET classes = $2 WHERE id = $1`, [propertyId, JSON.stringify(result.classes)]);
+    }
+    updated++;
+  }
+
+  if (missingAcronyms.length > 0) {
+    log.warn('Soil property classes sync: no soil_properties row for these acronyms', { acronyms: missingAcronyms });
+  }
+
+  const withClasses: { id: string; property_acronym: string }[] = await manager.query(
+    `SELECT id, property_acronym FROM soil_properties WHERE classes IS NOT NULL`,
+  );
+  const orphaned = withClasses.filter(row => !seen.has(row.id)).map(row => row.property_acronym);
+
+  return { inserted: 0, updated, orphaned, skipped: false, hash, missingProperties: missingAcronyms.length > 0 };
+}
+
 export async function syncVocabularies(dryRun: boolean = false): Promise<void> {
   const dataSource = await getDataSource();
   // Advisory locks are session-scoped, so acquiring and releasing one needs a single pinned connection.
@@ -587,5 +716,18 @@ async function runSync(manager: EntityManager, dryRun: boolean): Promise<void> {
       log.warn('Unit conversions in the DB but no longer in the CSV — left untouched', { entries: unitConversions.orphaned });
     }
     await persistHash('unit_converisons', unitConversions.hash);
+  }
+
+  const classes = await syncSoilPropertyClasses(manager, dryRun, storedHashes.soil_property_classes);
+  if (classes.skipped) {
+    log.info('Soil property classes unchanged since last sync — skipped');
+  } else {
+    log.info(`Soil property classes ${label}`, { updated: classes.updated });
+    if (classes.orphaned.length > 0) {
+      log.warn('Soil properties with classes but no longer in the classes CSV — left untouched', { entries: classes.orphaned });
+    }
+    if (!classes.missingProperties) {
+      await persistHash('soil_property_classes', classes.hash);
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { Entity, Column, PrimaryColumn, Unique, ManyToOne, OneToMany, JoinColumn, Check, ForeignKey } from 'typeorm';
-import { SoilProperty } from '../interfaces/SoilProperty';
+import { SoilProperty, SoilPropertyClasses } from '../interfaces/SoilProperty';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import SoilPropertyCategoryEntity from './SoilPropertyCategory';
@@ -38,6 +38,9 @@ export default class SoilPropertyEntity extends BaseTable implements Omit<SoilPr
 
   @Column({ type: 'int', nullable: true })
   property_level?: number;
+
+  @Column({ type: 'jsonb', nullable: true })
+  classes?: SoilPropertyClasses | null;
 
   @Column({ type: 'text', nullable: true })
   parent_property_id?: string;

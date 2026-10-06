@@ -1905,6 +1905,7 @@ paths:
                     - type: object
                       required:
                         - cursor
+                        - record_id
                       properties:
                         cursor:
                           type: string
@@ -1912,6 +1913,10 @@ paths:
                             Base64-encoded keyset cursor for this record.
                             Pass the cursor from the last record as the `cursor`
                             query param to retrieve the next page.
+                        record_id:
+                          type: number
+                          description: >
+                            Row unique identifier (integer). Used to reference records to drop.
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -2734,6 +2739,10 @@ components:
         value:
           type: number
           description: Measured numerical value
+        value_label:
+          type: string
+          nullable: true
+          description: Class label of the value when the soil property is categorical (e.g. USDA texture 1 = Clay), otherwise null
         geometry:
           type: object
           description: Spatial representation of the sample location
@@ -2993,6 +3002,21 @@ components:
         category_id:
           type: string
           description: Category identifier
+        classes:
+          type: object
+          nullable: true
+          description: Classes of a categorical property, keyed by integer code (null when the property is not categorical)
+          additionalProperties:
+            type: object
+            required:
+              - label
+            properties:
+              label:
+                type: string
+              aliases:
+                type: array
+                items:
+                  type: string
         original_units_of_measurement:
           type: object
           additionalProperties:
@@ -3445,7 +3469,7 @@ components:
       properties:
         reason:
           type: string
-          enum: [depth_rounded, value_rounded, unit_converted]
+          enum: [depth_rounded, value_rounded, unit_converted, label_resolved]
         count:
           type: number
 
@@ -3463,7 +3487,7 @@ components:
       properties:
         reason:
           type: string
-          enum: [non_numeric, negative_value, zero_value, out_of_bounds]
+          enum: [non_numeric, negative_value, zero_value, out_of_bounds, below_lod, unknown_class]
         count:
           type: number
         property:

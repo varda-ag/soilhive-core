@@ -15,6 +15,35 @@ import { getErrorMessage } from '../../utils/error';
 
 const TILE_SIZE = 512;
 
+const escapeXml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * GDAL PAM sidecar holding a thematic raster attribute table for band 1: one row per class, a
+ * VALUE column (usage MinMax, so it matches the pixel value) and a CLASS column (usage Name).
+ * Field types: 0 = integer, 2 = string. Null when the result is not well-formed XML.
+ */
+export function buildClassAttributeTable(labels: Record<string, string>): string | null {
+  const rows = Object.entries(labels)
+    .map(([code, label], i) => `      <Row index="${i}"><F>${code}</F><F>${escapeXml(label)}</F></Row>`)
+    .join('\n');
+  const xml = `<PAMDataset>
+  <PAMRasterBand band="1">
+    <GDALRasterAttributeTable tableType="thematic">
+      <FieldDefn index="0"><Name>VALUE</Name><Type>0</Type><Usage>5</Usage></FieldDefn>
+      <FieldDefn index="1"><Name>CLASS</Name><Type>2</Type><Usage>2</Usage></FieldDefn>
+${rows}
+    </GDALRasterAttributeTable>
+  </PAMRasterBand>
+</PAMDataset>
+`;
+  try {
+    SyntaxValidator.validate(xml);
+  } catch {
+    return null;
+  }
+  return xml;
+}
+
 interface TileWriteContext {
   sourceImage: GeoTIFFImage;
   sourceSampleIndex: number; // 0-based sample index: the layer's 1-based band, converted once here.
@@ -130,6 +159,7 @@ export class RasterFileWriter {
     }
 
     await this.embedBandStatistics(filePath, layer);
+    await this.embedClassMetadata(filePath, layer);
   }
 
   /**
@@ -270,6 +300,7 @@ export class RasterFileWriter {
       }
 
       await this.embedBandStatistics(filePath, layer);
+      await this.embedClassMetadata(filePath, layer);
     } finally {
       for (const tile of tiles) {
         try {
@@ -465,6 +496,56 @@ ${sources}
       await GdalCLI.editInPlace(filePath, ['-stats']);
     } catch (error) {
       log.warn('Could not embed band statistics in exported raster; file ships without them', {
+        layerId: layer.id,
+        file: path.basename(filePath),
+        error: getErrorMessage(error),
+      });
+    }
+  }
+
+  /**
+   * Records what a layer's pixel values mean, from the soil property's classes, in two places:
+   *   - A `CLASSES` metadata item, JSON {"1": "Clay", ...}, inside the file itself: the
+   *     GDAL_METADATA tag for GeoTIFF, gpkg metadata for GeoPackage. PAM is disabled for this edit
+   *     so that GDAL stores it there or fails, rather than falling back to a sidecar.
+   *   - Categorical GeoTIFF layers only: a raster attribute table in a `.tif.aux.xml` sidecar,
+   *     which is how GIS tools (QGIS, ArcGIS) name the classes in a layer's legend. GeoTIFF can't
+   *     hold a RAT itself, and the GeoPackage driver drops one entirely, so GeoPackage gets the
+   *     metadata item only. Written by hand rather than through GDAL, which has no CLI to set a
+   *     RAT short of rewriting the pixels through a VRT; it lands in the bundle because the export
+   *     zips the whole output directory.
+   * Never fatal, like the statistics: the pixels are complete without it.
+   */
+  private async embedClassMetadata(filePath: string, layer: FilteredRasterLayer): Promise<void> {
+    const codes = Object.keys(layer.classes ?? {}).sort((a, b) => Number(a) - Number(b));
+    if (!layer.classes || codes.length === 0) return;
+    const labels = Object.fromEntries(codes.map(code => [code, layer.classes![code]!.label]));
+
+    try {
+      await GdalCLI.editInPlace(filePath, ['--config', 'GDAL_PAM_ENABLED', 'NO', '-mo', `CLASSES=${JSON.stringify(labels)}`]);
+
+      if (layer.is_categorical && this.fileFormat === RasterFileFormat.TIFF) {
+        const auxPath = `${filePath}.aux.xml`;
+        if (fs.existsSync(auxPath)) {
+          // Not expected (nothing above writes PAM); never overwrite what GDAL wrote.
+          log.warn('Exported raster already has a .aux.xml sidecar; class attribute table not written', {
+            layerId: layer.id,
+            file: path.basename(filePath),
+          });
+          return;
+        }
+        const attributeTable = buildClassAttributeTable(labels);
+        if (attributeTable === null) {
+          log.warn('Class attribute table is not well-formed XML; exported raster ships without it', {
+            layerId: layer.id,
+            file: path.basename(filePath),
+          });
+          return;
+        }
+        fs.writeFileSync(auxPath, attributeTable);
+      }
+    } catch (error) {
+      log.warn('Could not embed class metadata in exported raster; file ships without it', {
         layerId: layer.id,
         file: path.basename(filePath),
         error: getErrorMessage(error),

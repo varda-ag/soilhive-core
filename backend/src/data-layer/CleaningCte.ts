@@ -4,6 +4,7 @@ import { DetectableFields } from '../types/DataMapping';
 import { GISDataType } from '../types/data';
 import { getRawTableName } from '../utils/utils';
 import { OUTSIDE_LOD_VALUE } from '../constants/constants';
+import { buildClassLookup } from '../utils/soilPropertyClasses';
 
 interface CleaningCteBundle {
   /**
@@ -12,7 +13,7 @@ interface CleaningCteBundle {
    *   min_depth (int|null), max_depth (int|null),
    *   {p}_cleaned (numeric|null)              — cleaned value after all cell rules incl. dedup
    *   cell_delete_reasons (jsonb|null)        — {"prop": CellDeleteReason, ...}; null when empty
-   *   cell_modify_reasons (jsonb|null)        — {"prop": ["unit_converted"|"value_rounded", ...], "depth": ["depth_rounded"]}; null when empty
+   *   cell_modify_reasons (jsonb|null)        — {"prop": ["unit_converted"|"value_rounded"|"label_resolved", ...], "depth": ["depth_rounded"]}; null when empty
    *   row_delete_reason (text|null)           — from row-level checks; null on surviving rows
    *   final_row_delete_reason (text|null)     — null = row survives; string = deletion reason
    */
@@ -97,6 +98,45 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
   for (const [prop, cfg] of props) {
     const rawText = `raw.${prop}::text`;
     const rawNum = `(raw.${prop})::numeric`;
+
+    // Categorical property: the value must resolve to one of the property's classes, given as a
+    // code ("8", "8.000") or a label or alias ("Silty Loam"), matched case- and spacing-
+    // insensitively. Codes are not measurements, so none of the numeric rules below apply —
+    // conversion, range, zero or negative — and anything else is an unknown class.
+    if (cfg.classes && Object.keys(cfg.classes).length > 0) {
+      const lookup = `${p(JSON.stringify(buildClassLookup(cfg.classes)))}::jsonb`;
+      // Trimmed first, so a padded code (" 8.000 ") is still read as a number, not as a label.
+      const trimmed = `btrim(${rawText})`;
+      const isNumericRaw = `${trimmed} ~ ${NUMERIC_RE}`;
+      const trimmedNum = `(${trimmed})::numeric`;
+      // trim_scale so "8.000" looks up "8", while "1.5" stays "1.5" and matches no code. Cast only
+      // inside the CASE, which guarantees it never sees non-numeric text.
+      const lookupKey = `CASE WHEN ${isNumericRaw} THEN trim_scale(${trimmedNum})::text ELSE lower(regexp_replace(${trimmed}, '\\s+', ' ', 'g')) END`;
+      const classCode = `(${lookup} ->> (${lookupKey}))::numeric`;
+      const isMissing = `(raw.${prop} IS NULL OR ${trimmed} = '')`;
+      const isSentinel = `(CASE WHEN ${isNumericRaw} THEN ${trimmedNum} END) = ${OUTSIDE_LOD_VALUE}`;
+
+      c1.push(`
+      CASE
+        WHEN ${isMissing}  THEN NULL
+        WHEN ${isSentinel} THEN NULL
+        ELSE ${classCode}
+      END AS ${prop}_cleaned`);
+
+      c1.push(`
+      CASE
+        WHEN ${isMissing}            THEN NULL
+        WHEN ${isSentinel}           THEN '${CellDeleteReason.BELOW_LOD}'
+        WHEN ${classCode} IS NULL    THEN '${CellDeleteReason.UNKNOWN_CLASS}'
+        ELSE NULL
+      END AS ${prop}_cell_reason`);
+
+      c1.push(`FALSE AS ${prop}_unit_converted`);
+      c1.push(`FALSE AS ${prop}_value_rounded`);
+      c1.push(`(NOT ${isMissing} AND NOT (${isNumericRaw}) AND ${classCode} IS NOT NULL) AS ${prop}_label_resolved`);
+      continue;
+    }
+
     const formula = cfg.conversion_formula?.replace(/"/g, '').trim() ?? null;
     const converted = formula ? formula.replace(/x/g, rawNum) : rawNum;
 
@@ -148,6 +188,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     c1.push(formula && formula !== 'x' ? `(${isValid}) AS ${prop}_unit_converted` : `FALSE AS ${prop}_unit_converted`);
 
     c1.push(`((${isValid}) AND (${converted}) != ROUND((${converted}), 3)) AS ${prop}_value_rounded`);
+    c1.push(`FALSE AS ${prop}_label_resolved`);
   }
 
   // Full-row duplicate detection on raw (pre-cleaning) values so that an exact
@@ -216,7 +257,8 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
       ([prop]) =>
         `NULLIF(to_jsonb(ARRAY_REMOVE(ARRAY[
         CASE WHEN cc.${prop}_unit_converted THEN '${CellModifyReason.UNIT_CONVERTED}'::text ELSE NULL END,
-        CASE WHEN cc.${prop}_value_rounded  THEN '${CellModifyReason.VALUE_ROUNDED}'::text  ELSE NULL END
+        CASE WHEN cc.${prop}_value_rounded  THEN '${CellModifyReason.VALUE_ROUNDED}'::text  ELSE NULL END,
+        CASE WHEN cc.${prop}_label_resolved THEN '${CellModifyReason.LABEL_RESOLVED}'::text ELSE NULL END
       ], NULL)), '[]'::jsonb)`,
     ),
     `CASE WHEN cc.min_depth_rounded THEN '["${CellModifyReason.DEPTH_ROUNDED}"]'::jsonb ELSE NULL END`,

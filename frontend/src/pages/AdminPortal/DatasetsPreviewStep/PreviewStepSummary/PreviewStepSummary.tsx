@@ -74,6 +74,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
               { label: t('datasets.preview.summary.reasons.depth_rounded'), value: soilDataSummary.modifications.depth_rounded },
               { label: t('datasets.preview.summary.reasons.value_rounded'), value: soilDataSummary.modifications.value_rounded },
               { label: t('datasets.preview.summary.reasons.unit_converted'), value: soilDataSummary.modifications.unit_converted },
+              { label: t('datasets.preview.summary.reasons.label_resolved'), value: soilDataSummary.modifications.label_resolved },
             ],
           }}
         />
@@ -116,6 +117,7 @@ export function PreviewStepSummary({ removedByUser, soilDataSummary, isLoading }
               { label: t('datasets.preview.summary.reasons.zero_value'), value: soilDataSummary.cell_deletions.zero_value },
               { label: t('datasets.preview.summary.reasons.out_of_bounds'), value: soilDataSummary.cell_deletions.out_of_bounds },
               { label: t('datasets.preview.summary.reasons.below_lod'), value: soilDataSummary.cell_deletions.below_lod },
+              { label: t('datasets.preview.summary.reasons.unknown_class'), value: soilDataSummary.cell_deletions.unknown_class },
             ],
           }}
         />

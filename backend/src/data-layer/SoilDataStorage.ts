@@ -537,7 +537,8 @@ export default class SoilDataStorage {
         .addSelect('rl.reference_period_start', 'reference_period_start')
         .addSelect('rl.reference_period_stop', 'reference_period_stop')
         .addSelect('sp.property_name', 'soil_property_name')
-        .addSelect('sp.standard_unit', 'standard_unit');
+        .addSelect('sp.standard_unit', 'standard_unit')
+        .addSelect('sp.classes', 'classes');
 
       if (includeProcedureInfo) {
         candidateQuery
@@ -566,6 +567,7 @@ export default class SoilDataStorage {
         soil_property_name: row.soil_property_name,
         standard_unit: row.standard_unit,
         laboratory_method: row.laboratory_method ?? null,
+        classes: row.classes ?? null,
       }));
       return { layers, aoi: filteredGeom };
     });
@@ -948,6 +950,7 @@ const dataRowTranslation = (row: any, sort?: string): SoilDataSample => {
     property_name: row.property_name,
     standard_unit: row.standard_unit,
     value: parseFloat(row.value),
+    value_label: row.value_label ?? null,
     geometry: row.geometry,
     license_name: row.license_name,
     sampling_date: row.sampling_date,
@@ -1436,6 +1439,7 @@ const buildRawSoilQuery = (
       soil_property.property_name,
       soil_property.standard_unit,
       obs.value,
+      soil_property.classes -> trim_scale(obs.value)::text ->> 'label' AS value_label,
       ST_AsGeoJSON(feature_source.geom)::json AS geometry,
       COALESCE(license.name, license_fallback.name) AS license_name,
       layer.sampling_date,
