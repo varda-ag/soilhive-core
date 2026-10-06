@@ -89,8 +89,8 @@ export const initApp = async (app: Application) => {
     return;
   }
 
-  await initPgBoss();
   await initializeSchema();
+  await initPgBoss();
   try {
     await syncVocabularies();
   } catch (error) {
