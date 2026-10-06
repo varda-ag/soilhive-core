@@ -46,7 +46,15 @@ export function useSoilIndexTileSource(runId: string | undefined): PluginQueryRe
   );
 }
 
-export function useSoilIndexScore(runId: string | undefined, scoreId: number | undefined): PluginQueryResult<PluginSoilIndexScore> {
+// Scores are numbered from 1 as a Postgres integer. A grid cell's feature id is above every
+// score's, and a cell has no score to read (docs/adr/0043).
+const MAX_SCORE_ID = 2 ** 31 - 1;
+
+const isScoreId = (id: number | undefined): id is number => id !== undefined && Number.isInteger(id) && id >= 1 && id <= MAX_SCORE_ID;
+
+export function useSoilIndexScore(runId: string | undefined, hoveredId: number | undefined): PluginQueryResult<PluginSoilIndexScore> {
+  // A hovered cell reads as nothing hovered.
+  const scoreId = isScoreId(hoveredId) ? hoveredId : undefined;
   const { value: debouncedScoreId } = useDebounce(scoreId, HOVER_DEBOUNCE_MS);
   const { data, isLoading, isError } = useApiQuery<PluginSoilIndexScore>({
     endpoint: `/${REST_END_POINTS.SOIL_INDEXES}/${runId}/scores/${debouncedScoreId}`,

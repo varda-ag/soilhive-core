@@ -113,6 +113,19 @@ describe('useSoilIndexScore', () => {
     });
   });
 
+  it("never fetches a grid cell's feature id, which is no score's", () => {
+    const cellId = 2 ** 31 + 12345;
+    useApiQueryMock.mockReturnValue({ data: { id: cellId, value: 0.4, metadata: {} }, isLoading: false, isError: false });
+
+    const { result } = renderHook(() => useSoilIndexScore(RUN, cellId));
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(queryOptions().enabled).toBe(false);
+    expect(result.current.data).toBeUndefined();
+  });
+
   it('shows nothing for a score the pointer has left', () => {
     useApiQueryMock.mockReturnValue({ data: { id: 7, value: 0.4, metadata: {} }, isLoading: false, isError: false });
 

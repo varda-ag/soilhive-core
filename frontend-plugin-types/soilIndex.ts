@@ -14,9 +14,9 @@ export interface PluginVectorTileSource {
 export type PluginSoilIndexTileLayer = 'scores';
 
 // Properties of a feature in the 'scores' layer. Zoomed in, a feature is one score, and its
-// feature id is the score's id. Zoomed out, it is a grid cell summarising the scores of one year:
-// value is their mean, and count, min and max are present only on cells. An absent attribute has
-// no value.
+// feature id is the score's id. Zoomed out, it is a point summarising one year's scores in one grid
+// cell, at their centroid: value is their mean, and count, min and max are present only on cells.
+// An absent attribute has no value.
 export interface PluginSoilIndexTileFeature {
   value: number;
   year?: number;

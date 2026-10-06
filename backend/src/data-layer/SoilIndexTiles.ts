@@ -18,7 +18,8 @@ const gunzipAsync = promisify(gunzip);
 /**
  * Bumped whenever how tiles are produced changes. Tiles are immutable to clients, so a new
  * version in their URLs is the only way such a change reaches a browser that cached the old ones
- * (docs/adr/0043).
+ * (docs/adr/0043). Pre-rendered tiles are stamped with it: after a bump, a Run's are cut on request
+ * until they are rendered again.
  */
 export const TILING_VERSION = 1;
 
@@ -147,9 +148,14 @@ const rawTileSql = (run: string): string =>
    WHERE features.geom IS NOT NULL`;
 
 /**
- * One square per (cell, year), summarising the Scored Geometries whose representative point is in
- * it. Membership is by that point alone, so each score is counted in exactly one cell of exactly
- * one tile; a cell's square is the tile envelope six zooms further in. $4..$7 are the tile's
+ * One point per (cell, year), summarising the Scored Geometries whose representative point is in
+ * the cell, a tile six zooms further in. Membership is by that point alone, so each score is
+ * counted in exactly one cell of exactly one tile.
+ *
+ * The point is the centroid of the members' representative points, in Web Mercator: inside the
+ * cell, and where its scores are. The cell's centre would draw a regular lattice, and its square a
+ * coarse raster that jumps to dots at the detail zoom. It carries the members' summary, never one
+ * member's own value, which would colour an area by one arbitrary score. $4..$7 are the tile's
  * extent in EPSG:4326, for the index.
  */
 const cellTileSql = (run: string): string => {
@@ -162,9 +168,10 @@ const cellTileSql = (run: string): string => {
             max(value)::real AS "max",
             count(*)::int AS "count",
             year,
-            ST_AsMVTGeom(ST_TileEnvelope(${cellZoom}, cx, cy), ST_TileEnvelope($1::int, $2::int, $3::int), ${EXTENT}, 0, false) AS geom
+            ST_AsMVTGeom(ST_SetSRID(ST_MakePoint(avg(ST_X(projected)), avg(ST_Y(projected))), 3857), ST_TileEnvelope($1::int, $2::int, $3::int), ${EXTENT}, 0, false) AS geom
      FROM (
        SELECT scored.value, scored.year,
+              ST_Transform(${withinMercatorSql('scored.point')}, 3857) AS projected,
               ${tileColumnSql('scored.point', cellZoom)} AS cx,
               ${tileRowSql('scored.point', cellZoom)} AS cy
        FROM ${scoredGeometriesSql(run)} scored
@@ -189,11 +196,15 @@ export async function renderTile(entityManager: EntityManager, run: string, deta
   return row?.mvt && row.mvt.length > 0 ? row.mvt : null;
 }
 
-/** A pre-rendered tile, gzipped, or null when this one is cut on request. */
+/**
+ * A pre-rendered tile, gzipped, or null when this one is cut on request. One rendered by another
+ * tiling version, before a bump or by a worker still on the old code, is cut on request instead
+ * (docs/adr/0043).
+ */
 export async function findPrerenderedTile(entityManager: EntityManager, run: string, tile: TileAddress): Promise<Buffer | null> {
   const [row]: { data: Buffer }[] = await entityManager.query(
-    `SELECT data FROM "${process.env.POSTGRES_SCHEMA}"."soil_index_tiles" WHERE run = $1 AND z = $2 AND x = $3 AND y = $4`,
-    [run, tile.z, tile.x, tile.y],
+    `SELECT data FROM "${process.env.POSTGRES_SCHEMA}"."soil_index_tiles" WHERE run = $1 AND z = $2 AND x = $3 AND y = $4 AND version = $5`,
+    [run, tile.z, tile.x, tile.y, TILING_VERSION],
   );
   return row?.data ?? null;
 }
@@ -255,11 +266,12 @@ export async function prerenderSoilIndexTiles(
       if (!mvt) {
         continue;
       }
-      await entityManager.query(`INSERT INTO ${partition} ("run", "z", "x", "y", "data") VALUES ($1, $2, $3, $4, $5)`, [
+      await entityManager.query(`INSERT INTO ${partition} ("run", "z", "x", "y", "version", "data") VALUES ($1, $2, $3, $4, $5, $6)`, [
         run,
         tile.z,
         tile.x,
         tile.y,
+        TILING_VERSION,
         await gzipTile(mvt),
       ]);
       rendered += 1;

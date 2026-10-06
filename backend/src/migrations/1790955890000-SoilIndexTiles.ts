@@ -64,12 +64,16 @@ export class SoilIndexTiles1790955890000 implements MigrationInterface {
     //
     // Pre-rendered tiles, gzipped MVT, one partition per Run. As with soil_index, a partition is
     // filled standalone and then attached, so an attached partition means pre-rendering is done.
+    // Each tile carries the tiling version that rendered it, and only the current one is served:
+    // tiles are immutable to clients, so one left from an older version would be cached under
+    // the new version's URL for good (docs/adr/0043).
     await queryRunner.query(
       `CREATE TABLE "soil_index_tiles" (
          "run" uuid NOT NULL,
          "z" smallint NOT NULL,
          "x" integer NOT NULL,
          "y" integer NOT NULL,
+         "version" smallint NOT NULL,
          "data" bytea NOT NULL,
          CONSTRAINT "PK_soil_index_tiles" PRIMARY KEY ("run", "z", "x", "y")
        ) PARTITION BY LIST ("run")`,

@@ -422,7 +422,7 @@ A failure is recorded in `soil_index_runs` too, with its message, so it can stil
 | `GET /soil-indexes/{runId}/tiles/{version}/{z}/{x}/{y}` | One gzipped MVT tile with one layer, `scores`, or `204` when nothing in it is drawn. Immutable. |
 | `GET /soil-indexes/{runId}/scores/{scoreId}` | One score's `value`, `year` and `metadata`, for example for a hover tooltip. Immutable. |
 
-From the run's **detail zoom** up, a tile's features are the scored geometries themselves, each with its score id as feature id. Below it, they are grid cells of 1/64 of the tile, one per cell and year, with the mean as `value` plus `min`, `max` and `count`. The detail zoom is the first zoom at which no tile holds more than `TILES_AGGREGATION_MAX_VERTICES` vertices. It is fixed when the run is written. Tiles are cut on request unless `soil-index-tiles` has stored them, and at most `TILES_CONCURRENCY` tile queries run at once per node. Runs written before tiles existed have no `soil_index_runs` row and serve no tiles.
+From the run's **detail zoom** up, a tile's features are the scored geometries themselves, each with its score id as feature id. Below it, they are points, one per grid cell (1/64 of the tile) and year, at the centroid of the scores in it, with their mean as `value` plus `min`, `max` and `count`. The detail zoom is the first zoom at which no tile holds more than `TILES_AGGREGATION_MAX_VERTICES` vertices. It is fixed when the run is written. Tiles are cut on request unless `soil-index-tiles` has stored them, and at most `TILES_CONCURRENCY` tile queries run at once per node. Runs written before tiles existed have no `soil_index_runs` row and serve no tiles.
 
 ---
 
@@ -434,7 +434,9 @@ Pre-renders the heaviest tiles of one completed soil index run. Internal: enqueu
 
 1. Count the vertices in every tile of the run at every zoom, in one scan.
 2. Render every tile above `TILES_PRERENDER_MIN_VERTICES`, lowest zooms first, at most `TILES_PRERENDER_MAX_TILES`. Above the cap it logs a warning, and the remaining tiles are cut on request.
-3. Store them gzipped in a fresh `soil_index_tiles` partition for the run, then attach it. An attached partition means pre-rendering is done.
+3. Store them gzipped in a fresh `soil_index_tiles` partition for the run, each stamped with the tiling version, then attach it. An attached partition means pre-rendering is done.
+
+Only tiles stamped with the current tiling version are served. After a bump, a run's stored tiles are cut on request until it is pre-rendered again.
 
 Runs one job at a time per node.
 

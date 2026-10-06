@@ -406,9 +406,9 @@ if (soilIndexRun?.status === 'completed') return <SoilIndexLayer context={contex
 A completed Soil Index Run has vector tiles. Two hooks cover them:
 
 - `context.useSoilIndexTileSource(runId)` returns a MapLibre vector source, ready to spread into `<Source>`. Pass `undefined` to skip fetching.
-- `context.useSoilIndexScore(runId, scoreId)` reads one score's `value`, `year` and `metadata`, for example for a hover tooltip. Pass the hovered feature's id, or `undefined` when nothing is hovered. The host debounces it and fetches each score at most once.
+- `context.useSoilIndexScore(runId, scoreId)` reads one score's `value`, `year` and `metadata`, for example for a hover tooltip. Pass the hovered feature's id, or `undefined` when nothing is hovered. A grid cell has no score of its own, so a cell's id reads as nothing hovered. The host debounces it and fetches each score at most once.
 
-The tiles have one source-layer, `scores`. Zoomed in, each feature is one score: its feature id is the score's id, and it has `value` and an optional `year`. Zoomed out, each feature is a grid cell summarising one year's scores: `value` is their mean, and the cell also has `min`, `max` and `count`. Only cells have `count`, so `['has', 'count']` tells the two apart. Filter years and group them into Year Windows in the style itself, without new requests.
+The tiles have one source-layer, `scores`. Zoomed in, each feature is one score: its feature id is the score's id, and it has `value` and an optional `year`. Zoomed out, each feature is a point summarising one year's scores in one grid cell, placed at their centroid: `value` is their mean, and the cell also has `min`, `max` and `count`. Only cells have `count`, so `['has', 'count']` tells the two apart, and `count` can size them. Filter years and group them into Year Windows in the style itself, without new requests.
 
 Anyone holding the Run id can see its tiles and scores, as with its other results (see `soilhive-core` ADR 0043).
 
@@ -421,14 +421,14 @@ import type { PluginContext } from 'frontend-plugin-types';
 const SoilIndexLayer: React.FC<{ context: PluginContext; runId: string }> = ({ context, runId }) => {
   const { current: map } = useMap();
   const { data: source } = context.useSoilIndexTileSource(runId);
-  const [hovered, setHovered] = useState<{ id: number; isScore: boolean }>();
-  const { data: score } = context.useSoilIndexScore(runId, hovered?.isScore ? hovered.id : undefined);
+  const [hovered, setHovered] = useState<number>();
+  const { data: score } = context.useSoilIndexScore(runId, hovered);
 
   useEffect(() => {
     if (!map || !source) return;
     const onMove = (event: MapLayerMouseEvent) => {
       const feature = event.features?.[0];
-      setHovered(feature ? { id: Number(feature.id), isScore: feature.properties.count === undefined } : undefined);
+      setHovered(feature ? Number(feature.id) : undefined);
     };
     const onLeave = () => setHovered(undefined);
     map.on('mousemove', 'soil-index', onMove);
@@ -440,8 +440,8 @@ const SoilIndexLayer: React.FC<{ context: PluginContext; runId: string }> = ({ c
   }, [map, source]);
 
   useEffect(() => {
-    if (!map || !hovered) return;
-    const target = { source: 'soil-index', sourceLayer: 'scores', id: hovered.id };
+    if (!map || hovered === undefined) return;
+    const target = { source: 'soil-index', sourceLayer: 'scores', id: hovered };
     map.setFeatureState(target, { hover: true });
     return () => map.removeFeatureState(target, 'hover');
   }, [map, hovered]);
@@ -452,13 +452,15 @@ const SoilIndexLayer: React.FC<{ context: PluginContext; runId: string }> = ({ c
       <Source id="soil-index" {...source}>
         <Layer
           id="soil-index"
-          type="fill"
+          type="circle"
           source-layer="scores"
           // 2016–2020 only. For 3-year windows, colour by ['*', ['floor', ['/', ['get', 'year'], 3]], 3].
           filter={['all', ['>=', ['get', 'year'], 2016], ['<=', ['get', 'year'], 2020]]}
           paint={{
-            'fill-color': ['interpolate', ['linear'], ['get', 'value'], 0, '#f7fcb9', 1, '#31a354'],
-            'fill-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.9, 0.6],
+            'circle-color': ['interpolate', ['linear'], ['get', 'value'], 0, '#f7fcb9', 1, '#31a354'],
+            // A score is 3 px; a cell grows with the scores it summarises.
+            'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'count'], 1], 1, 3, 100, 8],
+            'circle-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.9, 0.6],
           }}
         />
       </Source>
@@ -468,7 +470,7 @@ const SoilIndexLayer: React.FC<{ context: PluginContext; runId: string }> = ({ c
 };
 ```
 
-This draws polygons and cells. If the Run scores points, add a `circle` layer filtered on `['==', ['geometry-type'], 'Point']`.
+This draws scored points and cells, which are points at every zoom. If the Run scores polygons, add a `fill` layer filtered on `['==', ['geometry-type'], 'Polygon']` for them, and filter this one on `['==', ['geometry-type'], 'Point']`.
 
 ## Registering your plugin with the host
 

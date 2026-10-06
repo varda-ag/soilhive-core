@@ -83,7 +83,8 @@ export interface PluginContext {
   // do not fetch. The Run id is the whole permission: anyone holding it can see the tiles.
   useSoilIndexTileSource: (runId: string | undefined) => PluginQueryResult<PluginVectorTileSource>;
   // One score of that Run, e.g. for a hover tooltip: pass the hovered feature's id, or undefined
-  // when nothing is hovered. Debounced by the host, and fetched at most once per score.
+  // when nothing is hovered; a grid cell's id reads as nothing hovered, as a cell has no score of
+  // its own. Debounced by the host, and fetched at most once per score.
   useSoilIndexScore: (runId: string | undefined, scoreId: number | undefined) => PluginQueryResult<PluginSoilIndexScore>;
   // Absolute URL of a dataset's metadata page. Provided by the host because the
   // origin comes from its runtime configuration, which a remote plugin cannot read.

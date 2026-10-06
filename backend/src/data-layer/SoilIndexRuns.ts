@@ -1,4 +1,4 @@
-import { EntityManager } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { validate } from 'uuid';
 import { PG_BOSS_SCHEMA } from '../services/PgBoss';
 import { DataRequestStatus, JobQueues } from '../types/enums';
@@ -131,18 +131,84 @@ export const findAttachedSoilIndexRuns = async (entityManager: EntityManager, co
  * Destroys one Run's record, scores and pre-rendered tiles together (docs/adr/0044). The record
  * goes first: pre-rendering locks it before attaching its tiles, so it either finishes before this
  * or finds nothing to attach to. Returns whether there was anything to destroy.
+ *
+ * The record is deleted in `entityManager`'s transaction, the partitions outside it (see
+ * dropRunPartition): that transaction must not have read `soil_index` or `soil_index_tiles`.
  */
 export const destroySoilIndexRun = async (entityManager: EntityManager, run: string): Promise<boolean> => {
   // `run` reaches the DDL below by string interpolation.
   if (!validate(run)) {
     return false;
   }
-  const schema = process.env.POSTGRES_SCHEMA;
   const [, deleted]: [unknown, number] = await entityManager.query(`DELETE FROM ${runsTable()} WHERE "run" = $1::uuid`, [run]);
-  const [partition]: { scored: boolean }[] = await entityManager.query(`SELECT to_regclass($1) IS NOT NULL AS scored`, [
-    `"${schema}"."${soilIndexPartition(run)}"`,
-  ]);
-  await entityManager.query(`DROP TABLE IF EXISTS "${schema}"."${soilIndexTilesPartition(run)}"`);
-  await entityManager.query(`DROP TABLE IF EXISTS "${schema}"."${soilIndexPartition(run)}"`);
-  return deleted > 0 || !!partition?.scored;
+  await dropRunPartition(entityManager.connection, 'soil_index_tiles', soilIndexTilesPartition(run));
+  const scored = await dropRunPartition(entityManager.connection, 'soil_index', soilIndexPartition(run));
+  return deleted > 0 || scored;
+};
+
+/** Postgres' object_not_in_prerequisite_state: a partition of the parent is left pending detach. */
+const PENDING_DETACH = '55000';
+
+/**
+ * Detaches one of a Run's partitions from `parent`, then drops it. Returns whether it existed.
+ *
+ * Dropping it while attached takes ACCESS EXCLUSIVE on `parent` until commit, which queues every
+ * read of every Run behind any transaction already reading `parent`, and a Data Request over
+ * scores holds one for minutes. DETACH ... CONCURRENTLY waits for those readers without blocking
+ * anyone else.
+ *
+ * CONCURRENTLY refuses a transaction block, so this runs on a connection of its own. It also runs
+ * without the pool's statement_timeout: a detach cut off while it waits stays pending, and while
+ * one is pending no partition of `parent` can be detached. One left pending by a crash is
+ * finalized here, and the detach retried. A caller whose own open transaction holds a lock on
+ * `parent` would make the detach wait for it forever.
+ */
+const dropRunPartition = async (dataSource: DataSource, parent: string, partition: string): Promise<boolean> => {
+  const schema = process.env.POSTGRES_SCHEMA;
+  const parentTable = `"${schema}"."${parent}"`;
+  const partitionTable = `"${schema}"."${partition}"`;
+  const runner = dataSource.createQueryRunner();
+  await runner.connect();
+  try {
+    await runner.query('SET statement_timeout = 0');
+    const isAttached = async (): Promise<boolean> => {
+      const [row]: { attached: boolean }[] = await runner.query(
+        `SELECT EXISTS (SELECT 1 FROM pg_inherits WHERE inhparent = to_regclass($1) AND inhrelid = to_regclass($2)) AS attached`,
+        [parentTable, partitionTable],
+      );
+      return row!.attached;
+    };
+    const detach = () => runner.query(`ALTER TABLE ${parentTable} DETACH PARTITION ${partitionTable} CONCURRENTLY`);
+
+    if (await isAttached()) {
+      try {
+        await detach();
+      } catch (error) {
+        if ((error as { code?: string })?.code !== PENDING_DETACH) {
+          throw error;
+        }
+        const pending: { name: string }[] = await runner.query(
+          `SELECT inhrelid::regclass::text AS name FROM pg_inherits WHERE inhparent = to_regclass($1) AND inhdetachpending`,
+          [parentTable],
+        );
+        for (const { name } of pending) {
+          await runner.query(`ALTER TABLE ${parentTable} DETACH PARTITION ${name} FINALIZE`);
+        }
+        // The one pending may have been this partition.
+        if (await isAttached()) {
+          await detach();
+        }
+      }
+    }
+
+    const [table]: { existed: boolean }[] = await runner.query(`SELECT to_regclass($1) IS NOT NULL AS existed`, [partitionTable]);
+    await runner.query(`DROP TABLE IF EXISTS ${partitionTable}`);
+    return table!.existed;
+  } finally {
+    try {
+      await runner.query('RESET statement_timeout');
+    } finally {
+      await runner.release();
+    }
+  }
 };

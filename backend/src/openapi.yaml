@@ -857,9 +857,9 @@ paths:
       description: >-
         One Mapbox Vector Tile with a single layer, `scores`. From the run's detail zoom up, each
         feature is one scored geometry with `value` and `year`, and its id is the score's id.
-        Below it, each feature is a grid cell summarising the scores of one year whose
-        representative point is in it, with `value` (their mean), `min`, `max`, `count` and
-        `year`. Absent attributes have no value. Tiles never change, and are sent gzipped to
+        Below it, each feature is a point summarising the scores of one year whose
+        representative point is in one grid cell, placed at their centroid, with `value` (their
+        mean), `min`, `max`, `count` and `year`. Absent attributes have no value. Tiles never change, and are sent gzipped to
         clients that accept it.
       tags:
         - soil-indexes
@@ -887,7 +887,10 @@ paths:
         schema:
           type: integer
           minimum: 1
-        description: The score's id, which is its feature id in the run's tiles
+          maximum: 2147483647
+        description: >-
+          The score's id, which is its feature id in the run's tiles. A grid cell's feature id is
+          above the maximum, since a cell has no score of its own.
     get:
       x-eov-operation-handler: controllers/soil-indexes
       x-eov-operation-id: getSoilIndexScore
@@ -2415,7 +2418,7 @@ components:
       schema:
         type: string
         format: uuid
-      description: ID of a completed soil index run, which is the id of the job that ran it
+      description: ID of a soil index run, which is the id of the job that ran it
   responses:
     NotFound:
       description: The specified resource was not found

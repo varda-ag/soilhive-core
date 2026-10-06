@@ -107,6 +107,14 @@ describe('/soil-indexes/{runId}/scores/{scoreId}', () => {
 
     await request(app).get(`/soil-indexes/${run}/scores/2`).expect(404);
   });
+
+  it("is 400 for a grid cell's feature id, which is no score's", async () => {
+    const run = await writeRun();
+
+    await request(app)
+      .get(`/soil-indexes/${run}/scores/${2 ** 31}`)
+      .expect(400);
+  });
 });
 
 // ── The Run itself: POST, GET and DELETE (docs/adr/0044) ─────────────────────
