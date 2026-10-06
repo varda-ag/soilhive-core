@@ -250,9 +250,9 @@ export default class JobService {
 
   /**
    * Queues not served by `/jobs` or `/jobs/{jobId}`: their jobs have their own endpoints, whose
-   * rules contradict these (docs/adr/0037).
+   * rules contradict these (docs/adr/0037, 0044).
    */
-  private static readonly QUEUES_NOT_SERVED: string[] = [JobQueues.DATA_REQUESTS];
+  private static readonly QUEUES_NOT_SERVED: string[] = [JobQueues.DATA_REQUESTS, JobQueues.SOIL_INDEXES];
 
   getJobs = async (requestData: RequestData): Promise<Job[]> => {
     const subject = subjectOf(requestData);

@@ -9,4 +9,5 @@ export const REST_END_POINTS = {
   DOWNLOADS: 'downloads',
   JOBS: 'jobs',
   DATA_REQUESTS: 'data-requests',
+  SOIL_INDEXES: 'soil-indexes',
 };

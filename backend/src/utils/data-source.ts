@@ -69,8 +69,9 @@ export const initializeSchema = async (schema: string = process.env.POSTGRES_SCH
 /**
  * DataSource.initialize() points every BaseEntity subclass's static `dataSource` at itself, so the
  * migrations DataSource above steals that binding from the runtime singleton. If the singleton was
- * already initialized (pg-boss workers start before initializeSchema in app.ts), every
- * ActiveRecord `.save()` would otherwise hit the destroyed migrations pool: "Driver not Connected".
+ * already initialized (app.ts no longer does that before initializeSchema, but any caller that
+ * touches the database first would), every ActiveRecord `.save()` would otherwise hit the
+ * destroyed migrations pool: "Driver not Connected".
  */
 const rebindBaseEntities = () => {
   if (!dataSource?.isInitialized) return;
