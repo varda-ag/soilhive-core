@@ -12,7 +12,7 @@ import { LayerFields } from '../types/DataMapping';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { buildCleaningCte } from './CleaningCte';
 import { CleaningReport, RowDeleteReason, CellDeleteReason, CellModifyReason } from '../interfaces/CleaningReport';
-import { isStorableClassValue } from '../utils/soilPropertyClasses';
+import { hasClasses, isStorableClassValue } from '../utils/soilPropertyClasses';
 
 export default class VectorDataLoad {
   getDataPreview = async (
@@ -239,7 +239,7 @@ export default class VectorDataLoad {
     for (const [col, data] of Object.entries(dataMappingConfig.property_cols)) {
       const value = sanitizedRecord[col];
       // Throwing fails the whole request, whose transaction then rolls back every record in it.
-      if (data.classes ? !isStorableClassValue(data.classes, value, col) : !value) continue;
+      if (hasClasses(data.classes) ? !isStorableClassValue(data.classes, value, col) : !value) continue;
 
       const soilPropertyId: string = data.property_id!;
 

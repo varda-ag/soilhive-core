@@ -12,6 +12,7 @@ import { sanitizeField, sanitizeFilename } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
 import { log } from '../../utils/logger';
 import { getErrorMessage } from '../../utils/error';
+import { hasClasses } from '../../utils/soilPropertyClasses';
 
 const TILE_SIZE = 512;
 
@@ -147,15 +148,7 @@ export class RasterFileWriter {
     const dstTranslate = targetCrs ? path.join(this.outputDir, `${layerName}.tmp.${this.getFileExtension()}`) : filePath;
     await GdalCLI.translate(mainFilePath, dstTranslate, translateArgs);
     if (targetCrs) {
-      try {
-        await GdalCLI.warp(dstTranslate, filePath, this.warpToTargetCrsArgs(targetCrs, layer.is_categorical));
-      } finally {
-        try {
-          fs.unlinkSync(dstTranslate);
-        } catch {
-          // ignore cleanup errors
-        }
-      }
+      await this.reprojectToTargetCrs(dstTranslate, filePath, layer, layerName, targetCrs);
     }
 
     await this.embedBandStatistics(filePath, layer);
@@ -285,15 +278,7 @@ export class RasterFileWriter {
           ]);
         }
         if (targetCrs) {
-          try {
-            await GdalCLI.warp(dstTranslate, filePath, this.warpToTargetCrsArgs(targetCrs, layer.is_categorical));
-          } finally {
-            try {
-              fs.unlinkSync(dstTranslate);
-            } catch {
-              // ignore cleanup errors
-            }
-          }
+          await this.reprojectToTargetCrs(dstTranslate, filePath, layer, layerName, targetCrs);
         }
       } finally {
         fs.unlinkSync(vrtPath);
@@ -508,7 +493,7 @@ ${sources}
    *   - A `CLASSES` metadata item, JSON {"1": "Clay", ...}, inside the file itself: the
    *     GDAL_METADATA tag for GeoTIFF, gpkg metadata for GeoPackage. PAM is disabled for this edit
    *     so that GDAL stores it there or fails, rather than falling back to a sidecar.
-   *   - Categorical GeoTIFF layers only: a raster attribute table in a `.tif.aux.xml` sidecar,
+   *   - GeoTIFF only: a raster attribute table in a `.tif.aux.xml` sidecar,
    *     which is how GIS tools (QGIS, ArcGIS) name the classes in a layer's legend. GeoTIFF can't
    *     hold a RAT itself, and the GeoPackage driver drops one entirely, so GeoPackage gets the
    *     metadata item only. Written by hand rather than through GDAL, which has no CLI to set a
@@ -517,14 +502,15 @@ ${sources}
    * Never fatal, like the statistics: the pixels are complete without it.
    */
   private async embedClassMetadata(filePath: string, layer: FilteredRasterLayer): Promise<void> {
-    const codes = Object.keys(layer.classes ?? {}).sort((a, b) => Number(a) - Number(b));
-    if (!layer.classes || codes.length === 0) return;
-    const labels = Object.fromEntries(codes.map(code => [code, layer.classes![code]!.label]));
+    const classes = layer.classes;
+    if (!hasClasses(classes)) return;
+    const codes = Object.keys(classes).sort((a, b) => Number(a) - Number(b));
+    const labels = Object.fromEntries(codes.map(code => [code, classes[code]!.label]));
 
     try {
       await GdalCLI.editInPlace(filePath, ['--config', 'GDAL_PAM_ENABLED', 'NO', '-mo', `CLASSES=${JSON.stringify(labels)}`]);
 
-      if (layer.is_categorical && this.fileFormat === RasterFileFormat.TIFF) {
+      if (this.fileFormat === RasterFileFormat.TIFF) {
         const auxPath = `${filePath}.aux.xml`;
         if (fs.existsSync(auxPath)) {
           // Not expected (nothing above writes PAM); never overwrite what GDAL wrote.
@@ -554,10 +540,52 @@ ${sources}
   }
 
   /**
+   * Reprojects `src` (an intermediate, always removed) to the target CRS at `filePath`, in this
+   * writer's format. gdalwarp can only write GeoTIFF here, so a GeoPackage export warps into a
+   * second intermediate GeoTIFF and converts that, with the same table options as every other
+   * GeoPackage this writer produces — warping straight to `filePath` would leave a GeoTIFF behind a
+   * `.gpkg` name, which only went unnoticed when mergeGPKG happened to convert it afterwards.
+   */
+  private async reprojectToTargetCrs(
+    src: string,
+    filePath: string,
+    layer: FilteredRasterLayer,
+    layerName: string,
+    targetCrs: number,
+  ): Promise<void> {
+    const warpArgs = this.warpToTargetCrsArgs(targetCrs, hasClasses(layer.classes));
+    const warped = this.fileFormat === RasterFileFormat.GPKG ? path.join(this.outputDir, `${layerName}.tmp.warp.tif`) : filePath;
+    try {
+      await GdalCLI.warp(src, warped, warpArgs);
+      if (warped !== filePath) {
+        await GdalCLI.translate(warped, filePath, [
+          '-of',
+          'GPKG',
+          '-co',
+          `RASTER_TABLE=${layerName}`,
+          '-co',
+          'TILE_FORMAT=TIFF',
+          '-ot',
+          'Float32',
+        ]);
+      }
+    } finally {
+      for (const intermediate of warped === filePath ? [src] : [src, warped]) {
+        try {
+          fs.unlinkSync(intermediate);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+  }
+
+  /**
    * Nearest-neighbour for a categorical layer (never invent a class value between two others);
    * bilinear otherwise — mirrors RasterIngestService.convertRaster's ingest-time resampling choice.
-   * `isCategorical` is persisted on raster_layers at ingest time from the band mapping, so it's read
-   * back here rather than re-derived.
+   * Decided from the property's classes as they are now, not from `is_categorical`, which records
+   * them as they were at ingest: a property given classes since is still reprojected without
+   * interpolation, since the warp reads full-resolution pixels, not the ingest-time overviews.
    */
   private warpToTargetCrsArgs(targetCrs: number, isCategorical: boolean): string[] {
     return [

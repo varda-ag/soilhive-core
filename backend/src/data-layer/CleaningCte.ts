@@ -4,7 +4,7 @@ import { DetectableFields } from '../types/DataMapping';
 import { GISDataType } from '../types/data';
 import { getRawTableName } from '../utils/utils';
 import { OUTSIDE_LOD_VALUE } from '../constants/constants';
-import { buildClassLookup } from '../utils/soilPropertyClasses';
+import { buildClassLookup, hasClasses } from '../utils/soilPropertyClasses';
 
 interface CleaningCteBundle {
   /**
@@ -103,7 +103,7 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     // code ("8", "8.000") or a label or alias ("Silty Loam"), matched case- and spacing-
     // insensitively. Codes are not measurements, so none of the numeric rules below apply —
     // conversion, range, zero or negative — and anything else is an unknown class.
-    if (cfg.classes && Object.keys(cfg.classes).length > 0) {
+    if (hasClasses(cfg.classes)) {
       const lookup = `${p(JSON.stringify(buildClassLookup(cfg.classes)))}::jsonb`;
       // Trimmed first, so a padded code (" 8.000 ") is still read as a number, not as a label.
       const trimmed = `btrim(${rawText})`;

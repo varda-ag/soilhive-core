@@ -4,6 +4,15 @@ import { SoilRecord } from '../interfaces/Record';
 import { StatusCodes } from 'http-status-codes';
 import { ErrorResponse } from './error';
 
+/**
+ * Whether a soil property is categorical: its values are class codes rather than measurements, so
+ * they are validated as codes, labelled, and never interpolated between. The single test for it,
+ * for vector and raster data alike — not the CATEGORY_MAPPING conversion type, which describes a
+ * conversion, not the property.
+ */
+export const hasClasses = (classes: SoilPropertyClasses | null | undefined): classes is SoilPropertyClasses =>
+  !!classes && Object.keys(classes).length > 0;
+
 /** The form labels and aliases are compared in: case, surrounding and repeated whitespace ignored. */
 export const normalizeClassLabel = (label: string): string => label.trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -66,7 +75,7 @@ export const isStorableClassValue = (classes: SoilPropertyClasses, value: unknow
  * since getDataPreview has already built them from the codes.
  */
 export const substituteClassLabels = (records: SoilRecord[], propertyCols: Record<string, PropertyCleaningConfig>): SoilRecord[] => {
-  const categoricalCols = Object.entries(propertyCols).filter(([, cfg]) => cfg.classes);
+  const categoricalCols = Object.entries(propertyCols).filter(([, cfg]) => hasClasses(cfg.classes));
   if (categoricalCols.length === 0) return records;
   for (const record of records) {
     for (const [col, cfg] of categoricalCols) {

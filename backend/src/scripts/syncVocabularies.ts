@@ -730,4 +730,45 @@ async function runSync(manager: EntityManager, dryRun: boolean): Promise<void> {
       await persistHash('soil_property_classes', classes.hash);
     }
   }
+
+  // Only when either file changed, so an unchanged boot still costs nothing but hash comparisons.
+  if (!unitConversions.skipped || !classes.skipped) {
+    await warnCategoricalMismatches(manager);
+  }
+}
+
+/**
+ * Warns about soil properties where the CATEGORY_MAPPING conversion type and classes disagree.
+ * Classes alone decide whether a property is categorical; the conversion type is kept only as a
+ * description of the conversion, so a mismatch changes no behaviour — but it most likely means one
+ * of the two CSVs was updated without the other.
+ */
+async function warnCategoricalMismatches(manager: EntityManager): Promise<void> {
+  const rows: { property_acronym: string; has_category_mapping: boolean }[] = await manager.query(
+    `SELECT property_acronym, has_category_mapping
+     FROM (
+       SELECT sp.property_acronym,
+              sp.classes IS NOT NULL AS has_classes,
+              EXISTS (
+                SELECT 1 FROM unit_conversions uc
+                WHERE uc.property_id = sp.id AND uc.type = 'CATEGORY_MAPPING' AND uc.deleted_at IS NULL
+              ) AS has_category_mapping
+       FROM soil_properties sp
+       WHERE sp.deleted_at IS NULL
+     ) p
+     WHERE has_classes <> has_category_mapping
+     ORDER BY property_acronym`,
+  );
+  const withoutClasses = rows.filter(r => r.has_category_mapping).map(r => r.property_acronym);
+  const withoutCategoryMapping = rows.filter(r => !r.has_category_mapping).map(r => r.property_acronym);
+  if (withoutClasses.length > 0) {
+    log.warn('Soil properties with a CATEGORY_MAPPING conversion but no classes — treated as continuous', {
+      acronyms: withoutClasses,
+    });
+  }
+  if (withoutCategoryMapping.length > 0) {
+    log.warn('Soil properties with classes but no CATEGORY_MAPPING conversion — treated as categorical', {
+      acronyms: withoutCategoryMapping,
+    });
+  }
 }
