@@ -19,6 +19,7 @@ function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
     property_name: 'Aluminum',
     standard_unit: 'mg/kg',
     value: 42.5,
+    value_label: null,
     geometry: { type: 'Point', coordinates: [-124.1303482, 40.4684982] },
     license_name: 'CC-BY-4.0',
     sampling_date: '2023-01-15',
@@ -227,6 +228,36 @@ describe('GeoFileWriter', () => {
       // --- Verify no cross-contamination ---
       expect(alValues).not.toEqual(expect.arrayContaining([55.5, 66.6, 77.7]));
       expect(caValues).not.toEqual(expect.arrayContaining([10.1, 20.2, 30.3]));
+    });
+  });
+
+  describe('class labels across batches', () => {
+    // Column types are inferred from each batch's values and fixed by the batch that creates the
+    // layer; a first batch with no labelled value must not make value_label anything but text.
+    it.each(ALL_FORMATS)('%s: keeps labels that only appear after an all-null first batch', async format => {
+      const writer = new GeoFileWriter(format);
+      const texture = (id: string, value: number, value_label: string | null) =>
+        soilSampleToExportRecord(makeSample({ id, value, value_label, soil_property: 'Texture', property_acronym: 'Tex' }));
+
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Tex');
+      await writer.writeRecord(texture('1', 13, null));
+      await writer.closeFile();
+
+      await writer.openFile(TEST_OUTPUT_DIR);
+      await writer.setProperty('Tex');
+      await writer.writeRecord(texture('2', 8, 'Silty Loam'));
+      await writer.closeFile();
+      await finishWriting(writer);
+
+      const { rows } = await readLayerRows(format, 'Tex');
+      const labelColumn = format === VectorFileFormat.SHP ? 'val_label' : 'value_label';
+      expect(rows.map(r => [parseFloat(r['value']), r[labelColumn]])).toEqual(
+        expect.arrayContaining([
+          [13, ''],
+          [8, 'Silty Loam'],
+        ]),
+      );
     });
   });
 

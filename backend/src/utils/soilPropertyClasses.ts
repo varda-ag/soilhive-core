@@ -6,9 +6,7 @@ import { ErrorResponse } from './error';
 
 /**
  * Whether a soil property is categorical: its values are class codes rather than measurements, so
- * they are validated as codes, labelled, and never interpolated between. The single test for it,
- * for vector and raster data alike — not the CATEGORY_MAPPING conversion type, which describes a
- * conversion, not the property.
+ * they are validated as codes, labelled, and never interpolated between.
  */
 export const hasClasses = (classes: SoilPropertyClasses | null | undefined): classes is SoilPropertyClasses =>
   !!classes && Object.keys(classes).length > 0;
