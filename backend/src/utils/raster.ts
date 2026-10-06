@@ -37,7 +37,24 @@ export async function openTiff(storagePath: string): Promise<GeoTIFF> {
  */
 export function nodataFromImage(image: GeoTIFFImage): number {
   const raw: string | undefined = image.fileDirectory.getValue('GDAL_NODATA');
-  return raw === undefined ? Number.NaN : Number.parseFloat(raw);
+  return raw === undefined ? Number.NaN : parseGdalNodata(raw);
+}
+
+/** A GDAL_NODATA tag's text as a number. GDAL spells infinite markers `inf` and `-inf`, which parseFloat reads as NaN. */
+export function parseGdalNodata(raw: string): number {
+  // The tag's text ends in a NUL
+  const text = raw.replace(/\0/g, '').trim();
+  const infinite = /^([+-]?)inf(?:inity)?$/i.exec(text);
+  if (infinite) return infinite[1] === '-' ? Number.NEGATIVE_INFINITY : Number.POSITIVE_INFINITY;
+  return Number.parseFloat(text);
+}
+
+/** A nodata value as GDAL spells it: `nan`, `inf`, `-inf`, or the number. */
+export function formatGdalNodata(value: number): string {
+  if (Number.isNaN(value)) return 'nan';
+  if (value === Number.POSITIVE_INFINITY) return 'inf';
+  if (value === Number.NEGATIVE_INFINITY) return '-inf';
+  return String(value);
 }
 
 function haversineDistanceMeters([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {

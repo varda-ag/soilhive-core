@@ -2,6 +2,7 @@ import { describe, it, expect, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import {
+  addRasterData,
   addSyntheticData,
   syntheticDataOptions,
   addSyntheticIngestionData,
@@ -12,7 +13,12 @@ import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addRasterFilterData, addRasterFilterMappings, getDataAdminToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
 import * as RasterUtilsModule from '../../src/utils/raster';
-import { GISDataType } from '../../src/types/data';
+import { GISDataType, IngestionStatus } from '../../src/types/data';
+import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
+
+// addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
+// these tiny fixtures.
+(computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
 describe('Testing /soil-data routes', () => {
   it('Getting soil data without required parameter should fail', async () => {
@@ -451,6 +457,62 @@ describe('Testing /soil-data routes', () => {
     for (const item of data) {
       expect(item.sampling_date).toBe(expected_sampling_date);
     }
+  });
+
+  it('Vector rows should carry their data type and no resolution', async () => {
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      spatial_extent: [0, 0, 10, 10],
+      featureGeometryType: GISDataType.POLYGONAL,
+      featureCount: 3,
+    });
+    const filterId = await createFilter([0, 0, 10, 10]);
+
+    const res = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100`);
+    expect(res.statusCode).toBe(StatusCodes.OK);
+    expect(res.body.length).toBe(3);
+    for (const row of res.body) {
+      expect(row.gis_datatype).toBe(GISDataType.POLYGONAL);
+      expect(row.resolution_m).toBeNull();
+      expect(row.reference_period_start).toBeNull();
+      expect(row.reference_period_stop).toBeNull();
+    }
+  });
+
+  it('Raster datasets should return one row per pixel touching the filter geometry', async () => {
+    const layer = await addRasterData(undefined, {
+      dataset: 'soil-data-raster-route',
+      dataset_status: IngestionStatus.PUBLISHED,
+      visibility: 'public',
+      layerFields: { min_depth: 0, max_depth: 5, reference_period_start: '2010', reference_period_stop: '2020-06' },
+    });
+    // ~0.0001° square inside pixel (col 174, row 153) of the default fixture, whose value is 48
+    const filterId = await createFilter([-80.79955, -33.75055, -80.79945, -33.75045]);
+
+    const res = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${layer.dataset.slug}&limit=100`);
+    expect(res.statusCode).toBe(StatusCodes.OK);
+    expect(res.body).toHaveLength(1);
+    const [row] = res.body;
+    expect(row).toMatchObject({
+      id: `${layer.id}:153:174`,
+      dataset_id: layer.dataset.slug,
+      gis_datatype: GISDataType.RASTER,
+      soil_property: layer.soil_property.slug,
+      value: 48,
+      sampling_date: null,
+      min_depth: 0,
+      max_depth: 5,
+      resolution_m: layer.resolution_m,
+      reference_period_start: '2010',
+      reference_period_stop: '2020-06',
+    });
+    expect(row.geometry.type).toBe('Polygon');
+    expect(row.geometry.coordinates[0]).toHaveLength(5);
+
+    // The last row's cursor continues past it: there is nothing after the only pixel
+    const next = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${layer.dataset.slug}&limit=100&cursor=${row.cursor}`);
+    expect(next.statusCode).toBe(StatusCodes.OK);
+    expect(next.body).toEqual([]);
   });
 
   it('Dataset license should be returned if no license is available at layer level', async () => {

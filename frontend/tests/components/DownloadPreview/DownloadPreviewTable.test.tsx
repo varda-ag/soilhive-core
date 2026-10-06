@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTable/DownloadPreviewTable';
-import type { SoilDataSample } from 'types/backend';
+import { GISDataType, type SoilDataSample } from 'types/backend';
 
 jest.mock('primereact/multiselect', () => {
   const MultiSelect = () => <div>Mock Multiselect</div>;
@@ -42,6 +42,7 @@ const sampleBase: SoilDataSample = {
   id: 'sample-1',
   dataset: 'ds-1',
   dataset_name: 'Dataset 1',
+  gis_datatype: GISDataType.POINT,
   soil_property: 'pH',
   property_acronym: 'ph',
   standard_unit: 'unitless',
@@ -51,6 +52,9 @@ const sampleBase: SoilDataSample = {
   sampling_date: '2023-05-01',
   min_depth: 0,
   max_depth: 30,
+  resolution_m: null,
+  reference_period_start: null,
+  reference_period_stop: null,
   sample_pretreatment: null,
   technique: null,
   laboratory_method: null,

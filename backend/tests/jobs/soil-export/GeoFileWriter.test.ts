@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import { GeoFileWriter } from '../../../src/jobs/soil-export/GeoFileWriter';
 import { EXPORT_SCHEMA, VectorFileFormat, soilSampleToExportRecord } from '../../../src/jobs/soil-export/types';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
+import { GISDataType } from '../../../src/types/data';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 import { workerOutputDir } from '../../assets';
 
@@ -14,6 +15,7 @@ function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
     id: 'test-id-1',
     dataset_id: 'dataset-1',
     dataset_name: 'Test Dataset',
+    gis_datatype: GISDataType.POINT,
     soil_property: 'Aluminum',
     property_acronym: 'Al',
     property_name: 'Aluminum',
@@ -24,6 +26,9 @@ function makeSample(overrides: Partial<SoilDataSample> = {}): SoilDataSample {
     sampling_date: '2023-01-15',
     min_depth: 0,
     max_depth: 30,
+    resolution_m: null,
+    reference_period_start: null,
+    reference_period_stop: null,
     // horizon: 'A',
     sample_pretreatment: 'air-dried',
     technique: 'ICP-OES',
