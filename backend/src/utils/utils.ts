@@ -257,6 +257,34 @@ export const getSoilIndexesConcurrency = (): number => {
   return Number(process.env['SOIL_INDEXES_CONCURRENCY']) || 1;
 };
 
+/** Scores the mock `crea-index` generates per Run. Lowered by the test environment to keep the suites fast. */
+export const getSoilIndexMockScores = (): number => {
+  return Number(process.env['SOIL_INDEX_MOCK_SCORES']) || 50_000;
+};
+
+/**
+ * Vertices a Soil Index tile may hold before it is drawn as grid cells instead (docs/adr/0043).
+ * Fixed per Run when the Run is written, so changing it affects only later Runs.
+ */
+export const getTilesAggregationMaxVertices = (): number => {
+  return Number(process.env['TILES_AGGREGATION_MAX_VERTICES']) || 1_000;
+};
+
+/** Vertices above which a Soil Index tile is rendered ahead of time rather than on request. */
+export const getTilesPrerenderMinVertices = (): number => {
+  return Number(process.env['TILES_PRERENDER_MIN_VERTICES']) || 20_000;
+};
+
+/** Most tiles pre-rendered for one Run; the rest are cut on request. */
+export const getTilesPrerenderMaxTiles = (): number => {
+  return Number(process.env['TILES_PRERENDER_MAX_TILES']) || 5_000;
+};
+
+/** Tile queries running at once per node, so map panning cannot exhaust the connection pool. */
+export const getTilesConcurrency = (): number => {
+  return Number(process.env['TILES_CONCURRENCY']) || 10;
+};
+
 /** `descriptive` size limit, in rows; exceeding it fails the Run (docs/adr/0040). */
 export const getDataRequestsMaxCells = (): number => {
   return Number(process.env['DATA_REQUESTS_MAX_CELLS']) || 200_000;

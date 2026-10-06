@@ -383,54 +383,16 @@ describe('Testing /jobs routes', () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it('accepts a soil-indexes job and echoes its index type back', async () => {
+    // Same reasoning for soil-indexes: a Soil Index Run has its own door, POST /soil-indexes, with
+    // the Data Request's rules (docs/adr/0044).
+    it('no longer accepts a soil-indexes job', async () => {
       const filterId = await createFilter([polygon]);
       const res = await request(app).post('/jobs').send({
         type: JobQueues.SOIL_INDEXES,
         filter_id: filterId,
         soil_index_type: SoilIndexType.CREA_INDEX,
       });
-      expect(res.statusCode).toBe(201);
-      expect(res.body.queue).toBe(JobQueues.SOIL_INDEXES);
-      expect(res.body.data.soil_index_type).toBe(SoilIndexType.CREA_INDEX);
-    });
-
-    // Required rather than defaulted: a default would make one methodology the implicit normal
-    // in a queue built to be generic (ADR 0036).
-    it('rejects a soil-indexes job with no soil_index_type', async () => {
-      const filterId = await createFilter([polygon]);
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_INDEXES,
-        filter_id: filterId,
-      });
       expect(res.statusCode).toBe(400);
-      // Rejected by the OpenAPI request validator rather than by JobService: the field is
-      // `required` in the spec, so the request never reaches a handler and JobService's own
-      // "is required" message is unreachable over HTTP. The validator's exact prose is its
-      // business — what this asserts is that the rejection names the missing field, wherever
-      // in the problem document it puts it.
-      expect(JSON.stringify(res.body)).toContain('soil_index_type');
-    });
-
-    it('rejects an unknown soil_index_type', async () => {
-      const filterId = await createFilter([polygon]);
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_INDEXES,
-        filter_id: filterId,
-        soil_index_type: 'not-an-index',
-      });
-      expect(res.statusCode).toBe(400);
-    });
-
-    it('rejects a soil-indexes job whose filter has no area of interest', async () => {
-      const emptyFilter = await createFilter([]);
-      const res = await request(app).post('/jobs').send({
-        type: JobQueues.SOIL_INDEXES,
-        filter_id: emptyFilter,
-        soil_index_type: SoilIndexType.CREA_INDEX,
-      });
-      expect(res.statusCode).toBe(400);
-      expect(res.body.detail).toContain('has no geometries');
     });
   });
 

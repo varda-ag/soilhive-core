@@ -4,6 +4,10 @@ import { withDisconnectSignal } from '../utils/cancelable-query';
 
 const skip = ['/health', '/ready', '/docs', '/openapi.json', '/oauth'];
 
+// Soil Index tile reads run single pooled queries of their own, under a per-node cap (docs/adr/0043).
+// A map view fires dozens at once, and each would otherwise hold a connection and a transaction.
+const skipSoilIndexTiles = /^(\/api\/v1)?\/soil-indexes\/[^/]+\/(tiles|scores)(\/|$)/;
+
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   // Every request gets a disconnect signal, not just endpoints that currently borrow pooled
   // connections (see runCancelableQuery/ADR 0036): it costs one extra `res.on('close', ...)`
@@ -12,7 +16,7 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   // having to wire its own signal per controller.
   const signal = withDisconnectSignal(res);
 
-  if (skip.some(p => req.path.startsWith(p))) {
+  if (skip.some(p => req.path.startsWith(p)) || (req.method === 'GET' && skipSoilIndexTiles.test(req.path))) {
     req.customData = req.customData || ({ signal } as typeof req.customData);
     return next();
   }
