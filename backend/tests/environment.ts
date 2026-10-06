@@ -41,6 +41,8 @@ export const setupTestEnv = () => {
     AWS_VIRTUAL_HOSTING: 'FALSE',
     AWS_HTTPS: 'NO',
     STORAGE_MODE: 'local',
+    // The mock soil index's 50,000 points per Run, cut down so the job suites stay fast
+    SOIL_INDEX_MOCK_SCORES: 500,
     LOCAL_STORAGE_ROOT_FOLDER: path.join(tmpDirForWorker(), 'soilhive-storage'),
     PORT: undefined,
     POSTGRES_AWS_REGION: undefined,

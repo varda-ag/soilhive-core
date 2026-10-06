@@ -1,5 +1,7 @@
 # Soil Indexes run on their own queue, and the half they share with Data Requests becomes a Run
 
+> **Amended by docs/adr/0043.** A `soil_index_runs` table now exists, holding per-Run facts needed for map tiles. `soil_index_type` stays on every score row as decided below.
+
 A `crea-index` Run costs far more, and for entirely different reasons, than a `descriptive` one, and both were dispatched from the one `data-requests` queue capped at `localConcurrency: 1`. One index Run therefore blocked every data request behind it for as long as it took. We split the Soil Index Types onto their own `soil-indexes` queue, and extract everything the two kinds of Run share — entitlement re-derivation, Filter resolution, Aggregation Unit extraction, the unit cap, cancellation and progress — into `jobs/runs/`, named for the **Run** that both queues execute.
 
 This reverses the reasoning recorded in `processDataRequest`'s docstring, which argued that one queue should serve every product because "a queue per type would duplicate [the shared half] or force a shared library that is a pipeline in all but name". That argument still stands on its own terms and is not being called wrong — it simply never weighed head-of-line blocking, which turned out to be the binding constraint. The library it predicted does now exist; the answer to its objection is that the pipeline has a name, **Run**, and a glossary entry, so it is a domain concept rather than an accident of factoring.
