@@ -1,4 +1,4 @@
-import { getEmailFromAccessToken } from '../../src/auth/tokenClaims';
+import { getEmailFromAccessToken, isTokenExpired } from '../../src/auth/tokenClaims';
 
 // helper — base64url encodes a fake JWT payload from its UTF-8 bytes, as an IdP would
 const makeToken = (payload: Record<string, unknown>) => {
@@ -35,5 +35,29 @@ describe('getEmailFromAccessToken', () => {
 
   it('returns undefined when there is no token at all', () => {
     expect(getEmailFromAccessToken(undefined)).toBeUndefined();
+  });
+});
+
+describe('isTokenExpired', () => {
+  const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+  it('is false for a token with time to spare', () => {
+    expect(isTokenExpired(makeToken({ exp: nowSeconds() + 3600 }))).toBe(false);
+  });
+
+  it('is true for a token past its exp', () => {
+    expect(isTokenExpired(makeToken({ exp: nowSeconds() - 60 }))).toBe(true);
+  });
+
+  it('is true for a token within the 30s buffer', () => {
+    expect(isTokenExpired(makeToken({ exp: nowSeconds() + 10 }))).toBe(true);
+  });
+
+  it('is false for a token without an exp claim', () => {
+    expect(isTokenExpired(makeToken({ sub: 'abc' }))).toBe(false);
+  });
+
+  it('is true for a malformed token', () => {
+    expect(isTokenExpired('not-a-valid-jwt')).toBe(true);
   });
 });

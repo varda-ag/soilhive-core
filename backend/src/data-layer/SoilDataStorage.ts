@@ -330,98 +330,113 @@ export default class SoilDataStorage {
       ? await timed('filterRaster.vectorMaskCtes', () => getVectorMaskCtes(entityManager, filter))
       : [{ name: 'aoi', sql: selectGeometryPiecesByIds(), materialized: true }];
 
-    // candidate_layers (raster_layers/datasets/soil_properties, filtered by every
-    // non-spatial criterion) and layers-with-intersecting-footprints (raster_footprints
-    // alone, filtered only by the AOI) are fetched as two independent queries and
-    // intersected here in JS, rather than joined together in SQL. Joining them via
-    // raster_layer_id forces the planner to fetch every footprint row for each candidate
-    // layer (bounded per layer, but summing to millions of rows across all of them)
-    // before it can filter by the AOI, regardless of how selective the AOI actually is -
-    // confirmed via EXPLAIN ANALYZE across a range of real AOI scales. Fetching each side
-    // independently never gives the planner that join to make; the id lists intersected
-    // here are small (candidate_layers rarely exceeds a few hundred rows in practice).
-    const candidateLayersParams: any[] = [];
-    const pCandidate = (val: any) => {
-      candidateLayersParams.push(val);
-      return `$${candidateLayersParams.length}`;
+    // AOI → layers goes through layer groups (ADR-0046): each footprint carries the group of
+    // layers referencing it, so the spatial side yields ~1K group ids instead of millions of
+    // raster_layer_footprints rows. Shaped after EXPLAIN ANALYZE on a 990-piece country AOI:
+    //  - fp_candidates: one bbox-only bitmap pass over raster_footprints for all AOI pieces at
+    //    once (`&& ANY(ARRAY(...))` is only usable through a bitmap scan, which prefetches and
+    //    visits each heap page once). It needs no geometry, so it never touches TOAST.
+    //  - aoi_groups: the exact test, but only until the first footprint of each group really
+    //    intersects (~93% of bbox hits do). The LIMIT stops the planner from decorrelating the
+    //    LATERAL into a single all-footprints join, which tested ~300K footprints instead of ~1K.
+    const params: any[] = [];
+    const p = (val: any) => {
+      params.push(val);
+      return `$${params.length}`;
     };
-    const geometryIdsParamForCandidates = pCandidate(geometryIds);
+    const geometryIdsParam = p(geometryIds);
+
+    // Without raster filters, aoi is the user geometry's subdivision pieces: probe them through
+    // their GiST index, so each footprint is tested only against the few pieces near it. With
+    // raster filters, aoi is a single masked geometry row (getVectorMaskCtes).
+    const exactIntersectionJoin = hasRasterFilters(filters)
+      ? 'INNER JOIN aoi ON ST_Intersects(aoi.geom, rf2.geom)'
+      : `INNER JOIN ${schema}.user_geometry_subdivisions ugs
+            ON ugs.user_geometry_id = ANY(${geometryIdsParam}::uuid[])
+           AND ugs.geom && rf2.geom
+           AND ST_Intersects(ugs.geom, rf2.geom)`;
 
     const candidateWhere: string[] = [
       'ds.deleted_at IS NULL',
       `ds.status = 'PUBLISHED'`,
-      `ds.gis_datatype = ${pCandidate(GISDataType.RASTER)}`,
-      'ds.spatial_extent && aoi.geom',
+      `ds.gis_datatype = ${p(GISDataType.RASTER)}`,
+      'ds.spatial_extent && aoi_extent.geom',
+      'rl.bbox && aoi_extent.geom',
     ];
     if (filters.min_depth === null) {
       candidateWhere.push('rl.min_depth IS NULL');
     } else if (filters.min_depth !== undefined) {
-      candidateWhere.push(`rl.max_depth >= ${pCandidate(filters.min_depth)}`);
+      candidateWhere.push(`rl.max_depth >= ${p(filters.min_depth)}`);
     }
     if (filters.max_depth === null) {
       candidateWhere.push('rl.max_depth IS NULL');
     } else if (filters.max_depth !== undefined) {
-      candidateWhere.push(`rl.min_depth <= ${pCandidate(filters.max_depth)}`);
+      candidateWhere.push(`rl.min_depth <= ${p(filters.max_depth)}`);
     }
     if (filters.min_sampling_date === null) {
       candidateWhere.push('rl.reference_period_start IS NULL');
     } else if (filters.min_sampling_date) {
-      candidateWhere.push(`rl.reference_period_stop >= ${pCandidate(filters.min_sampling_date)}`);
+      candidateWhere.push(`rl.reference_period_stop >= ${p(filters.min_sampling_date)}`);
     }
     if (filters.max_sampling_date === null) {
       candidateWhere.push('rl.reference_period_stop IS NULL');
     } else if (filters.max_sampling_date) {
-      candidateWhere.push(`rl.reference_period_start <= ${pCandidate(filters.max_sampling_date)}`);
+      candidateWhere.push(`rl.reference_period_start <= ${p(filters.max_sampling_date)}`);
     }
     if (filters.soil_properties?.length) {
-      candidateWhere.push(`sp.slug IN (${filters.soil_properties.map(v => pCandidate(v)).join(', ')})`);
+      candidateWhere.push(`sp.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
     }
     if (filters.licenses?.length) {
-      candidateWhere.push(`ds.licenses && ARRAY[${filters.licenses.map(v => pCandidate(v)).join(', ')}]`);
+      candidateWhere.push(`ds.licenses && ARRAY[${filters.licenses.map(v => p(v)).join(', ')}]`);
     }
     if (filters.visibility) {
-      candidateWhere.push(`ds.visibility = ${pCandidate(filters.visibility)}`);
+      candidateWhere.push(`ds.visibility = ${p(filters.visibility)}`);
     }
 
-    const candidateCteStrings = aoiCtes.map(
-      cte =>
-        `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParamForCandidates)})`,
+    const aoiCteStrings = aoiCtes.map(
+      cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParam)})`,
     );
-    const candidateLayersSql = `
-      WITH ${candidateCteStrings.join(',\n      ')}
+
+    const sql = `
+      WITH ${aoiCteStrings.join(',\n      ')}
+      -- One bbox for the cheap layer/dataset prefilter, without unioning the pieces.
+      , aoi_extent AS MATERIALIZED (
+        SELECT ST_Extent(geom)::geometry AS geom FROM aoi
+      )
+      , fp_candidates AS MATERIALIZED (
+        SELECT rf.layer_group_id, array_agg(rf.id) AS footprint_ids
+        FROM ${schema}.raster_footprints rf
+        WHERE rf.geom && ANY (ARRAY(SELECT geom FROM aoi))
+          AND rf.layer_group_id IS NOT NULL
+        GROUP BY rf.layer_group_id
+      )
+      , aoi_groups AS MATERIALIZED (
+        SELECT c.layer_group_id
+        FROM fp_candidates c
+        CROSS JOIN LATERAL (
+          SELECT 1
+          FROM unnest(c.footprint_ids) AS f(id)
+          INNER JOIN ${schema}.raster_footprints rf2 ON rf2.id = f.id
+          ${exactIntersectionJoin}
+          LIMIT 1
+        ) hit
+      )
       , candidate_layers AS MATERIALIZED (
-        SELECT DISTINCT rl.id
+        SELECT rl.id
         FROM ${schema}.raster_layers rl
         INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
         INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
-        INNER JOIN aoi ON rl.bbox && aoi.geom
+        CROSS JOIN aoi_extent
         WHERE ${candidateWhere.join('\n          AND ')}
       )
-      SELECT id FROM candidate_layers
-    `;
-
-    // Independent of candidate_layers: every footprint intersecting the AOI, and which
-    // layers own each one - not scoped to candidate_layers at all, but only the id
-    // columns are carried, so both sides of the JS intersection stay narrow.
-    const footprintsParams: any[] = [geometryIds];
-    const geometryIdsParamForFootprints = '$1';
-    const footprintsCteStrings = aoiCtes.map(
-      cte =>
-        `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParamForFootprints)})`,
-    );
-    const layersWithFootprintsSql = `
-      WITH ${footprintsCteStrings.join(',\n      ')}
-      , aoi_footprints AS MATERIALIZED (
-        SELECT DISTINCT rf.id
-        FROM ${schema}.raster_footprints rf
-        INNER JOIN aoi ON ST_Intersects(rf.geom, aoi.geom)
+      -- IN rather than joins: with the planner's rows=1 estimates on the CTEs, joins became a
+      -- nested loop probing every (candidate layer, group) pair; IN gets two hash semi-joins.
+      , surviving_layers AS MATERIALIZED (
+        SELECT DISTINCT m.raster_layer_id AS id
+        FROM ${schema}.raster_layer_group_members m
+        WHERE m.layer_group_id IN (SELECT layer_group_id FROM aoi_groups)
+          AND m.raster_layer_id IN (SELECT id FROM candidate_layers)
       )
-      SELECT DISTINCT rlf.raster_layer_id AS id
-      FROM ${schema}.raster_layer_footprints rlf
-      INNER JOIN aoi_footprints af ON af.id = rlf.raster_footprint_id
-    `;
-
-    const finalSql = `
       SELECT
         ds.slug AS id,
         ds.name AS name,
@@ -434,31 +449,16 @@ export default class SoilDataStorage {
         COALESCE(MIN(rl.reference_period_start), ds.reference_period_start) AS min_sampling_date,
         COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop) AS max_sampling_date,
         STRING_AGG(DISTINCT sp.slug, ',') AS soil_properties
-      FROM ${schema}.raster_layers rl
+      FROM surviving_layers sl
+      INNER JOIN ${schema}.raster_layers rl ON rl.id = sl.id
       INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
       INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
-      WHERE rl.id = ANY($1::uuid[])
       GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop
     `;
 
     const rows = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
-      const [candidateLayerRows, layersWithFootprintsRows] = [
-        await timed('filterRaster.candidateLayers', () =>
-          cachedQuery<{ id: string }[]>(transactionalEntityManager, candidateLayersSql, candidateLayersParams, CACHE_TTL_SPATIAL_MS),
-        ),
-        await timed('filterRaster.layersWithFootprints', () =>
-          cachedQuery<{ id: string }[]>(transactionalEntityManager, layersWithFootprintsSql, footprintsParams, CACHE_TTL_SPATIAL_MS),
-        ),
-      ];
-      const layersWithFootprintsIds = new Set(layersWithFootprintsRows.map(row => row.id));
-      const survivingLayerIds = candidateLayerRows.map(row => row.id).filter(id => layersWithFootprintsIds.has(id));
-      if (survivingLayerIds.length === 0) {
-        return [];
-      }
-      return timed('filterRaster.finalQuery', () =>
-        cachedQuery<any>(transactionalEntityManager, finalSql, [survivingLayerIds], CACHE_TTL_SPATIAL_MS),
-      );
+      return timed('filterRaster', () => cachedQuery<any>(transactionalEntityManager, sql, params, CACHE_TTL_SPATIAL_MS));
     });
 
     return rows.map(row => ({

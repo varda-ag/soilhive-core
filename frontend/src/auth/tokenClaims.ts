@@ -24,3 +24,19 @@ export function getEmailFromAccessToken(accessToken: string | undefined): string
     return undefined;
   }
 }
+
+const EXPIRY_BUFFER_MS = 30_000;
+
+/**
+ * Whether an access token is expired or within 30s of it. An undecodable token counts as expired; one
+ * without an `exp` claim does not. Shared by the SSR server and the hydrated page so both reach the
+ * same answer. Unverified signature, as above: the backend rejects a tampered token.
+ */
+export function isTokenExpired(token: string): boolean {
+  try {
+    const { exp } = jwtDecode(token);
+    return !!exp && exp * 1000 <= Date.now() + EXPIRY_BUFFER_MS;
+  } catch {
+    return true;
+  }
+}
