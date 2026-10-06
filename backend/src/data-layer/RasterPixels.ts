@@ -291,9 +291,10 @@ export const collectTouchedPixels = async (options: CollectTouchedPixelsOptions)
 };
 
 /**
- * Whether a pixel value is nodata: NaN, or equal to one of the markers. A Float32 band holds its
- * marker rounded to single precision (-3.4e+38 is stored as -3.3999999521443642e+38), so each marker
- * is also compared in that rounding.
+ * Whether a pixel value is nodata: NaN, infinite, or equal to one of the markers. An infinite pixel
+ * is no measurement, and JSON could only carry it as null. A Float32 band holds its marker rounded to
+ * single precision (-3.4e+38 is stored as -3.3999999521443642e+38), so each marker is also compared
+ * in that rounding.
  */
 export const nodataPredicate = (markers: Array<number | null | undefined>, float32: boolean): ((value: number) => boolean) => {
   const values = new Set<number>();
@@ -302,7 +303,7 @@ export const nodataPredicate = (markers: Array<number | null | undefined>, float
     values.add(marker);
     if (float32) values.add(Math.fround(marker));
   }
-  return value => Number.isNaN(value) || values.has(value);
+  return value => !Number.isFinite(value) || values.has(value);
 };
 
 /**

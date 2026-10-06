@@ -167,10 +167,12 @@ describe('densify', () => {
 });
 
 describe('nodataPredicate', () => {
-  it('treats NaN and every marker as nodata', () => {
+  it('treats NaN, infinities and every marker as nodata', () => {
     const isNodata = nodataPredicate([255, null, undefined], false);
     expect(isNodata(255)).toBe(true);
     expect(isNodata(Number.NaN)).toBe(true);
+    expect(isNodata(Number.POSITIVE_INFINITY)).toBe(true);
+    expect(isNodata(Number.NEGATIVE_INFINITY)).toBe(true);
     expect(isNodata(254)).toBe(false);
   });
 

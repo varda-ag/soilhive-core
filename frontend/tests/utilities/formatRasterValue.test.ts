@@ -7,6 +7,7 @@ describe('formatRasterValue', () => {
     [12345678, 12345678], // integers keep every digit
     [12, 12], // a class code
     [0.000123456789, 0.0001234568],
+    [null, null], // a missing value
   ])('formatRasterValue(%p) → %p', (input, expected) => {
     expect(formatRasterValue(input)).toBe(expected);
   });
