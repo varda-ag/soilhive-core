@@ -6,7 +6,10 @@
 -- raster data.
 --
 -- Usage (schema is the env's POSTGRES_SCHEMA):
---   psql "<connection>" -v schema=<schema> -f backend/scripts/backfill-raster-layer-groups.sql
+--   psql "<connection>" -v schema=<schema> -f backend/src/scripts/backfill-raster-layer-groups.sql
+--
+-- Pause raster loads and raster dataset deletes while it runs: it blocks their link writes until it
+-- commits, and a load batch that waits past its statement_timeout fails.
 --
 -- Idempotent: safe to re-run, e.g. after an interrupted run (the transaction rolls back as a whole).
 
@@ -20,9 +23,13 @@ SET LOCAL search_path TO :"schema", public;
 SET LOCAL statement_timeout = 0;
 SET LOCAL work_mem = '1GB';
 
--- The lock refresh_raster_layer_groups takes: a raster load running meanwhile waits for this
--- transaction instead of racing it on the same group hashes.
-SELECT pg_advisory_xact_lock(hashtext('raster_layer_groups'));
+-- Block link writes before taking the advisory lock refresh_raster_layer_groups takes. A load
+-- statement locks footprint rows first and only then waits on the advisory lock in its trigger, so
+-- holding the advisory lock alone deadlocks with it once the UPDATE below reaches those rows. SHARE
+-- mode waits for in-flight link writes to commit and makes new ones wait for this transaction,
+-- before they lock any footprint row; reads are not blocked.
+LOCK TABLE raster_layer_footprints IN SHARE MODE;
+SELECT pg_advisory_xact_lock(hashtext(:'schema' || '.raster_layer_groups'));
 
 -- The trigger's statement, scoped to every footprint instead of changed_links.
 WITH affected AS MATERIALIZED (
@@ -62,3 +69,8 @@ SELECT (SELECT count(*) FROM raster_layer_groups) AS layer_groups,
        (SELECT count(*) FROM raster_footprints WHERE layer_group_id IS NULL) AS footprints_without_group;
 
 COMMIT;
+
+-- A first run rewrites every footprint row. Reclaim the old versions now, rather than leave
+-- filterRaster's heap-bound bbox pass (ADR-0043) reading them until autovacuum gets there, and
+-- give the planner statistics for layer_group_id. Outside the transaction: VACUUM can't run in one.
+VACUUM (ANALYZE) :"schema".raster_footprints;

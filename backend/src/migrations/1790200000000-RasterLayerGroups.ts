@@ -6,14 +6,13 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * (see ADR-0043). Idempotent (IF NOT EXISTS throughout).
  *
  * Existing footprints are not grouped here, to keep the migration short: run
- * backend/scripts/backfill-raster-layer-groups.sql right after it. Until then filterRaster
+ * backend/src/scripts/backfill-raster-layer-groups.sql right after it. Until then filterRaster
  * does not see footprints that predate the migration.
  */
 export class RasterLayerGroups1790200000000 implements MigrationInterface {
   name = 'RasterLayerGroups1790200000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-
     await queryRunner.query(
       `CREATE TABLE IF NOT EXISTS "raster_layer_groups" (
         "id" uuid NOT NULL DEFAULT uuidv7(),
@@ -56,14 +55,24 @@ export class RasterLayerGroups1790200000000 implements MigrationInterface {
     // bulk delete cascades). Statement-level with transition tables: an ingest batch inserts
     // thousands of links in one statement, and each touched footprint is recomputed once for it.
     //
-    // The advisory lock serializes concurrent loads that could race on the same group hash. On
-    // DELETE, the row-level delete_orphan_raster_footprints trigger has already run (row-level
-    // AFTER triggers fire before statement-level ones), so orphaned footprints are gone and
-    // simply drop out of `affected`.
+    // The advisory lock serializes concurrent loads that could race on the same group hash. It is
+    // keyed by schema, so schemas sharing a database (one per Jest worker) don't queue on each
+    // other; the backfill script takes the same key. On DELETE, the row-level
+    // delete_orphan_raster_footprints trigger has already run (row-level AFTER triggers fire before
+    // statement-level ones), so orphaned footprints are gone and simply drop out of `affected`.
+    //
+    // Each of those orphan deletes cascades into a 0-row DELETE here, firing this trigger once per
+    // orphaned footprint. Those firings return early: otherwise a bulk delete would run the
+    // orphan-group scan once per footprint it orphans. The statement that orphaned them fires
+    // after its cascades, with the real links, and does the cleanup.
     await queryRunner.query(
       `CREATE OR REPLACE FUNCTION refresh_raster_layer_groups() RETURNS trigger LANGUAGE plpgsql AS $$
        BEGIN
-         PERFORM pg_advisory_xact_lock(hashtext('raster_layer_groups'));
+         IF NOT EXISTS (SELECT 1 FROM changed_links) THEN
+           RETURN NULL;
+         END IF;
+
+         PERFORM pg_advisory_xact_lock(hashtext(TG_TABLE_SCHEMA || '.raster_layer_groups'));
 
          WITH affected AS MATERIALIZED (
            SELECT rlf.raster_footprint_id AS footprint_id,
@@ -114,7 +123,6 @@ export class RasterLayerGroups1790200000000 implements MigrationInterface {
        REFERENCING OLD TABLE AS changed_links
        FOR EACH STATEMENT EXECUTE FUNCTION refresh_raster_layer_groups()`,
     );
-
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

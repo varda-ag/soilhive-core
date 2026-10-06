@@ -24,7 +24,7 @@ sets is small: 1,117 sets cover all 12.5M junction rows on dev.
   `raster_layer_footprints` (`refresh_raster_layer_groups`) recompute groups for the footprints
   whose links changed in that statement, then delete groups no footprint references any more. They
   use transition tables, so each one fires once per ingest batch rather than once per row.
-- **Serialized.** An advisory lock serializes recomputes.
+- **Serialized.** An advisory lock, keyed by schema, serializes recomputes.
 - **Covers every write path.** Ingest, re-ingest and bulk delete cascades keep groups correct with
   no application code.
 
@@ -49,9 +49,13 @@ Measured on the same AOI, with the same result (15 datasets, 167 layers):
 ## Consequences
 
 - **Groups are derived, never written directly.** The triggers are the only writers outside the
-  one-off backfill (`backend/scripts/backfill-raster-layer-groups.sql`). The migration leaves
+  one-off backfill (`backend/src/scripts/backfill-raster-layer-groups.sql`). The migration leaves
   existing footprints ungrouped to stay short, so the backfill must run right after it on every
   environment with raster data. Until then `filterRaster` does not see those footprints.
+- **The backfill blocks link writes while it runs.** It takes a `SHARE` lock on
+  `raster_layer_footprints` before the advisory lock. With the advisory lock alone, a load that has
+  already locked footprint rows deadlocks with the backfill's `UPDATE`, and the whole backfill rolls
+  back. Run it with raster loads and raster dataset deletes paused.
 - **Mid-reingest visibility.** While a published layer is re-ingested, its links are deleted first.
   Until its footprints are re-inserted, `filterRaster` does not see that layer for them.
 - **Concurrent loads wait on each other.** They queue briefly on the advisory lock for each batch.
@@ -59,7 +63,11 @@ Measured on the same AOI, with the same result (15 datasets, 167 layers):
   could also deadlock, because footprint row locks are taken before the advisory lock. Postgres
   detects the deadlock and fails one load, which can be re-run.
 - **Every link write pays for a recompute.** That includes bulk deletes, where the recompute is
-  mostly a no-op because the orphan-footprint trigger has already removed those footprints.
+  mostly a no-op because the orphan-footprint trigger has already removed those footprints. Each
+  of those orphan deletes also cascades into a 0-row delete on `raster_layer_footprints`, firing
+  the trigger once per orphaned footprint. Those firings return before the advisory lock: running
+  the orphan-group scan in each made deleting a layer that orphaned 20K footprints take 24.4s
+  instead of 0.5s (1K groups).
 - **The bbox pass is now I/O-bound** on `raster_footprints` heap pages, because about 1 KB of
   geometry is stored inline per row. Moving geometry out of the main heap (`STORAGE EXTERNAL`,
   or a narrow bbox table) is the next lever if it needs to be faster.
