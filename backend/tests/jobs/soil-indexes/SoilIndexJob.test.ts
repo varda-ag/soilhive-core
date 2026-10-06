@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { Polygon } from 'geojson';
 import { SoilIndexJob } from '../../../src/interfaces/Job';
 import { processSoilIndex } from '../../../src/jobs/soil-indexes/SoilIndexJob';
-import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
+import { initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../../src/services/PgBoss';
 import { JobQueues, SoilIndexType } from '../../../src/types/enums';
 import { soilIndexPartition } from '../../../src/data-layer/SoilIndex';
+import { findSoilIndexRun } from '../../../src/data-layer/SoilIndexRuns';
 import { getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
-import { sleep } from '../../../src/utils/utils';
+import { getSoilIndexMockScores, sleep } from '../../../src/utils/utils';
 import {
   UNIT_A,
   UNIT_B,
@@ -19,44 +19,64 @@ import {
   setJobState,
 } from '../runs/runTestHelpers';
 
+// 500 under the test environment; the same as the job uses, whatever it is set to.
+const MOCK_SCORES = getSoilIndexMockScores();
+
 const createActiveJob = (data: Partial<SoilIndexJob>) => createActiveRunJob<SoilIndexJob>(JobQueues.SOIL_INDEXES, data);
 
-interface SoilIndexRow {
-  unit_id: string;
-  soil_index_type: string;
-  lon: number;
-  lat: number;
-  value: number;
-  geometry_type: string;
-}
+const schema = () => process.env['POSTGRES_SCHEMA'];
 
 /**
- * Reads a Run's scores back through the partitioned parent rather than its partition, so
- * these assertions also prove the ATTACH happened — an unattached staging table would leave
- * every one of them seeing zero rows.
+ * A Run's scores summarised through the partitioned parent rather than its partition, so these
+ * assertions also prove the ATTACH happened: an unattached partition would read as no scores.
  */
-const readSoilIndex = async (run: string): Promise<SoilIndexRow[]> => {
+const summarise = async (run: string) => {
   const entityManager = await getEntityManager();
-  return entityManager.query(
-    `SELECT "metadata"->>'unit_id' AS unit_id,
-            "soil_index_type",
-            ST_X("geometry") AS lon,
-            ST_Y("geometry") AS lat,
-            "value"::float8 AS value,
-            GeometryType("geometry") AS geometry_type
-     FROM ${process.env.POSTGRES_SCHEMA}.soil_index
-     WHERE "run" = $1
-     ORDER BY "metadata"->>'unit_id'`,
+  const [row] = await entityManager.query(
+    `SELECT count(*)::int AS count,
+            count(*) FILTER (WHERE soil_index_type = $2)::int AS typed,
+            count(*) FILTER (WHERE GeometryType(geometry) <> 'POINT')::int AS not_points,
+            min(id) AS min_id, max(id) AS max_id, count(DISTINCT id)::int AS distinct_ids,
+            min(value)::float8 AS min_value, max(value)::float8 AS max_value,
+            count(*) FILTER (WHERE abs(value * 1000 - round(value * 1000)) > 1e-6)::int AS over_3_decimals,
+            min(year) AS min_year, max(year) AS max_year,
+            md5(string_agg(concat_ws(':', ST_AsText(geometry), value, year), ',' ORDER BY id)) AS fingerprint
+     FROM ${schema()}.soil_index
+     WHERE run = $1`,
+    [run, SoilIndexType.CREA_INDEX],
+  );
+  return row;
+};
+
+const countByUnit = async (run: string): Promise<Map<string, number>> => {
+  const entityManager = await getEntityManager();
+  const rows: { unit_id: string; count: number }[] = await entityManager.query(
+    `SELECT metadata->>'unit_id' AS unit_id, count(*)::int AS count FROM ${schema()}.soil_index WHERE run = $1 GROUP BY 1`,
     [run],
   );
+  return new Map(rows.map(row => [row.unit_id, row.count]));
 };
 
 const soilIndexPartitionExists = async (run: string): Promise<boolean> => {
   const entityManager = await getEntityManager();
-  const [row] = await entityManager.query(`SELECT to_regclass($1) IS NOT NULL AS present`, [
-    `${process.env.POSTGRES_SCHEMA}.${soilIndexPartition(run)}`,
-  ]);
+  const [row] = await entityManager.query(`SELECT to_regclass($1) IS NOT NULL AS present`, [`${schema()}.${soilIndexPartition(run)}`]);
   return row.present;
+};
+
+/** Pre-rendering jobs enqueued for a Run, whatever state a worker has since moved them to. */
+const tilesJobsFor = async (run: string): Promise<number> => {
+  const entityManager = await getEntityManager();
+  const [row] = await entityManager.query(
+    `SELECT count(*)::int AS count FROM ${PG_BOSS_SCHEMA}.job WHERE name = $1 AND data->>'run' = $2`,
+    [JobQueues.SOIL_INDEX_TILES, run],
+  );
+  return row.count;
+};
+
+const runCrea = async (filterId: string, extra: Partial<SoilIndexJob> = {}) => {
+  const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX, ...extra });
+  await processSoilIndex(job);
+  return jobId;
 };
 
 describe('soil-indexes job', () => {
@@ -70,7 +90,7 @@ describe('soil-indexes job', () => {
   });
 
   describe('soil_index_type', () => {
-    it('fails rather than guessing when the type is absent', async () => {
+    it('fails rather than guessing when the type is absent, and records why', async () => {
       const filterId = await createFilter([UNIT_A]);
       // Required, not defaulted: there is deliberately nothing to fall back to (ADR 0036).
       const { jobId, job } = await createActiveJob({ filter_id: filterId });
@@ -79,120 +99,84 @@ describe('soil-indexes job', () => {
 
       const stored = await readJobData<SoilIndexJob>(jobId);
       expect(stored.progress_percentage).not.toBe(100);
-      expect(await readSoilIndex(jobId)).toHaveLength(0);
+      expect((await summarise(jobId)).count).toBe(0);
+      // The outcome outlives the job (docs/adr/0044).
+      const record = await findSoilIndexRun(await getEntityManager(), jobId);
+      expect(record).toMatchObject({ status: 'failed', data: null });
+      expect(record!.message).toBeTruthy();
     });
 
     it('fails on an unrecognised type', async () => {
       const filterId = await createFilter([UNIT_A]);
-      const { jobId, job } = await createActiveJob({
-        filter_id: filterId,
-        soil_index_type: 'not-an-index' as SoilIndexType,
-      });
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: 'not-an-index' as SoilIndexType });
 
       await expect(processSoilIndex(job)).rejects.toMatchObject({ code: 'SI_UNKNOWN_INDEX_TYPE' });
-      expect(await readSoilIndex(jobId)).toHaveLength(0);
+      expect((await summarise(jobId)).count).toBe(0);
     });
 
-    it('stores the type on every scored row, so a score outlives the job that explains it', async () => {
-      const filterId = await createFilter([UNIT_A, UNIT_B]);
-      const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
-      await processSoilIndex(job);
+    it('stores the type on every score, so a score outlives the job that explains it', async () => {
+      const run = await runCrea(await createFilter([UNIT_A, UNIT_B]));
 
-      const rows = await readSoilIndex(jobId);
-      expect(rows).toHaveLength(2);
-      expect(rows.every(row => row.soil_index_type === SoilIndexType.CREA_INDEX)).toBe(true);
+      const { count, typed } = await summarise(run);
+      expect(typed).toBe(count);
     });
   });
 
-  describe('crea-index', () => {
-    it('writes one scored Point per filter geometry to soil_index, keyed by the job id as the run', async () => {
-      const filterId = await createFilter([UNIT_A, UNIT_B]);
-      const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
-      await processSoilIndex(job);
-      const stored = await readJobData<SoilIndexJob>(jobId);
+  describe('crea-index mock', () => {
+    it(`scores ${MOCK_SCORES} points, numbered 1..n, each within the area it was generated for`, async () => {
+      const run = await runCrea(await createFilter([UNIT_A, UNIT_B]));
 
-      expect(stored.unit_count).toBe(2);
-      expect(stored.derived_filter_id).toBeNull();
+      const summary = await summarise(run);
+      expect(summary).toMatchObject({ count: MOCK_SCORES, not_points: 0, min_id: 1, max_id: MOCK_SCORES, distinct_ids: MOCK_SCORES });
 
-      // This type contributes no output key at all: the run id the caller needs to reach the
-      // rows is the job id it already polled with, so job data has nothing left to add. The one
-      // key matching the prefix is `soil_index_type`, which is the input that named the product
-      // rather than anything the product produced — asserting the exact list rather than an
-      // emptiness makes an output key added later fail here.
-      expect(Object.keys(stored).filter(key => key.startsWith('soil_index'))).toEqual(['soil_index_type']);
-
-      const rows = await readSoilIndex(jobId);
-      expect(rows).toHaveLength(2);
-
-      // The unit_id lives in metadata and nowhere else: the table has no primary key and no
-      // unit column, so this is the only join back to units[].
-      const unitIds = stored.units.map(unit => unit.unit_id).sort();
-      expect(rows.map(row => row.unit_id)).toEqual(unitIds);
-      for (const row of rows) {
-        expect(row.geometry_type).toBe('POINT');
-        expect(row.value).toBeGreaterThanOrEqual(0);
-        expect(row.value).toBeLessThanOrEqual(1);
-        // Rounded to 3 decimals like every other number in this job's output.
-        expect(row.value).toBe(Number(row.value.toFixed(3)));
-      }
-
-      // The descriptive producer did not run: its completion line counts dataset/property
-      // groups, this one counts scored areas.
-      expect(stored.progress_description).toContain('scored area(s)');
+      // Coordinates are rounded to 6 decimals, which may nudge a point onto or just past an edge.
+      const entityManager = await getEntityManager();
+      const [{ outside }] = await entityManager.query(
+        `SELECT count(*)::int AS outside
+         FROM ${schema()}.soil_index si
+         JOIN ${schema()}.user_geometries ug ON ug.id = (si.metadata->>'unit_id')::uuid
+         WHERE si.run = $1 AND NOT ST_DWithin(si.geometry, ug.geom, 0.000001)`,
+        [run],
+      );
+      expect(outside).toBe(0);
     });
 
-    it('places each Point inside the area it scores', async () => {
-      // A C-shaped polygon whose centroid falls in the notch, outside the ring itself: the
-      // case ST_PointOnSurface exists for. A marker outside the field would be visibly wrong.
-      const cShape: Polygon = {
-        type: 'Polygon',
-        coordinates: [
-          [
-            [0, 0],
-            [3, 0],
-            [3, 1],
-            [1, 1],
-            [1, 2],
-            [3, 2],
-            [3, 3],
-            [0, 3],
-            [0, 0],
-          ],
-        ],
-      };
-      const filterId = await createFilter([cShape]);
-      const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
-      await processSoilIndex(job);
-
-      expect(await readSoilIndex(jobId)).toHaveLength(1);
-
-      // Joined in SQL straight from the stored geometry to the area it scores, so the
-      // containment is asserted on what was persisted rather than on a round-tripped copy.
+    it('shares the points between areas in proportion to their area', async () => {
+      const run = await runCrea(await createFilter([UNIT_A, UNIT_B]));
       const entityManager = await getEntityManager();
-      const [row] = await entityManager.query(
-        `SELECT ST_Within(si."geometry", ug.geom) AS inside
-         FROM ${process.env.POSTGRES_SCHEMA}.soil_index si
-         JOIN ${process.env.POSTGRES_SCHEMA}.user_geometries ug ON ug.id = (si."metadata"->>'unit_id')::uuid
-         WHERE si."run" = $1`,
-        [jobId],
+      const areas: { id: string; area: number }[] = await entityManager.query(
+        `SELECT ug.id, ST_Area(ug.geom::geography) AS area
+         FROM ${schema()}.user_geometries ug
+         WHERE ug.id IN (SELECT DISTINCT (metadata->>'unit_id')::uuid FROM ${schema()}.soil_index WHERE run = $1)`,
+        [run],
       );
-      expect(row.inside).toBe(true);
+      const total = areas.reduce((sum, unit) => sum + unit.area, 0);
+
+      const counts = await countByUnit(run);
+      for (const unit of areas) {
+        // Largest remainder: each piece's share is within one point of exact.
+        expect(Math.abs(counts.get(unit.id)! - (MOCK_SCORES * unit.area) / total)).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('gives every score a value in [0, 1) to 3 decimals, and a year from 2015 to 2024', async () => {
+      const run = await runCrea(await createFilter([UNIT_A]));
+
+      const summary = await summarise(run);
+      expect(summary.min_value).toBeGreaterThanOrEqual(0);
+      expect(summary.max_value).toBeLessThan(1);
+      expect(summary.over_3_decimals).toBe(0);
+      expect(summary.min_year).toBe(2015);
+      expect(summary.max_year).toBe(2024);
     });
 
     it('scores the same area identically on a re-run', async () => {
       const filterId = await createFilter([UNIT_A]);
 
-      const first = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
-      await processSoilIndex(first.job);
-      const second = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
-      await processSoilIndex(second.job);
-
-      // Two Runs, two partitions, identical content: the scores key off unit_id, which the
-      // shared filter makes the same for both.
-      const firstRows = await readSoilIndex(first.jobId);
-      const secondRows = await readSoilIndex(second.jobId);
-      expect(firstRows).toHaveLength(1);
-      expect(secondRows).toEqual(firstRows);
+      // Two Runs, two partitions, identical content: the mock is seeded by unit and piece.
+      const first = await runCrea(filterId);
+      const second = await runCrea(filterId);
+      expect((await summarise(second)).fingerprint).toBe((await summarise(first)).fingerprint);
     });
 
     it('takes its areas from a file, ignoring the filter geometries, and records the derived filter', async () => {
@@ -209,64 +193,89 @@ describe('soil-indexes job', () => {
         { epsg: 4326 },
       );
 
-      const { jobId, job } = await createActiveJob({
-        filter_id: filterId,
-        file_id: file.slug,
-        label_field: 'field_name',
-        soil_index_type: SoilIndexType.CREA_INDEX,
-      });
-      await processSoilIndex(job);
-      const stored = await readJobData<SoilIndexJob>(jobId);
+      const run = await runCrea(filterId, { file_id: file.slug, label_field: 'field_name' });
+      const stored = await readJobData<SoilIndexJob>(run);
 
       expect(stored.derived_filter_id).not.toBeNull();
-      // Equivalent geometries collapse, so there is no positional correspondence to the
-      // file's three rows — which is exactly why the Features carry unit_id.
+      // Equivalent geometries collapse, so there is no positional correspondence to the file's rows.
       expect(stored.unit_count).toBe(2);
-      expect(await readSoilIndex(jobId)).toHaveLength(2);
+      expect((await countByUnit(run)).size).toBe(2);
       expect(stored.units.find(unit => unit.record_ids.length === 2)!.label).toBe('North; North duplicate');
       // No raster mask is applied by this type, so the area caveat cannot arise.
       expect(stored.units.every(unit => unit.raster_filtered === false)).toBe(true);
     });
+  });
 
-    it('reaches 100% with monotonic progress', async () => {
-      const filterId = await createFilter([UNIT_A]);
-      const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
-      await processSoilIndex(job);
+  describe('outcome', () => {
+    it('records a completed Run with its full request and what it produced, never who asked', async () => {
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+      const run = await runCrea(filterId);
 
-      const stored = await readJobData<SoilIndexJob>(jobId);
-      expect(stored.progress_percentage).toBe(100);
-      expect(stored.progress_description).toContain('Completed');
+      const record = await findSoilIndexRun(await getEntityManager(), run);
+      expect(record).toMatchObject({
+        status: 'completed',
+        message: null,
+        request: { soil_index_type: SoilIndexType.CREA_INDEX, filter_id: filterId, derived_filter_id: null, unit_count: 2 },
+        data: { score_count: MOCK_SCORES, tiles: `/soil-indexes/${run}/tiles` },
+      });
+      expect(record!.request.units).toHaveLength(2);
+      expect(record!.data!.bounds).toHaveLength(4);
+      // The record is readable by anyone holding the id (docs/adr/0037).
+      expect(Object.keys(record!.request)).not.toEqual(expect.arrayContaining(['created_by']));
+      expect(JSON.stringify(record!.request)).not.toContain('isDataAdmin');
     });
 
-    it('stops without writing the index when the job is cancelled', async () => {
+    it('reaches 100% with monotonic progress', async () => {
+      const run = await runCrea(await createFilter([UNIT_A]));
+
+      const stored = await readJobData<SoilIndexJob>(run);
+      expect(stored.progress_percentage).toBe(100);
+      expect(stored.progress_description).toBe(`Completed: ${MOCK_SCORES} score(s)`);
+    });
+
+    it('stops without writing anything when the job is cancelled', async () => {
       const filterId = await createFilter([UNIT_A]);
       const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
       await setJobState(jobId, 'cancelled');
 
       await expect(processSoilIndex(job)).resolves.toBeUndefined();
 
-      // A cancelled Run must not leave a partition behind, since with retention deferred
-      // nothing would ever come back to drop it.
+      // A cancelled Run leaves nothing: no partition, no record.
       expect(await soilIndexPartitionExists(jobId)).toBe(false);
-      expect(await readSoilIndex(jobId)).toHaveLength(0);
+      expect(await findSoilIndexRun(await getEntityManager(), jobId)).toBeNull();
     });
 
-    it("replaces the run's rows rather than duplicating them when the same job is processed twice", async () => {
-      // pg-boss retries reuse the job id, so a retry rebuilds a partition that is already
-      // attached. Without the pre-emptive drop the second attempt would fail on the existing
-      // table, or worse, double every score in the run.
+    it("replaces the run's scores rather than duplicating them when the same job is processed twice", async () => {
+      // pg-boss retries reuse the job id, so a retry rebuilds a partition that is already attached.
       const filterId = await createFilter([UNIT_A, UNIT_B]);
       const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
 
       await processSoilIndex(job);
-      const firstRows = await readSoilIndex(jobId);
+      const first = await summarise(jobId);
 
       await setJobState(jobId, 'active');
       await processSoilIndex(job);
 
-      const secondRows = await readSoilIndex(jobId);
-      expect(secondRows).toHaveLength(2);
-      expect(secondRows).toEqual(firstRows);
+      const second = await summarise(jobId);
+      expect(second.count).toBe(MOCK_SCORES);
+      expect(second.fingerprint).toBe(first.fingerprint);
+    });
+  });
+
+  describe('map tiles', () => {
+    it('enqueues pre-rendering once the Run is complete', async () => {
+      const run = await runCrea(await createFilter([UNIT_A]));
+
+      expect(await tilesJobsFor(run)).toBe(1);
+    });
+
+    it('enqueues nothing for a cancelled Run, which has no partition to tile', async () => {
+      const filterId = await createFilter([UNIT_A]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
+      await setJobState(jobId, 'cancelled');
+      await processSoilIndex(job);
+
+      expect(await tilesJobsFor(jobId)).toBe(0);
     });
   });
 });

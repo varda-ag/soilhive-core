@@ -154,6 +154,14 @@ export interface DataRequestJob extends DataRequestJobParameters, RunJobData {}
 export interface SoilIndexJobParameters extends RunJobParameters {
   /** Which Soil Index to compute. */
   soil_index_type: SoilIndexType;
+  /** Plugin config item this Run is attached to: it gates reading the record and deleting (docs/adr/0044). */
+  config_id?: string;
 }
 
 export interface SoilIndexJob extends SoilIndexJobParameters, RunJobData {}
+
+/** Enqueued by a completed Soil Index Run, never by a caller. */
+export interface SoilIndexTilesJob {
+  /** The Soil Index Run whose tiles to pre-render. */
+  run: string;
+}

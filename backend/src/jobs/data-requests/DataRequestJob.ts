@@ -2,13 +2,13 @@ import { Job } from 'pg-boss';
 import { DataRequestJob } from '../../interfaces/Job';
 import { DataRequestStatus, StatisticsType } from '../../types/enums';
 import { JobError } from '../../errors/JobError';
-import { translateJobError, UNEXPECTED_JOB_ERROR_CODE } from '../../errors/jobErrorMessages';
 import { insertDataRequest, toDataRequestParameters } from '../../data-layer/DataRequests';
 import { getJobCreatedOn } from '../../services/PgBoss';
 import { getEntityManager } from '../../utils/data-source';
 import { getErrorMessage } from '../../utils/error';
 import { log } from '../../utils/logger';
 import { processRun, RunProduct } from '../runs/runContext';
+import { failureMessage } from '../runs/failureMessage';
 import { runDescriptiveStatistics } from './descriptiveStatistics';
 import { runClassDistribution } from './classDistribution';
 import { runValueRange } from './valueRange';
@@ -31,17 +31,6 @@ const PRODUCERS: Record<StatisticsType, RunProduct<DataRequestJob, DataRequestOu
   [StatisticsType.DESCRIPTIVE]: { appliesRasterMask: true, run: runDescriptiveStatistics },
   [StatisticsType.CLASS_DISTRIBUTION]: { appliesRasterMask: true, run: runClassDistribution },
   [StatisticsType.VALUE_RANGE]: { appliesRasterMask: true, run: runValueRange },
-};
-
-/**
- * Display-ready failure copy, classified exactly as `runJob` classifies the same error into
- * `data.errors`, so the row and the job say the same thing for the whole time both are readable.
- */
-const failureMessage = (error: unknown): string => {
-  const { message, actions } = JobError.isJobError(error)
-    ? translateJobError(error.code, error.params)
-    : translateJobError(UNEXPECTED_JOB_ERROR_CODE);
-  return [message, ...actions].join(' ');
 };
 
 const recordOutcome = async (
