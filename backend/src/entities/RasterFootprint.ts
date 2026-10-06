@@ -14,4 +14,8 @@ export default class RasterFootprintEntity {
   @Index({ spatial: true })
   @Column({ type: 'geometry', spatialFeatureType: 'MultiPolygon', srid: 4326 })
   geom: MultiPolygon;
+
+  /** The set of layers referencing this footprint (raster_layer_groups); maintained by ingest. */
+  @Column({ type: 'uuid', nullable: true })
+  layer_group_id: string | null;
 }

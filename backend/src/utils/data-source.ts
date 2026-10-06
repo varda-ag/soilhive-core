@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { DataSource, EntityManager, MigrationExecutor } from 'typeorm';
+import { BaseEntity, DataSource, EntityManager, MigrationExecutor } from 'typeorm';
 import path from 'path';
 import { getDBPassword, getSSL } from './db-credentials';
 import { DatabaseNamingStrategy } from './naming-strategy';
@@ -55,13 +55,30 @@ export const initializeSchema = async (schema: string = process.env.POSTGRES_SCH
   } finally {
     await dataSourcePublic.destroy().catch(() => {});
   }
-  // Connect to custom schema to run migrations. Entities are deliberately excluded: migrations are
-  // hand-written SQL (synchronize: false), so entity metadata is never needed here
-  const dataSource = await createDataSource(schema, false);
+  // Connect to custom schema to run migrations. Entities must be included: TypeORM only creates
+  // typeorm_metadata when the entity metadata has generated columns, and CreateSchema inserts into it.
+  const migrationsDataSource = await createDataSource(schema);
   try {
-    await runConditionalMigrations(dataSource);
+    await runConditionalMigrations(migrationsDataSource);
   } finally {
-    await dataSource.destroy().catch(() => {});
+    await migrationsDataSource.destroy().catch(() => {});
+    rebindBaseEntities();
+  }
+};
+
+/**
+ * DataSource.initialize() points every BaseEntity subclass's static `dataSource` at itself, so the
+ * migrations DataSource above steals that binding from the runtime singleton. If the singleton was
+ * already initialized (app.ts no longer does that before initializeSchema, but any caller that
+ * touches the database first would), every ActiveRecord `.save()` would otherwise hit the
+ * destroyed migrations pool: "Driver not Connected".
+ */
+const rebindBaseEntities = () => {
+  if (!dataSource?.isInitialized) return;
+  for (const { target } of dataSource.entityMetadatas) {
+    if (typeof target === 'function' && target.prototype instanceof BaseEntity) {
+      (target as typeof BaseEntity).useDataSource(dataSource);
+    }
   }
 };
 
