@@ -12,6 +12,8 @@ import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useRaster } from 'hooks/useRaster';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from 'hooks/usePluginDataRequest';
+import { useSoilIndexScore, useSoilIndexTileSource } from 'hooks/useSoilIndexTiles';
+import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexSubmit } from 'hooks/usePluginSoilIndex';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
@@ -45,6 +47,15 @@ jest.mock('hooks/usePluginDataRequest', () => ({
   usePluginDataRequest: jest.fn(),
   usePluginDataRequestSubmit: jest.fn(),
   usePluginDataRequestDelete: jest.fn(),
+}));
+jest.mock('hooks/usePluginSoilIndex', () => ({
+  usePluginSoilIndex: jest.fn(),
+  usePluginSoilIndexSubmit: jest.fn(),
+  usePluginSoilIndexDelete: jest.fn(),
+}));
+jest.mock('hooks/useSoilIndexTiles', () => ({
+  useSoilIndexTileSource: jest.fn(),
+  useSoilIndexScore: jest.fn(),
 }));
 
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
@@ -224,6 +235,21 @@ describe('usePluginContext', () => {
     expect(result.current.useDataRequestSubmit).toBe(usePluginDataRequestSubmit);
     expect(result.current.useDataRequest).toBe(usePluginDataRequest);
     expect(result.current.useDataRequestDelete).toBe(usePluginDataRequestDelete);
+  });
+
+  it('exposes the three Soil Index Run hooks', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.useSoilIndexSubmit).toBe(usePluginSoilIndexSubmit);
+    expect(result.current.useSoilIndex).toBe(usePluginSoilIndex);
+    expect(result.current.useSoilIndexDelete).toBe(usePluginSoilIndexDelete);
+  });
+
+  it('exposes the two Soil Index tile hooks', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.useSoilIndexTileSource).toBe(useSoilIndexTileSource);
+    expect(result.current.useSoilIndexScore).toBe(useSoilIndexScore);
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {

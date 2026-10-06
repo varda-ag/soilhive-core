@@ -499,7 +499,6 @@ paths:
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
-                - $ref: '#/components/schemas/SoilIndexJob'
               discriminator:
                 propertyName: type
                 mapping:
@@ -508,7 +507,6 @@ paths:
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
-                  soil-indexes: '#/components/schemas/SoilIndexJob'
       responses:
         '201':
           description: Async job started successfull
@@ -709,6 +707,206 @@ paths:
           description: Data request deleted
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /soil-indexes:
+    post:
+      x-eov-operation-handler: controllers/soil-indexes
+      x-eov-operation-id: postSoilIndex
+      x-entitlements-required: true
+      summary: Submit a soil index run
+      description: >-
+        Starts a run that resolves aggregation areas from a filter and scores soil_index_type within
+        them. Returns immediately with status `pending`; poll GET /soil-indexes/{runId} for progress
+        and the outcome. With config_id the run is attached to that plugin config item, which must
+        exist and on which the caller needs write.
+      tags:
+        - soil-indexes
+      security:
+        - bearerAuth: []
+        - {}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexSubmission'
+      responses:
+        '201':
+          description: Soil index run accepted
+          content:
+            application/json:
+              schema:
+                $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /soil-indexes/{runId}:
+    parameters:
+      - $ref: '#/components/parameters/SoilIndexRunId'
+    get:
+      x-eov-operation-handler: controllers/soil-indexes
+      x-eov-operation-id: getSoilIndexById
+      summary: Get a soil index run and its outcome
+      description: >-
+        Anyone holding the id may read it, with no token required, unless the run is attached to a
+        config item: then read on that item is required. Attaching never protects the run's scores
+        and tiles, which stay readable by anyone holding the id.
+      tags:
+        - soil-indexes
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: The soil index run
+          content:
+            application/json:
+              schema:
+                $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexRun'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/soil-indexes
+      x-eov-operation-id: deleteSoilIndexById
+      summary: Delete a soil index run
+      description: >-
+        Cancels the run if it is still in progress, and permanently deletes its record, scores and
+        tiles. Tiles a client already cached are not recalled. Anyone holding the id may delete it,
+        unless the run is attached to a config item: then write on that item is required. Data
+        requests that used the run keep their results.
+      tags:
+        - soil-indexes
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '204':
+          description: Soil index run deleted
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /soil-indexes/{runId}/tiles:
+    parameters:
+      - $ref: '#/components/parameters/SoilIndexRunId'
+    get:
+      x-eov-operation-handler: controllers/soil-indexes
+      x-eov-operation-id: getSoilIndexTileJson
+      summary: Describe a soil index run's map tiles
+      description: >-
+        TileJSON 3.0.0 for the run's vector tiles, except that `tiles` holds paths relative to the
+        API base URL, which the client prepends. Anyone holding the run id may read it, as with
+        the run's scores. Cached for a short time only: the tile paths change when the way tiles
+        are produced does.
+      tags:
+        - soil-indexes
+      responses:
+        '200':
+          description: The run's TileJSON
+          content:
+            application/json:
+              schema:
+                $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexTileJson'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /soil-indexes/{runId}/tiles/{version}/{z}/{x}/{y}:
+    parameters:
+      - $ref: '#/components/parameters/SoilIndexRunId'
+      - name: version
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+        description: Tiling version, as listed by the run's TileJSON. Only the current one is served.
+      - name: z
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+          maximum: 16
+      - name: x
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+      - name: y
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 0
+    get:
+      x-eov-operation-handler: controllers/soil-indexes
+      x-eov-operation-id: getSoilIndexTile
+      summary: Get one map tile of a soil index run
+      description: >-
+        One Mapbox Vector Tile with a single layer, `scores`. From the run's detail zoom up, each
+        feature is one scored geometry with `value` and `year`, and its id is the score's id.
+        Below it, each feature is a point summarising the scores of one year whose
+        representative point is in one grid cell, placed at their centroid, with `value` (their
+        mean), `min`, `max`, `count` and `year`. Absent attributes have no value. Tiles never change, and are sent gzipped to
+        clients that accept it.
+      tags:
+        - soil-indexes
+      responses:
+        '200':
+          description: The tile
+          content:
+            application/vnd.mapbox-vector-tile:
+              schema:
+                type: string
+                format: binary
+        '204':
+          description: Nothing in this tile is drawn
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /soil-indexes/{runId}/scores/{scoreId}:
+    parameters:
+      - $ref: '#/components/parameters/SoilIndexRunId'
+      - name: scoreId
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        description: >-
+          The score's id, which is its feature id in the run's tiles. A grid cell's feature id is
+          above the maximum, since a cell has no score of its own.
+    get:
+      x-eov-operation-handler: controllers/soil-indexes
+      x-eov-operation-id: getSoilIndexScore
+      summary: Get one score of a soil index run
+      description: >-
+        One scored geometry's value, year and methodology metadata, for example to show on hover.
+        Anyone holding the run id may read it. Never changes.
+      tags:
+        - soil-indexes
+      responses:
+        '200':
+          description: The score
+          content:
+            application/json:
+              schema:
+                $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexScore'
         '404':
           $ref: '#/components/responses/NotFound'
 
@@ -2217,6 +2415,15 @@ paths:
           $ref: '#/components/responses/NotFound'
 
 components:
+  parameters:
+    SoilIndexRunId:
+      name: runId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: ID of a soil index run, which is the id of the job that ran it
   responses:
     NotFound:
       description: The specified resource was not found
@@ -3285,46 +3492,6 @@ components:
             type: string
             format: uri
           description: Optional mapping of dataset_id to metadata URL for Readme.PDF
-
-    SoilIndexJob:
-      type: object
-      description: >-
-        Computes a soil index — a single score per aggregation area, from a named
-        methodology — over the areas matching a filter.
-      required:
-        - type
-        - soil_index_type
-        - filter_id
-      properties:
-        type:
-          type: string
-          enum: [soil-indexes]
-          description: Job type
-        soil_index_type:
-          type: string
-          enum: [crea-index]
-          description: >-
-            Which soil index to compute. `crea-index` gives one scored GeoJSON Point per
-            aggregation area; the scores are rows in the soil_index table.
-        anonymous:
-          type: boolean
-          description: Set to true to allow access without authentication
-        filter_id:
-          type: string
-          format: uuid
-          description: >-
-            Filter supplying the criteria. Also supplies the aggregation areas, unless
-            file_id is given — in which case the filter's own geometries are not used.
-        file_id:
-          type: string
-          description: >-
-            Optional spatial file whose geometries each become one aggregation area. Must
-            be a vector file with a known EPSG code and only polygon or multipolygon geometries.
-        label_field:
-          type: string
-          description: >-
-            Optional field of file_id whose value labels each aggregation area. Must name
-            an existing field of that file.
 
     FileToDbJob:
       type: object

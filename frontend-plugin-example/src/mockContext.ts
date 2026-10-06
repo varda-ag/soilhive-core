@@ -11,10 +11,15 @@ import type {
   PluginQueryResult,
   PluginRasterFilterCategory,
   PluginSoilDataResult,
+  PluginSoilIndexRun,
+  PluginSoilIndexRunResult,
+  PluginSoilIndexScore,
+  PluginSoilIndexSubmission,
   PluginSoilProperty,
   PluginSoilPropertyCategory,
   PluginStoredDataFilter,
   PluginTheme,
+  PluginVectorTileSource,
 } from 'frontend-plugin-types';
 
 /**
@@ -180,6 +185,26 @@ const dataRequestDelete: PluginMutationResult<{ id: string }, void> = {
   isError: false,
 };
 
+// Stubs, like the Data Request ones: submitting rejects and every Run id reads as lost.
+const soilIndexSubmit: PluginMutationResult<PluginSoilIndexSubmission, PluginSoilIndexRun> = {
+  mutateAsync: async () => {
+    throw new Error('Soil index runs are not available in local preview');
+  },
+  isPending: false,
+  isError: false,
+};
+
+const soilIndex = (id: string | undefined): PluginSoilIndexRunResult => ({
+  data: undefined,
+  isLoading: false,
+  isError: !!id,
+  error: id ? { kind: 'lost', message: 'Soil index runs are not available in local preview' } : undefined,
+});
+
+// Stubs: local preview has no backend, so no Run has tiles or scores.
+const noTiles: PluginQueryResult<PluginVectorTileSource> = { data: undefined, isLoading: false, isError: false };
+const noScore: PluginQueryResult<PluginSoilIndexScore> = { data: undefined, isLoading: false, isError: false };
+
 const notifications: PluginNotificationsResult = {
   showNotification: notification => console.info('[notification]', notification),
 };
@@ -203,6 +228,11 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   useDataRequestSubmit: () => dataRequestSubmit,
   useDataRequest: dataRequest,
   useDataRequestDelete: () => dataRequestDelete,
+  useSoilIndexSubmit: () => soilIndexSubmit,
+  useSoilIndex: soilIndex,
+  useSoilIndexDelete: () => dataRequestDelete,
+  useSoilIndexTileSource: () => noTiles,
+  useSoilIndexScore: () => noScore,
   metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
   // No host toast stack in local preview, so notifications go to the console.
   useNotifications: () => notifications,

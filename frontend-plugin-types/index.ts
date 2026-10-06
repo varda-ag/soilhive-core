@@ -17,6 +17,13 @@ import type {
   PluginSoilPropertyCategory,
 } from './soil';
 import type { PluginTheme } from './theme';
+import type {
+  PluginSoilIndexRun,
+  PluginSoilIndexRunResult,
+  PluginSoilIndexScore,
+  PluginSoilIndexSubmission,
+  PluginVectorTileSource,
+} from './soilIndex';
 
 export * from './common';
 export * from './map';
@@ -25,6 +32,7 @@ export * from './filter';
 export * from './soil';
 export * from './dataRequest';
 export * from './notification';
+export * from './soilIndex';
 
 export interface PluginContext {
   user?: PluginUser | null;
@@ -63,6 +71,21 @@ export interface PluginContext {
   useDataRequest: (id: string | undefined) => PluginDataRequestResult;
   // Resolves when the id is already gone, so a delete is safe to repeat.
   useDataRequestDelete: () => PluginMutationResult<{ id: string }, void>;
+  // Soil Index Runs mirror Data Requests: attached to one of the plugin's saved config items, read
+  // with read on it, deleted with write (see ADR 0044). Attaching protects a Run from deletion, not
+  // its scores and tiles, which anyone holding the id can see. Deleting also removes its tiles.
+  useSoilIndexSubmit: (pluginId: string, configId: string) => PluginMutationResult<PluginSoilIndexSubmission, PluginSoilIndexRun>;
+  // Polls until completed or failed; undefined id = do not fetch.
+  useSoilIndex: (id: string | undefined) => PluginSoilIndexRunResult;
+  // Resolves when the id is already gone, so a delete is safe to repeat.
+  useSoilIndexDelete: () => PluginMutationResult<{ id: string }, void>;
+  // The map tiles of a completed Soil Index Run, as a MapLibre vector source; undefined runId =
+  // do not fetch. The Run id is the whole permission: anyone holding it can see the tiles.
+  useSoilIndexTileSource: (runId: string | undefined) => PluginQueryResult<PluginVectorTileSource>;
+  // One score of that Run, e.g. for a hover tooltip: pass the hovered feature's id, or undefined
+  // when nothing is hovered; a grid cell's id reads as nothing hovered, as a cell has no score of
+  // its own. Debounced by the host, and fetched at most once per score.
+  useSoilIndexScore: (runId: string | undefined, scoreId: number | undefined) => PluginQueryResult<PluginSoilIndexScore>;
   // Absolute URL of a dataset's metadata page. Provided by the host because the
   // origin comes from its runtime configuration, which a remote plugin cannot read.
   metadataUrl: (datasetId: string) => string;

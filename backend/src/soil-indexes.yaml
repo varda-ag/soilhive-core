@@ -1,0 +1,191 @@
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Soil indexes
+  description: Schemas for the /soil-indexes endpoints
+components:
+  schemas:
+    SoilIndexSubmission:
+      type: object
+      description: Payload submitted to POST /soil-indexes.
+      additionalProperties: false
+      required:
+        - soil_index_type
+        - filter_id
+      properties:
+        soil_index_type:
+          type: string
+          enum: [crea-index]
+          description: >-
+            Which soil index to compute. Required, and never defaulted. `crea-index` is currently a
+            mock: 50,000 scored points spread evenly over the aggregation areas, each with a value
+            from 0 to 1 and a year from 2015 to 2024, the same every time for the same areas.
+        filter_id:
+          type: string
+          format: uuid
+          description: >-
+            Filter supplying the aggregation areas, unless file_id is given — in which case the
+            filter's own geometries are not used.
+        file_id:
+          type: string
+          description: >-
+            Optional spatial file whose geometries each become one aggregation area. Must be a
+            vector file with a known EPSG code and only polygon or multipolygon geometries.
+        label_field:
+          type: string
+          description: Optional field of file_id whose value labels each aggregation area.
+        config_id:
+          type: string
+          description: >-
+            Optional plugin config item (plugin:{pluginId}:{id}) to attach the run to. It must exist,
+            and the caller needs write on it. Reading the run then needs read on it, and deleting it
+            write; its scores and tiles stay readable by anyone holding the run id.
+
+    SoilIndexRunParameters:
+      type: object
+      description: What was asked, plus the aggregation areas it resolved to.
+      required:
+        - soil_index_type
+        - filter_id
+        - derived_filter_id
+        - unit_count
+        - units
+      properties:
+        soil_index_type:
+          type: string
+        filter_id:
+          type: string
+          format: uuid
+        file_id:
+          type: string
+        label_field:
+          type: string
+        config_id:
+          type: string
+        derived_filter_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Filter holding the aggregation areas taken from file_id; null without one.
+        unit_count:
+          type: integer
+        units:
+          type: array
+          items:
+            $ref: '../src/data-requests.yaml#/components/schemas/AggregationUnit'
+
+    SoilIndexRun:
+      type: object
+      description: >-
+        One soil index run and its outcome. Progress fields are present only while the underlying
+        job still exists; data is present only once the run completed.
+      required:
+        - id
+        - status
+        - created_at
+        - completed_at
+        - message
+        - request
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: >-
+            Identifies the run, and is the whole of the permission to read its scores and tiles.
+            Unless the run is attached to a config item, it is also the permission to read and
+            delete the run.
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        progress_percentage:
+          type: integer
+        progress_description:
+          type: string
+        message:
+          type: string
+          nullable: true
+          description: Why the run failed. Null unless status is `failed`.
+        request:
+          $ref: '#/components/schemas/SoilIndexRunParameters'
+        data:
+          type: object
+          description: What the run produced. Present only once status is `completed`.
+          required:
+            - score_count
+            - tiles
+          properties:
+            score_count:
+              type: integer
+            bounds:
+              type: array
+              description: '[west, south, east, north] in EPSG:4326; absent when the run scored nothing'
+              items:
+                type: number
+              minItems: 4
+              maxItems: 4
+            tiles:
+              type: string
+              description: Path of the run's TileJSON, relative to the API base URL
+
+    SoilIndexTileJson:
+      type: object
+      required: [tilejson, tiles, minzoom, maxzoom, vector_layers]
+      properties:
+        tilejson:
+          type: string
+          enum: ['3.0.0']
+        tiles:
+          type: array
+          description: Tile path templates, relative to the API base URL
+          items:
+            type: string
+          example: ['/soil-indexes/0b7c5e2a-2d55-4d0e-9a51-6a3f8f5f2c11/tiles/1/{z}/{x}/{y}']
+        minzoom:
+          type: integer
+        maxzoom:
+          type: integer
+        bounds:
+          type: array
+          description: '[west, south, east, north] in EPSG:4326; absent when the run scored nothing'
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+        vector_layers:
+          type: array
+          items:
+            type: object
+            required: [id, fields]
+            properties:
+              id:
+                type: string
+              minzoom:
+                type: integer
+              maxzoom:
+                type: integer
+              fields:
+                type: object
+                additionalProperties:
+                  type: string
+    SoilIndexScore:
+      type: object
+      required: [id, value, metadata]
+      properties:
+        id:
+          type: integer
+        value:
+          type: number
+        year:
+          type: integer
+          description: Absent when the methodology records no year
+        metadata:
+          type: object
+          additionalProperties: true
+          description: The methodology's own metadata for this score

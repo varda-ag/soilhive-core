@@ -39,6 +39,8 @@ export enum JobQueues {
   // Soil Indexes are a second family of product over the same Aggregation Units, on their own queue
   // because one Run of them costs far more than a Data Request
   SOIL_INDEXES = 'soil-indexes',
+  // Internal: pre-renders a completed Soil Index Run's heaviest map tiles (docs/adr/0043)
+  SOIL_INDEX_TILES = 'soil-index-tiles',
 }
 
 /**

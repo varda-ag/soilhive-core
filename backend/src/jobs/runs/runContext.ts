@@ -63,10 +63,10 @@ export interface RunContext {
 export interface RunProduct<T extends RunJobData, P = void> {
   appliesRasterMask: boolean;
   /**
-   * Resolves with whatever the queue above needs to record. A `data-requests` product returns
-   * its payload, because `processDataRequest` — not the product — writes the Data Request row.
-   * A Soil Index returns nothing: it has already written its own `soil_index` rows and there
-   * is no Data Request to write (docs/adr/0037).
+   * Resolves with whatever the queue above needs to record. A `data-requests` product returns its
+   * payload, because `processDataRequest` — not the product — writes the Data Request row. A Soil
+   * Index returns its Scored Geometries, for the same reason: `processSoilIndex` writes them with
+   * the Run's record (docs/adr/0037, 0044).
    */
   run: (ctx: RunContext, data: T) => Promise<P>;
 }
