@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { ingestRaster } from '../../src/services/RasterIngestService';
 import { updateRasterDatasetMetadata } from '../../src/jobs/raster-load/UpdateDatasetMetadata';
@@ -174,6 +176,122 @@ describe('RasterIngestService', () => {
       );
 
       expect(row.is_categorical).toBe(false);
+    });
+  });
+
+  describe('raster_layer_groups', () => {
+    beforeEach(() => {
+      process.env.STORAGE_MODE = 'local';
+      process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterAssetsPath;
+    });
+
+    const addSiblingFile = async () => {
+      const copyName = TEST_FILE.replace(/\.tif$/, '_copy.tif');
+      const copyPath = path.join(rasterAssetsPath, copyName);
+      if (!fs.existsSync(copyPath)) {
+        fs.copyFileSync(path.join(rasterAssetsPath, TEST_FILE), copyPath);
+      }
+      return addFile(copyName);
+    };
+
+    const ingestBand = (fileId: string, band: number, datasetId: string, soilPropertySlug: string) =>
+      ingestRaster({ fileId, band, datasetId, soilPropertySlug, isCategorical: false, minDepth: null, maxDepth: null });
+
+    // Footprints whose group does not list exactly the layers linking them. Must always be empty.
+    const footprintsWithWrongGroup = async () => {
+      const ds = await getDataSource();
+      return ds.query(
+        `SELECT rf.id, linked.ids AS linked_layer_ids, grp.ids AS group_layer_ids
+         FROM raster_footprints rf
+         LEFT JOIN LATERAL (
+           SELECT array_agg(raster_layer_id ORDER BY raster_layer_id) AS ids
+           FROM raster_layer_footprints WHERE raster_footprint_id = rf.id
+         ) linked ON true
+         LEFT JOIN LATERAL (
+           SELECT array_agg(raster_layer_id ORDER BY raster_layer_id) AS ids
+           FROM raster_layer_group_members WHERE layer_group_id = rf.layer_group_id
+         ) grp ON true
+         WHERE linked.ids IS DISTINCT FROM grp.ids`,
+      );
+    };
+
+    const groupsWithoutFootprints = async () => {
+      const ds = await getDataSource();
+      return ds.query(
+        `SELECT g.id FROM raster_layer_groups g
+         WHERE NOT EXISTS (SELECT 1 FROM raster_footprints rf WHERE rf.layer_group_id = g.id)`,
+      );
+    };
+
+    const groupMembers = async () => {
+      const ds = await getDataSource();
+      const rows: { layer_ids: string[] }[] = await ds.query(
+        `SELECT array_agg(raster_layer_id::text ORDER BY raster_layer_id) AS layer_ids
+         FROM raster_layer_group_members GROUP BY layer_group_id`,
+      );
+      return rows.map(row => [...row.layer_ids].sort());
+    };
+
+    it('puts layers with identical footprints in one shared group', async () => {
+      const { dataset, property, file } = await setUpDataset('test-groups-shared', TEST_FILE);
+      const sibling = await addSiblingFile();
+
+      const layerA = await ingestBand(file.id, 1, dataset.id, property.slug);
+      const layerB = await ingestBand(sibling.id, 1, dataset.id, property.slug);
+
+      expect(await footprintsWithWrongGroup()).toEqual([]);
+      expect(await groupsWithoutFootprints()).toEqual([]);
+      // The intermediate { A } group from the first ingest is cleaned up, not left behind.
+      expect(await groupMembers()).toEqual([[layerA, layerB].sort()]);
+    });
+
+    it('keeps layers with disjoint footprints in separate groups', async () => {
+      const { dataset, property, file } = await setUpDataset('test-groups-disjoint', MULTIBAND_FILE);
+
+      const band1 = await ingestBand(file.id, 1, dataset.id, property.slug);
+      const band2 = await ingestBand(file.id, 2, dataset.id, property.slug);
+
+      expect(await footprintsWithWrongGroup()).toEqual([]);
+      expect(await groupsWithoutFootprints()).toEqual([]);
+      const members = await groupMembers();
+      expect(members).toContainEqual([band1]);
+      expect(members).toContainEqual([band2]);
+    });
+
+    it('keeps groups exact through a re-ingest', async () => {
+      const { dataset, property, file } = await setUpDataset('test-groups-reingest', TEST_FILE);
+      const sibling = await addSiblingFile();
+
+      const layerA = await ingestBand(file.id, 1, dataset.id, property.slug);
+      const layerB = await ingestBand(sibling.id, 1, dataset.id, property.slug);
+      // Deletes A's links (shrinking every group to { B }) and re-inserts them batch by batch.
+      await ingestBand(file.id, 1, dataset.id, property.slug);
+
+      expect(await footprintsWithWrongGroup()).toEqual([]);
+      expect(await groupsWithoutFootprints()).toEqual([]);
+      expect(await groupMembers()).toEqual([[layerA, layerB].sort()]);
+    });
+
+    it('shrinks groups when a layer is deleted and drops groups left without footprints', async () => {
+      const { dataset, property, file } = await setUpDataset('test-groups-delete', TEST_FILE);
+      const sibling = await addSiblingFile();
+
+      const layerA = await ingestBand(file.id, 1, dataset.id, property.slug);
+      const layerB = await ingestBand(sibling.id, 1, dataset.id, property.slug);
+
+      const ds = await getDataSource();
+      await ds.query(`DELETE FROM raster_layers WHERE id = $1`, [layerB]);
+
+      expect(await footprintsWithWrongGroup()).toEqual([]);
+      expect(await groupsWithoutFootprints()).toEqual([]);
+      expect(await groupMembers()).toEqual([[layerA]]);
+
+      // Deleting the last layer orphans every footprint; their groups must go with them.
+      await ds.query(`DELETE FROM raster_layers WHERE id = $1`, [layerA]);
+      const [{ count }] = await ds.query(`SELECT COUNT(*) AS count FROM raster_footprints`);
+      expect(Number(count)).toBe(0);
+      const [{ count: groupCount }] = await ds.query(`SELECT COUNT(*) AS count FROM raster_layer_groups`);
+      expect(Number(groupCount)).toBe(0);
     });
   });
 
