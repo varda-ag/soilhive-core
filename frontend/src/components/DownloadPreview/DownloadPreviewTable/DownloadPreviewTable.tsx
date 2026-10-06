@@ -6,13 +6,19 @@ import styles from './DownloadPreviewTable.module.scss';
 import { Button, Loader } from 'components/UI';
 import NewspaperIcon from 'assets/icons/newspaper-icon.svg?react';
 import MapPinIcon from 'assets/icons/small-map-icon.svg?react';
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import type { SoilDataSample } from 'types/backend';
 import { feature } from '@turf/turf';
 import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import { useTranslation } from 'react-i18next';
 import { backendToLocalFrontendDate } from '../../../utilities/date';
 import { metadataPath } from 'configuration/routes';
+import { formatRasterValue } from 'utilities/formatRasterValue';
+
+const SAMPLING_DATE_COLUMN = 'sampling_date';
+const REFERENCE_PERIOD_COLUMN = 'reference_period';
+
+const rasterValueCell = ({ value }: SoilDataSample) => formatRasterValue(value);
 
 function DownloadPreviewTable({
   data = [],
@@ -23,6 +29,7 @@ function DownloadPreviewTable({
   setFirst,
   onFeatureSelected,
   selectedDatasets,
+  isRasterDataset = false,
 }: {
   data?: SoilDataSample[];
   isDataLoading?: boolean;
@@ -32,18 +39,25 @@ function DownloadPreviewTable({
   setFirst?: Dispatch<SetStateAction<number>>;
   onFeatureSelected?: (feature: Feature<Point | Polygon | MultiPolygon, GeoJsonProperties> | undefined) => void;
   selectedDatasets?: string[];
+  isRasterDataset?: boolean;
 }) {
   const metadataDatasetId = selectedDatasets?.[0];
   const isMetadataDisabled = isDataLoading || !metadataDatasetId;
   const { t } = useTranslation('download');
 
+  // A raster row has no sampling date: its Raster Layer's reference period takes the date column's place
+  const dateColumn = isRasterDataset ? REFERENCE_PERIOD_COLUMN : SAMPLING_DATE_COLUMN;
+
   const columns = useMemo(
     () => [
-      { name: t('download_preview.columns.date'), value: 'sampling_date' },
+      isRasterDataset
+        ? { name: t('download_preview.columns.reference_period'), value: REFERENCE_PERIOD_COLUMN }
+        : { name: t('download_preview.columns.date'), value: SAMPLING_DATE_COLUMN },
       { name: t('download_preview.columns.depth_min'), value: 'min_depth' },
       { name: t('download_preview.columns.depth_max'), value: 'max_depth' },
       { name: t('download_preview.columns.value'), value: 'value' },
       { name: t('download_preview.columns.standard_unit'), value: 'standard_unit' },
+      ...(isRasterDataset ? [{ name: t('download_preview.columns.resolution'), value: 'resolution_m' }] : []),
       // TODO: to be restored | { name: t('download_preview.columns.horizon'), value: 'horizon' },
       { name: t('download_preview.columns.technique'), value: 'technique' },
       { name: t('download_preview.columns.sample_pretreatment'), value: 'sample_pretreatment' },
@@ -55,11 +69,11 @@ function DownloadPreviewTable({
       { name: t('download_preview.columns.limit_of_detection'), value: 'limit_of_detection' },
       { name: t('download_preview.columns.license'), value: 'license_name' },
     ],
-    [t],
+    [t, isRasterDataset],
   );
 
   const [visibleColumns, setVisibleColumns] = useState<string[]>([
-    'sampling_date',
+    SAMPLING_DATE_COLUMN,
     'min_depth',
     'max_depth',
     'value',
@@ -72,6 +86,15 @@ function DownloadPreviewTable({
   const [sortOrder, setSortOrder] = useState<SortOrder>();
   const [sortField, setSortField] = useState<string>();
 
+  // The date column is one slot whose key follows the Data Type, so hiding or showing it carries over
+  // between kinds of Dataset. A column the current kind lacks (Resolution, for a vector Dataset) keeps
+  // its choice for when it returns.
+  const columnKeys = useMemo(() => new Set(columns.map(({ value }) => value)), [columns]);
+  const toCurrentKey = (key: string) => (key === SAMPLING_DATE_COLUMN || key === REFERENCE_PERIOD_COLUMN ? dateColumn : key);
+  const shownColumns = visibleColumns.map(toCurrentKey).filter(key => columnKeys.has(key));
+  const onVisibleColumnsChange = (keys: string[]) =>
+    setVisibleColumns([...keys, ...visibleColumns.filter(key => !columnKeys.has(toCurrentKey(key)))]);
+
   const dateCell = ({ sampling_date }: SoilDataSample) => {
     if (!sampling_date) return '-';
     if (/^\d{4}$/.test(sampling_date)) return sampling_date;
@@ -80,6 +103,21 @@ function DownloadPreviewTable({
       return !isNaN(dateObj.getTime()) ? dateObj.toLocaleDateString() : sampling_date;
     }
     return sampling_date;
+  };
+
+  const referencePeriodCell = ({ reference_period_start: start, reference_period_stop: stop }: SoilDataSample) => {
+    if (!start && !stop) return '-';
+    if (start === stop) return start;
+    return `${start ?? '…'} – ${stop ?? '…'}`;
+  };
+
+  const resolutionCell = ({ resolution_m }: SoilDataSample) => resolution_m ?? '-';
+
+  const cellBodies: Record<string, { body: (sample: SoilDataSample) => ReactNode; bodyClassName?: string }> = {
+    [SAMPLING_DATE_COLUMN]: { body: dateCell, bodyClassName: styles.DateCell },
+    [REFERENCE_PERIOD_COLUMN]: { body: referencePeriodCell, bodyClassName: styles.DateCell },
+    resolution_m: { body: resolutionCell },
+    ...(isRasterDataset ? { value: { body: rasterValueCell } } : {}),
   };
 
   const mapPinCell = ({ geometry }: SoilDataSample) => {
@@ -96,9 +134,9 @@ function DownloadPreviewTable({
             className={styles.MultiSelect}
             panelClassName={styles.MultiSelectPanel}
             itemClassName={styles.MultiSelectItem}
-            value={visibleColumns}
+            value={shownColumns}
             options={columns}
-            onChange={e => setVisibleColumns(e.value)}
+            onChange={e => onVisibleColumnsChange(e.value)}
             optionLabel="name"
             optionValue="value"
             placeholder={t('download_preview.select_columns')}
@@ -124,8 +162,8 @@ function DownloadPreviewTable({
               removableSort
               scrollable
               scrollHeight="flex"
-              sortField={sortField}
-              sortOrder={sortOrder}
+              sortField={isRasterDataset ? undefined : sortField}
+              sortOrder={isRasterDataset ? undefined : sortOrder}
               onSort={event => {
                 const { sortField, sortOrder } = event;
                 if (!sortOrder) onTableSort?.(undefined);
@@ -163,20 +201,11 @@ function DownloadPreviewTable({
                 style={{ width: '48px', minWidth: '48px' }}
               />
               {columns
-                .filter(({ value }) => visibleColumns.includes(value))
-                .map(({ name, value }) => {
-                  const options = {
-                    field: value,
-                    header: name,
-                    ...(value === 'sampling_date'
-                      ? {
-                          bodyClassName: styles.DateCell,
-                          body: dateCell,
-                        }
-                      : {}),
-                  };
-                  return <Column key={value} sortable {...options}></Column>;
-                })}
+                .filter(({ value }) => shownColumns.includes(value))
+                .map(({ name, value }) => (
+                  // Raster rows come in a fixed order (docs/adr/0045), so a raster Dataset's columns don't sort
+                  <Column key={value} field={value} header={name} sortable={!isRasterDataset} {...cellBodies[value]}></Column>
+                ))}
             </DataTable>
           </PrimeReactProvider>
           {isDataLoading && <Loader />}

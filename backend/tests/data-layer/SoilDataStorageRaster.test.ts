@@ -338,6 +338,30 @@ describe('SoilDataStorage.getSoilData raster rows', () => {
     expect(row).toMatchObject({ sampling_date: null, reference_period_start: '2010', reference_period_stop: '2020-06' });
   });
 
+  it('matches a reference period stopping in 2015 as the whole year, so a range from March 2015 reaches it', async () => {
+    const layer = await addFixtureLayer('partial-period.tif', { referencePeriod: ['2010', '2015'] });
+    const aoi = lonLatBox(10.031, 49.971, 10.033, 49.973);
+
+    const reached = await getSoilData(await makeFilter(aoi, { min_sampling_date: '2015-03-01' }), [layer.dataset.slug], 100);
+    const missed = await getSoilData(await makeFilter(aoi, { min_sampling_date: '2016-01-01' }), [layer.dataset.slug], 100);
+
+    expect(reached.map(row => row.reference_period_stop)).toEqual(['2015']);
+    expect(missed).toEqual([]);
+  });
+
+  it("reports the coverage summary's latest stop by when each period ends, not by text", async () => {
+    await addFixtureLayer('stop-year.tif', { referencePeriod: ['2010', '2015'] });
+    await addFixtureLayer('stop-day.tif', {
+      offset: 1000,
+      soilProperty: 'Raster Rows Property B',
+      referencePeriod: ['2010', '2015-06-01'],
+    });
+
+    const [summary] = await sds.filterRaster(await getEntityManager(), await makeFilter(lonLatBox(10.031, 49.971, 10.033, 49.973)));
+
+    expect(summary?.max_sampling_date).toBe('2015');
+  });
+
   // CONTEXT.md, Published: /soil-data answers to Visibility and Entitlement only, for raster rows as for vector rows
   it.each<[string, FilterCriteria, IngestionStatus]>([
     ['Datasets that are not Published', {}, IngestionStatus.LOADED],

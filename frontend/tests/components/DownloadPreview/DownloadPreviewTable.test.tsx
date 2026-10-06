@@ -1,35 +1,42 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTable/DownloadPreviewTable';
 import { GISDataType, type SoilDataSample } from 'types/backend';
 
+// Props are recorded so tests can read the columns offered and shown without rendering PrimeReact
+const mockMultiSelect = jest.fn();
+const mockDataTable = jest.fn();
+const mockColumn = jest.fn();
+
 jest.mock('primereact/multiselect', () => {
-  const MultiSelect = () => <div>Mock Multiselect</div>;
+  const MultiSelect = (props: unknown) => {
+    mockMultiSelect(props);
+    return <div>Mock Multiselect</div>;
+  };
   return { MultiSelect };
 });
 
 jest.mock('primereact/datatable', () => {
-  const DataTable = ({
-    children,
-    onRowClick,
-    value,
-  }: {
-    children: React.ReactNode;
-    onRowClick?: (event: { data: unknown }) => void;
-    value?: unknown[];
-  }) => (
-    <div>
-      Mock DataTable {children}
-      {value?.map((item, index) => (
-        <div key={index} data-testid={`row-${index}`} onClick={() => onRowClick?.({ data: item })} />
-      ))}
-    </div>
-  );
+  const DataTable = (props: { children: React.ReactNode; onRowClick?: (event: { data: unknown }) => void; value?: unknown[] }) => {
+    mockDataTable(props);
+    const { children, onRowClick, value } = props;
+    return (
+      <div>
+        Mock DataTable {children}
+        {value?.map((item, index) => (
+          <div key={index} data-testid={`row-${index}`} onClick={() => onRowClick?.({ data: item })} />
+        ))}
+      </div>
+    );
+  };
   return { DataTable };
 });
 
 jest.mock('primereact/column', () => {
-  const Column = () => <div>Mock Column</div>;
+  const Column = (props: unknown) => {
+    mockColumn(props);
+    return <div>Mock Column</div>;
+  };
   return { Column };
 });
 
@@ -146,5 +153,72 @@ describe('DownloadPreview', () => {
   it('does not throw when clicking a row with geometry and no onFeatureSelected handler', () => {
     render(<DownloadPreviewTable isDataLoading={false} data={[sampleWithGeometry]} />);
     expect(() => fireEvent.click(screen.getByTestId('row-0'))).not.toThrow();
+  });
+
+  describe('for a raster dataset', () => {
+    type ColumnProps = { field?: string; sortable?: boolean; body?: (sample: SoilDataSample) => React.ReactNode };
+    const lastMultiSelect = () =>
+      mockMultiSelect.mock.lastCall![0] as { options: { value: string }[]; value: string[]; onChange: (e: { value: string[] }) => void };
+    const lastColumns = () => {
+      const columns = mockColumn.mock.calls.map(([props]) => props as ColumnProps).filter(props => props.field);
+      return columns.slice(-lastMultiSelect().value.length);
+    };
+    const rasterSample: SoilDataSample = {
+      ...sampleBase,
+      gis_datatype: GISDataType.RASTER,
+      value: Math.fround(6.2869),
+      sampling_date: null,
+      resolution_m: 250,
+      reference_period_start: '2010',
+      reference_period_stop: '2020-06',
+    };
+
+    it('shows the reference period in place of the date, and offers Resolution without showing it', () => {
+      render(<DownloadPreviewTable isDataLoading={false} isRasterDataset />);
+
+      const { options, value } = lastMultiSelect();
+      expect(options.map(option => option.value)).toEqual(expect.arrayContaining(['reference_period', 'resolution_m']));
+      expect(options.map(option => option.value)).not.toContain('sampling_date');
+      expect(value).toContain('reference_period');
+      expect(value).not.toContain('resolution_m');
+    });
+
+    it('turns sorting off, on the columns and on the table', () => {
+      render(<DownloadPreviewTable isDataLoading={false} isRasterDataset />);
+
+      expect(lastColumns().every(column => column.sortable === false)).toBe(true);
+      expect(mockDataTable.mock.lastCall![0]).toMatchObject({ sortField: undefined, sortOrder: undefined });
+    });
+
+    it('keeps sorting on for a vector dataset', () => {
+      render(<DownloadPreviewTable isDataLoading={false} />);
+
+      expect(lastColumns().every(column => column.sortable === true)).toBe(true);
+    });
+
+    it('shows the value to Float32 precision, and the reference period as a range', () => {
+      render(<DownloadPreviewTable isDataLoading={false} isRasterDataset data={[rasterSample]} />);
+
+      const byField = Object.fromEntries(lastColumns().map(column => [column.field, column]));
+      expect(byField['value']!.body!(rasterSample)).toBe(6.2869);
+      expect(byField['reference_period']!.body!(rasterSample)).toBe('2010 – 2020-06');
+      expect(byField['reference_period']!.body!({ ...rasterSample, reference_period_stop: '2010' })).toBe('2010');
+      expect(byField['reference_period']!.body!({ ...rasterSample, reference_period_start: null, reference_period_stop: null })).toBe('-');
+    });
+
+    it('carries the date column choice across kinds of dataset, and keeps Resolution for when it returns', () => {
+      const { rerender } = render(<DownloadPreviewTable isDataLoading={false} />);
+      act(() => lastMultiSelect().onChange({ value: lastMultiSelect().value.filter(key => key !== 'sampling_date') }));
+
+      rerender(<DownloadPreviewTable isDataLoading={false} isRasterDataset />);
+      expect(lastMultiSelect().value).not.toContain('reference_period');
+      act(() => lastMultiSelect().onChange({ value: [...lastMultiSelect().value, 'resolution_m'] }));
+
+      rerender(<DownloadPreviewTable isDataLoading={false} />);
+      expect(lastMultiSelect().value).not.toContain('resolution_m');
+
+      rerender(<DownloadPreviewTable isDataLoading={false} isRasterDataset />);
+      expect(lastMultiSelect().value).toContain('resolution_m');
+    });
   });
 });

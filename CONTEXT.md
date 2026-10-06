@@ -28,6 +28,10 @@ _Avoid_: Data type (the Dataset-level modality), shape
 A depth/date slice — `min_depth`, `max_depth`, `horizon`, `sampling_date` and licence — identified **by that combination alone** and therefore shared, exactly like a **Feature**: every Dataset sampling 0–30 cm on the same date under the same licence references one Layer. A Layer belongs to no Feature and no Dataset; a **DatasetLayer** is what ties it to both.
 _Avoid_: Measurement, record, "the feature's layers" (a Layer is not owned by a Feature)
 
+**Partial date**:
+A sampling date or reference-period bound given only to the year (`2015`) or month (`2015-06`). It stands for the whole year or month it names: as a start it begins on that period's first day, as a stop or a sampling date it reaches that period's last day. So a Layer sampled in `2015` and a Raster Layer whose reference period stops at `2015` both overlap a date range starting in March 2015.
+_Avoid_: Approximate date, truncated date, year-only date (one kind of Partial date, not the concept)
+
 **DatasetLayer**:
 The join record that links a Feature to a Layer within a Dataset and associates it with a soil property. The atomic unit that a soil property measurement is attached to.
 _Avoid_: Measurement record, join
@@ -204,6 +208,10 @@ _Avoid_: Filter (a persisted scope, deduplicated per owner), query, job (the que
 One execution of a download request: a **Filter** and a set of **Datasets** resolved into files in the caller's chosen formats. Identified by the id of the job that runs it, and the unit that progress, failure and size limits are all attributed to — so "the Export is too large" is always a statement about what it names, never about how big its files turned out. It names two counts that are never added together: its **Observations** and its **Raster Layers**. Two Exports of an identical request are two Exports, and neither supersedes the other.
 _Avoid_: Download (the act of retrieving the **Export Bundle**, not of producing it), **Data Request** (a historical answer that is never recomputed — an Export is recomputed every time it is asked for), report, extract, query
 
+**Preview table**:
+The paged table on the Data Explorer page that shows one **Dataset**'s soil data for one **Soil Property** within a **Filter**: one row per **Observation**, or, for a raster Dataset, one row per pixel of a matching **Raster Layer** that touches the **AOI**.
+_Avoid_: Preview (the **Capability** that gates it), tabular preview, data table, soil data table (plugins read the same rows but are not the Preview table)
+
 **Export Limit**:
 An administrator-set bound on an **Export**'s size, protecting server load rather than the data: its **Filter**'s area (the sum of its geometries' areas; no geometries exceeds any area limit), its **Observations**, or its **Raster Layers**. Any combination may be set, and none means unlimited. An Export over any one fails, judged when it starts running. Applies to **Privileged callers** too, unless administrators (the data-admin and super-admin scopes) are exempted. Distinct from the XLSX record cap, which belongs to one format and is not set by administrators.
 _Avoid_: Quota (implies a per-caller allowance over time), export size (ambiguous with the **Export Bundle**'s bytes), count limit (there are two counts)
@@ -271,6 +279,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 ## Relationships
 
 - An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
+- A **Preview table** shows the soil data that touches the **AOI**, not the contents of an **Export Bundle**: for a raster Dataset it can list pixels along the AOI's edge that the Bundle leaves out
 - A **Dataset** *references* one or more **Features** through its **DatasetLayers**; it does not contain them, and the same **Feature** may be referenced by several **Datasets**
 - A **Feature** has one or more **DatasetLayers**
 - A **DatasetLayer** links a **Feature** to a **Layer** and a **Soil Property**
@@ -340,6 +349,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **"scope" names both storage namespaces and Config Kinds.** `GET /entitlements?scope=` accepts `datasets`, `configs` and `dashboards`, but only the first two are namespaces. Resolved: `dashboards` is a **Config Kind**, a filtered view over `configs`; the query param keeps its name because it is API.
 - **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: it means **listed only**. Every dataset-listing path pins `status = 'PUBLISHED'`, but `/soil-data` deliberately does not — an unpublished Dataset's Observations are readable by anyone holding its slug, gated by **Visibility** and **Entitlement** and nothing else. So "unpublished datasets aren't visible" is true of the catalog and false of the data. Always say *where*.
 - **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.
+- **"Preview" names both a Capability and a view.** Resolved: `preview` is the **Capability**; the table on the Data Explorer page is the **Preview table**, which needs that Capability. Never say "the preview" for the table.
 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.
 

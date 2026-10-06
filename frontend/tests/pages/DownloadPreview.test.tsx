@@ -2,6 +2,8 @@ import { act, render, screen } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
 import { useNavigate } from 'react-router';
 import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import { useDownloadPreview } from 'hooks/useDownloadPreview';
+import { useSoilData } from 'hooks/useSoilData';
 
 jest.mock('hooks/useDevice');
 
@@ -94,5 +96,16 @@ describe('DownloadPreview', () => {
     const backButton = getByTestId('download-preview-back-button');
     await act(async () => backButton.click());
     expect(navigateMockFn).toHaveBeenCalledWith(-1);
+  });
+
+  it('reads a raster dataset through the preview filter, unsorted', () => {
+    const preview = (useDownloadPreview as jest.Mock)();
+    (useDownloadPreview as jest.Mock).mockReturnValueOnce({ ...preview, selectedDatasets: ['raster-1'], isSelectedDatasetRaster: true });
+
+    render(<DownloadPreview />);
+
+    expect(useSoilData).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedDatasets: ['raster-1'], filterId: 'test-filter-id', sort: undefined }),
+    );
   });
 });

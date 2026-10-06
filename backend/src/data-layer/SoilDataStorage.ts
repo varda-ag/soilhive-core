@@ -113,14 +113,14 @@ export default class SoilDataStorage {
     if (filters.min_sampling_date === null) {
       layerWhere.push('layer.sampling_date IS NULL');
     } else if (filters.min_sampling_date) {
-      datasetWhere.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
-      layerWhere.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+      datasetWhere.push(datasetEndsOnOrAfter('ds.reference_period_stop', p(filters.min_sampling_date)));
+      layerWhere.push(endsOnOrAfter('layer.sampling_date', p(filters.min_sampling_date)));
     }
     if (filters.max_sampling_date === null) {
       layerWhere.push('layer.sampling_date IS NULL');
     } else if (filters.max_sampling_date) {
-      datasetWhere.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
-      layerWhere.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+      datasetWhere.push(startsOnOrBefore('ds.reference_period_start', p(filters.max_sampling_date)));
+      layerWhere.push(startsOnOrBefore('layer.sampling_date', p(filters.max_sampling_date)));
     }
     if (filters.min_depth === null) {
       layerWhere.push('layer.min_depth IS NULL');
@@ -193,7 +193,7 @@ export default class SoilDataStorage {
           layer.license,
           SUM(pl.feature_layer_count) AS dataset_layer_count,
           MIN(layer.sampling_date) AS min_sampling_date,
-          MAX(layer.sampling_date) AS max_sampling_date,
+          ${latestEnding('layer.sampling_date')} AS max_sampling_date,
           MIN(layer.min_depth) AS min_depth,
           MAX(layer.max_depth) AS max_depth,
           STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
@@ -212,7 +212,7 @@ export default class SoilDataStorage {
         COALESCE(STRING_AGG(DISTINCT license.slug, ','), array_to_string(ds.licenses, ',')) AS licenses,
         SUM(base_agg.dataset_layer_count) AS dataset_layer_count,
         MIN(base_agg.min_sampling_date) AS min_sampling_date,
-        MAX(base_agg.max_sampling_date) AS max_sampling_date,
+        ${latestEnding('base_agg.max_sampling_date')} AS max_sampling_date,
         MIN(base_agg.min_depth) AS min_depth,
         MAX(base_agg.max_depth) AS max_depth,
         STRING_AGG(DISTINCT base_agg.horizons, ',') AS horizons,
@@ -405,7 +405,7 @@ export default class SoilDataStorage {
         COALESCE(MIN(rl.min_depth), (ds.soil_depth->>'min')::int) AS min_depth,
         COALESCE(MAX(rl.max_depth), (ds.soil_depth->>'max')::int) AS max_depth,
         COALESCE(MIN(rl.reference_period_start), ds.reference_period_start) AS min_sampling_date,
-        COALESCE(MAX(rl.reference_period_stop), ds.reference_period_stop) AS max_sampling_date,
+        COALESCE(${latestEnding('rl.reference_period_stop')}, ds.reference_period_stop) AS max_sampling_date,
         STRING_AGG(DISTINCT sp.slug, ',') AS soil_properties
       FROM ${schema}.raster_layers rl
       INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
@@ -905,14 +905,14 @@ export default class SoilDataStorage {
     if (filters.min_sampling_date === null) {
       whereClauses.push('layer.sampling_date IS NULL');
     } else if (filters.min_sampling_date) {
-      whereClauses.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
-      whereClauses.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+      whereClauses.push(datasetEndsOnOrAfter('ds.reference_period_stop', p(filters.min_sampling_date)));
+      whereClauses.push(endsOnOrAfter('layer.sampling_date', p(filters.min_sampling_date)));
     }
     if (filters.max_sampling_date === null) {
       whereClauses.push('layer.sampling_date IS NULL');
     } else if (filters.max_sampling_date) {
-      whereClauses.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
-      whereClauses.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+      whereClauses.push(startsOnOrBefore('ds.reference_period_start', p(filters.max_sampling_date)));
+      whereClauses.push(startsOnOrBefore('layer.sampling_date', p(filters.max_sampling_date)));
     }
     if (filters.min_depth === null) {
       whereClauses.push('layer.min_depth IS NULL');
@@ -1208,6 +1208,37 @@ const decodeRasterCursor = (cursor: Cursor, sort?: string): RasterCursor | undef
 };
 
 /**
+ * Partial dates (CONTEXT.md) in SQL. A date column and a Filter date each stand for the whole year,
+ * month or day they name, so they are compared at the coarser of their two precisions: a stop of
+ * `2015` reaches a range starting `2015-03-01`, which plain text comparison misses.
+ */
+const atCommonPrecision = (column: string, operator: '>=' | '<=', param: string): string => {
+  const precision = `LEAST(length(${column}), length(${param}::text))`;
+  return `LEFT(${column}, ${precision}) ${operator} LEFT(${param}::text, ${precision})`;
+};
+
+/** The period `column` names ends on or after the day the Filter date `param` begins. */
+const endsOnOrAfter = (column: string, param: string): string => atCommonPrecision(column, '>=', param);
+
+/** The period `column` names begins on or before the day the Filter date `param` ends. */
+const startsOnOrBefore = (column: string, param: string): string => atCommonPrecision(column, '<=', param);
+
+/**
+ * A vector Dataset's stored reference period stop is the text MAX of its Layers' dates, which picks
+ * `2015-06-01` over `2015` though `2015` ends later. It is never wrong beyond its own year, so it is
+ * compared at year precision: a coarser prune that never drops a Dataset with a matching Layer, whose
+ * own date then decides. (Its stored start, the text MIN, is exact.)
+ */
+const datasetEndsOnOrAfter = (column: string, param: string): string => `LEFT(${column}, 4) >= LEFT(${param}::text, 4)`;
+
+/**
+ * SQL aggregate: the Partial date in `column` whose period ends last. Each is padded to its last possible
+ * day for the comparison (`2015` as `2015-99-99`, which beats `2015-06-01`) and the padding is stripped
+ * again; no real date has a month or day of 99. Plain MIN already gives the earliest start.
+ */
+const latestEnding = (column: string): string => `regexp_replace(MAX(rpad(${column}, 10, '-99-99')), '(-99)+$', '')`;
+
+/**
  * Whether a Filter's `data_types` criterion admits raster Datasets to coverage. Note an empty list
  * admits none, unlike the vector paths (and /soil-data), where it constrains nothing.
  */
@@ -1244,12 +1275,12 @@ export const buildRasterLayerCriteria = (
   if (filters.min_sampling_date === null) {
     whereClauses.push('rl.reference_period_start IS NULL');
   } else if (filters.min_sampling_date) {
-    whereClauses.push(`rl.reference_period_stop >= ${p(filters.min_sampling_date)}`);
+    whereClauses.push(endsOnOrAfter('rl.reference_period_stop', p(filters.min_sampling_date)));
   }
   if (filters.max_sampling_date === null) {
     whereClauses.push('rl.reference_period_stop IS NULL');
   } else if (filters.max_sampling_date) {
-    whereClauses.push(`rl.reference_period_start <= ${p(filters.max_sampling_date)}`);
+    whereClauses.push(startsOnOrBefore('rl.reference_period_start', p(filters.max_sampling_date)));
   }
   if (filters.soil_properties?.length) {
     whereClauses.push(`sp.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
@@ -1350,16 +1381,16 @@ export const buildObservationCriteria = (
     whereClauses.push(`${layer}.sampling_date IS NULL`);
   } else if (filters.min_sampling_date) {
     needsLayerJoin = true;
-    whereClauses.push(`${ds}.reference_period_stop >= ${p(filters.min_sampling_date)}`);
-    whereClauses.push(`${layer}.sampling_date >= ${p(filters.min_sampling_date)}`);
+    whereClauses.push(datasetEndsOnOrAfter(`${ds}.reference_period_stop`, p(filters.min_sampling_date)));
+    whereClauses.push(endsOnOrAfter(`${layer}.sampling_date`, p(filters.min_sampling_date)));
   }
   if (filters.max_sampling_date === null) {
     needsLayerJoin = true;
     whereClauses.push(`${layer}.sampling_date IS NULL`);
   } else if (filters.max_sampling_date) {
     needsLayerJoin = true;
-    whereClauses.push(`${ds}.reference_period_start <= ${p(filters.max_sampling_date)}`);
-    whereClauses.push(`${layer}.sampling_date <= ${p(filters.max_sampling_date)}`);
+    whereClauses.push(startsOnOrBefore(`${ds}.reference_period_start`, p(filters.max_sampling_date)));
+    whereClauses.push(startsOnOrBefore(`${layer}.sampling_date`, p(filters.max_sampling_date)));
   }
   if (filters.min_depth === null) {
     needsLayerJoin = true;
@@ -1429,8 +1460,8 @@ export const buildDatasetFilterClauses = (
     lateralWhere.push('layer.sampling_date IS NULL');
     needsLayerJoin = true;
   } else if (filters.min_sampling_date) {
-    outerWhere.push(`ds.reference_period_stop >= ${p(filters.min_sampling_date)}`);
-    lateralWhere.push(`layer.sampling_date >= ${p(filters.min_sampling_date)}`);
+    outerWhere.push(datasetEndsOnOrAfter('ds.reference_period_stop', p(filters.min_sampling_date)));
+    lateralWhere.push(endsOnOrAfter('layer.sampling_date', p(filters.min_sampling_date)));
     needsLayerJoin = true;
   }
 
@@ -1438,8 +1469,8 @@ export const buildDatasetFilterClauses = (
     lateralWhere.push('layer.sampling_date IS NULL');
     needsLayerJoin = true;
   } else if (filters.max_sampling_date) {
-    outerWhere.push(`ds.reference_period_start <= ${p(filters.max_sampling_date)}`);
-    lateralWhere.push(`layer.sampling_date <= ${p(filters.max_sampling_date)}`);
+    outerWhere.push(startsOnOrBefore('ds.reference_period_start', p(filters.max_sampling_date)));
+    lateralWhere.push(startsOnOrBefore('layer.sampling_date', p(filters.max_sampling_date)));
     needsLayerJoin = true;
   }
 
@@ -1905,12 +1936,12 @@ const applyRasterLayerFilters = (query: SelectQueryBuilder<RasterLayerEntity>, f
   if (filters.min_sampling_date === null) {
     query.andWhere('rl.reference_period_start IS NULL');
   } else if (filters.min_sampling_date) {
-    query.andWhere('rl.reference_period_stop >= :min_sampling_date', { min_sampling_date: filters.min_sampling_date });
+    query.andWhere(endsOnOrAfter('rl.reference_period_stop', ':min_sampling_date'), { min_sampling_date: filters.min_sampling_date });
   }
   if (filters.max_sampling_date === null) {
     query.andWhere('rl.reference_period_stop IS NULL');
   } else if (filters.max_sampling_date) {
-    query.andWhere('rl.reference_period_start <= :max_sampling_date', { max_sampling_date: filters.max_sampling_date });
+    query.andWhere(startsOnOrBefore('rl.reference_period_start', ':max_sampling_date'), { max_sampling_date: filters.max_sampling_date });
   }
   if (filters.soil_properties?.length) {
     query.andWhere('sp.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });

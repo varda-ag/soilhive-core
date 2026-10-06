@@ -32,6 +32,7 @@ A raster Dataset's measurements are the pixels of its Files, one Raster Layer pe
 
 - Raster coverage and the raster export still list only Published Datasets and apply the `visibility` criterion. So, as with vector data, a raster Dataset that coverage does not list can still be read through `/soil-data` by anyone who holds its slug and passes the Visibility and Entitlement check.
 - Raster rows need the `preview` Capability, as vector rows do, while the raster export needs `download`. Before this change `preview` on a private raster Dataset exposed no pixel values. Now it exposes all of them, page by page.
+- Raster rows are not the Export Bundle's pixels. The raster export clips with a coarser mask that is roughly pixel-centre, so it can leave out edge pixels that `/soil-data` returns.
 - A skipped Raster Layer's rows are missing from the response, and nothing in the response says so. If the failure is transient and the cursor moves past that layer, the pagination loses the layer's remaining rows.
 - There is no size limit beyond paging. Memory per request is bounded by eight strips. Time is bounded by how many strips must be read to fill a page, so a huge AOI that is mostly nodata can read many strips for one page.
 - GDAL runs only to reproject. A page spawns one `gdaltransform` per distinct projected CRS for the AOI and one for the outlines. A Raster Layer in EPSG:4326 spawns none. A File with no recorded CRS and no EPSG code in its geokeys also costs one `gdalinfo`.

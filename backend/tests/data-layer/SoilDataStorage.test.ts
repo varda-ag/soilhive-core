@@ -257,6 +257,60 @@ describe('SoilDataStorage class', () => {
     expect(datasetResults.map(ds => ds.id).sort()).toEqual(filterResults.map(ds => ds.id).sort());
   });
 
+  // A Partial date stands for the whole year it names, on the Layer and on the Dataset's reference period alike
+  it.each([
+    ['2015-03-01', undefined, 1],
+    ['2016-01-01', undefined, 0],
+    [undefined, '2015-01-31', 1],
+    [undefined, '2014-12-31', 0],
+  ])(
+    'Filtering by sampling date treats a year-only date as the whole year (from %s to %s)',
+    async (min_sampling_date, max_sampling_date, expected) => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions });
+      const entityManager = await getEntityManager();
+      await entityManager.query(
+        `UPDATE layers SET sampling_date = '2015' WHERE id IN (SELECT layer_id FROM dataset_layers WHERE dataset_id = $1)`,
+        [dataset.id],
+      );
+      await entityManager.query(`UPDATE datasets SET reference_period_start = '2015', reference_period_stop = '2015' WHERE id = $1`, [
+        dataset.id,
+      ]);
+      const sds = new SoilDataStorage();
+      const filter = await makeFilter(entityManager, bboxPolygon, {
+        ...(min_sampling_date ? { min_sampling_date } : {}),
+        ...(max_sampling_date ? { max_sampling_date } : {}),
+      });
+
+      expect(await sds.filterVector(entityManager, filter)).toHaveLength(expected);
+      expect(await sds.filterVectorDatasets(entityManager, filter)).toHaveLength(expected);
+      expect(await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], 100)).toHaveLength(expected);
+    },
+  );
+
+  // A Dataset's stored stop is the text MAX of its Layers' dates: `2015-06-01`, though its `2015` Layer runs to December
+  it('keeps a Dataset whose stored stop ends before its year-only Layer, and reports that Layer as its latest', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: 2 });
+    const entityManager = await getEntityManager();
+    await entityManager.query(
+      `UPDATE layers SET sampling_date = CASE WHEN min_depth = 0 THEN '2015' ELSE '2015-06-01' END
+       WHERE id IN (SELECT layer_id FROM dataset_layers WHERE dataset_id = $1)`,
+      [dataset.id],
+    );
+    await entityManager.query(`UPDATE datasets SET reference_period_start = '2015', reference_period_stop = '2015-06-01' WHERE id = $1`, [
+      dataset.id,
+    ]);
+    const sds = new SoilDataStorage();
+
+    const [summary] = await sds.filterVector(entityManager, await makeFilter(entityManager, bboxPolygon));
+    expect(summary?.max_sampling_date).toBe('2015');
+
+    const afterStoredStop = await makeFilter(entityManager, bboxPolygon, { min_sampling_date: '2015-07-01' });
+    expect(await sds.filterVector(entityManager, afterStoredStop)).toHaveLength(1);
+    expect(await sds.filterVectorDatasets(entityManager, afterStoredStop)).toHaveLength(1);
+    const rows = await sds.getSoilData({ entityManager, entitlements }, afterStoredStop, [dataset.slug], 100);
+    expect(rows.map(row => row.sampling_date)).toEqual(['2015']);
+  });
+
   it.each([
     [undefined, 2, 20],
     [[], 2, 20],
@@ -930,6 +984,11 @@ describe('SoilDataStorage class', () => {
         { min_sampling_date: '2015-01-01', max_sampling_date: '2018-01-01' },
         1,
       ],
+      // A Partial date stands for the whole year or month it names
+      [{ reference_period_start: '2010', reference_period_stop: '2015' }, { min_sampling_date: '2015-03-01' }, 1],
+      [{ reference_period_start: '2010', reference_period_stop: '2015' }, { min_sampling_date: '2016-01-01' }, 0],
+      [{ reference_period_start: '2016-05', reference_period_stop: '2020' }, { max_sampling_date: '2016' }, 1],
+      [{ reference_period_start: '2016-05', reference_period_stop: '2020' }, { max_sampling_date: '2016-04-30' }, 0],
     ])('Filtering with criteria: layer=%j filter=%j should return %i result(s)', async (layerFields, filter, expectedCount) => {
       await addRasterData(undefined, { layerFields, dataset_status: IngestionStatus.PUBLISHED });
       const sds = new SoilDataStorage();
@@ -1073,6 +1132,24 @@ describe('SoilDataStorage class', () => {
 
       expect(layers).toHaveLength(1);
       expect(layers[0]!.is_categorical).toBe(expected);
+    });
+
+    it.each([
+      ['2015-03-01', 1],
+      ['2016-01-01', 0],
+    ])('matches a reference period stopping in 2015 as the whole year, for a range from %s', async (minSamplingDate, expected) => {
+      const layer = await addRasterData(undefined, {
+        dataset_status: IngestionStatus.PUBLISHED,
+        visibility: 'public',
+        layerFields: { reference_period_start: '2010', reference_period_stop: '2015' },
+      });
+
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const filter = await makeFilter(entityManager, getPolygonFromBbox([-82, -35, -80, -33]), { min_sampling_date: minSamplingDate });
+      const { layers } = await sds.getRasterLayers({ entityManager, entitlements }, filter, [layer.dataset.slug]);
+
+      expect(layers).toHaveLength(expected);
     });
   });
 

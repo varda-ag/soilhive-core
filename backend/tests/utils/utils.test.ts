@@ -1,5 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import { buildDatedFileKey, replaceExtension } from '../../src/utils/utils';
+import { buildDatedFileKey, mergeMax, replaceExtension } from '../../src/utils/utils';
 
 describe('utils tests', () => {
   it.each([
@@ -30,6 +30,22 @@ describe('utils tests', () => {
       const first = buildDatedFileKey('data.csv', new Date('2026-07-27T12:34:56.001Z'));
       const second = buildDatedFileKey('data.csv', new Date('2026-07-27T12:34:56.002Z'));
       expect(first).not.toEqual(second);
+    });
+  });
+
+  describe('mergeMax', () => {
+    // Partial dates: the max is the one whose period ends last
+    it.each([
+      ['2015', '2015-06-01', '2015'],
+      ['2015-06-01', '2015', '2015'],
+      ['2015-06', '2015-06-15', '2015-06'],
+      ['2015-05', '2015-06-01', '2015-06-01'],
+      ['2014', '2015-01-01', '2015-01-01'],
+      [null, '2015', '2015'],
+      ['2015', null, '2015'],
+      [null, null, null],
+    ])('mergeMax(%p, %p) is %p', (a, b, expected) => {
+      expect(mergeMax(a, b)).toBe(expected);
     });
   });
 });

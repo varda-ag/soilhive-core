@@ -7,7 +7,9 @@ jest.mock('components/DownloadPreview/DownloadPreviewFilters/DownloadPreviewFilt
 });
 
 jest.mock('components/DownloadPreview/DownloadPreviewTable/DownloadPreviewTable', () => {
-  const DownloadPreviewTable = () => <div>Mock DownloadPreviewTable</div>;
+  const DownloadPreviewTable = ({ isRasterDataset }: { isRasterDataset?: boolean }) => (
+    <div>Mock DownloadPreviewTable{isRasterDataset ? ' for a raster dataset' : ''}</div>
+  );
   return DownloadPreviewTable;
 });
 
@@ -27,15 +29,13 @@ describe('DownloadPreviewDataSection', () => {
     expect(filtersButton.classList.contains('Secondary')).toBe(false);
   });
 
-  it('shows raster notification instead of table when isRasterDataset is true', () => {
-    const { queryByTestId, queryByText } = render(<DownloadPreviewDataSection isRasterDataset={true} />);
-    expect(queryByTestId('sh-raster-notification')).toBeInTheDocument();
-    expect(queryByText('Mock DownloadPreviewTable')).not.toBeInTheDocument();
+  it('shows the table for a raster dataset too, telling it the dataset is raster', () => {
+    const { queryByText } = render(<DownloadPreviewDataSection isRasterDataset={true} />);
+    expect(queryByText('Mock DownloadPreviewTable for a raster dataset')).toBeInTheDocument();
   });
 
-  it('shows table when isRasterDataset is false', () => {
-    const { queryByTestId, queryByText } = render(<DownloadPreviewDataSection isRasterDataset={false} />);
-    expect(queryByTestId('sh-raster-notification')).not.toBeInTheDocument();
+  it('shows the table for a vector dataset', () => {
+    const { queryByText } = render(<DownloadPreviewDataSection isRasterDataset={false} />);
     expect(queryByText('Mock DownloadPreviewTable')).toBeInTheDocument();
   });
 });
