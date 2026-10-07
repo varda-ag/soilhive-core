@@ -1174,21 +1174,22 @@ const decodeRasterCursor = (cursor: Cursor, sort?: string): RasterCursor | undef
   return { layer, row: row!, col: col! };
 };
 
-/**
+/*
  * Partial dates (CONTEXT.md) in SQL. A date column and a Filter date each stand for the whole year,
- * month or day they name, so they are compared at the coarser of their two precisions: a stop of
- * `2015` reaches a range starting `2015-03-01`, which plain text comparison misses.
+ * month or day they name: a stop of `2015` reaches a range starting `2015-03-01`. A partial date sorts
+ * just before its refinements (`2015` < `2015-03` < `2015-03-01`), so both helpers compare the bare
+ * column and stay index-friendly.
  */
-const atCommonPrecision = (column: string, operator: '>=' | '<=', param: string): string => {
-  const precision = `LEAST(length(${column}), length(${param}::text))`;
-  return `LEFT(${column}, ${precision}) ${operator} LEFT(${param}::text, ${precision})`;
-};
 
-/** The period `column` names ends on or after the day the Filter date `param` begins. */
-const endsOnOrAfter = (column: string, param: string): string => atCommonPrecision(column, '>=', param);
+/**
+ * The period `column` names ends on or after the day the Filter date `param` begins: it sorts at or
+ * after `param`, or is one of its coarser prefixes. The year bound gives the index a range start.
+ */
+const endsOnOrAfter = (column: string, param: string): string =>
+  `(${column} >= LEFT(${param}::text, 4) AND (${column} >= ${param}::text OR ${column} IN (LEFT(${param}::text, 4), LEFT(${param}::text, 7))))`;
 
-/** The period `column` names begins on or before the day the Filter date `param` ends. */
-const startsOnOrBefore = (column: string, param: string): string => atCommonPrecision(column, '<=', param);
+/** The period `column` names begins on or before the day the Filter date `param` ends (padded as in latestEnding). */
+const startsOnOrBefore = (column: string, param: string): string => `${column} <= rpad(${param}::text, 10, '-99-99')`;
 
 /**
  * A vector Dataset's stored reference period stop is the text MAX of its Layers' dates, which picks
