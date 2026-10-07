@@ -233,10 +233,10 @@ describe('RasterFileWriter', () => {
       expect(warp).not.toHaveBeenCalled();
     });
 
-    it('warps to the requested target CRS using nearest-neighbour for a categorical layer', async () => {
+    it('warps to the requested target CRS using nearest-neighbour for a layer whose property has classes', async () => {
       const warp = jest.spyOn(GdalCLI, 'warp');
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
-      await writer.writeLayer(makeLayer({ is_categorical: true }), MASK_TIFF, 3857);
+      await writer.writeLayer(makeLayer({ is_categorical: true, classes: { '1': { label: 'Clay' } } }), MASK_TIFF, 3857);
 
       expect(warp).toHaveBeenCalledTimes(1);
       const args = warp.mock.calls[0]![2];
@@ -253,6 +253,19 @@ describe('RasterFileWriter', () => {
       expect(args[args.indexOf('-r') + 1]).toBe('bilinear');
     });
 
+    // is_categorical records the classes as they were at ingest; the warp follows them as they are now.
+    it.each([
+      ['classes added since ingest', { is_categorical: false, classes: { '1': { label: 'Clay' } } }, 'near'],
+      ['classes removed since ingest', { is_categorical: true, classes: null }, 'bilinear'],
+    ])('resamples from the current classes, not the ingest-time flag (%s)', async (_, overrides, resampling) => {
+      const warp = jest.spyOn(GdalCLI, 'warp');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer(overrides), MASK_TIFF, 3857);
+
+      const args = warp.mock.calls[0]![2];
+      expect(args[args.indexOf('-r') + 1]).toBe(resampling);
+    });
+
     it('removes the intermediate file once the warp to a target CRS completes', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       await writer.writeLayer(makeLayer(), MASK_TIFF, 3857);
@@ -265,6 +278,36 @@ describe('RasterFileWriter', () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
 
       await expect(writer.writeLayer(makeLayer(), MASK_TIFF, 3857)).rejects.toThrow('warp failed');
+
+      expect(outputFiles().some(f => f.includes('.tmp.'))).toBe(false);
+    });
+
+    // gdalwarp writes GeoTIFF only; warping straight to the output path used to leave a GeoTIFF
+    // named .gpkg whenever no later merge happened to convert it.
+    it('writes a real GeoPackage raster table, not a GeoTIFF, when reprojecting a GeoPackage export', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.GPKG, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer({ is_categorical: true, classes: { '1': { label: 'Clay' } } }), MASK_TIFF, 3857);
+
+      expect(outputFiles().some(f => f.includes('.tmp.'))).toBe(false);
+      const gpkg = outputFiles().find(f => f.endsWith('.gpkg'));
+      if (!gpkg) throw new Error('No .gpkg output file produced');
+      const gpkgPath = path.join(TEST_OUTPUT_DIR, gpkg);
+      const layerName = writer.buildLayerName(makeLayer(), 3857);
+      const info = JSON.parse(execFileSync('gdalinfo', ['-json', `GPKG:${gpkgPath}:${layerName}`]).toString());
+      expect(info.driverShortName).toBe('GPKG');
+      expect(info.coordinateSystem.wkt).toContain('3857');
+      expect(info.metadata[''].CLASSES).toBeDefined();
+    });
+
+    it('removes both intermediates when converting a reprojected GeoPackage fails', async () => {
+      const realTranslate = GdalCLI.translate.bind(GdalCLI);
+      const translate = jest.spyOn(GdalCLI, 'translate');
+      const writer = new RasterFileWriter(RasterFileFormat.GPKG, TEST_OUTPUT_DIR);
+      // The first translate builds the pre-warp intermediate; the second is the conversion after it.
+      translate.mockImplementationOnce(realTranslate);
+      translate.mockRejectedValueOnce(new Error('convert failed'));
+
+      await expect(writer.writeLayer(makeLayer(), MASK_TIFF, 3857)).rejects.toThrow('convert failed');
 
       expect(outputFiles().some(f => f.includes('.tmp.'))).toBe(false);
     });
@@ -421,6 +464,68 @@ describe('RasterFileWriter', () => {
       if (!tif) throw new Error('No .tif output file produced');
       const stored = (await GdalCLI.gdalinfo(path.join(TEST_OUTPUT_DIR, tif))).bands?.[0];
       expect(stored?.min).toBeUndefined();
+    });
+  });
+
+  describe('class metadata', () => {
+    const classes = { '2': { label: 'Silty Clay' }, '1': { label: 'Sand & Silt', aliases: ['SaSi'] } };
+    const categorical = () => makeLayer({ is_categorical: true, classes });
+    const gdalinfoJson = (filePath: string) => JSON.parse(execFileSync('gdalinfo', ['-json', filePath]).toString());
+    const outputPath = (ext: string) => {
+      const file = outputFiles().find(f => f.endsWith(ext));
+      if (!file) throw new Error(`No ${ext} output file produced`);
+      return path.join(TEST_OUTPUT_DIR, file);
+    };
+
+    it('embeds the class labels in a categorical GeoTIFF and ships a raster attribute table sidecar', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(categorical(), MASK_TIFF);
+
+      const tifPath = outputPath('.tif');
+      expect(fs.existsSync(`${tifPath}.aux.xml`)).toBe(true);
+      const info = gdalinfoJson(tifPath);
+      expect(JSON.parse(info.metadata[''].CLASSES)).toEqual({ '1': 'Sand & Silt', '2': 'Silty Clay' });
+      // gdalinfo -json reports the RAT at the top level in older GDAL, under its band in newer (3.13).
+      const rat = info.rat ?? info.bands[0].rat;
+      expect(rat.row.map((r: { f: unknown[] }) => r.f)).toEqual([
+        [1, 'Sand & Silt'],
+        [2, 'Silty Clay'],
+      ]);
+      // Neither the second in-place edit nor the sidecar may displace the statistics in the TIFF.
+      expect(info.bands[0].metadata[''].STATISTICS_MEAN).toBeDefined();
+    });
+
+    it('writes the legend for a layer ingested before its property had classes', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer({ is_categorical: false, classes }), MASK_TIFF);
+
+      const tifPath = outputPath('.tif');
+      expect(fs.existsSync(`${tifPath}.aux.xml`)).toBe(true);
+      expect(gdalinfoJson(tifPath).metadata[''].CLASSES).toBeDefined();
+    });
+
+    it('embeds the class labels in a GeoPackage, without a sidecar', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.GPKG, TEST_OUTPUT_DIR);
+      await writer.writeLayer(categorical(), MASK_TIFF);
+
+      const gpkgPath = outputPath('.gpkg');
+      expect(fs.existsSync(`${gpkgPath}.aux.xml`)).toBe(false);
+      expect(JSON.parse(gdalinfoJson(gpkgPath).metadata[''].CLASSES)).toEqual({ '1': 'Sand & Silt', '2': 'Silty Clay' });
+    });
+
+    it('embeds the class labels after the warp to a target CRS, which drops metadata', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(categorical(), MASK_TIFF, 3857);
+
+      expect(gdalinfoJson(outputPath('.tif')).metadata[''].CLASSES).toBeDefined();
+    });
+
+    it('adds neither metadata nor sidecar for a layer without classes', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await writer.writeLayer(makeLayer(), MASK_TIFF);
+
+      expect(outputFiles().filter(f => f.endsWith('.aux.xml'))).toEqual([]);
+      expect(gdalinfoJson(outputPath('.tif')).metadata[''].CLASSES).toBeUndefined();
     });
   });
 

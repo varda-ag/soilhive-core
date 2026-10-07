@@ -35,6 +35,7 @@ export interface PropertyInfo {
   original_unit?: string;
   standard_unit?: string;
   conversion_formula?: string;
+  classes: object | null;
 }
 
 const randomInRange = (min: number, max: number): number => {
@@ -279,7 +280,12 @@ export const addCategory = async (name: string = 'test_category') => {
   return await repo.save(soilProperty);
 };
 
-export const addSoilProperty = async (name: string, category_id: string, standard_unit: string = 'mg/kg') => {
+export const addSoilProperty = async (
+  name: string,
+  category_id: string,
+  standard_unit: string = 'mg/kg',
+  classes: object | null = null,
+) => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(SoilPropertyEntity);
   const soilProperty = repo.create({
@@ -287,6 +293,7 @@ export const addSoilProperty = async (name: string, category_id: string, standar
     property_acronym: name,
     category_id,
     standard_unit,
+    classes,
   });
   await repo.save(soilProperty);
   return await repo.findOneByOrFail({ id: soilProperty.id });
@@ -485,7 +492,7 @@ export const addSyntheticIngestionData = async (syntheticIngestionDataOptions): 
       createdDataMapping[field] = mapping;
     } else if (typeof mapping === 'object') {
       const props = mapping as PropertyInfo;
-      const soilProperty = await addSoilProperty(props.property_name, category.id, props.standard_unit);
+      const soilProperty = await addSoilProperty(props.property_name, category.id, props.standard_unit, props.classes);
       const createdMapping: PropertyMapping = { property_id: soilProperty.slug };
       if (props.procedure_name) {
         const procedure = await addProcedure(props.procedure_name);

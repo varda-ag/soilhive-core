@@ -197,6 +197,7 @@ export interface SoilDataSample {
   property_acronym: string;
   standard_unit: string;
   value: number;
+  value_label: string | null;
   geometry: any;
   license_name: string;
   sampling_date: string | null;
@@ -419,11 +420,13 @@ export enum CellDeleteReason {
   ZERO_VALUE = 'zero_value',
   OOB = 'out_of_bounds',
   BELOW_LOD = 'below_lod',
+  UNKNOWN_CLASS = 'unknown_class',
 }
 export enum CellModifyReason {
   DEPTH_ROUNDED = 'depth_rounded',
   VALUE_ROUNDED = 'value_rounded',
   UNIT_CONVERTED = 'unit_converted',
+  LABEL_RESOLVED = 'label_resolved',
 }
 
 export interface CleaningReport {

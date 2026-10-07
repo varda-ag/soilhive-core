@@ -66,8 +66,8 @@ export interface ResolvedBandMapping {
   conversionFormula: string | null;
   /**
    * Whether the band's values are class codes rather than measurements, so nothing may interpolate
-   * between them. Derived from the soil property's conversions, not from `conversion_id`, which a
-   * mapping need not set — see UnitConversionService.getCategoricalPropertyIds.
+   * between them: whether the soil property has classes (see hasClasses). Stored on the layer as
+   * `is_categorical`, the record of how its overviews were resampled.
    */
   isCategorical: boolean;
   /** Passed through verbatim: prose resolves to nothing, and the loader is what stores it. */

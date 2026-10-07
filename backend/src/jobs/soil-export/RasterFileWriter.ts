@@ -12,8 +12,38 @@ import { sanitizeField, sanitizeFilename } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
 import { log } from '../../utils/logger';
 import { getErrorMessage } from '../../utils/error';
+import { hasClasses } from '../../utils/soilPropertyClasses';
 
 const TILE_SIZE = 512;
+
+const escapeXml = (text: string): string => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+/**
+ * GDAL PAM sidecar holding a thematic raster attribute table for band 1: one row per class, a
+ * VALUE column (usage MinMax, so it matches the pixel value) and a CLASS column (usage Name).
+ * Field types: 0 = integer, 2 = string. Null when the result is not well-formed XML.
+ */
+export function buildClassAttributeTable(labels: Record<string, string>): string | null {
+  const rows = Object.entries(labels)
+    .map(([code, label], i) => `      <Row index="${i}"><F>${code}</F><F>${escapeXml(label)}</F></Row>`)
+    .join('\n');
+  const xml = `<PAMDataset>
+  <PAMRasterBand band="1">
+    <GDALRasterAttributeTable tableType="thematic">
+      <FieldDefn index="0"><Name>VALUE</Name><Type>0</Type><Usage>5</Usage></FieldDefn>
+      <FieldDefn index="1"><Name>CLASS</Name><Type>2</Type><Usage>2</Usage></FieldDefn>
+${rows}
+    </GDALRasterAttributeTable>
+  </PAMRasterBand>
+</PAMDataset>
+`;
+  try {
+    SyntaxValidator.validate(xml);
+  } catch {
+    return null;
+  }
+  return xml;
+}
 
 interface TileWriteContext {
   sourceImage: GeoTIFFImage;
@@ -118,18 +148,11 @@ export class RasterFileWriter {
     const dstTranslate = targetCrs ? path.join(this.outputDir, `${layerName}.tmp.${this.getFileExtension()}`) : filePath;
     await GdalCLI.translate(mainFilePath, dstTranslate, translateArgs);
     if (targetCrs) {
-      try {
-        await GdalCLI.warp(dstTranslate, filePath, this.warpToTargetCrsArgs(targetCrs, layer.is_categorical));
-      } finally {
-        try {
-          fs.unlinkSync(dstTranslate);
-        } catch {
-          // ignore cleanup errors
-        }
-      }
+      await this.reprojectToTargetCrs(dstTranslate, filePath, layer, layerName, targetCrs);
     }
 
     await this.embedBandStatistics(filePath, layer);
+    await this.embedClassMetadata(filePath, layer);
   }
 
   /**
@@ -255,21 +278,14 @@ export class RasterFileWriter {
           ]);
         }
         if (targetCrs) {
-          try {
-            await GdalCLI.warp(dstTranslate, filePath, this.warpToTargetCrsArgs(targetCrs, layer.is_categorical));
-          } finally {
-            try {
-              fs.unlinkSync(dstTranslate);
-            } catch {
-              // ignore cleanup errors
-            }
-          }
+          await this.reprojectToTargetCrs(dstTranslate, filePath, layer, layerName, targetCrs);
         }
       } finally {
         fs.unlinkSync(vrtPath);
       }
 
       await this.embedBandStatistics(filePath, layer);
+      await this.embedClassMetadata(filePath, layer);
     } finally {
       for (const tile of tiles) {
         try {
@@ -473,10 +489,103 @@ ${sources}
   }
 
   /**
+   * Records what a layer's pixel values mean, from the soil property's classes, in two places:
+   *   - A `CLASSES` metadata item, JSON {"1": "Clay", ...}, inside the file itself: the
+   *     GDAL_METADATA tag for GeoTIFF, gpkg metadata for GeoPackage. PAM is disabled for this edit
+   *     so that GDAL stores it there or fails, rather than falling back to a sidecar.
+   *   - GeoTIFF only: a raster attribute table in a `.tif.aux.xml` sidecar,
+   *     which is how GIS tools (QGIS, ArcGIS) name the classes in a layer's legend. GeoTIFF can't
+   *     hold a RAT itself, and the GeoPackage driver drops one entirely, so GeoPackage gets the
+   *     metadata item only. Written by hand rather than through GDAL, which has no CLI to set a
+   *     RAT short of rewriting the pixels through a VRT; it lands in the bundle because the export
+   *     zips the whole output directory.
+   * Never fatal, like the statistics: the pixels are complete without it.
+   */
+  private async embedClassMetadata(filePath: string, layer: FilteredRasterLayer): Promise<void> {
+    const classes = layer.classes;
+    if (!hasClasses(classes)) return;
+    const codes = Object.keys(classes).sort((a, b) => Number(a) - Number(b));
+    const labels = Object.fromEntries(codes.map(code => [code, classes[code]!.label]));
+
+    try {
+      await GdalCLI.editInPlace(filePath, ['--config', 'GDAL_PAM_ENABLED', 'NO', '-mo', `CLASSES=${JSON.stringify(labels)}`]);
+
+      if (this.fileFormat === RasterFileFormat.TIFF) {
+        const auxPath = `${filePath}.aux.xml`;
+        if (fs.existsSync(auxPath)) {
+          // Not expected (nothing above writes PAM); never overwrite what GDAL wrote.
+          log.warn('Exported raster already has a .aux.xml sidecar; class attribute table not written', {
+            layerId: layer.id,
+            file: path.basename(filePath),
+          });
+          return;
+        }
+        const attributeTable = buildClassAttributeTable(labels);
+        if (attributeTable === null) {
+          log.warn('Class attribute table is not well-formed XML; exported raster ships without it', {
+            layerId: layer.id,
+            file: path.basename(filePath),
+          });
+          return;
+        }
+        fs.writeFileSync(auxPath, attributeTable);
+      }
+    } catch (error) {
+      log.warn('Could not embed class metadata in exported raster; file ships without it', {
+        layerId: layer.id,
+        file: path.basename(filePath),
+        error: getErrorMessage(error),
+      });
+    }
+  }
+
+  /**
+   * Reprojects `src` (an intermediate, always removed) to the target CRS at `filePath`, in this
+   * writer's format. gdalwarp can only write GeoTIFF here, so a GeoPackage export warps into a
+   * second intermediate GeoTIFF and converts that, with the same table options as every other
+   * GeoPackage this writer produces — warping straight to `filePath` would leave a GeoTIFF behind a
+   * `.gpkg` name, which only went unnoticed when mergeGPKG happened to convert it afterwards.
+   */
+  private async reprojectToTargetCrs(
+    src: string,
+    filePath: string,
+    layer: FilteredRasterLayer,
+    layerName: string,
+    targetCrs: number,
+  ): Promise<void> {
+    const warpArgs = this.warpToTargetCrsArgs(targetCrs, hasClasses(layer.classes));
+    const warped = this.fileFormat === RasterFileFormat.GPKG ? path.join(this.outputDir, `${layerName}.tmp.warp.tif`) : filePath;
+    try {
+      await GdalCLI.warp(src, warped, warpArgs);
+      if (warped !== filePath) {
+        await GdalCLI.translate(warped, filePath, [
+          '-of',
+          'GPKG',
+          '-co',
+          `RASTER_TABLE=${layerName}`,
+          '-co',
+          'TILE_FORMAT=TIFF',
+          '-ot',
+          'Float32',
+        ]);
+      }
+    } finally {
+      for (const intermediate of warped === filePath ? [src] : [src, warped]) {
+        try {
+          fs.unlinkSync(intermediate);
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    }
+  }
+
+  /**
    * Nearest-neighbour for a categorical layer (never invent a class value between two others);
    * bilinear otherwise — mirrors RasterIngestService.convertRaster's ingest-time resampling choice.
-   * `isCategorical` is persisted on raster_layers at ingest time from the band mapping, so it's read
-   * back here rather than re-derived.
+   * Decided from the property's classes as they are now, not from `is_categorical`, which records
+   * them as they were at ingest: a property given classes since is still reprojected without
+   * interpolation, since the warp reads full-resolution pixels, not the ingest-time overviews.
    */
   private warpToTargetCrsArgs(targetCrs: number, isCategorical: boolean): string[] {
     return [

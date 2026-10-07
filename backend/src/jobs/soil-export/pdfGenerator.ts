@@ -34,6 +34,7 @@ const FIELD_DESCRIPTIONS: Record<string, string> = {
   min_depth: 'Minimum sampling depth (cm)',
   max_depth: 'Maximum sampling depth (cm)',
   value: 'Reported value for the soil property',
+  value_label: 'Class name of the value, for categorical soil properties (e.g. USDA texture class)',
   unit: 'Harmonized unit of measurement',
   sample_pretreatment: 'Physical or chemical preparation applied prior to analysis',
   technique: 'High-level category describing how the value was obtained',
