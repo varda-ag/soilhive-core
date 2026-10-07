@@ -5,6 +5,7 @@ import { getRawTableName } from '../../src/utils/utils';
 import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../../src/constants/constants';
 import { addSyntheticIngestionData, addSyntheticIngestionDataManyCols, syntheticIngestionDataOptions } from '../../src/utils/mock';
 import VectorDataLoad from '../../src/data-layer/VectorDataLoad';
+import { buildCleaningCte } from '../../src/data-layer/CleaningCte';
 import DataMappingService from '../../src/services/DataMappingService';
 import { RequestData } from '../../src/interfaces/RequestData';
 import FeatureEntity from '../../src/entities/Feature';
@@ -318,6 +319,100 @@ describe('VectorDataLoad class', () => {
       expect(negativeDeletion).toBeDefined();
       expect(negativeDeletion!.count).toBe(2);
     });
+    describe('categorical properties', () => {
+      const classes = {
+        '0': { label: 'None' },
+        '1': { label: 'Clay' },
+        '8': { label: 'Silty Loam', aliases: ['Silt Loam', 'SiL'] },
+      };
+      // Raw value → [cleaned code, cell delete reason, modify reasons]
+      type CleaningCase = [string | null, number | null, string | null, string[] | null];
+      const cases: CleaningCase[] = [
+        ['1', 1, null, null],
+        ['8.000', 8, null, null],
+        [' 8 ', 8, null, null],
+        [' 8.000 ', 8, null, null],
+        [' 13 ', null, CellDeleteReason.UNKNOWN_CLASS, null],
+        ['0', 0, null, null],
+        ['Clay', 1, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['  silty   LOAM ', 8, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['SiL', 8, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['13', null, CellDeleteReason.UNKNOWN_CLASS, null],
+        ['1.5', null, CellDeleteReason.UNKNOWN_CLASS, null],
+        ['Mud', null, CellDeleteReason.UNKNOWN_CLASS, null],
+        [String(OUTSIDE_LOD_VALUE), null, CellDeleteReason.BELOW_LOD, null],
+        [' ', null, null, null],
+        [null, null, null, null],
+      ];
+      // Whitespace that btrim alone would keep. A list of its own because each case takes one raw
+      // row, and the fixture has too few rows for both lists together.
+      const whitespaceCases: CleaningCase[] = [
+        ['Clay\t', 1, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['\tClay', 1, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['Silt Loam\n', 8, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['Silt\u00a0Loam\u00a0', 8, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['8\r', 8, null, null],
+        ['\t', null, null, null],
+      ];
+
+      /** Puts one case per raw row into a text column `tex`, mapped as a categorical property. */
+      const withTextureColumn = async (rawCases: CleaningCase[] = cases) => {
+        const entityManager = await getEntityManager();
+        const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId!)}`;
+        const recordIds: number[] = (
+          await entityManager.query(`SELECT record_id FROM ${table} ORDER BY record_id LIMIT $1`, [rawCases.length])
+        ).map((r: { record_id: string }) => Number(r.record_id));
+        await entityManager.query(`ALTER TABLE ${table} ADD COLUMN tex text`);
+        for (const [i, [raw]] of rawCases.entries()) {
+          await entityManager.query(`UPDATE ${table} SET tex = $1 WHERE record_id = $2`, [raw, recordIds[i]]);
+        }
+        const config: DataCleaningConfig = {
+          ...dataMappingConfig!,
+          property_cols: { ...dataMappingConfig!.property_cols, tex: { property_id: 'texture-id', classes } },
+        };
+        return { entityManager, config, recordIds };
+      };
+
+      /** Cleans one raw row per case and checks each against its expected outcome. */
+      const expectCleaned = async (rawCases: CleaningCase[]) => {
+        const { entityManager, config, recordIds } = await withTextureColumn(rawCases);
+        const { cte, values } = buildCleaningCte(config, fileId!);
+        const rows: Array<{ record_id: string; tex_cleaned: string | null; cell_delete_reasons: any; cell_modify_reasons: any }> =
+          await entityManager.query(
+            `${cte} SELECT record_id, tex_cleaned, cell_delete_reasons, cell_modify_reasons FROM cleaning_result WHERE record_id = ANY($${values.length + 1})`,
+            [...values, recordIds],
+          );
+        const byId = new Map(rows.map(r => [Number(r.record_id), r]));
+
+        for (const [i, [raw, code, deleteReason, modifyReasons]] of rawCases.entries()) {
+          const row = byId.get(recordIds[i]!)!;
+          expect({ raw, code: row.tex_cleaned === null ? null : Number(row.tex_cleaned) }).toEqual({ raw, code });
+          expect({ raw, deleteReason: row.cell_delete_reasons?.tex ?? null }).toEqual({ raw, deleteReason });
+          expect({ raw, modifyReasons: row.cell_modify_reasons?.tex ?? null }).toEqual({ raw, modifyReasons });
+        }
+      };
+
+      it('resolves codes, labels and aliases to class codes, and reports anything else as unknown_class', async () => {
+        await expectCleaned(cases);
+      });
+
+      it('collapses tabs, line breaks and no-break spaces the way the class lookup normalizes labels', async () => {
+        await expectCleaned(whitespaceCases);
+      });
+
+      it('never applies the numeric rules to class codes', async () => {
+        const { entityManager, config } = await withTextureColumn();
+        // A floor above every code, and a formula: either would reject or change codes if applied.
+        config.property_cols.tex = { ...config.property_cols.tex!, min_val: 100, conversion_formula: 'x*10' };
+        const { cte, values } = buildCleaningCte(config, fileId!);
+        const [{ codes }] = await entityManager.query(
+          `${cte} SELECT array_agg(DISTINCT tex_cleaned::int ORDER BY tex_cleaned::int) AS codes FROM cleaning_result WHERE tex_cleaned IS NOT NULL`,
+          values,
+        );
+        expect(codes).toEqual([0, 1, 8]);
+      });
+    });
+
     it('should scale OOB threshold by conversion formula when original_unit is %', async () => {
       const vdl = new VectorDataLoad();
       const entityManager = await getEntityManager();

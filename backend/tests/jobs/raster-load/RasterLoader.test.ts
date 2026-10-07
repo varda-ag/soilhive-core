@@ -683,15 +683,27 @@ describe('RasterLoader', () => {
   });
 
   describe('is_categorical', () => {
-    it('persists is_categorical=true when the property has a categorical unit conversion', async () => {
-      const { dataset, file } = await setUpRasterLoad(uniqueName('categorical'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+    it('persists is_categorical=true when the property has classes', async () => {
+      const name = uniqueName('categorical');
+      const category = await addCategory(`category-classed-${name}`);
+      const classed = await addSoilProperty(`property-classed-${name}`, category.id, 'code 1-12', { '1': { label: 'Clay' } });
+      const { dataset, file } = await setUpRasterLoad(name, () => ({ '1': bandEntry(classed.slug, 0, 5) }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      const [layer] = await getLayers(file.id);
+      expect(layer!.is_categorical).toBe(true);
+    });
+
+    it('persists is_categorical=false for a CATEGORY_MAPPING conversion without classes', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('mapping-only'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
         unitConversion: { originalUnit: 'code 1-12', formula: 'x', type: UnitConversionType.CATEGORY_MAPPING },
       });
 
       await processRasterLoad(getJob(dataset.slug));
 
       const [layer] = await getLayers(file.id);
-      expect(layer!.is_categorical).toBe(true);
+      expect(layer!.is_categorical).toBe(false);
     });
 
     it('persists is_categorical=false for a plain numeric mapping', async () => {

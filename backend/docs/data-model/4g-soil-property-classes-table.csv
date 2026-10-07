@@ -1,0 +1,16 @@
+property_code,code,label,aliases
+usda_texture,1,Clay,
+usda_texture,2,Silty Clay,
+usda_texture,3,Sandy Clay,
+usda_texture,4,Clay Loam,
+usda_texture,5,Silty Clay Loam,
+usda_texture,6,Sandy Clay Loam,
+usda_texture,7,Loam,
+usda_texture,8,Silty Loam,Silt Loam
+usda_texture,9,Sandy Loam,
+usda_texture,10,Silt,
+usda_texture,11,Loamy Sand,
+usda_texture,12,Sand,
+drghtvul,0,Not drought vulnerable,
+drghtvul,1,Drought vulnerable,
+

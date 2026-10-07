@@ -46,6 +46,7 @@ const sampleBase: SoilDataSample = {
   property_acronym: 'ph',
   standard_unit: 'unitless',
   value: 7.2,
+  value_label: null,
   geometry: null,
   license_name: 'CC-BY',
   sampling_date: '2023-05-01',

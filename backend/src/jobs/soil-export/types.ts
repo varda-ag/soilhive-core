@@ -28,6 +28,7 @@ export interface ExportRecord {
   min_depth: number | null;
   max_depth: number | null;
   value: number;
+  value_label: string | null;
   unit: string | null;
   sample_pretreatment: string | null;
   technique: string | null;
@@ -64,6 +65,9 @@ export const EXPORT_SCHEMA: FieldMetadata[] = [
   { key: 'min_depth', title: 'min_depth', title_truncated: 'min_depth', type: 'number', gdalType: 'OFTReal' },
   { key: 'max_depth', title: 'max_depth', title_truncated: 'max_depth', type: 'number', gdalType: 'OFTReal' },
   { key: 'value', title: 'value', title_truncated: 'value', type: 'number', gdalType: 'OFTReal' },
+  // A column of its own rather than the label in place of value: value must stay numeric, and a
+  // column holding only text or null is inferred as String whichever batch creates the layer.
+  { key: 'value_label', title: 'value_label', title_truncated: 'val_label', type: 'string', gdalType: 'OFTString' },
   { key: 'unit', title: 'unit', title_truncated: 'unit', type: 'string', gdalType: 'OFTString' },
   { key: 'sample_pretreatment', title: 'sample_pretreatment', title_truncated: 'pretreat', type: 'string', gdalType: 'OFTString' },
   { key: 'technique', title: 'technique', title_truncated: 'technique', type: 'string', gdalType: 'OFTString' },
@@ -115,6 +119,7 @@ export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
     min_depth: sample.min_depth,
     max_depth: sample.max_depth,
     value: sample.value,
+    value_label: sample.value_label,
     unit: sample.standard_unit,
     sample_pretreatment: sample.sample_pretreatment,
     technique: sample.technique,
@@ -125,15 +130,4 @@ export function soilSampleToExportRecord(sample: SoilDataSample): ExportRecord {
     measurement_procedure: sample.measurement_procedure,
     limit_of_detection: sample.limit_of_detection,
   };
-}
-
-/**
- * Helper to convert ExportRecord to flat object following schema order
- */
-export function recordToOrderedObject(record: ExportRecord): Record<string, any> {
-  const result: Record<string, any> = {};
-  for (const field of EXPORT_SCHEMA) {
-    result[field.key] = record[field.key] ?? null;
-  }
-  return result;
 }

@@ -432,6 +432,7 @@
                     "depth_rounded": "Depth rounded to integer",
                     "value_rounded": "Value rounded to 3 decimal places",
                     "unit_converted": "Converted to standard unit of measurement",
+                    "label_resolved": "Class name converted to its class code",
                     "invalid_coordinates": "Invalid coordinates (out of range)",
                     "invalid_depth_interval": "Invalid depth interval (upper ≥ lower or invalid range)",
                     "minimum_data_requirement": "Minimum data requirement not met (missing geometry or no valid soil property values)",
@@ -442,6 +443,7 @@
                     "zero_value": "Zero value (treated as null)",
                     "out_of_bounds": "Out-of-bounds value",
                     "below_lod": "Below limit of detection",
+                    "unknown_class": "Not a class of the categorical property",
                     "total": "Total"
                 }
             }

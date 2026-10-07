@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from '@jest/globals';
+import { describe, it, expect, afterEach, jest } from '@jest/globals';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -9,6 +9,7 @@ import LicenseEntity from '../../src/entities/License';
 import SoilPropertyEntity from '../../src/entities/SoilProperty';
 import UnitConversionEntity from '../../src/entities/UnitConversion';
 import { JsonStorage } from '../../src/entities/JsonStorage';
+import { log } from '../../src/utils/logger';
 
 const DEFAULT_CSVS: Record<string, string> = {
   '6-license_options.csv': 'License,License full name,Description,Documentation\n',
@@ -18,11 +19,12 @@ const DEFAULT_CSVS: Record<string, string> = {
     'sample_pretreatment,laboratory_method,extractant_concentration,extraction_ratio,extraction_base,measurement_procedure,limit_of_detection\n',
   '5b-conversion-rules-table.csv':
     'property_name,subproperty_code,original_unit,original_unit_QUDT_URI,standard_unit_QUDT_URI,conversion_type,formula,notes\n',
+  '4g-soil-property-classes-table.csv': 'property_code,code,label,aliases\n',
 };
 
 const tempDirs: string[] = [];
 
-/** Writes all five CSVs (defaults, unless overridden) to a scratch dir and points the sync at it. */
+/** Writes all the CSVs (defaults, unless overridden) to a scratch dir and points the sync at it. */
 const useVocabDataDir = (overrides: Partial<Record<string, string>> = {}): string => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vocab-sync-'));
   for (const [fileName, defaultContent] of Object.entries(DEFAULT_CSVS)) {
@@ -178,5 +180,91 @@ describe('syncVocabularies - data safety', () => {
     // soil_properties never completed, and unit_conversions never even started.
     expect(hashes['soil_properties']).toBeUndefined();
     expect(hashes['unit_converisons']).toBeUndefined();
+  });
+});
+
+describe('syncVocabularies - soil property classes', () => {
+  const CLASSES_HEADER = 'property_code,code,label,aliases\n';
+
+  const getClasses = async (propertyId: string) => {
+    const dataSource = await getDataSource();
+    return (await dataSource.getRepository(SoilPropertyEntity).findOneByOrFail({ id: propertyId })).classes;
+  };
+
+  const getStoredHashes = async () => {
+    const dataSource = await getDataSource();
+    const row = await dataSource.getRepository(JsonStorage).findOneBy({ id: 'vocabulary-csv-hashes' });
+    return (row?.data ?? {}) as Record<string, string>;
+  };
+
+  it('stores classes keyed by code, with aliases only where given', async () => {
+    const category = await addCategory('Existing Category');
+    const property = await addSoilProperty('texture', category.id, 'code 1-12');
+
+    useVocabDataDir({
+      '4g-soil-property-classes-table.csv': `${CLASSES_HEADER}texture,1,Clay,\ntexture,08,Silty Loam,Silt Loam; SiL\n`,
+    });
+    await syncVocabularies();
+
+    expect(await getClasses(property.id)).toEqual({
+      '1': { label: 'Clay' },
+      '8': { label: 'Silty Loam', aliases: ['Silt Loam', 'SiL'] },
+    });
+    expect((await getStoredHashes())['soil_property_classes']).toBeDefined();
+  });
+
+  it.each([
+    ['a duplicate code', 'texture,1,Clay,\ntexture,1,Loam,\n'],
+    ['a label shared by two codes, ignoring case and spacing', 'texture,1,Clay,\ntexture,2,Silty Clay, clay \n'],
+    ['a numeric label', 'texture,1,12,\n'],
+    ['a non-integer code', 'texture,1.5,Clay,\n'],
+  ])('keeps the current classes when the rows have %s', async (_, rows) => {
+    const category = await addCategory('Existing Category');
+    const property = await addSoilProperty('texture', category.id);
+    const dataSource = await getDataSource();
+    await dataSource.getRepository(SoilPropertyEntity).update(property.id, { classes: { '7': { label: 'Loam' } } });
+
+    useVocabDataDir({ '4g-soil-property-classes-table.csv': `${CLASSES_HEADER}${rows}` });
+    await syncVocabularies();
+
+    expect(await getClasses(property.id)).toEqual({ '7': { label: 'Loam' } });
+  });
+
+  it('warns about properties where a CATEGORY_MAPPING conversion and classes disagree', async () => {
+    const category = await addCategory('Existing Category');
+    await addSoilProperty('mapped', category.id);
+    await addSoilProperty('classed', category.id);
+    const warn = jest.spyOn(log, 'warn');
+
+    useVocabDataDir({
+      '5b-conversion-rules-table.csv':
+        'property_name,subproperty_code,original_unit,original_unit_QUDT_URI,standard_unit_QUDT_URI,conversion_type,formula,notes\n' +
+        'Mapped,mapped,code,,,CATEGORY_MAPPING,,\n',
+      '4g-soil-property-classes-table.csv': `${CLASSES_HEADER}classed,1,Clay,\n`,
+    });
+    try {
+      await syncVocabularies();
+
+      const calls = warn.mock.calls.map(([message, meta]) => [String(message), meta]);
+      expect(calls).toContainEqual([expect.stringContaining('CATEGORY_MAPPING conversion but no classes'), { acronyms: ['mapped'] }]);
+      expect(calls).toContainEqual([expect.stringContaining('classes but no CATEGORY_MAPPING conversion'), { acronyms: ['classed'] }]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('does not store the hash while a row names a missing property, so it applies once the property exists', async () => {
+    const classesCsv = `${CLASSES_HEADER}later_texture,1,Clay,\n`;
+    useVocabDataDir({ '4g-soil-property-classes-table.csv': classesCsv });
+    await syncVocabularies();
+    expect((await getStoredHashes())['soil_property_classes']).toBeUndefined();
+
+    const category = await addCategory('Existing Category');
+    const property = await addSoilProperty('later_texture', category.id);
+    useVocabDataDir({ '4g-soil-property-classes-table.csv': classesCsv });
+    await syncVocabularies();
+
+    expect(await getClasses(property.id)).toEqual({ '1': { label: 'Clay' } });
+    expect((await getStoredHashes())['soil_property_classes']).toBeDefined();
   });
 });

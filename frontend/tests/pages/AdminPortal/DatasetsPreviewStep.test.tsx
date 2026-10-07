@@ -88,6 +88,7 @@ const emptySoilDataSummary: SoilDataSummary = {
     [CellModifyReason.DEPTH_ROUNDED]: 0,
     [CellModifyReason.VALUE_ROUNDED]: 0,
     [CellModifyReason.UNIT_CONVERTED]: 0,
+    [CellModifyReason.LABEL_RESOLVED]: 0,
   },
   row_deletions: {
     [RowDeleteReason.MIXED_DATA_TYPE]: 0,
@@ -103,6 +104,7 @@ const emptySoilDataSummary: SoilDataSummary = {
     [CellDeleteReason.ZERO_VALUE]: 0,
     [CellDeleteReason.OOB]: 0,
     [CellDeleteReason.BELOW_LOD]: 0,
+    [CellDeleteReason.UNKNOWN_CLASS]: 0,
   },
   gis_datatype: 'point',
 };

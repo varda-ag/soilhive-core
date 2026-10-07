@@ -28,6 +28,18 @@ feed `slug_history`:
 - `unit_conversions` by `(property_id, original_unit_of_measurement)`, with `property_id` resolved
   from `soil_properties.property_acronym = CSV.subproperty_code`, the same join the original seed
   SQL used (`5b-conversion-rules-table.csv`).
+- `soil_properties.classes` (`4g-soil-property-classes-table.csv`): the class codes of categorical
+  properties, one CSV row per class (`property_code`, `code`, `label`, optional `;`-separated
+  `aliases`), written as one jsonb object per property — `{"8": {"label": "Silty Loam", "aliases":
+  ["Silt Loam"]}}` — matched to its property by `property_acronym`, the same way unit conversions
+  are. Not a table of its own: classes are only ever read whole, with their property (labelling
+  `value` in `/soil-data` and the dataset preview, resolving codes and labels during cleaning,
+  `CLASSES` metadata and a legend in raster exports), so a jsonb column on `soil_properties` costs
+  no join. A property's rows are validated as a set before anything is written: codes must be
+  integers and unique, and labels and aliases must be unique per property once normalized (case,
+  surrounding and repeated whitespace ignored) and must not be numbers, so that a raw value in a
+  data file resolves to exactly one code and is never mistaken for one. A property whose rows fail
+  keeps the classes it had, with the problems logged; the other properties in the file still sync.
 
 It runs automatically at every boot (`app.ts`, after `initializeSchema`, wrapped so a failure is
 logged rather than blocking startup), because the CSVs only change via a new image — a deploy is
@@ -39,16 +51,23 @@ on-demand re-run without a redeploy, mirroring `--refresh-dai-stats`.
 A row present in the DB but no longer in the CSV is never deleted automatically — only logged as an
 orphan. Removing a vocabulary term is a decision a human should make deliberately (the CSV having
 temporarily dropped a row, or an export being incomplete, must not silently delete live reference
-data), not an automatic consequence of a sync running.
+data), not an automatic consequence of a sync running. The same holds for classes: a property that
+has classes but no longer appears in the classes CSV keeps them, and is logged.
 
 Each file is skipped entirely — no per-row queries at all, not even the orphan check — when its
 SHA-256 content hash matches the one stored from the last successful sync. The hash lives in
 `jsonstorage` (the same generic keyed-config table `ConfigService` already uses elsewhere, e.g. for
 the frontend logo), keyed per file so a change to one CSV doesn't force a re-check of the other.
 Since almost every boot runs against the exact same image as the one before, this is the difference
-between a couple of hundred upsert/select statements and five hash comparisons on a typical boot. A
+between a couple of hundred upsert/select statements and six hash comparisons on a typical boot. A
 dry run makes the identical skip decision (so it previews truthfully) but never persists the new
 hash, matching its no-writes contract.
+
+The classes file is the one exception to "store the hash once the file has synced": its hash is not
+stored while any of its rows names a property that doesn't exist yet. The classes CSV itself won't
+change when that property is later added to `4c-soil-property-vocabulary-table.csv`, so a stored
+hash would skip the file on every boot after, and the property would never get its classes. Leaving
+it unstored costs one re-check of a small file per boot until the property exists.
 
 The initial-schema migration (`1775600000000-CreateSchema.ts`) no longer runs any of the five
 `*_data_insert.sql` files it used to seed on a fresh schema. `syncVocabularies()` — called from
@@ -83,16 +102,25 @@ amended in place rather than adding a fourth migration this same change already 
   because the Docker image is built with `backend/` as its context and could not otherwise include
   them (`Dockerfile`'s `COPY docs/data-model ./docs/data-model`). The narrative docs under
   `docs/data-model/` link out to them by relative path instead of holding a duplicate copy.
-- A `unit_conversions` row whose `subproperty_code` has no matching `soil_properties.property_acronym`,
-  or a `soil_properties` row whose `Classification` has no matching `soil_property_categories.category_name`,
-  is skipped and logged, not fatal — either can sync legitimately before its dependency has caught up,
-  since the five syncs run in a fixed order (categories → soil properties → vocabulary terms → unit
-  conversions) within one call but each tolerates the others being incomplete.
+- A `unit_conversions` or classes row whose property code has no matching
+  `soil_properties.property_acronym`, or a `soil_properties` row whose `Classification` has no
+  matching `soil_property_categories.category_name`, is skipped and logged, not fatal — either can
+  sync legitimately before its dependency has caught up, since the six syncs run in a fixed order
+  (licenses → categories → soil properties → vocabulary terms → unit conversions → classes) within
+  one call but each tolerates the others being incomplete. Only the classes sync retries such rows on
+  a later boot without a CSV change (see above); a unit conversion skipped this way waits for its own
+  CSV to change.
+- Classes are reference data the rest of the system acts on, not just labels: once a property has
+  classes, its values are cleaned as class codes (a value that isn't one is reported `unknown_class`,
+  and a label or alias in a data file is resolved to its code), and `POST /soil-data` rejects a value
+  that isn't one of them. Adding classes to a property that already has loaded data does not
+  re-validate that data.
 - Adds `csv-parse` as a dependency: the CSVs' quoted fields (license descriptions, conversion notes)
   contain embedded commas that a hand-rolled splitter would corrupt.
-- A boot against unchanged CSVs costs five hash comparisons; a boot where any changed costs one
+- A boot against unchanged CSVs costs six hash comparisons; a boot where any changed costs one
   upsert statement per row of that file (licenses: ~11 rows; unit_conversions: on the order of
-  hundreds) before the server starts accepting traffic.
+  hundreds), or for the classes file one update per property, before the server starts accepting
+  traffic.
 - `syncVocabularies()` acquires a non-blocking Postgres advisory lock (`pg_try_advisory_lock` on a
   fixed key, via a `queryRunner` pinned to one connection for the lock's session-scoped lifetime)
   before doing any work. A replica that doesn't get the lock logs that another one is already
@@ -164,9 +192,22 @@ amended in place rather than adding a fourth migration this same change already 
   around every row, reintroducing roughly the per-row overhead being avoided. The advisory lock
   above already removes the actual problem (concurrent replicas contending over the same rows)
   batching into a transaction would have been reached for.
+- **Keep class codes in `unit_conversions`** — in `conversion_formula` as JSON text or a `CASE`
+  expression, or in `metadata` on a `CATEGORY_MAPPING` row whose original unit equals the
+  property's standard unit — rejected. `conversion_formula` is pasted into the cleaning SQL and
+  parsed as a raster scale factor, so a non-formula there breaks both. And classes describe the
+  property's standard codes, which observations are stored in, not a conversion from a source unit:
+  observations don't record which conversion produced them, so a lookup would have to depend on two
+  free-text unit strings matching exactly, which `5b-conversion-rules-table.csv` already didn't for
+  USDA texture.
+- **A separate `soil_property_classes` table** — not chosen for now. It would let the database
+  enforce unique codes and make querying by class a plain join, but every current reader takes a
+  property's classes whole; the validation it would provide is done by the sync instead. Moving
+  the jsonb into a table later remains straightforward if classes need columns of their own
+  (colours, translations) or queries by class.
 - **Bulk multi-row `INSERT ... VALUES (...), (...) ON CONFLICT ... DO UPDATE`** — rejected for the
   same error-isolation reason, and `syncSoilProperties` specifically has a row-to-row dependency (a
   subproperty's `INSERT` needs the `id` its parent row's `INSERT` just returned), which doesn't
   bulk without restructuring into a two-phase parents-then-children batch. Row counts here are in
-  the low hundreds across all five files, and this only runs at all on the rare boot where a CSV
+  the low hundreds across all six files, and this only runs at all on the rare boot where a CSV
   actually changed — not enough round-trip cost to justify trading the resilience away for.

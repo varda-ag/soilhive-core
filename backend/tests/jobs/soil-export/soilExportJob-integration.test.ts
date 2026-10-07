@@ -1272,6 +1272,7 @@ describe('Soil Export Job Integration Test', () => {
       property_name: 'aluminum',
       standard_unit: null,
       value: 1.0,
+      value_label: null,
       geometry: { type: 'Point', coordinates: [0, 0] },
       license_name: null,
       sampling_date: null,
