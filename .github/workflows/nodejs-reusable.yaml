@@ -91,9 +91,11 @@ jobs:
 
       - name: Determine Node Versions
         id: determine-node-versions
+        env:
+          NODE_VERSION: ${{ inputs.node-version }}
         run: |
           nodeVersion="["
-          IFS=',' read -ra LIST <<< "${{ inputs.node-version }}"
+          IFS=',' read -ra LIST <<< "$NODE_VERSION"
           for item in "${LIST[@]}"; do
             nodeVersion="${nodeVersion}\"$item\","
           done
@@ -216,8 +218,6 @@ jobs:
     needs: 
       - process-inputs
       - build
-
-    continue-on-error: true  # TODO: REMOVE
 
     strategy:
       matrix:

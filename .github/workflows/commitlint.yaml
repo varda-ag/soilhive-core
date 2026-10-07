@@ -146,9 +146,10 @@ jobs:
         continue-on-error: true
         env:
           NO_COLOR: "1"
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           set -o pipefail
-          echo "${{ github.event.pull_request.title }}" | \
+          echo "$PR_TITLE" | \
           npx commitlint --verbose | tee pr-title-lint-output.txt
 
       - name: Remove old comments
