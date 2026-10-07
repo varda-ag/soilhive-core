@@ -207,6 +207,19 @@ describe('DownloadPreview', () => {
       expect(byField['reference_period']!.body!({ ...rasterSample, reference_period_start: null, reference_period_stop: null })).toBe('-');
     });
 
+    it('shows the class label in place of a categorical code, for raster and vector rows alike', () => {
+      const valueColumn = () => lastColumns().find(column => column.field === 'value')!;
+      const rasterClass = { ...rasterSample, value: 1, value_label: 'Clay' };
+      const vectorClass = { ...sampleBase, value: 1, value_label: 'Clay' };
+
+      const { rerender } = render(<DownloadPreviewTable isDataLoading={false} isRasterDataset data={[rasterClass]} />);
+      expect(valueColumn().body!(rasterClass)).toBe('Clay');
+
+      rerender(<DownloadPreviewTable isDataLoading={false} data={[vectorClass, sampleBase]} />);
+      expect(valueColumn().body!(vectorClass)).toBe('Clay');
+      expect(valueColumn().body!(sampleBase)).toBe(7.2);
+    });
+
     it('carries the date column choice across kinds of dataset, and keeps Resolution for when it returns', () => {
       const { rerender } = render(<DownloadPreviewTable isDataLoading={false} />);
       act(() => lastMultiSelect().onChange({ value: lastMultiSelect().value.filter(key => key !== 'sampling_date') }));

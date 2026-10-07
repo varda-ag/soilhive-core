@@ -18,7 +18,9 @@ import { formatRasterValue } from 'utilities/formatRasterValue';
 const SAMPLING_DATE_COLUMN = 'sampling_date';
 const REFERENCE_PERIOD_COLUMN = 'reference_period';
 
-const rasterValueCell = ({ value }: SoilDataSample) => formatRasterValue(value);
+// A categorical property's class label is shown in place of its code
+const valueCell = ({ value, value_label }: SoilDataSample) => value_label ?? value;
+const rasterValueCell = ({ value, value_label }: SoilDataSample) => value_label ?? formatRasterValue(value);
 
 function DownloadPreviewTable({
   data = [],
@@ -117,7 +119,7 @@ function DownloadPreviewTable({
     [SAMPLING_DATE_COLUMN]: { body: dateCell, bodyClassName: styles.DateCell },
     [REFERENCE_PERIOD_COLUMN]: { body: referencePeriodCell, bodyClassName: styles.DateCell },
     resolution_m: { body: resolutionCell },
-    ...(isRasterDataset ? { value: { body: rasterValueCell } } : {}),
+    value: { body: isRasterDataset ? rasterValueCell : valueCell },
   };
 
   const mapPinCell = ({ geometry }: SoilDataSample) => {

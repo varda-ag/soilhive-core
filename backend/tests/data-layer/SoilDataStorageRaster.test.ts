@@ -168,6 +168,7 @@ describe('SoilDataStorage.getSoilData raster rows', () => {
       property_name: layer.soil_property.property_name,
       standard_unit: layer.soil_property.standard_unit,
       value: 23.5,
+      value_label: null,
       geometry: {
         type: 'Polygon',
         coordinates: [
@@ -220,6 +221,26 @@ describe('SoilDataStorage.getSoilData raster rows', () => {
     expect(rows.map(row => [position(row), row.value])).toEqual([
       ['0:1', 1.5],
       ['0:2', 2.5],
+    ]);
+  });
+
+  it('labels the pixels of a categorical band that are class codes, and only those', async () => {
+    // Offset by -0.5, row 0's pixels are the whole numbers 0..11
+    const layer = await addFixtureLayer('categorical.tif', { offset: -0.5, soilProperty: 'Raster Rows Texture' });
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE soil_properties SET classes = $1 WHERE id = $2`, [
+      JSON.stringify({ '1': { label: 'Clay' }, '2': { label: 'Silty Clay', aliases: ['SiC'] } }),
+      layer.soil_property.id,
+    ]);
+    // Touches row 0, columns 1..3
+    const filter = await makeFilter(lonLatBox(10.011, 49.991, 10.031, 49.999));
+
+    const rows = await getSoilData(filter, [layer.dataset.slug], 100);
+
+    expect(rows.map(row => [position(row), row.value, row.value_label])).toEqual([
+      ['0:1', 1, 'Clay'],
+      ['0:2', 2, 'Silty Clay'],
+      ['0:3', 3, null],
     ]);
   });
 

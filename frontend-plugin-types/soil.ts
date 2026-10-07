@@ -49,6 +49,8 @@ export interface PluginSoilDataSample {
   property_acronym: string;
   standard_unit: string;
   value: number;
+  // Class label of `value` when the soil property is categorical, else null
+  value_label: string | null;
   geometry: unknown;
   license_name: string;
   sampling_date: string | null;

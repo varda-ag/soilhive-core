@@ -26,6 +26,7 @@ import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
 import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedQuery } from '../utils/query-cache';
 import { runCancelableQuery } from '../utils/cancelable-query';
+import { classLabel } from '../utils/soilPropertyClasses';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const rasterFilterService = new RasterFilterService();
@@ -702,6 +703,7 @@ export default class SoilDataStorage {
         sp.property_acronym,
         sp.property_name,
         sp.standard_unit,
+        sp.classes,
         license_fallback.name AS license_name,
         ${PROCEDURE_COLUMNS}
       FROM ${schema}.raster_layers rl
@@ -1138,6 +1140,8 @@ const rasterRowTranslation = (layer: any, pixel: LocatedPixel, sort?: string): S
     property_name: layer.property_name,
     standard_unit: layer.standard_unit,
     value: pixel.value,
+    // A categorical band's pixels are class codes, labelled as vector values are
+    value_label: classLabel(layer.classes, pixel.value),
     geometry: pixel.geometry,
     license_name: layer.license_name,
     // A pixel is not sampled on a date: its period is reported below instead
