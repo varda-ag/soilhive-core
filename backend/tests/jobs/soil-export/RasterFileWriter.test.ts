@@ -485,7 +485,9 @@ describe('RasterFileWriter', () => {
       expect(fs.existsSync(`${tifPath}.aux.xml`)).toBe(true);
       const info = gdalinfoJson(tifPath);
       expect(JSON.parse(info.metadata[''].CLASSES)).toEqual({ '1': 'Sand & Silt', '2': 'Silty Clay' });
-      expect(info.rat.row.map((r: { f: unknown[] }) => r.f)).toEqual([
+      // gdalinfo -json reports the RAT at the top level in older GDAL, under its band in newer (3.13).
+      const rat = info.rat ?? info.bands[0].rat;
+      expect(rat.row.map((r: { f: unknown[] }) => r.f)).toEqual([
         [1, 'Sand & Silt'],
         [2, 'Silty Clay'],
       ]);

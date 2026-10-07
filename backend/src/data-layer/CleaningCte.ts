@@ -105,13 +105,16 @@ export function buildCleaningCte(config: DataCleaningConfig, fileId: string): Cl
     // conversion, range, zero or negative — and anything else is an unknown class.
     if (hasClasses(cfg.classes)) {
       const lookup = `${p(JSON.stringify(buildClassLookup(cfg.classes)))}::jsonb`;
-      // Trimmed first, so a padded code (" 8.000 ") is still read as a number, not as a label.
-      const trimmed = `btrim(${rawText})`;
+      // Normalized as normalizeClassLabel does, which built the lookup: whitespace runs collapsed to
+      // one space, then trimmed. btrim alone strips only spaces, and Postgres' \s doesn't match a
+      // no-break space, so tabs, line breaks and no-break spaces are collapsed explicitly first.
+      // Done before the numeric check, so a padded code (" 8.000 ", "8\r") is still read as a number.
+      const trimmed = `btrim(regexp_replace(${rawText}, '[\\s\\u00a0]+', ' ', 'g'))`;
       const isNumericRaw = `${trimmed} ~ ${NUMERIC_RE}`;
       const trimmedNum = `(${trimmed})::numeric`;
       // trim_scale so "8.000" looks up "8", while "1.5" stays "1.5" and matches no code. Cast only
       // inside the CASE, which guarantees it never sees non-numeric text.
-      const lookupKey = `CASE WHEN ${isNumericRaw} THEN trim_scale(${trimmedNum})::text ELSE lower(regexp_replace(${trimmed}, '\\s+', ' ', 'g')) END`;
+      const lookupKey = `CASE WHEN ${isNumericRaw} THEN trim_scale(${trimmedNum})::text ELSE lower(${trimmed}) END`;
       const classCode = `(${lookup} ->> (${lookupKey}))::numeric`;
       const isMissing = `(raw.${prop} IS NULL OR ${trimmed} = '')`;
       const isSentinel = `(CASE WHEN ${isNumericRaw} THEN ${trimmedNum} END) = ${OUTSIDE_LOD_VALUE}`;

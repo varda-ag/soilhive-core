@@ -326,7 +326,8 @@ describe('VectorDataLoad class', () => {
         '8': { label: 'Silty Loam', aliases: ['Silt Loam', 'SiL'] },
       };
       // Raw value → [cleaned code, cell delete reason, modify reasons]
-      const cases: Array<[string | null, number | null, string | null, string[] | null]> = [
+      type CleaningCase = [string | null, number | null, string | null, string[] | null];
+      const cases: CleaningCase[] = [
         ['1', 1, null, null],
         ['8.000', 8, null, null],
         [' 8 ', 8, null, null],
@@ -343,16 +344,26 @@ describe('VectorDataLoad class', () => {
         [' ', null, null, null],
         [null, null, null, null],
       ];
+      // Whitespace that btrim alone would keep. A list of its own because each case takes one raw
+      // row, and the fixture has too few rows for both lists together.
+      const whitespaceCases: CleaningCase[] = [
+        ['Clay\t', 1, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['\tClay', 1, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['Silt Loam\n', 8, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['Silt\u00a0Loam\u00a0', 8, null, [CellModifyReason.LABEL_RESOLVED]],
+        ['8\r', 8, null, null],
+        ['\t', null, null, null],
+      ];
 
       /** Puts one case per raw row into a text column `tex`, mapped as a categorical property. */
-      const withTextureColumn = async () => {
+      const withTextureColumn = async (rawCases: CleaningCase[] = cases) => {
         const entityManager = await getEntityManager();
         const table = `${process.env.POSTGRES_SCHEMA}.${getRawTableName(fileId!)}`;
         const recordIds: number[] = (
-          await entityManager.query(`SELECT record_id FROM ${table} ORDER BY record_id LIMIT $1`, [cases.length])
+          await entityManager.query(`SELECT record_id FROM ${table} ORDER BY record_id LIMIT $1`, [rawCases.length])
         ).map((r: { record_id: string }) => Number(r.record_id));
         await entityManager.query(`ALTER TABLE ${table} ADD COLUMN tex text`);
-        for (const [i, [raw]] of cases.entries()) {
+        for (const [i, [raw]] of rawCases.entries()) {
           await entityManager.query(`UPDATE ${table} SET tex = $1 WHERE record_id = $2`, [raw, recordIds[i]]);
         }
         const config: DataCleaningConfig = {
@@ -362,8 +373,9 @@ describe('VectorDataLoad class', () => {
         return { entityManager, config, recordIds };
       };
 
-      it('resolves codes, labels and aliases to class codes, and reports anything else as unknown_class', async () => {
-        const { entityManager, config, recordIds } = await withTextureColumn();
+      /** Cleans one raw row per case and checks each against its expected outcome. */
+      const expectCleaned = async (rawCases: CleaningCase[]) => {
+        const { entityManager, config, recordIds } = await withTextureColumn(rawCases);
         const { cte, values } = buildCleaningCte(config, fileId!);
         const rows: Array<{ record_id: string; tex_cleaned: string | null; cell_delete_reasons: any; cell_modify_reasons: any }> =
           await entityManager.query(
@@ -372,12 +384,20 @@ describe('VectorDataLoad class', () => {
           );
         const byId = new Map(rows.map(r => [Number(r.record_id), r]));
 
-        for (const [i, [raw, code, deleteReason, modifyReasons]] of cases.entries()) {
+        for (const [i, [raw, code, deleteReason, modifyReasons]] of rawCases.entries()) {
           const row = byId.get(recordIds[i]!)!;
           expect({ raw, code: row.tex_cleaned === null ? null : Number(row.tex_cleaned) }).toEqual({ raw, code });
           expect({ raw, deleteReason: row.cell_delete_reasons?.tex ?? null }).toEqual({ raw, deleteReason });
           expect({ raw, modifyReasons: row.cell_modify_reasons?.tex ?? null }).toEqual({ raw, modifyReasons });
         }
+      };
+
+      it('resolves codes, labels and aliases to class codes, and reports anything else as unknown_class', async () => {
+        await expectCleaned(cases);
+      });
+
+      it('collapses tabs, line breaks and no-break spaces the way the class lookup normalizes labels', async () => {
+        await expectCleaned(whitespaceCases);
       });
 
       it('never applies the numeric rules to class codes', async () => {

@@ -114,7 +114,7 @@ Your data may be subject to modification, and some data may be discarded if it d
 | The value is exactly zero, which SoilHive treats as no measurement rather than a true zero reading | *Zero value (treated as null)* |
 | The value is a percentage above 100% | *Out-of-bounds value* |
 | The value is exactly -999, the recognised "below limit of detection" convention | *Below limit of detection* |
-| The categorical value is is not found in the stored labels, aliases or values from the class mapping | *Not a class of the categorical property* |
+| The categorical value is not found in the stored labels, aliases or values from the class mapping | *Not a class of the categorical property* |
 
 You can review exactly which rows and cells were affected directly in the preview table, and you can delete additional individual rows yourself as a final quality check before confirming the upload.
 
