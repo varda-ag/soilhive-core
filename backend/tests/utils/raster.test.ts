@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { execFileSync } from 'child_process';
 import path from 'path';
-import { analyzeRasterMeta, isMetricProjectedCrs, selectOverviewTable } from '../../src/utils/raster';
+import { fromArrayBuffer, writeArrayBuffer } from 'geotiff';
+import {
+  analyzeRasterMeta,
+  formatGdalNodata,
+  isMetricProjectedCrs,
+  nodataFromImage,
+  parseGdalNodata,
+  selectOverviewTable,
+} from '../../src/utils/raster';
 import { GdalCLI } from '../../src/utils/GdalCLI';
 import { writableAssets } from '../assets';
 
@@ -164,4 +172,36 @@ describe('raster tests', () => {
     const table = selectOverviewTable(baseTable, aoiM2);
     expect(table).toEqual(expected);
   });
+});
+
+describe('nodataFromImage', () => {
+  const imageWithNodata = async (marker: string) => {
+    const buffer = writeArrayBuffer(new Float32Array([0, 1]), {
+      height: 1,
+      width: 2,
+      SamplesPerPixel: 1,
+      BitsPerSample: [32],
+      SampleFormat: [3], // IEEE float
+      GDAL_NODATA: marker,
+    });
+    return (await fromArrayBuffer(buffer)).getImage(0);
+  };
+
+  // GDAL writes infinite markers as `inf` / `-inf`, which parseFloat reads as NaN
+  it.each([
+    ['-9999', -9999],
+    ['-3.4e+38', -3.4e38],
+    ['-inf', Number.NEGATIVE_INFINITY],
+    ['inf', Number.POSITIVE_INFINITY],
+    ['nan', Number.NaN],
+  ])('reads the marker %s', async (marker, expected) => {
+    expect(nodataFromImage(await imageWithNodata(marker))).toBe(expected);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -9999, -3.4e38])(
+    'formats %p as GDAL spells it, and reads it back',
+    value => {
+      expect(parseGdalNodata(formatGdalNodata(value))).toBe(value);
+    },
+  );
 });

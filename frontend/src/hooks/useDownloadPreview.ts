@@ -48,15 +48,11 @@ export function useDownloadPreview({
     [userSelectedDatasets, firstAvailableFixedDataset],
   );
 
-  const nonRasterSelectedDatasets = useMemo(
-    () => availableFixedDatasets.filter(d => selectedDatasets.includes(d.id) && d.data_type !== GISDataType.RASTER).map(d => d.id),
-    [selectedDatasets, availableFixedDatasets],
-  );
-
-  const isSelectedDatasetRaster = useMemo(
-    () => selectedDatasets.length > 0 && nonRasterSelectedDatasets.length === 0,
-    [selectedDatasets, nonRasterSelectedDatasets],
-  );
+  // The Preview table shows one Dataset at a time, and a raster one changes its columns and sorting
+  const isSelectedDatasetRaster = useMemo(() => {
+    const selected = availableFixedDatasets.filter(d => selectedDatasets.includes(d.id));
+    return selected.length > 0 && selected.every(d => d.data_type === GISDataType.RASTER);
+  }, [selectedDatasets, availableFixedDatasets]);
 
   const availableFixedDatasetsSoilProperties = useMemo(() => {
     const datasets = datasetTypesParams.length
@@ -80,7 +76,6 @@ export function useDownloadPreview({
     availabilityFilteredSoilProperties,
     datasetsSummary,
     selectedDatasets,
-    nonRasterSelectedDatasets,
     setSelectedDatasets: setUserSelectedDatasets,
     geometryFilter,
     isSelectedDatasetRaster,

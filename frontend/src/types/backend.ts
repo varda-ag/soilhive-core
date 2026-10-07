@@ -193,6 +193,7 @@ export interface SoilDataSample {
   id: string;
   dataset: string;
   dataset_name: string;
+  gis_datatype: GISDataType;
   soil_property: string;
   property_acronym: string;
   standard_unit: string;
@@ -203,6 +204,10 @@ export interface SoilDataSample {
   sampling_date: string | null;
   min_depth: number | null;
   max_depth: number | null;
+  // Raster rows only, null on vector rows
+  resolution_m: number | null;
+  reference_period_start: string | null;
+  reference_period_stop: string | null;
   // TODO: to be restored | horizon: string | null;
   sample_pretreatment: string | null;
   technique: string | null;

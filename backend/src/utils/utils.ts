@@ -341,10 +341,12 @@ export const mergeMin = (a: string | null, b: string | null): string | null => {
   if (b === null) return a;
   return a < b ? a : b;
 };
+// Partial dates (CONTEXT.md): the max is the one whose period ends last, so each is compared padded to its
+// last possible day — `2015` as `2015-99-99`, which beats `2015-06-01`. Text order already gives the min.
 export const mergeMax = (a: string | null, b: string | null): string | null => {
   if (a === null) return b;
   if (b === null) return a;
-  return a > b ? a : b;
+  return a.padEnd(10, '-99-99') >= b.padEnd(10, '-99-99') ? a : b;
 };
 
 /**

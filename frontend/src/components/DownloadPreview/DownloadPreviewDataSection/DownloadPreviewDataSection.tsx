@@ -2,7 +2,6 @@ import { Button } from 'components/UI';
 import FilterIcon from 'assets/icons/filter-icon.svg?react';
 import styles from './DownloadPreviewDataSection.module.scss';
 import ShareIcon from 'assets/icons/share-icon.svg?react';
-import CrossedEye from 'assets/images/crossed-eye.svg?react';
 import DownloadPreviewFilters from '../DownloadPreviewFilters/DownloadPreviewFilters';
 import DownloadPreviewTable from '../DownloadPreviewTable/DownloadPreviewTable';
 import { useState } from 'react';
@@ -99,27 +98,20 @@ function DownloadPreviewDataSection({
         />
       </div>
       <div className={styles.TabularPreview}>
-        {isRasterDataset ? (
-          <div data-testid="sh-raster-notification" className={styles.RasterNotification}>
-            <CrossedEye className={styles.RasterIcon} />
-            <p className={styles.RasterTitle}>{t('download_preview.raster_notification_title')}</p>
-            <p className={styles.RasterMessage}>{t('download_preview.raster_notification_message')}</p>
-          </div>
-        ) : (
-          <DownloadPreviewTable
-            data={data}
-            isDataLoading={isDataLoading}
-            first={tableFirst}
-            setFirst={setTableFirst}
-            onTableSort={sort => {
-              resetPagination();
-              onTableSort?.(sort);
-            }}
-            onTableLastPage={onTableLastPage}
-            onFeatureSelected={onFeatureSelected}
-            selectedDatasets={selectedDatasets}
-          />
-        )}
+        <DownloadPreviewTable
+          data={data}
+          isDataLoading={isDataLoading}
+          first={tableFirst}
+          setFirst={setTableFirst}
+          onTableSort={sort => {
+            resetPagination();
+            onTableSort?.(sort);
+          }}
+          onTableLastPage={onTableLastPage}
+          onFeatureSelected={onFeatureSelected}
+          selectedDatasets={selectedDatasets}
+          isRasterDataset={isRasterDataset}
+        />
       </div>
     </div>
   );

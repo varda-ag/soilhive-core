@@ -7,7 +7,7 @@ import { Polygon, MultiPolygon } from 'geojson';
 import { RasterFileFormat } from './types';
 import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
 import FileService from '../../services/FileService';
-import { openTiff, nodataFromImage } from '../../utils/raster';
+import { openTiff, nodataFromImage, formatGdalNodata } from '../../utils/raster';
 import { sanitizeField, sanitizeFilename } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
 import { log } from '../../utils/logger';
@@ -202,7 +202,7 @@ export class RasterFileWriter {
 
     const nodata = nodataFromImage(sourceImage);
     const nodataFill = Number.isNaN(nodata) ? Number.NaN : nodata;
-    const nodataStr = Number.isNaN(nodata) ? 'nan' : String(nodata);
+    const nodataStr = formatGdalNodata(nodata);
     const layerName = this.buildLayerName(layer, targetCrs);
 
     fs.mkdirSync(this.outputDir, { recursive: true });

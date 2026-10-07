@@ -1,3 +1,5 @@
+import type { PluginGISDataType } from './filter';
+
 export interface PluginSoilProperty {
   id: string;
   property_name: string;
@@ -42,15 +44,22 @@ export interface PluginSoilDataSample {
   id: string;
   dataset: string;
   dataset_name: string;
+  gis_datatype: PluginGISDataType;
   soil_property: string;
   property_acronym: string;
   standard_unit: string;
   value: number;
+  // Class label of `value` when the soil property is categorical, else null
+  value_label: string | null;
   geometry: unknown;
   license_name: string;
   sampling_date: string | null;
   min_depth: number | null;
   max_depth: number | null;
+  // Raster rows only, null on vector rows
+  resolution_m: number | null;
+  reference_period_start: string | null;
+  reference_period_stop: string | null;
   sample_pretreatment: string | null;
   technique: string | null;
   laboratory_method: string | null;

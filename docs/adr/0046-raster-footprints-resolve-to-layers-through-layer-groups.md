@@ -51,13 +51,15 @@ Measured on the same AOI, with the same result (15 datasets, 167 layers):
 - **Groups are derived, never written directly.** The triggers are the only writers outside the
   one-off backfill (`backend/src/scripts/backfill-raster-layer-groups.sql`). The migration leaves
   existing footprints ungrouped to stay short, so the backfill must run right after it on every
-  environment with raster data. Until then `filterRaster` does not see those footprints.
+  environment with raster data. Until then `filterRaster`, and the raster rows of `/soil-data`
+  (ADR 0045), do not see those footprints.
 - **The backfill blocks link writes while it runs.** It takes a `SHARE` lock on
   `raster_layer_footprints` before the advisory lock. With the advisory lock alone, a load that has
   already locked footprint rows deadlocks with the backfill's `UPDATE`, and the whole backfill rolls
   back. Run it with raster loads and raster dataset deletes paused.
 - **Mid-reingest visibility.** While a published layer is re-ingested, its links are deleted first.
-  Until its footprints are re-inserted, `filterRaster` does not see that layer for them.
+  Until its footprints are re-inserted, `filterRaster` and `/soil-data` do not see that layer for
+  them.
 - **Concurrent loads wait on each other.** They queue briefly on the advisory lock for each batch.
   Two loads that share footprints across datasets (possible via `geom_hash`, not seen in practice)
   could also deadlock, because footprint row locks are taken before the advisory lock. Postgres

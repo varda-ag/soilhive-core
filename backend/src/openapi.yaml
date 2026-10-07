@@ -1846,6 +1846,17 @@ paths:
       x-eov-operation-id: getSoilData
       x-entitlements-required: true
       summary: Retrieves soil data
+      description: >-
+        Returns vector rows (one per Observation of a point or polygonal dataset) and raster rows
+        (one per pixel of a raster dataset's Raster Layers), told apart by `gis_datatype`. Every
+        vector row comes before every raster row, and one cursor pages through both: pass the
+        `cursor` of the last row received. Raster rows are returned only with a filter that has
+        geometries: one per pixel that touches the filter's area (any overlap counts, so an area
+        smaller than a pixel still returns the pixel it lies in), excluding nodata pixels, for each
+        Raster Layer whose valid data meets that area and whose soil property, depth range,
+        reference period and dataset licences match the filter. Datasets are subject to the same
+        rules for both kinds of rows. Raster rows are ordered by Raster Layer, then pixel row, then
+        pixel column, whatever `sort` is: `sort` orders the vector rows only.
       tags:
         - soil-data
       security:
@@ -1881,7 +1892,7 @@ paths:
         - in: query
           name: cursor
           required: false
-          description: Pagination cursor
+          description: Pagination cursor, the `cursor` of the last row of the previous page.
           schema:
             type: string
         - in: query
@@ -2799,9 +2810,11 @@ components:
         # matches layers without a depth), while an absent key means "no constraint".
         min_sampling_date:
           type: string
+          pattern: '^\d{4}(-\d{2}){0,2}$'
           nullable: true
         max_sampling_date:
           type: string
+          pattern: '^\d{4}(-\d{2}){0,2}$'
           nullable: true
         min_depth:
           type: number
@@ -2927,13 +2940,24 @@ components:
       properties:
         id:
           type: string
-          description: Unique identifier for the soil data sample
+          description: >-
+            Unique identifier for the soil data sample. For a raster row it identifies the Raster
+            Layer and the pixel; like every id it is opaque and must not be parsed.
         dataset_id:
           type: string
           description: Dataset identifier
         dataset_name:
           type: string
           description: Human-readable dataset name
+        gis_datatype:
+          type: string
+          enum:
+            - point
+            - polygonal
+            - raster
+          description: >-
+            The data type of the dataset the row comes from. `raster` rows are pixels of a Raster
+            Layer; the others are Observations.
         soil_property:
           type: string
           description: Full name of the soil property measured
@@ -2945,17 +2969,21 @@ components:
           description: Standard unit of measurement for the value
         value:
           type: number
-          description: Measured numerical value
+          description: Measured numerical value. For a raster row, the pixel value, in the soil property's standard unit.
         value_label:
           type: string
           nullable: true
           description: Class label of the value when the soil property is categorical (e.g. USDA texture 1 = Clay), otherwise null
         geometry:
           type: object
-          description: Spatial representation of the sample location
+          description: >-
+            Spatial representation of the sample location, as GeoJSON in EPSG:4326. For a raster row,
+            the outline of the pixel as a Polygon (reprojected from the raster's own CRS); a Point at
+            the pixel centre only when the outline cannot be reprojected (a corner falls in a gap of
+            an interrupted projection).
         license_name:
           type: string
-          description: Name of the data license
+          description: Name of the data license. For a raster row, the dataset's (first) license.
         sampling_date:
           anyOf:
             - type: string
@@ -2964,15 +2992,37 @@ components:
             - type: string
               pattern: '^\d{4}(-\d{2}){0,2}$'
               nullable: true
-          description: Sampling date, if available
+          description: >-
+            Sampling date, if available. Always null for a raster row, whose period is in
+            `reference_period_start` and `reference_period_stop` instead.
         min_depth:
           type: number
           nullable: true
-          description: Minimum sampling depth in centimeters
+          description: Minimum sampling depth in centimeters. For a raster row, the Raster Layer's.
         max_depth:
           type: number
           nullable: true
-          description: Maximum sampling depth in centimeters
+          description: Maximum sampling depth in centimeters. For a raster row, the Raster Layer's.
+        resolution_m:
+          type: number
+          nullable: true
+          description: >-
+            Raster rows only: the Raster Layer's pixel size in metres. Null on vector rows, and on a
+            raster row whose resolution could not be measured at ingest.
+        reference_period_start:
+          type: string
+          pattern: '^\d{4}(-\d{2}){0,2}$'
+          nullable: true
+          description: >-
+            Raster rows only: the start of the period the Raster Layer represents, as YYYY, YYYY-MM or
+            YYYY-MM-DD. Null on vector rows, and when the Raster Layer has none.
+        reference_period_stop:
+          type: string
+          pattern: '^\d{4}(-\d{2}){0,2}$'
+          nullable: true
+          description: >-
+            Raster rows only: the end of the period the Raster Layer represents, as YYYY, YYYY-MM or
+            YYYY-MM-DD. Null on vector rows, and when the Raster Layer has none.
         sample_pretreatment:
           type: string
           nullable: true
@@ -3012,12 +3062,16 @@ components:
         - id
         - dataset_id
         - dataset_name
+        - gis_datatype
         - soil_property
         - property_acronym
         - standard_unit
         - value
         - geometry
         - license_name
+        - resolution_m
+        - reference_period_start
+        - reference_period_stop
         - cursor
 
     MeasuredProperty:

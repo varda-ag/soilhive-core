@@ -46,7 +46,6 @@ function DownloadPreview() {
     availabilitySelectedSoilProperties,
     availabilityFilteredSoilProperties,
     selectedDatasets,
-    nonRasterSelectedDatasets,
     setSelectedDatasets,
     geometryFilter,
     isLoading: isDownloadPreviewLoading,
@@ -150,11 +149,12 @@ function DownloadPreview() {
     loadMore,
     reset,
   } = useSoilData({
-    selectedDatasets: nonRasterSelectedDatasets,
+    selectedDatasets,
     availableDatasets: availableFixedDatasets.map(dataset => dataset.id),
-    filterId: isSelectedDatasetRaster ? undefined : downloadPreviewFilterId,
+    filterId: downloadPreviewFilterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
-    sort,
+    // Raster rows come in a fixed order (docs/adr/0045), so a raster Dataset's table is not sortable
+    sort: isSelectedDatasetRaster ? undefined : sort,
   });
 
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
