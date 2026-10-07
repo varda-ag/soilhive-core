@@ -1,4 +1,4 @@
-# ADR 0019: A Raster Layer's description is prose wrapped in jsonb, not a text column
+# A Raster Layer's description is prose wrapped in jsonb, not a text column
 
 **Status:** Accepted
 

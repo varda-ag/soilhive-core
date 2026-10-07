@@ -18,6 +18,7 @@ import JobService from './JobService';
 import { RefreshDaiStatsJob } from '../interfaces/Job';
 import { ProcessingSteps } from '../interfaces/Dataset';
 import { assertNoUnfinishedJob, getQueuedJobs } from '../data-layer/DatasetJobs';
+import { substituteClassLabels } from '../utils/soilPropertyClasses';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -214,7 +215,7 @@ export default class DatasetService {
       cursor,
       sort,
     );
-    return results;
+    return substituteClassLabels(results, dataMappingConfig.property_cols);
   }
 
   async getSoilDataCount(requestData: RequestData, datasetFileMappingId: string): Promise<number> {

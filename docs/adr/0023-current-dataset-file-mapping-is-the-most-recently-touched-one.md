@@ -1,4 +1,4 @@
-# ADR 0020: A File's Current Dataset File Mapping is the most recently touched one
+# A File's Current Dataset File Mapping is the most recently touched one
 
 **Status:** Accepted
 

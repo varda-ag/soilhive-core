@@ -1,4 +1,4 @@
-# ADR 0014: Raster detection in `extractMetadata` relies solely on GDAL; no file-extension fallback
+# Raster detection in `extractMetadata` relies solely on GDAL; no file-extension fallback
 
 `FileService.extractMetadata` decides whether an uploaded file is a raster or a vector by running `gdalinfo` once and checking whether it reports any bands. There is no fallback that classifies by file extension (e.g. `.tif`) when GDAL itself can't run.
 

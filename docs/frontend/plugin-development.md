@@ -168,7 +168,7 @@ The host's map has three features that `--with-map` does not vendor. Each one ne
 | Host feature | Why it is not vendored | What you get instead |
 |---|---|---|
 | DAI overlay | It needs a host-only network hook, tied to a live backend filter session | Nothing equivalent. Omit the `dai` prop |
-| Selection info card (`AreaInfo`) | It is also the planned future home of a `map-info-card` capability that must stay host-only (see ADR 9997) | Your own `selectionState` (see above), or `context.useFilter(filterId)` for a selection passed in as a `filterId`. Build your own card and render it through `SoilhiveMap`'s `children` slot (needs `react-map-gl` context, for example a `Popup`) or `footer` slot (a plain sibling element, for example a bottom bar) |
+| Selection info card (`AreaInfo`) | It is also the planned future home of a `map-info-card` capability that must stay host-only (see [ADR 0027](../adr/0027-map-is-vendored-behind-an-opt-in-flag.md)) | Your own `selectionState` (see above), or `context.useFilter(filterId)` for a selection passed in as a `filterId`. Build your own card and render it through `SoilhiveMap`'s `children` slot (needs `react-map-gl` context, for example a `Popup`) or `footer` slot (a plain sibling element, for example a bottom bar) |
 | Style switcher UI | It needs `primereact`'s `Dialog` | The `currentMapStyleIndex` prop. Build your own switcher and pass the index back in |
 | "Upload a polygon" toolbar modal | It needs `primereact`'s `Dialog` | `SoilhiveMapRef.onUpload`. It only accepts an already-parsed geometry; it does not read files or provide a drop zone. Pass your own `onUploadClick` to show your own upload UI, or wire up drag-and-drop yourself — see the next section |
 

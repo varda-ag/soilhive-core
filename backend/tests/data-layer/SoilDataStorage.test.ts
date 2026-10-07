@@ -504,6 +504,30 @@ describe('SoilDataStorage class', () => {
     }
   });
 
+  it('Labels values that are classes of a categorical property, and only those', async () => {
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      depthLayers: 5,
+      soilPropertyNames: ['texture'],
+      featureCount: 2,
+      observationsPerLayer: 2,
+      useProgressiveObservationValues: true,
+    });
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE soil_properties SET classes = $1 WHERE property_name = 'texture'`, [
+      JSON.stringify({ '1': { label: 'Clay' }, '2': { label: 'Silty Clay', aliases: ['SiC'] } }),
+    ]);
+
+    const filter = await makeFilter(entityManager);
+    const results = await new SoilDataStorage().getSoilData({ entityManager, entitlements }, filter, [dataset.slug], 3, undefined, 'value');
+
+    expect(results.map(r => [r.value, r.value_label])).toEqual([
+      [1, 'Clay'],
+      [2, 'Silty Clay'],
+      [3, null],
+    ]);
+  });
+
   it('Cursor and sorting should work with fields from different tables', async () => {
     const layers = 5;
     const { dataset } = await addSyntheticData({

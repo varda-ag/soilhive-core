@@ -6,7 +6,7 @@ import { DataFilter } from '../../interfaces/DatasetFilter';
 import { CommonJobData } from '../../interfaces/Job';
 import { log } from '../../utils/logger';
 
-// Stored as `exportLimits` in the theme config (docs/adr/0042). null means not limited.
+// Stored as `exportLimits` in the theme config (docs/adr/0055). null means not limited.
 export interface ExportLimits {
   maxAreaM2: number | null;
   maxObservations: number | null;

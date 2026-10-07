@@ -1,4 +1,4 @@
-# ADR 0018: A Raster Load is the only entry point for a Raster Ingest; CLI raster ingestion is removed
+# A Raster Load is the only entry point for a Raster Ingest; CLI raster ingestion is removed
 
 **Status:** Accepted — supersedes part of ADR 0004
 

@@ -515,6 +515,71 @@ describe('Testing /soil-data routes', () => {
     expect(next.body).toEqual([]);
   });
 
+  describe('Loading a categorical property', () => {
+    // bdfi33 maps to 'Bulk Density' in the synthetic mapping; giving that property classes makes
+    // the column categorical without needing a mapping of its own.
+    const loadWithClasses = async (classes: object, bdfi33: unknown) => {
+      const { dataset, datasetFileMapping } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        columnMapping: {
+          depthrange: 'depth',
+          date: 'sampling_date',
+          licence: 'license',
+          layer_name: 'horizon',
+          bdfi33: {
+            property_name: 'USDA texture',
+            standard_unit: 'code 1-12',
+            classes,
+          },
+          bdfiod: {
+            property_name: 'Bulk Density',
+            procedure_name: 'Fine earth oven dry',
+            conversion_formula: 'x/10',
+            original_unit: 'kg/cm3',
+            standard_unit: 'mmolc/dm3',
+          },
+        },
+        createTable: false,
+      });
+      const payload = [
+        {
+          sampling_date: null,
+          license: 'test_license_raw_data',
+          horizon: null,
+          max_depth: 30,
+          min_depth: 0,
+          bdfi33,
+          bdfiod: '8',
+          geometry: { type: 'Point', coordinates: [-148.0432434, 64.814888] },
+        },
+      ];
+      return request(app)
+        .post(`/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`)
+        .set('Authorization', `Bearer ${await getDataAdminToken()}`)
+        .send(payload);
+    };
+
+    it('stores a 0 that is one of the classes', async () => {
+      const res = await loadWithClasses({ '0': { label: 'None' }, '1': { label: 'Some' } }, 0);
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+      expect((await getLoadedDataCount()).n_observations).toBe(2);
+    });
+
+    it.each([0, '13'])('rejects %p, which is not one of the classes, and loads nothing from the request', async value => {
+      const res = await loadWithClasses({ '1': { label: 'Some' } }, value);
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(res.body.detail).toContain(`${Number(value)} is not one of them`);
+      expect((await getLoadedDataCount()).n_observations).toBe(0);
+    });
+
+    it('rejects a non-numeric value and loads nothing from the request', async () => {
+      const res = await loadWithClasses({ '1': { label: 'Clay' } }, 'Clay');
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(res.body.detail).toContain('"bdfi33" holds class codes and must be numeric');
+      expect((await getLoadedDataCount()).n_observations).toBe(0);
+    });
+  });
+
   it('Dataset license should be returned if no license is available at layer level', async () => {
     const spatial_extent = [0, 0, 10, 10];
     const datasetLicense = 'dataset license';

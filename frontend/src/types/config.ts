@@ -7,7 +7,7 @@ export type DaiConfig = {
   defaultValue: boolean;
 };
 
-// Enforced by the backend export job (docs/adr/0042). null means not limited.
+// Enforced by the backend export job (docs/adr/0055). null means not limited.
 export type ExportLimits = {
   maxAreaM2: number | null;
   maxObservations: number | null;

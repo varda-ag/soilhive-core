@@ -32,7 +32,7 @@ const I18N_SCAFFOLD_FILES = ['src/i18n.dev.ts', 'src/utilities/registerResourceB
 
 /**
  * frontend/tsconfig.json's own path aliases (mirrored by jest's moduleNameMapper). UI/ never uses
- * these ("its own icons, its own prop types, relative imports only" — ADR 0024), which is why this
+ * these ("its own icons, its own prop types, relative imports only" — ADR 0027), which is why this
  * distinction never mattered before; Map/ does use several of them (assets/, hooks/), so a bare
  * `hooks/useDevice` must not be mistaken for an npm package named "hooks".
  */

@@ -1,4 +1,4 @@
-# ADR 0004: `ingestRaster` requires a pre-converted COG; conversion stays in `convert_raster.sh`
+# `ingestRaster` requires a pre-converted COG; conversion stays in `convert_raster.sh`
 
 **Status:** Superseded by ADR 0025 (and, earlier, in part by ADR 0018)
 

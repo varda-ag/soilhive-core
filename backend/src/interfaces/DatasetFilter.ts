@@ -1,5 +1,6 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { GISDataType } from '../types/data';
+import { SoilPropertyClasses } from './SoilProperty';
 
 export interface FilterCriteria {
   data_types?: GISDataType[]; // Enum
@@ -68,4 +69,6 @@ export interface FilteredRasterLayer {
   soil_property_name: string;
   standard_unit: string | null;
   laboratory_method: string | null;
+  /** The soil property's classes, when it is categorical (soil_properties.classes). */
+  classes?: SoilPropertyClasses | null;
 }

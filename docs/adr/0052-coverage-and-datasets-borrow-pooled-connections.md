@@ -1,4 +1,4 @@
-# ADR 0036: `getCoverage`/`getDatasets` borrow pooled connections instead of the request's transaction
+# `getCoverage`/`getDatasets` borrow pooled connections instead of the request's transaction
 
 **Status:** Accepted
 

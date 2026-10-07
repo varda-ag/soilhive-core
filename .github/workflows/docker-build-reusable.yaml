@@ -64,8 +64,11 @@ jobs:
 
       - name: Determine image name
         id: image-name
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          INPUT_IMAGE_NAME: ${{ inputs.image-name }}
         run: |
-          IMAGE_NAME=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ inputs.image-name }} >> $GITHUB_ENV
+          IMAGE_NAME=ghcr.io/$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')/${INPUT_IMAGE_NAME}
           echo "image-name=$IMAGE_NAME" >> $GITHUB_OUTPUT
 
       # Extract metadata (tags, labels) for Docker
@@ -116,16 +119,22 @@ jobs:
       
       - name: Determine image name
         id: image-name
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          INPUT_IMAGE_NAME: ${{ inputs.image-name }}
         run: |
-          IMAGE_NAME=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${{ inputs.image-name }} >> $GITHUB_ENV
+          IMAGE_NAME=ghcr.io/$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')/${INPUT_IMAGE_NAME}
           echo "image-name=$IMAGE_NAME" >> $GITHUB_OUTPUT
 
       - name: Create and push multi-arch manifest
+        env:
+          IMAGE_NAME: ${{ steps.image-name.outputs.image-name }}
+          IMAGE_VERSION: ${{ inputs.image-version }}
         run: |
           docker buildx imagetools create \
-            --tag ${{ steps.image-name.outputs.image-name }}:${{ inputs.image-version }} \
-            ${{ steps.image-name.outputs.image-name }}:${{ inputs.image-version }}-amd64 \
-            ${{ steps.image-name.outputs.image-name }}:${{ inputs.image-version }}-arm64
+            --tag "${IMAGE_NAME}:${IMAGE_VERSION}" \
+            "${IMAGE_NAME}:${IMAGE_VERSION}-amd64" \
+            "${IMAGE_NAME}:${IMAGE_VERSION}-arm64"
 
   update-pr-comment:
     runs-on: ubuntu-latest

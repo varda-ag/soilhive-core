@@ -10,6 +10,8 @@ export interface SoilDataSample {
   property_name: string;
   standard_unit: string | null;
   value: number;
+  /** Class label of `value` when the property is categorical (soil_properties.classes), else null. */
+  value_label: string | null;
   geometry: any;
   license_name: string | null;
   sampling_date: string | null;
