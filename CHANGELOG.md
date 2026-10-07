@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.4.0 (2026-10-07)
+
+## What's Changed
+* feat: raster footprint grouping (sp-5728) by @d-rom in https://github.com/varda-ag/soilhive-core/pull/873
+* feat: soil index run MVT tiles by @svaccari in https://github.com/varda-ag/soilhive-core/pull/871
+* feat: support categorical values by @d-rom in https://github.com/varda-ag/soilhive-core/pull/876
+* chore: adr rename by @svaccari in https://github.com/varda-ag/soilhive-core/pull/877
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.3.0...v1.4.0
+
 ## 1.3.0 (2026-10-02)
 
 ## What's Changed
