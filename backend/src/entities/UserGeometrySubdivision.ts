@@ -3,7 +3,7 @@ import type { Polygon } from 'geojson';
 import UserGeometryEntity from './UserGeometry';
 
 // Populated exclusively by the subdivide_user_geometry DB trigger; never written
-// from application code. See docs/adr/0006-precomputed-geometry-subdivision-table.md
+// from application code. See docs/adr/0048-precomputed-geometry-subdivision-table.md
 @Entity('user_geometry_subdivisions')
 export default class UserGeometrySubdivisionEntity extends BaseEntity {
   @PrimaryColumn('uuid', {

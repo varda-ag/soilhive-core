@@ -1,4 +1,4 @@
-# ADR 0015: Frontend logo bytes are stored in `jsonstorage`, not object storage
+# Frontend logo bytes are stored in `jsonstorage`, not object storage
 
 The custom frontend logo is persisted as base64-encoded bytes inside the `data` jsonb of the `jsonstorage` row `id='frontend-logo'` (`{ fileKey, bytes }`), rather than living in disk/S3 object storage like every other uploaded file. This keeps a single small branding asset entirely inside the database (one backup/restore, no storage dependency to serve it) and requires no migration because `data` is already `jsonb`. Reads remain backward compatible: a row without `bytes` falls back to streaming the file from storage as before.
 

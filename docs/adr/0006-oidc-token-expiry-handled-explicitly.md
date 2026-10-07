@@ -1,4 +1,4 @@
-# ADR 0006: Handle OIDC access-token expiry explicitly in `OidcAuthProvider`
+# Handle OIDC access-token expiry explicitly in `OidcAuthProvider`
 
 **Status:** Accepted
 
@@ -44,7 +44,7 @@ Own token-expiry handling explicitly in `OidcAuthProvider`, in two parts:
 
 The renew comes first because expiry usually means the scheduled renew only missed its window
 (throttled tab, machine sleep), and signing out replaces any page gated on a signed-in user (ADR
-0042) with a login prompt, losing its in-page state.
+0056) with a login prompt, losing its in-page state.
 
 When the renew fails this is a **quiet logout**: the user is returned to a logged-out UI, not
 force-redirected to the IdP.

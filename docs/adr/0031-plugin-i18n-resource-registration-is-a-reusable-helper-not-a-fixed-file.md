@@ -1,4 +1,4 @@
-# ADR 0031: The plugin scaffold's i18next resource-registration logic is a reusable helper, not a fixed-name file
+# The plugin scaffold's i18next resource-registration logic is a reusable helper, not a fixed-name file
 
 **Status:** Accepted
 

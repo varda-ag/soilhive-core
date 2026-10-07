@@ -1,4 +1,4 @@
-# ADR 0016: A raster band is recorded as a column on `raster_layers`, not split into single-band COGs
+# A raster band is recorded as a column on `raster_layers`, not split into single-band COGs
 
 **Status:** Accepted
 

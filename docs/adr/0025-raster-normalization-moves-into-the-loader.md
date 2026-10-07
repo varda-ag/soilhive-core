@@ -1,4 +1,4 @@
-# ADR 0025: Raster normalization happens inside the loader; `convert_raster.sh` is removed
+# Raster normalization happens inside the loader; `convert_raster.sh` is removed
 
 **Status:** Accepted — supersedes ADR 0004 (`ingest-raster-requires-pre-converted-cog`)
 
@@ -49,7 +49,7 @@ What the boundary buys, now that it is a function call rather than a subprocess:
   are built, and a violation is a typed job failure rather than a shell exit code.
 
 This does not reinstate `gdal-async`: conversion runs through the GDAL command-line tools, as ADR
-0004 (`replace-gdal-async-with-cli-in-fileservice`) and ADR 0005 established for every other GDAL
+0047 (`replace-gdal-async-with-cli-in-fileservice`) and ADR 0005 established for every other GDAL
 operation.
 
 ## Consequences

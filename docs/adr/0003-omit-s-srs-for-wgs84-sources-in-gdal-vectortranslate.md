@@ -1,4 +1,4 @@
-# ADR 0003: Omit `-s_srs` for WGS84 and unknown-CRS sources in `fileToDB`
+# Omit `-s_srs` for WGS84 and unknown-CRS sources in `fileToDB`
 
 **Status:** Accepted
 

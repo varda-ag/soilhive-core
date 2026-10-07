@@ -1,6 +1,6 @@
 # Data Request output lives in job data, so the input is capped and the breakdown is truncatable
 
-> **Superseded in part by docs/adr/0040.** The truncation, histogram and single-cell rules below no longer apply: `descriptive` fails fast over its row budget. The unit cap (now 2000, ADR 0036) and the per-cell byte rules still stand.
+> **Superseded in part by docs/adr/0040.** The truncation, histogram and single-cell rules below no longer apply: `descriptive` fails fast over its row budget. The unit cap (now 2000, ADR 0053) and the per-cell byte rules still stand.
 
 > **Amended by docs/adr/0037.** The transport described below is no longer current: the payload lives in the `data_requests` table, addressed by the Run's id, and is read through `GET /data-requests/{id}` — not inside `job.data` through `GET /jobs/{jobId}`, which no longer serves this queue at all. Everything else here stands unchanged, and still governs the payload: the Aggregation Unit cap, the all-or-nothing L4 truncation, and the per-cell byte rules. The title is left as written so the reasoning is still findable by what it decided.
 
