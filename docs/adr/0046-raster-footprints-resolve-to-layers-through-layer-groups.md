@@ -36,7 +36,11 @@ sets is small: 1,117 sets cover all 12.5M junction rows on dev.
 2. **Exact test, per group.** A `LATERAL ... LIMIT 1` runs the exact test only until the first
    footprint of each group intersects. Footprints are tested against the subdivision pieces
    through their GiST index, or against the single masked geometry when raster filters are
-   active.
+   active. The test is a correlated `EXISTS (... OFFSET 0)`, not a join: `OFFSET` stops Postgres
+   from turning it into a semi-join, which pins the group's footprint ids as the driving side. As
+   a join, a single-piece AOI (estimated `rows=1`) led the planner to drive from the piece
+   instead. It enumerated every footprint under that piece once per group, which took 41s on
+   prod (500K footprints, 32 groups).
 3. **Layer resolution.** Layers come from `raster_layer_group_members`, intersected with the
    candidate layers that pass the non-spatial filters.
 
