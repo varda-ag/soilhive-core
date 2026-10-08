@@ -44,7 +44,7 @@ Set the following backend environment variables to enable OIDC authentication (s
 - `OIDC_SILENT_REDIRECT_URI`: URL to redirect after token refresh (typically the app main page)
 - `OIDC_SCOPE`: Set to `openid`
 
-Besides the backend configuration, a user created inside the Identity Provider must be given the `super-admin` scope before they can access the application as admin.
+Users must belong to the realm `OIDC_AUTHORITY` points to, and need the `super-admin` (or `data-admin`) role to access the application as admin.
 
 - [Keycloak setup](keycloak-setup.md): Example setup for Keycloak IDP and OIDC authentication
 

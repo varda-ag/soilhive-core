@@ -2,13 +2,13 @@
 
 This example uses the Keycloak instance included in the SoilHiveCore docker-compose setup.
 
-> For local development, a `soilhive` realm with a preconfigured client, roles, and test users is imported automatically on first boot, see [Quickstart](quickstart.md#test-realm-and-users). The manual steps below are useful if you want to understand how it was built, or need to set up your own realm/client from scratch (e.g., against an external Keycloak instance).
+> For local development, a `soilhive` realm with a preconfigured client, roles, and test users is imported automatically on first boot, see [Quickstart](quickstart.md#demo-user-accounts). The manual steps below are useful if you want to understand how it was built, or need to set up your own realm/client from scratch (e.g., against an external Keycloak instance).
 
 ## 1. Start Keycloak
 Run `docker-compose up`. Keycloak will be available at `http://localhost:8080`.
 
 ## 2. Login to Keycloak
-Use the default credentials found in the `docker-compose.yaml` file.
+Use the default credentials found in the `docker-compose.yaml` file. This is the `master` realm admin: it manages Keycloak but can't log in to the application.
 
 ## 3. Create a Realm
 1. In the menu select "Manage Realms"
@@ -16,6 +16,7 @@ Use the default credentials found in the `docker-compose.yaml` file.
 3. Select the newly created realm
 
 ## 4. Create a Test User
+Check your realm, not `master`, is selected: users of other realms can't log in to the application.
 1. In the menu select "Users"
 2. Click "Add user", give it a username and click "Create".
 3. Select the newly created user, and then click on the "Credentials" tab to give it a password
