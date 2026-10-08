@@ -1,63 +1,53 @@
 import type { SoilDataParameters, SoilDataSample } from 'types/backend';
-import { useApiQuery } from './useApiQuery';
-import { useEffect, useMemo, useState } from 'react';
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query';
+import { useMemo } from 'react';
+import { useRequest } from '../api-client';
+import { buildApiUrl } from '../utilities/buildApiUrl';
 
 export function useSoilData(parameters: SoilDataParameters) {
-  const [allDataMap, setAllDataMap] = useState(new Map<string, SoilDataSample[]>());
-  const [cursor, setCursor] = useState<string>();
   const { selectedDatasets, availableDatasets, filterId, limit, sort } = parameters;
+  const { request } = useRequest<SoilDataSample[]>();
+  const queryClient = useQueryClient();
 
-  const datasets = selectedDatasets ?? availableDatasets;
+  const datasets = (selectedDatasets ?? availableDatasets).join(',');
+  // Pages belong to the parameters that fetched them, so new parameters start from an empty list
+  const queryKey = ['soil-data', { datasets, limit, filterId, sort }];
 
-  const queryParameters = useMemo(() => {
-    const params: [string, string][] = [
-      ['datasets', datasets.join(',')],
-      ['limit', `${limit}`],
-    ];
-    if (filterId) params.push(['filterId', filterId]);
-    if (cursor) params.push(['cursor', cursor]);
-    if (sort) params.push(['sort', sort]);
-    return params;
-  }, [datasets, limit, filterId, cursor, sort]);
-
-  const { data = [], isLoading } = useApiQuery<SoilDataSample[]>({
-    endpoint: `/soil-data`,
-    method: 'GET',
-    queryKey: ['soil-data', queryParameters, selectedDatasets],
-    parameters: queryParameters,
-    // The query gets executed only if there are available datasets
-    // otherwise the API would return an error.
+  const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useInfiniteQuery({
+    queryKey,
+    queryFn: async ({ pageParam }) => {
+      const params: [string, string][] = [
+        ['datasets', datasets],
+        ['limit', `${limit}`],
+      ];
+      if (filterId) params.push(['filterId', filterId]);
+      if (pageParam) params.push(['cursor', pageParam]);
+      if (sort) params.push(['sort', sort]);
+      return (await request({ url: buildApiUrl('/soil-data', params), method: 'GET' })) ?? [];
+    },
+    initialPageParam: undefined as string | undefined,
+    // An empty page ends the data
+    getNextPageParam: lastPage => lastPage[lastPage.length - 1]?.cursor,
+    // The API would return an error without datasets
     enabled: datasets.length > 0 && filterId !== undefined,
+    // A refetch reloads every loaded page, so it never happens automatically. The entry is dropped
+    // gcTime after the last observer leaves, so a later visit starts fresh.
+    staleTime: Infinity,
   });
 
-  useEffect(() => {
-    if (data) {
-      const lastElement = data[data.length - 1];
-      if (lastElement) {
-        setAllDataMap(prevAllDataMap => {
-          const newAllDataMap = new Map(prevAllDataMap);
-          newAllDataMap.set(lastElement.cursor, data);
-          return newAllDataMap;
-        });
-      }
-    }
-  }, [data]);
-
-  const allData = [...allDataMap.values()].flatMap(data => data);
+  const allData = useMemo(() => data?.pages.flat() ?? [], [data]);
 
   function loadMore() {
-    const lastElement = allData[allData.length - 1];
-    if (lastElement) {
-      setCursor(lastElement.cursor);
-    }
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
   }
 
+  // Keeps only the first page. Not needed on a parameter change: kept for the plugin contract.
   function reset() {
-    setAllDataMap(new Map());
-    setCursor(undefined);
+    queryClient.setQueryData<InfiniteData<SoilDataSample[], string | undefined>>(
+      queryKey,
+      prev => prev && { pages: prev.pages.slice(0, 1), pageParams: prev.pageParams.slice(0, 1) },
+    );
   }
 
-  const hasMore = data !== undefined && data.length > 0;
-
-  return { allData, isLoading, hasMore, loadMore, reset };
+  return { allData, isLoading: isLoading || isFetchingNextPage, hasMore: hasNextPage, loadMore, reset };
 }
