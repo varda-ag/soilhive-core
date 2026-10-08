@@ -145,7 +145,6 @@ describe('sanitizeFootprintRings', () => {
     [0.4, 0.4],
     [0.2, 0.2],
   ];
-  // Shapes OGR_ENABLE_PARTIAL_REPROJECTION produced for wv0010_0-5cm_mean.tif
   const twoPoint: number[][] = [
     [-49.99, 81.88],
     [-49.99, 81.88],
