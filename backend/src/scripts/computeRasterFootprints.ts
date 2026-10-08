@@ -1,4 +1,4 @@
-import type { MultiPolygon } from 'geojson';
+import type { MultiPolygon, Position } from 'geojson';
 import { SyntaxValidator } from 'fast-xml-validator';
 import fs from 'fs/promises';
 import os from 'os';
@@ -82,6 +82,32 @@ function computeGrid(rasterWidth: number, rasterHeight: number): { nCols: number
   const nCols = Math.max(1, Math.round(Math.sqrt(targetTiles * (rasterWidth / rasterHeight))));
   const nRows = Math.max(1, Math.round(Math.sqrt(targetTiles * (rasterHeight / rasterWidth))));
   return { nCols, nRows };
+}
+
+const closeRing = (ring: Position[]): Position[] => {
+  const first = ring[0];
+  const last = ring[ring.length - 1];
+  return first && last && (first[0] !== last[0] || first[1] !== last[1]) ? [...ring, first] : ring;
+};
+
+/**
+ * Makes rings readable by PostGIS's WKB parser, which rejects malformed rings outright — before
+ * ST_MakeValid can repair anything — failing the whole batch. OGR_ENABLE_PARTIAL_REPROJECTION
+ * produces both kinds it rejects by dropping a lobe-edge pixel's unprojectable corners:
+ * - unclosed rings, when the dropped corner is the ring's start (its closing copy fails with it):
+ *   re-closed by repeating the first point ("Polygon must have closed rings");
+ * - rings collapsed below 4 points (e.g. [A, A] or [A, B, A]), which enclose no area: dropped
+ *   ("Polygon must have at least four points in each ring"). A collapsed exterior ring takes its
+ *   polygon's holes with it.
+ * Any other invalidity this leaves (self-intersections, escaped holes) is ST_MakeValid's to repair.
+ * Returns null when nothing is left.
+ */
+export function sanitizeFootprintRings(multiPolygon: MultiPolygon): MultiPolygon | null {
+  const polygons = multiPolygon.coordinates
+    .map(rings => rings.map(closeRing))
+    .filter(([exterior]) => exterior !== undefined && exterior.length >= 4)
+    .map(rings => rings.filter(ring => ring.length >= 4));
+  return polygons.length > 0 ? { ...multiPolygon, coordinates: polygons } : null;
 }
 
 /**
@@ -249,7 +275,8 @@ export async function streamRasterFootprints(
         await fs.unlink(vrtPath).catch(() => {});
       }
 
-      return { multiPolygon: geojson.features[0]?.geometry ?? null, vrtMs, footprintMs };
+      const geometry = geojson.features[0]?.geometry;
+      return { multiPolygon: geometry ? sanitizeFootprintRings(geometry) : null, vrtMs, footprintMs };
     };
 
     const handleResult = async (result: { multiPolygon: MultiPolygon | null; vrtMs: number; footprintMs: number }): Promise<void> => {

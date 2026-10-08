@@ -1904,14 +1904,22 @@ const selectGeometry = (): string => {
  * Without raster filters, aoi is the user geometries' subdivision pieces, named by `geometryIdsParam`:
  * the exact test probes them through their GiST index, so each footprint is tested only against the
  * few pieces near it. With raster filters, aoi is the masked geometry, tested directly.
+ * An EXISTS rather than a join, and the OFFSET 0 is load-bearing: it stops Postgres from
+ * turning the EXISTS into a semi-join, so it stays a per-footprint subplan and the group's
+ * footprint ids are always the driving side. As a join, a single-piece AOI (estimated rows=1)
+ * let the planner drive from the piece instead: it enumerated every footprint under it through
+ * the GiST index, once per group, and matched them against the ids.
  */
 const aoiLayerGroupCtes = (schema: string, filters: FilterCriteria, geometryIdsParam: string): string => {
-  const exactIntersectionJoin = hasRasterFilters(filters)
-    ? 'INNER JOIN aoi ON ST_Intersects(aoi.geom, rf2.geom)'
-    : `INNER JOIN ${schema}.user_geometry_subdivisions ugs
-            ON ugs.user_geometry_id = ANY(${geometryIdsParam}::uuid[])
-           AND ugs.geom && rf2.geom
-           AND ST_Intersects(ugs.geom, rf2.geom)`;
+  const exactIntersectionTest = hasRasterFilters(filters)
+    ? 'EXISTS (SELECT 1 FROM aoi WHERE ST_Intersects(aoi.geom, rf2.geom) OFFSET 0)'
+    : `EXISTS (
+            SELECT 1 FROM ${schema}.user_geometry_subdivisions ugs
+            WHERE ugs.user_geometry_id = ANY(${geometryIdsParam}::uuid[])
+              AND ugs.geom && rf2.geom
+              AND ST_Intersects(ugs.geom, rf2.geom)
+            OFFSET 0
+          )`;
   return `fp_candidates AS MATERIALIZED (
         SELECT rf.layer_group_id, array_agg(rf.id) AS footprint_ids
         FROM ${schema}.raster_footprints rf
@@ -1926,7 +1934,7 @@ const aoiLayerGroupCtes = (schema: string, filters: FilterCriteria, geometryIdsP
           SELECT 1
           FROM unnest(c.footprint_ids) AS f(id)
           INNER JOIN ${schema}.raster_footprints rf2 ON rf2.id = f.id
-          ${exactIntersectionJoin}
+          WHERE ${exactIntersectionTest}
           LIMIT 1
         ) hit
       )`;
