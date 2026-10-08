@@ -395,6 +395,37 @@ describe('GeoFileWriter', () => {
       expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'export.xlsx'))).toBe(false);
     });
 
+    it('caps sheet names at 31 characters, unique case-insensitively, stable across batches', async () => {
+      // The first three share their first 31 characters; Excel treats pH and PH as the same sheet.
+      const keys = [
+        'Organic_carbon_content_in_fine_earth_fraction',
+        'Organic_carbon_content_in_fine_earth_fraction_total',
+        'Organic_carbon_content_in_fine_e',
+        'pH',
+        'PH',
+      ];
+      const writer = new GeoFileWriter(VectorFileFormat.XLSX);
+      for (const id of ['1', '2']) {
+        await writer.openFile(TEST_OUTPUT_DIR);
+        for (const key of keys) {
+          await writer.setProperty(key);
+          await writer.writeRecord(soilSampleToExportRecord(makeSample({ id })));
+        }
+        await writer.closeFile();
+      }
+      await finishWriting(writer);
+
+      const { layers } = await GdalCLI.ogrinfo(path.join(TEST_OUTPUT_DIR, 'export.xlsx'));
+      expect(layers.map(l => l.name)).toEqual([
+        'Organic_carbon_content_in_fine_',
+        'Organic_carbon_content_in_fin_2',
+        'Organic_carbon_content_in_fin_3',
+        'pH',
+        'PH_2',
+      ]);
+      layers.forEach(l => expect(l.featureCount).toBe(2));
+    });
+
     // target_crs and XLSX are individually covered and were never exercised together, and the args
     // they produce contradict each other: `-nlt NONE` declares the staging layer to have no
     // geometry, and `-s_srs`/`-t_srs` then ask GDAL to reproject it. GDAL accepts the pair without
