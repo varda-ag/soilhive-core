@@ -26,7 +26,7 @@ Once the containers are up and healthy, you can reach each entry point at:
 
 - Frontend: http://localhost:3000/
 - Backend API docs: http://localhost:4001/docs/
-- Keycloak admin console: http://localhost:8080/admin/master/console/
+- Keycloak admin console: http://localhost:8080/admin/master/console/ (Keycloak administration only, see [Keycloak admin console](#keycloak-admin-console))
 
 To stop the stack, run `docker compose down`. Add `-v` to also remove the `postgis_data` volume and start from a completely clean database (and a freshly re-imported Keycloak realm) on the next run.
 
@@ -40,7 +40,7 @@ All configuration for the local stack lives in the `environment:` block of each 
 | `SELF_SIGNING_SECRET`                                                                                | backend  | Signs internal loopback requests the backend makes to itself, e.g. the bulk-load job writing ingested records back through its own API. Required regardless of auth mode. |
 | `OIDC_AUTHORITY`, `OIDC_CLIENT_ID`, `OIDC_JWKS_URL`, `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`, `OIDC_SILENT_REDIRECT_URI`, `OIDC_SCOPE` | backend  | Point the platform at the local Keycloak `soilhive` realm/client so login works out of the box. See [Authentication](authentication.md) for what each one does. |
 | `PORT`, `BACKEND_BASE_URL`, `APP_BASE_URL`                                                           | frontend | Which port the frontend listens on, where it reaches the backend API, the public origin to build absolute links to the app. |
-| `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`                                                          | keycloak | Master realm admin credentials, see [Keycloak admin console](#keycloak-admin-console).               |
+| `KEYCLOAK_ADMIN`, `KEYCLOAK_ADMIN_PASSWORD`                                                          | keycloak | Master realm admin credentials, for Keycloak only (not a SoilHive login), see [Keycloak admin console](#keycloak-admin-console). |
 
 > **These are demo-only credentials, hardcoded in `docker-compose.yml` for convenience.** They're fine for exploring the platform locally, but this Compose setup is not meant to be exposed publicly or reused as-is for a real deployment.
 
@@ -50,13 +50,26 @@ The backend supports several more options not set by default in `docker-compose.
 
 ## Keycloak admin console
 
-The `keycloak` container comes up with a master realm admin account, used to sign into the admin console at http://localhost:8080/admin/master/console/:
+Keycloak holds two realms, each with its own users:
 
-| Username | Password         |
-| -------- | ---------------- |
-| `admin`  | `admin_password` |
+| Realm      | Users                                     | Used for                                                       |
+| ---------- | ----------------------------------------- | -------------------------------------------------------------- |
+| `master`   | `admin` / `admin_password`                | Administering Keycloak itself. **Cannot log in to SoilHive.**  |
+| `soilhive` | the [demo accounts](#demo-user-accounts)  | Logging in to SoilHive (`OIDC_AUTHORITY` points to this realm) |
 
-Use this if you need to inspect or modify the `soilhive` realm directly (add users, change role mappings, etc.). For routine use of the platform, the demo accounts below are enough.
+Sign in to http://localhost:8080/admin/master/console/ as `admin`. The console opens on the `master` realm, where the demo users don't exist. Switch to `soilhive` (**Manage realms** → `soilhive`) before viewing or adding users, or go straight to http://localhost:8080/admin/master/console/#/soilhive/users.
+
+For routine use of the platform, the demo accounts are enough.
+
+### Adding a SoilHive user
+
+With the `soilhive` realm selected:
+
+1. **Users** → **Add user**. Fill in username, email, first and last name (Keycloak prompts for missing ones on first login). Dataset access grants match on the email.
+2. **Credentials** tab → **Set password**. Turn **Temporary** off, or the user must change it on first login.
+3. Optional: **Role mapping** tab → **Assign role** → **Client roles**, then pick `data-admin` or `super-admin` of the `soilhive` client. Without a role the user can log in but doesn't get the **Admin console**.
+
+Users created in `master` can't log in to SoilHive.
 
 ## Demo user accounts
 
@@ -67,6 +80,8 @@ On first boot, Keycloak automatically imports a `soilhive` realm (see [quickstar
 | `user`        | `password` | `user@soilhive.local`        | none          | An authenticated account with no elevated role. Search, browse, and download work the same as anonymously, except for datasets specifically shared with it (see [step 4](#4-check-what-each-account-can-see) of the walkthrough); the **Admin console** option also correctly stays hidden for this account. |
 | `data-admin`  | `password` | `data-admin@soilhive.local`  | `data-admin`  | Can upload, map, clean, and publish datasets through the Admin console's Data Publication panel, manage map-based filters, and edit (but not delete) platform configuration. This is the account to use for the [ingestion walkthrough](#2-upload-a-dataset-data-admin) below. |
 | `super-admin` | `password` | `super-admin@soilhive.local` | `super-admin` | Everything `data-admin` can do, plus platform-wide settings: branding/logo, terms & conditions, privacy policy, notification banner, and default map settings, and can delete or export platform configuration. |
+
+These users live in the `soilhive` realm: in the Keycloak admin console you only see them after [switching to it](#keycloak-admin-console).
 
 Note that you don't need to log in at all to search, browse, filter, or download published datasets — that's available anonymously. Logging in is only required to reach the Admin console.
 
@@ -128,6 +143,7 @@ Log out and back in as the plain `user` account: even though the dataset is priv
 After `docker compose up -d`, a quick way to confirm everything is wired correctly:
 
 - [ ] http://localhost:8080/admin/master/console/ loads the Keycloak admin login
+- [ ] http://localhost:8080/admin/master/console/#/soilhive/users lists `user`, `data-admin` and `super-admin`
 - [ ] http://localhost:4001/docs/ loads the backend's Swagger UI
 - [ ] `curl http://localhost:4001/api/v1/auth/config` returns `{"authMode":"oidc", ...}`
 - [ ] http://localhost:3000/ loads the frontend and shows the map/search view
@@ -135,6 +151,9 @@ After `docker compose up -d`, a quick way to confirm everything is wired correct
 
 ## Troubleshooting
 
+- **Demo users are missing from the Keycloak admin console.** The console is showing the `master` realm. Switch to `soilhive`, see [Keycloak admin console](#keycloak-admin-console).
+- **Can't log in to SoilHive as `admin`, or as a user you created.** SoilHive only accepts users of the `soilhive` realm. `admin`, and any user created while the console showed `master`, belong to the wrong realm: create the user in `soilhive` instead, following [Adding a SoilHive user](#adding-a-soilhive-user). If a `soilhive` user still can't log in, check its **Credentials** tab has a password.
+- **Logged in, but no Admin console option.** The user has no `data-admin` or `super-admin` role, see step 3 of [Adding a SoilHive user](#adding-a-soilhive-user).
 - **Backend container exits on startup with `ECONNREFUSED` to Postgres.** On a fresh `docker compose up -d`, the `backend` service can start before `postgis` is actually ready to accept connections (`depends_on` only waits for the container to start, not for the database to be reachable). Run `docker compose up -d backend` again to restart just that service once Postgres is up.
 - **Login redirects to an error page, or Keycloak rejects the redirect URI.** This usually means the frontend isn't reachable at `http://localhost:3000` (e.g. you changed the published port). Update `OIDC_REDIRECT_URI`, `OIDC_POST_LOGOUT_REDIRECT_URI`, and `OIDC_SILENT_REDIRECT_URI` in `docker-compose.yml`, and `redirectUris` in [quickstart-sample-data/soilhive-realm.json](../quickstart-sample-data/soilhive-realm.json), to match — then recreate the `keycloak` container so the change takes effect (existing realm data isn't overwritten by the import, only by dropping the `postgis_data` volume).
 - **One of the ports (`3000`, `4001`, `5432`, `8080`) is already in use.** Stop whatever else is using it, or change the left-hand side of the corresponding `ports:` mapping in `docker-compose.yml` (only the frontend's port also requires the OIDC redirect URI updates above).
