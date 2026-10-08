@@ -156,6 +156,17 @@ describe('Testing /data-requests routes', () => {
       expect(res.statusCode).toBe(403);
     });
 
+    // The test above is the same Dataset, Published
+    it('accepts a named private dataset that is not Published, as it would an unknown one (docs/adr/0057)', async () => {
+      const dataset = await addDataset('unpublished-dr-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE datasets SET visibility = 'private', status = 'LOADED' WHERE id = $1`, [dataset.id]);
+
+      const filterId = await createFilter([polygon]);
+      const res = await submit(await descriptive(filterId, { dataset_ids: [dataset.slug] }));
+      expect(res.statusCode).toBe(201);
+    });
+
     it('rejects a missing statistics_type', async () => {
       const filterId = await createFilter([polygon]);
       const res = await submit({ filter_id: filterId });

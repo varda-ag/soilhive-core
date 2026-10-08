@@ -27,6 +27,7 @@ import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedQuery } from '../utils/query-cache';
 import { runCancelableQuery } from '../utils/cancelable-query';
 import { classLabel } from '../utils/soilPropertyClasses';
+import { existingDatasetSlugs } from '../utils/slugs';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const rasterFilterService = new RasterFilterService();
@@ -418,10 +419,15 @@ export default class SoilDataStorage {
   getRasterLayers = async (
     requestData: RequestData,
     filter: DataFilter,
-    datasetSlugs: string[],
+    requestedSlugs: string[],
     includeProcedureInfo: boolean = false,
   ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> => {
     const { geometryIds, parameters: filters } = filter;
+    // As in getSoilData
+    const datasetSlugs = await existingDatasetSlugs(requestData, requestedSlugs);
+    if (datasetSlugs.length === 0) {
+      return { layers: [], aoi: null };
+    }
     await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.DOWNLOAD);
 
     const schema = process.env.POSTGRES_SCHEMA;
@@ -461,7 +467,8 @@ export default class SoilDataStorage {
       }
       candidateQuery
         .setParameter('geometryIds', geometryIds)
-        .innerJoin('rl.dataset', 'ds', `ds.status = 'PUBLISHED'`)
+        // Status is settled by existingDatasetSlugs; an archived Dataset may share a live one's slug
+        .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL')
         .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
         .innerJoin('rl.soil_property', 'sp')
         .select('rl.id', 'id')
@@ -516,8 +523,13 @@ export default class SoilDataStorage {
   // per-layer column fetch — the export progress estimate only needs how many raster
   // layers match. An empty AOI (e.g. raster filters matching no pixels) naturally
   // yields 0 via the `rl.bbox && (SELECT geom FROM aoi)` predicate.
-  getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
+  getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> => {
     const { geometryIds, parameters: filters } = filter;
+    // As in getSoilData
+    const datasetSlugs = await existingDatasetSlugs(requestData, requestedSlugs);
+    if (datasetSlugs.length === 0) {
+      return 0;
+    }
     await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.DOWNLOAD);
 
     const schema = process.env.POSTGRES_SCHEMA;
@@ -542,7 +554,8 @@ export default class SoilDataStorage {
       }
       candidateQuery
         .setParameter('geometryIds', geometryIds)
-        .innerJoin('rl.dataset', 'ds', `ds.status = 'PUBLISHED'`)
+        // As in getRasterLayers
+        .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL')
         .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
         .innerJoin('rl.soil_property', 'sp')
         .select('COUNT(rl.id)', 'count');
@@ -586,13 +599,18 @@ export default class SoilDataStorage {
   getSoilData = async (
     requestData: RequestData,
     filter: DataFilter,
-    datasetSlugs: string[],
+    requestedSlugs: string[],
     limit: number,
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.PREVIEW);
     const rasterCursor = cursor ? decodeRasterCursor(decodeCursor(cursor), sort) : undefined;
+    // Before the entitlement check, whose 403 would confirm that an unpublished private Dataset exists
+    const datasetSlugs = await existingDatasetSlugs(requestData, requestedSlugs);
+    if (datasetSlugs.length === 0) {
+      return [];
+    }
+    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.PREVIEW);
 
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
@@ -640,8 +658,8 @@ export default class SoilDataStorage {
    * touches the Filter's AOI and is not nodata, ordered by Raster Layer, then pixel row, then column.
    *
    * Dataset-level rules are those of this endpoint's vector rows: a raster Dataset among the requested
-   * ones, at any Ingestion Status, with the Filter's `visibility` criterion not applied — only
-   * Visibility and Entitlement gate it, through getSoilData's preview check (CONTEXT.md, Published).
+   * ones, which getSoilData has already narrowed to those that exist for the caller (docs/adr/0057)
+   * and checked for preview, with the Filter's `visibility` criterion not applied.
    * Within such a Dataset, Raster Layers match as they do for coverage (filterRaster): a bbox and
    * valid-data footprint meeting the AOI, and the Filter's criteria as they apply to a Raster Layer.
    * Pixel sampling needs an AOI, as a raster export does, so a Filter without geometries yields no
@@ -819,7 +837,11 @@ export default class SoilDataStorage {
     return pixels.map(pixel => rasterRowTranslation(layersById.get(pixel.layerId), pixel, sort));
   };
 
-  getSoilDataCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
+  getSoilDataCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> => {
+    const datasetSlugs = await existingDatasetSlugs(requestData, requestedSlugs);
+    if (datasetSlugs.length === 0) {
+      return 0;
+    }
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");

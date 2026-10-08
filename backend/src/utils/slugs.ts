@@ -1,9 +1,11 @@
 import { EntityTarget, In } from 'typeorm';
 import { StatusCodes } from 'http-status-codes';
 import SlugHistoryEntity from '../entities/SlugHistory';
+import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from './error';
+import { datasetExistsFor } from './auth';
 
 export const getEntity = async <T extends { id: string | number; slug: string }>(
   requestData: RequestData,
@@ -155,4 +157,20 @@ export const getEntitySlugs = async (requestData: RequestData, slug: string): Pr
     .where('match.slug = :slug', { slug })
     .getMany();
   return results.map(sh => sh.slug);
+};
+
+/**
+ * The slugs among `slugs` whose Dataset exists for the caller (docs/adr/0057), in their given order.
+ * Current slugs only, as the soil data queries match them. Uncached, so a status change takes effect at once.
+ */
+export const existingDatasetSlugs = async (requestData: RequestData, slugs: string[]): Promise<string[]> => {
+  if (slugs.length === 0) {
+    return [];
+  }
+  const datasets = await requestData.entityManager.getRepository(DatasetEntity).find({
+    select: { slug: true, status: true },
+    where: { slug: In(slugs) },
+  });
+  const existing = new Set(datasets.filter(d => datasetExistsFor(requestData.token, d.status)).map(d => d.slug));
+  return slugs.filter(slug => existing.has(slug));
 };

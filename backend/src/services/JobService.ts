@@ -18,7 +18,7 @@ import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/DatasetJobs';
-import { getEntity } from '../utils/slugs';
+import { existingDatasetSlugs, getEntity } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
 
@@ -62,14 +62,11 @@ export default class JobService {
       await this.lockDataset(requestData, data as BulkLoadJob);
     }
 
-    // Checking entitlements
+    // Checking entitlements, on the Datasets that exist for the caller only: a 403 would confirm that an
+    // unpublished private one exists, which the job must instead treat as unknown (docs/adr/0057)
     if (data.type === JobQueues.EXPORT) {
-      await entitlementService.enforceEntitlements(
-        requestData,
-        EntitlementScope.DATASETS,
-        (data as ExportJob).dataset_ids,
-        Capability.DOWNLOAD,
-      );
+      const slugs = await existingDatasetSlugs(requestData, (data as ExportJob).dataset_ids);
+      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, slugs, Capability.DOWNLOAD);
     }
 
     if (data.type === JobQueues.DATA_REQUESTS) {
@@ -161,8 +158,10 @@ export default class JobService {
       await this.validateVariable(requestData, data, filter);
     }
 
+    // As for exports (see createJob)
     if (data.dataset_ids && data.dataset_ids.length > 0) {
-      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, data.dataset_ids, Capability.PREVIEW);
+      const slugs = await existingDatasetSlugs(requestData, data.dataset_ids);
+      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, slugs, Capability.PREVIEW);
     }
   };
 

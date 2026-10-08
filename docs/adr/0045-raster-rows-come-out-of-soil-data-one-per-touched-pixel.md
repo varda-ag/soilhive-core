@@ -2,6 +2,9 @@
 
 **Status:** Accepted
 
+> **Amended by ADR 0057:** raster rows no longer come from Datasets "at any Ingestion Status". For
+> a non-privileged caller, unpublished Datasets are absent, for raster rows as for vector rows.
+
 ## Context
 
 A raster Dataset's measurements are the pixels of its Files, one Raster Layer per (File, Band), not Observations. `GET /soil-data` reaches Observations through dataset_layers and features, so it returned nothing for a raster Dataset. A proxy for the legacy API needs pixel values synchronously. Most of its requests are point lookups whose AOI is an H3 res-10 cell (~0.015 km²), smaller than a 250 m or 1 km pixel. It was decided to serve them from `GET /soil-data`, not from a new endpoint and not by having the proxy read the COGs itself.

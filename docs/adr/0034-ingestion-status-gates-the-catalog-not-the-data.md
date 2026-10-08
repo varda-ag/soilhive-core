@@ -1,5 +1,11 @@
 # Ingestion Status gates the catalog, not the data
 
+**Status:** Amended by ADR 0057
+
+> **Note:** the `/soil-data` exemption below no longer holds. ADR 0057 makes unpublished Datasets
+> absent from `/soil-data` for non-privileged callers. The catalog decisions (404 not 403, job
+> processors inheriting privilege, the `Dataset.status` write guard) are still current.
+
 `GET /datasets` and `GET /datasets/{id}` now return only `PUBLISHED` datasets to a caller without
 the `data-admin`, `super-admin` or `internal-request` scope, closing a gap in which an anonymous
 caller could enumerate every dataset mid-ingest. We deliberately did **not** extend the same
