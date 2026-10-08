@@ -301,6 +301,31 @@ describe('OidcAuthProvider token lifecycle', () => {
     });
   });
 
+  describe('exposed user', () => {
+    const UserState = () => <span data-testid="user">{useAuthContext().user?.access_token ?? 'none'}</span>;
+
+    const renderUserState = (user: OidcUser) => {
+      (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(user));
+      return render(
+        <AuthContextProvider>
+          <UserState />
+        </AuthContextProvider>,
+      );
+    };
+
+    it('exposes the user while authenticated', () => {
+      const { getByTestId } = renderUserState({ access_token: 'valid-token', expired: false });
+
+      expect(getByTestId('user')).toHaveTextContent('valid-token');
+    });
+
+    it('hides an expired user restored from storage', () => {
+      const { getByTestId } = renderUserState({ access_token: 'stale-token', expired: true });
+
+      expect(getByTestId('user')).toHaveTextContent('none');
+    });
+  });
+
   describe('loading gate', () => {
     const AuthState = () => <span data-testid="loading">{String(useAuthContext().isLoading)}</span>;
 
