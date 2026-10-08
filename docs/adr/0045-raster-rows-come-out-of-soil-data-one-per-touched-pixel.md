@@ -7,7 +7,7 @@
 
 ## Context
 
-A raster Dataset's measurements are the pixels of its Files, one Raster Layer per (File, Band), not Observations. `GET /soil-data` reaches Observations through dataset_layers and features, so it returned nothing for a raster Dataset. A proxy for the legacy API needs pixel values synchronously. Most of its requests are point lookups whose AOI is an H3 res-10 cell (~0.015 km²), smaller than a 250 m or 1 km pixel. It was decided to serve them from `GET /soil-data`, not from a new endpoint and not by having the proxy read the COGs itself.
+A raster Dataset's measurements are the pixels of its Files, one Raster Layer per (File, Band), not Observations. `GET /soil-data` reaches Observations through dataset_layers and features, so it returned nothing for a raster Dataset. Clients need pixel values synchronously. Most of their requests are point lookups whose AOI is an H3 res-10 cell (~0.015 km²), smaller than a 250 m or 1 km pixel. It was decided to serve them from `GET /soil-data`, not from a new endpoint and not by having clients read the COGs themselves.
 
 ## Decision
 
@@ -29,7 +29,7 @@ A raster Dataset's measurements are the pixels of its Files, one Raster Layer pe
 - **Pixel centre inside the AOI.** Rejected: it returns nothing for point lookups, which are the main use.
 - **`gdal_rasterize -at`, or `gdalwarp -cutline` with `CUTLINE_ALL_TOUCHED=TRUE`, per Raster Layer.** Rejected. It means one GDAL process per Raster Layer, and per strip, for every page, at 100–450 ms each (ADR 0030). A point lookup over a dataset with dozens of Raster Layers would take seconds, and each request would create temp files. The analytic test implements the same rule without a subprocess, and is checked against a brute-force polygon-overlap test.
 - **`sampling_date` set from the reference period when it is a single date.** Rejected: the field would mean two things depending on `gis_datatype`, and a client could not tell a one-year period from a sample taken that year.
-- **A dedicated endpoint, or the proxy reading COGs.** Rejected when the feature was decided. The proxy would need its own copy of storage access, Filter semantics and Entitlements.
+- **A dedicated endpoint, or clients reading COGs directly.** Rejected when the feature was decided. A client would need its own copy of storage access, Filter semantics and Entitlements.
 
 ## Consequences
 
