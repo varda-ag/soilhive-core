@@ -138,7 +138,10 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !!reactOidcAuth.isAuthenticated,
     isLoading: isRestoringSession,
     error: reactOidcAuth.error,
-    user: reactOidcAuth.user,
+    // react-oidc-context keeps an expired user restored from storage. Expose it only while
+    // authenticated, like the other providers, or callers gating on `user` send token-less
+    // requests to auth-only routes (e.g. GET /entitlements → 401 toast).
+    user: reactOidcAuth.isAuthenticated ? reactOidcAuth.user : null,
     login: () => reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath() } satisfies SigninState }),
     logout: () => {
       clearToken();
