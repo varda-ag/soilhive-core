@@ -7,6 +7,20 @@ import * as wellknown from 'wellknown';
 import { ExportRecord, VectorFileFormat, EXPORT_SCHEMA, FieldMetadata, EXPORT_CONFIG } from './types';
 import { GdalCLI } from '../../utils/GdalCLI';
 
+/** Excel rejects sheet names over 31 characters and compares them case-insensitively. */
+const MAX_SHEET_NAME_LENGTH = 31;
+
+/** Truncates `name` to Excel's limit, adding `_2`, `_3`... if it clashes with a name in `taken`. */
+function uniqueSheetName(name: string, taken: Iterable<string>): string {
+  const used = new Set([...taken].map(n => n.toLowerCase()));
+  let candidate = name.slice(0, MAX_SHEET_NAME_LENGTH);
+  for (let n = 2; used.has(candidate.toLowerCase()); n++) {
+    const suffix = `_${n}`;
+    candidate = name.slice(0, MAX_SHEET_NAME_LENGTH - suffix.length) + suffix;
+  }
+  return candidate;
+}
+
 export class GeoFileWriter {
   private outputDir: string = '';
   private fileFormat: VectorFileFormat;
@@ -16,6 +30,8 @@ export class GeoFileWriter {
   private currentPropertyAcronym: string | null = null;
   /** Set only while staging (XLSX). Created on first write, removed by `dispose`. */
   private stagingDir: string | null = null;
+  /** XLSX only: worksheet name per property, fixed on first write so later batches append to the same sheet. */
+  private sheetNames = new Map<string, string>();
 
   constructor(fileFormat: VectorFileFormat, targetCrs?: number) {
     this.fileFormat = fileFormat;
@@ -142,7 +158,7 @@ export class GeoFileWriter {
       args.push('-f', 'GeoJSON');
     }
 
-    args.push(outputPath, batchPath, '-nln', propertyAcronym);
+    args.push(outputPath, batchPath, '-nln', this.getLayerName(propertyAcronym));
 
     if (target_crs) {
       args.push('-s_srs', 'EPSG:4326');
@@ -152,6 +168,16 @@ export class GeoFileWriter {
     }
 
     return args;
+  }
+
+  private getLayerName(propertyAcronym: string): string {
+    if (this.fileFormat !== VectorFileFormat.XLSX) return propertyAcronym;
+    let name = this.sheetNames.get(propertyAcronym);
+    if (!name) {
+      name = uniqueSheetName(propertyAcronym, this.sheetNames.values());
+      this.sheetNames.set(propertyAcronym, name);
+    }
+    return name;
   }
 
   private getOutputPath(propertyAcronym: string): string {
