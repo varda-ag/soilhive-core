@@ -136,22 +136,17 @@ function DownloadPreview() {
       ? [datasetsSummary.globalMinDepth, datasetsSummary.globalMaxDepth]
       : [undefined, undefined];
 
-  // Changing `selectedDatasets` can also change `availableSoilProperties`, which triggers
-  // the effect above to update `filters.soil_properties`. That kicks off a new
-  // /data-filters request and, until it returns, `downloadPreviewFilterId` still points at
-  // the previous filter. Without the `!isFilterStale` gate, useSoilData would fire once
-  // here with the stale `filterId` and again once the fresh `filterId` arrives — two
-  // /soil-data requests for a single user action.
   const {
     allData,
     isLoading: isDataLoading,
-    hasMore,
     loadMore,
-    reset,
   } = useSoilData({
     selectedDatasets,
     availableDatasets: availableFixedDatasets.map(dataset => dataset.id),
-    filterId: downloadPreviewFilterId,
+    // While a new /data-filters request is pending, `downloadPreviewFilterId` is the previous filter's.
+    // Without this gate, a Dataset change (which also changes the filter's soil properties) would send
+    // one /soil-data request with the stale filter and one with the fresh.
+    filterId: isLoadingFilter ? undefined : downloadPreviewFilterId,
     limit: MAXIMUM_SOIL_DATA_PER_REQUEST + 1,
     // Raster rows come in a fixed order (docs/adr/0045), so a raster Dataset's table is not sortable
     sort: isSelectedDatasetRaster ? undefined : sort,
@@ -230,29 +225,18 @@ function DownloadPreview() {
             datasets={availableFixedDatasets}
             selectedDatasets={selectedDatasets}
             isRasterDataset={isSelectedDatasetRaster}
-            onDatasetsChange={newDatasets => {
-              reset();
-              setSelectedDatasets(newDatasets);
-            }}
+            onDatasetsChange={setSelectedDatasets}
             soilProperties={availableSoilProperties}
             calendarMinMaxRange={calendarMinMaxRange}
             fixedCalendarRange={fixedCalendarRange}
             depthMinMaxRange={depthMinMaxRange}
             fixedDepthRange={fixedDepthRange}
             filters={filters}
-            onFiltersChange={newFilters => {
-              reset();
-              setFilters(newFilters);
-            }}
+            onFiltersChange={setFilters}
             data={allData}
             isDataLoading={isLoadingFilter || isDataLoading || isDownloadPreviewLoading}
-            onTableSort={sort => {
-              reset();
-              setSort(sort);
-            }}
-            onTableLastPage={() => {
-              if (hasMore) loadMore();
-            }}
+            onTableSort={setSort}
+            onTableLastPage={loadMore}
             onFeatureSelected={feature => {
               setSummaryExpanded(true);
               setSelectedFeature(feature);
