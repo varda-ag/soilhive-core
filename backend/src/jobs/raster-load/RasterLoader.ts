@@ -8,7 +8,7 @@ import { RasterLoadJob } from '../../interfaces/Job';
 import { RequestData } from '../../interfaces/RequestData';
 import { Token } from '../../interfaces/Token';
 import { ResolvedBandMapping } from '../../interfaces/RasterMapping';
-import { RasterFileMetadata } from '../../interfaces/File';
+import { LoadedRasterBand, RasterFileMetadata } from '../../interfaces/File';
 import DataMappingService from '../../services/DataMappingService';
 import DatasetFileMappingService from '../../services/DatasetFileMappingService';
 import DatasetService from '../../services/DatasetService';
@@ -20,12 +20,15 @@ import { log } from '../../utils/logger';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
 import { checkFileFormat, ingestRaster } from '../../services/RasterIngestService';
+import FileService from '../../services/FileService';
 import { updateRasterDatasetMetadata } from './UpdateDatasetMetadata';
-import { createRasterLayerAssets, StagedLayerAssets } from './LoadLayerAssets';
+import { StagedLayerAssets, syncRasterLayerAssets } from './LoadLayerAssets';
+import { hideDatasetForLoad, statusAfterFailedLoad, statusAfterLoad } from '../LoadStatus';
 import EntitlementService from '../../services/EntitlementService';
 import { progressReporter } from '../../services/PgBoss';
 import { getSubject } from '../../utils/auth';
 import { EVERYONE } from '../../constants/constants';
+import type { IngestRasterOptions } from '../../services/RasterIngestService';
 
 // Band ingestion owns <floor>..LOAD_PROGRESS_CEILING; the remainder covers dataset metadata.
 const LOAD_PROGRESS_CEILING = 90;
@@ -51,6 +54,20 @@ interface StagedBand {
   assetFileIds: string[];
 }
 
+type LoadMode = 'ingest' | 'update';
+
+/** How one pending file's current band mapping is applied — see planMode. */
+interface FilePlan {
+  file: FileEntity;
+  /** Every band the current mapping names, validated. Empty when the mapping declares none. */
+  bands: StagedBand[];
+  mode: LoadMode;
+  /** Rebuild the COG's overviews even if the file is already one; only meaningful when ingesting. */
+  forceCog: boolean;
+  /** Bands with a layer that the mapping no longer names. */
+  removedBands: number[];
+}
+
 export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> {
   const { id: jobId, data } = job;
   const datasetService = new DatasetService();
@@ -64,58 +81,57 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
   const requestData = { entityManager, token, entitlements };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
-  // Defined here so the catch can undo it putting back to PENDING.
-  let ingestedFileIds: string[] = [];
+  const previousStatus = dataset.status;
+  // Every file this run has started writing to, so the catch can undo exactly those (see below).
+  const touchedFileIds = new Set<string>();
   try {
     await reportProgress(0, `Raster load started for dataset '${dataset.name}'`);
 
-    dataset.status = IngestionStatus.ONGOING;
-    await dataset.save();
+    await hideDatasetForLoad(entityManager, dataset);
 
     const mappingService = new DatasetFileMappingService();
     const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
 
-    // Every File the mappings name, whatever its status — see getMappedFiles.
-    const files = await getMappedFiles(entityManager, datasetFileMappings);
+    // Only the files waiting for a load — see getPendingFiles.
+    const files = await getPendingFiles(entityManager, datasetFileMappings);
 
     // Resolve every band mapping and validate it against the file before writing anything, so the
     // progress denominator spans the whole job and a bad mapping aborts before a partial load.
     await reportProgress(0, `Reading band mappings for ${files.length} file(s)...`);
-    const stagedBands = await prepareStagedBands(requestData, files, datasetFileMappings);
+    const plans = await prepareFilePlans(requestData, files, datasetFileMappings);
+    const ingestPlans = plans.filter(plan => plan.mode === 'ingest' && plan.bands.length > 0);
+
+    // A file being ingested starts again from its source: normalization is derived from the mapping
+    // rather than from the pixels, so it cannot be applied on top of a previous run's output.
+    for (const plan of ingestPlans) {
+      touchedFileIds.add(plan.file.id);
+      await resetToSourceFile(entityManager, plan.file);
+    }
 
     // Normalize each file once, before any band is ingested: conversion is per file, so doing it
     // inside the band loop would redo the same work for every band of a multiband raster — and for
     // a unit conversion it would redo it wrongly, since a second pass rescales already-scaled
     // pixels. The loader is therefore the only place a file is normalized; ingestRaster reads
     // whatever files.file_path points at by then.
-    const anyConverted = await normalizeFiles(stagedBands, reportProgress);
+    const anyConverted = await normalizeFiles(ingestPlans, reportProgress);
     const bandFloor = anyConverted ? CONVERSION_PROGRESS_CEILING : 0;
 
-    // Collected as each band is ingested, written once every band has succeeded (see below).
+    const ingestBands = ingestPlans.flatMap(plan => plan.bands);
+    // Every current band's layer, so its assets can be synced once every band has succeeded.
     const stagedAssets: StagedLayerAssets[] = [];
 
-    for (const [index, staged] of stagedBands.entries()) {
+    for (const [index, staged] of ingestBands.entries()) {
       const { file, bandMapping } = staged;
-      const loading = `Ingesting band ${bandMapping.band} of '${file.name}' (${index + 1} of ${stagedBands.length})...`;
-      await reportProgress(bandPercentage(index, stagedBands.length, bandFloor), loading);
+      const loading = `Ingesting band ${bandMapping.band} of '${file.name}' (${index + 1} of ${ingestBands.length})...`;
+      await reportProgress(bandPercentage(index, ingestBands.length, bandFloor), loading);
 
       let lastPercentage = -1;
       const rasterLayerId = await ingestRaster({
-        fileId: file.id,
-        band: bandMapping.band,
-        datasetId: dataset.id,
-        soilPropertySlug: bandMapping.soilPropertySlug,
-        minDepth: bandMapping.minDepth,
-        maxDepth: bandMapping.maxDepth,
-        isCategorical: bandMapping.isCategorical,
-        referencePeriodStart: bandMapping.referencePeriodStart,
-        referencePeriodStop: bandMapping.referencePeriodStop,
-        procedureSlug: bandMapping.procedureSlug,
-        description: bandMapping.layerDescription,
+        ...layerFields(dataset.id, staged),
         // A single band's footprint pass runs for minutes, so report inside it rather than
         // letting the job sit silent between bands.
         onFootprintProgress: async (tilesProcessed, totalTiles) => {
-          const percentage = bandPercentage(index + tilesProcessed / totalTiles, stagedBands.length, bandFloor);
+          const percentage = bandPercentage(index + tilesProcessed / totalTiles, ingestBands.length, bandFloor);
           // Only write when the rendered percentage actually moves — tiles are far more
           // frequent than the client poll interval, so per-tile writes are invisible.
           if (percentage !== lastPercentage) {
@@ -124,29 +140,60 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
           }
         },
       });
+      // Already resolved from slugs to ids in prepareFilePlans.
+      stagedAssets.push({ rasterLayerId, fileIds: staged.assetFileIds });
+    }
 
-      if (staged.assetFileIds.length > 0) {
-        // Already resolved from slugs to ids in prepareStagedBands.
+    // A file whose edit changed nothing about its pixels keeps its layers and footprints: only the
+    // metadata the mapping declares is rewritten, which takes milliseconds rather than a re-ingest.
+    for (const plan of plans.filter(plan => plan.mode === 'update')) {
+      touchedFileIds.add(plan.file.id);
+      for (const staged of plan.bands) {
+        const rasterLayerId = await updateRasterLayer(entityManager, layerFields(dataset.id, staged));
+        if (!rasterLayerId) {
+          // The plan only picks update when every band has a layer, so this is the property lookup.
+          throw new Error(`Soil property '${staged.bandMapping.soilPropertySlug}' not found — cannot update raster layer`);
+        }
         stagedAssets.push({ rasterLayerId, fileIds: staged.assetFileIds });
       }
     }
 
-    // Attach each layer's auxiliary Files. Deliberately after the band loop rather than inside it,
-    // and with no progress step of its own: inserting asset rows from file_ids that were already
-    // checked takes milliseconds, so it belongs inside the band range rather than owning a slice
-    // of it. The URL-fetch flow, when it lands, is what will need a window here.
-    await createRasterLayerAssets(entityManager, stagedAssets);
+    // The Band Mapping is authoritative for which bands are layers, so a band it stopped naming
+    // loses its layer. Footprint links, assets and group memberships go with it by cascade.
+    for (const plan of plans.filter(plan => plan.removedBands.length > 0)) {
+      touchedFileIds.add(plan.file.id);
+      await entityManager.query(`DELETE FROM raster_layers WHERE file_id = $1 AND band = ANY($2::int[]) AND deleted_at IS NULL`, [
+        plan.file.id,
+        plan.removedBands,
+      ]);
+    }
 
-    // A file is loaded once every band its mapping names has been ingested. Unlike a bulk load,
-    // the source file is never deleted and no raw table exists to drop: after a raster load the
-    // file *is* the layer's data and must survive.
+    // Deliberately after every band rather than inside the loop, and with no progress step of its
+    // own: asset rows from file_ids that were already checked take milliseconds, so they belong
+    // inside the band range rather than owning a slice of it. Done last so a load that fails
+    // part-way leaves no assets attached to layers whose siblings never made it.
+    await syncRasterLayerAssets(entityManager, stagedAssets);
+
+    // A file is loaded once every band its mapping names is a layer, and it records what decided
+    // how its pixels were written so the next edit can tell a metadata change from one that needs
+    // the file normalized again. Unlike a bulk load, the source file is never deleted and no raw
+    // table exists to drop: after a raster load the file *is* the layer's data and must survive.
     //
-    // Written as a targeted UPDATE rather than file.save(): these entities were loaded before
+    // Written as targeted UPDATEs rather than file.save(): these entities were loaded before
     // normalization repointed files.file_path, and save() diffs the whole entity against the row
     // it reloads — so it would write the pre-conversion path back over the converted one.
-    ingestedFileIds = [...new Set(stagedBands.map(staged => staged.file.id))];
-    if (ingestedFileIds.length > 0) {
-      await entityManager.getRepository(FileEntity).update({ id: In(ingestedFileIds) }, { status: IngestionStatus.LOADED });
+    for (const plan of plans) {
+      if (plan.bands.length > 0) {
+        await entityManager.query(
+          `UPDATE files SET status = $2, metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('loaded_bands', $3::jsonb), updated_at = now() WHERE id = $1`,
+          [plan.file.id, IngestionStatus.LOADED, JSON.stringify(loadedBands(plan.bands))],
+        );
+      } else {
+        // A mapping that declares no bands leaves the file with nothing loaded, as if never mapped.
+        await entityManager.query(`UPDATE files SET metadata = metadata - 'loaded_bands', updated_at = now() WHERE id = $1`, [
+          plan.file.id,
+        ]);
+      }
     }
 
     // Calculate new dataset metadata and update status. getSubject resolves to the job's sub
@@ -154,48 +201,156 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     // it throws when there is no sub at all, so a job without an owner records none.
     await reportProgress(LOAD_PROGRESS_CEILING, 'Computing dataset metadata...');
     const updatedBy = data.created_by ? getSubject(requestData) : null;
-    await updateRasterDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED, updatedBy);
+    await updateRasterDatasetMetadata(entityManager, dataset.id, statusAfterLoad(previousStatus), updatedBy);
 
     // The job is still active here, so this last write lands; once the processor
     // returns, updateJobState's `state = 'active'` guard makes it a no-op.
     await reportProgress(100, 'Raster load complete');
   } catch (error: any) {
+    // A file this run started writing to may be half-normalized, half-ingested or half-updated, and
+    // the dataset is about to be shown again — so its layers are removed rather than published in
+    // that state. Clearing loaded_bands with them makes the retry ingest the file from scratch.
+    // Files the run never reached keep their layers, and stay PENDING with their edit still to apply.
+    const touched = [...touchedFileIds];
+    if (touched.length > 0) {
+      await entityManager.query(`DELETE FROM raster_layers WHERE file_id = ANY($1::uuid[]) AND dataset_id = $2`, [touched, dataset.id]);
+      await entityManager.query(
+        `UPDATE files SET status = $2, metadata = metadata - 'loaded_bands', updated_at = now() WHERE id = ANY($1::uuid[])`,
+        [touched, IngestionStatus.PENDING],
+      );
+      // The layers just removed were counted in the dataset's rollup, which has to follow them.
+      // Best-effort: the rollup may be what failed, and its error must not mask the original one.
+      await updateRasterDatasetMetadata(entityManager, dataset.id, statusAfterFailedLoad(previousStatus), null).catch(rollupError =>
+        log.warn('Failed to roll up dataset metadata after a failed raster load', {
+          dataset_id: dataset.id,
+          error: rollupError?.message,
+        }),
+      );
+    }
     // Targeted for the same reason as the file status above: updateRasterDatasetMetadata may
     // already have rewritten this row, and saving the entity loaded at the top of the job would
     // restore its stale metadata along with the status.
-    await entityManager.getRepository(DatasetEntity).update({ id: dataset.id }, { status: IngestionStatus.PENDING });
-    // Roll the files back with it, so the two agree on what happened.
-    if (ingestedFileIds.length > 0) {
-      await entityManager.getRepository(FileEntity).update({ id: In(ingestedFileIds) }, { status: IngestionStatus.PENDING });
-    }
+    await entityManager.getRepository(DatasetEntity).update({ id: dataset.id }, { status: statusAfterFailedLoad(previousStatus) });
     throw error;
   }
 }
 
 /**
- * Every File the Dataset's mappings name, whatever its ingestion status.
+ * The Files of the Dataset waiting for a Raster Load: never loaded, edited since their last load
+ * (DatasetFileMappingService.updateMapping puts a file back to PENDING when its band mapping's
+ * content changes), or left PENDING by a load that failed.
  *
- * Deliberately unfiltered: an ingest is idempotent per (file, band) and the loader is the only writer of Raster Layers,
- * so re-reading a file that is already LOADED costs time and changes nothing — while *skipping* it made two situations
- * unrecoverable:
- *
- *   - a load that failed after marking its files LOADED could not be retried. File status is
- *     written before the dataset metadata rollup, so a rollup failure left every file LOADED; the
- *     retry then found nothing to ingest and went straight back to the rollup that had just failed,
- *     with the same stale rows behind it. Correcting the Band Mapping changed nothing.
- *   - a Band Mapping edited after a successful load was never applied. Attaching an additional
- *     resource is the common case: no file was left in PENDING to carry it, so the job ran to
- *     completion having attached nothing.
- *
- * Re-running a load therefore costs what running it costs. That is the price of it being repeatable.
+ * A LOADED file is skipped, so adding files to a Dataset costs only what loading those files costs.
+ * Re-running is still safe: a load that fails puts every file it touched back to PENDING, and every
+ * write it makes is idempotent per (file, band).
  */
-const getMappedFiles = async (entityManager: EntityManager, mappings: DatasetFileMappingEntity[]): Promise<FileEntity[]> => {
+const getPendingFiles = async (entityManager: EntityManager, mappings: DatasetFileMappingEntity[]): Promise<FileEntity[]> => {
   // A mapping with no file_id belongs to no File — currentMappingsByFile drops those too.
   const fileIds = [...new Set(mappings.map(mapping => mapping.file_id).filter((id): id is string => !!id))];
   if (fileIds.length === 0) {
     return [];
   }
-  return await entityManager.getRepository(FileEntity).find({ where: { id: In(fileIds) } });
+  return await entityManager.getRepository(FileEntity).find({ where: { id: In(fileIds), status: IngestionStatus.PENDING } });
+};
+
+/** What ingestRaster and updateRasterLayer both take from a band mapping. */
+const layerFields = (datasetId: string, { file, bandMapping }: StagedBand) => ({
+  fileId: file.id,
+  band: bandMapping.band,
+  datasetId,
+  soilPropertySlug: bandMapping.soilPropertySlug,
+  minDepth: bandMapping.minDepth,
+  maxDepth: bandMapping.maxDepth,
+  isCategorical: bandMapping.isCategorical,
+  referencePeriodStart: bandMapping.referencePeriodStart,
+  referencePeriodStop: bandMapping.referencePeriodStop,
+  procedureSlug: bandMapping.procedureSlug,
+  description: bandMapping.layerDescription,
+});
+
+const toLoadedBand = (bandMapping: ResolvedBandMapping): LoadedRasterBand => ({
+  standardUnit: bandMapping.standardUnit,
+  originalUnit: bandMapping.originalUnit,
+  conversionFormula: bandMapping.conversionFormula,
+  isCategorical: bandMapping.isCategorical,
+});
+
+const loadedBands = (bands: StagedBand[]): Record<string, LoadedRasterBand> =>
+  Object.fromEntries(bands.map(({ bandMapping }) => [String(bandMapping.band), toLoadedBand(bandMapping)]));
+
+/**
+ * Decides how a pending file's current mapping gets applied, against what its last load recorded.
+ *
+ *   - ingest: the file is normalized again from its source and every band ingested. Needed when the
+ *     file has never been loaded, when a band has no layer yet, or when anything that decides how the
+ *     pixels are written changed: the unit conversion, or a band flipping between categorical and
+ *     continuous, which also forces the COG to be rebuilt so its overviews are resampled to match.
+ *   - update: only layer metadata changed, so the layers are rewritten in place.
+ *
+ * A new band forces a full ingest rather than one of just that band: its conversion factor has to be
+ * applied in the same pass as its siblings', since normalization rewrites the whole file.
+ */
+const planMode = (file: FileEntity, bands: StagedBand[], existingBands: Set<number>): Pick<FilePlan, 'mode' | 'forceCog'> => {
+  const previous = (file.metadata as RasterFileMetadata | null)?.loaded_bands;
+  if (!previous) {
+    return { mode: 'ingest', forceCog: false };
+  }
+  let mode: LoadMode = 'update';
+  let forceCog = false;
+  for (const { bandMapping } of bands) {
+    const before = previous[String(bandMapping.band)];
+    const now = toLoadedBand(bandMapping);
+    if (!before || !existingBands.has(bandMapping.band)) {
+      mode = 'ingest';
+      continue;
+    }
+    if (before.isCategorical !== now.isCategorical) {
+      mode = 'ingest';
+      forceCog = true;
+    }
+    if (
+      before.standardUnit !== now.standardUnit ||
+      before.originalUnit !== now.originalUnit ||
+      before.conversionFormula !== now.conversionFormula
+    ) {
+      mode = 'ingest';
+    }
+  }
+  return { mode, forceCog };
+};
+
+/**
+ * Points the file back at the upload as it was before any normalization, and forgets the scaling a
+ * previous normalization applied, so the one about to run starts from the original pixels.
+ *
+ * Files normalized before source_file_path was recorded fall back to the deterministic name the
+ * converted output was given (`<source>.tif` → `<source>_cog.tif`). A file whose pixels were scaled
+ * and whose source cannot be found is refused: ingesting it would apply the conversion again.
+ */
+const resetToSourceFile = async (entityManager: EntityManager, file: FileEntity): Promise<void> => {
+  const [row] = await entityManager.query(`SELECT file_path, metadata FROM files WHERE id = $1`, [file.id]);
+  const filePath: string = row.file_path;
+  const metadata = row.metadata as RasterFileMetadata | null;
+
+  let sourcePath: string | null = metadata?.source_file_path ?? null;
+  if (!sourcePath && filePath.endsWith('_cog.tif')) {
+    const candidate = filePath.replace(/_cog\.tif$/, '.tif');
+    if (await FileService.getStorageEngine().fileExists(candidate)) {
+      sourcePath = candidate;
+    }
+  }
+  if (!sourcePath) {
+    if (metadata?.unit_conversion_applied) {
+      throw new JobError('RL_SOURCE_FILE_NOT_FOUND', { file_name: file.name });
+    }
+    // Never scaled: the file as it stands is a valid starting point, converted for layout at most.
+    return;
+  }
+
+  await entityManager.query(
+    `UPDATE files SET file_path = $2, metadata = COALESCE(metadata, '{}'::jsonb) - 'unit_conversion_applied', updated_at = now() WHERE id = $1`,
+    [file.id, sourcePath],
+  );
 };
 
 const assertReferencePeriod = (fileName: string, band: number, field: string, value: string | null): void => {
@@ -245,23 +400,16 @@ const bandPercentage = (bandsProcessed: number, totalBands: number, floor: numbe
  * shorter than the band count gets broadcast over every band.
  */
 const normalizeFiles = async (
-  stagedBands: StagedBand[],
+  candidates: FilePlan[],
   reportProgress: (percentage: number, description: string) => Promise<void>,
 ): Promise<boolean> => {
-  const bandsByFile = new Map<string, { file: FileEntity; bandMappings: ResolvedBandMapping[] }>();
-  for (const { file, bandMapping } of stagedBands) {
-    const entry = bandsByFile.get(file.id) ?? { file, bandMappings: [] };
-    entry.bandMappings.push(bandMapping);
-    bandsByFile.set(file.id, entry);
-  }
-
-  const candidates = [...bandsByFile.values()];
   let anyConverted = false;
 
-  for (const [index, { file, bandMappings }] of candidates.entries()) {
+  for (const [index, { file, bands, forceCog }] of candidates.entries()) {
     const { converted } = await checkFileFormat({
       fileId: file.id,
-      bands: bandMappings.map(bandMapping => ({
+      forceCog,
+      bands: bands.map(({ bandMapping }) => ({
         band: bandMapping.band,
         soilPropertySlug: bandMapping.soilPropertySlug,
         standardUnit: bandMapping.standardUnit,
@@ -283,22 +431,25 @@ const normalizeFiles = async (
 
 /**
  * Resolves each file's Band Mapping and checks every band against the bands the file actually has,
- * along with the auxiliary Files its additional resources reference.
+ * along with the auxiliary Files its additional resources reference, then plans how each file's
+ * mapping gets applied (see planMode).
  *
  * Band counts come from the metadata probed at upload, so an invalid band is rejected without
  * opening the raster. Bands a mapping does not name are skipped, which is how uncertainty and
  * count bands are excluded from ingestion.
  */
-const prepareStagedBands = async (
+const prepareFilePlans = async (
   requestData: RequestData,
   files: FileEntity[],
   mappings: DatasetFileMappingEntity[],
-): Promise<StagedBand[]> => {
+): Promise<FilePlan[]> => {
   const service = new DataMappingService();
-  const stagedBands: StagedBand[] = [];
+  const bandsByFile = new Map<string, StagedBand[]>();
   const currentMappings = DatasetFileMappingService.currentMappingsByFile(mappings);
 
   for (const file of files) {
+    const stagedBands: StagedBand[] = [];
+    bandsByFile.set(file.id, stagedBands);
     // Cannot miss: the file list was built from these mappings' file_ids. Kept as a guard so a
     // future change to how files are selected fails loudly rather than loading an unmapped file.
     const datasetFileMapping = currentMappings.get(file.id);
@@ -312,7 +463,7 @@ const prepareStagedBands = async (
     if (bandMappings.length === 0) {
       // Distinct from RL_MAPPING_NOT_CONFIGURED: a mapping exists but is an empty object,
       // which is an accepted scenario to allow a file with one or more previously mapped
-      // bands to be unmapped — so this file is skipped, not failed.
+      // bands to be unmapped — so nothing is ingested from it and any layers it had are removed.
       log.warn('Skipping file with an empty data mapping', { file_id: file.id, file_name: file.name });
       continue;
     }
@@ -333,9 +484,31 @@ const prepareStagedBands = async (
     }
   }
 
-  await resolveAdditionalResources(requestData, stagedBands);
+  await resolveAdditionalResources(requestData, [...bandsByFile.values()].flat());
 
-  return stagedBands;
+  // Which bands already have a layer: what an update can rewrite and what a removal has to delete.
+  const existingBands = new Map<string, Set<number>>(files.map(file => [file.id, new Set<number>()]));
+  if (files.length > 0) {
+    const rows: { file_id: string; band: number }[] = await requestData.entityManager.query(
+      `SELECT file_id, band FROM raster_layers WHERE file_id = ANY($1::uuid[]) AND deleted_at IS NULL`,
+      [files.map(file => file.id)],
+    );
+    for (const row of rows) {
+      existingBands.get(row.file_id)?.add(Number(row.band));
+    }
+  }
+
+  return files.map(file => {
+    const bands = bandsByFile.get(file.id)!;
+    const existing = existingBands.get(file.id)!;
+    const mapped = new Set(bands.map(({ bandMapping }) => bandMapping.band));
+    return {
+      file,
+      bands,
+      ...planMode(file, bands, existing),
+      removedBands: [...existing].filter(band => !mapped.has(band)),
+    };
+  });
 };
 
 /**
@@ -390,3 +563,52 @@ const resolveAssetFileId = async (requestData: RequestData, slug: string, params
     throw error;
   }
 };
+
+/**
+ * Applies a band mapping's metadata to the layer an earlier ingest of the same (file, band) created,
+ * without reading the file: the fields set here are the ones the ingest upsert takes from the mapping
+ * rather than from the pixels. Returns the layer id, or null when the band has no layer.
+ *
+ * Only valid when nothing that decides how the pixels were written has changed (see LoadedRasterBand):
+ * otherwise the file has to be normalized and ingested again.
+ */
+async function updateRasterLayer(em: EntityManager, opts: Omit<IngestRasterOptions, 'onFootprintProgress'>): Promise<string | null> {
+  // A raw UPDATE resolves to [rows, rowCount] rather than to the rows alone.
+  const [rows]: [{ id: string }[], number] = await em.query(
+    `WITH
+     sp AS (
+       SELECT id FROM soil_properties WHERE slug = $3 AND deleted_at IS NULL
+     ),
+     proc AS (
+       SELECT id FROM procedures WHERE slug = $4 AND deleted_at IS NULL
+     )
+     UPDATE raster_layers SET
+       updated_at = now(),
+       dataset_id = $5::uuid,
+       soil_property_id = (SELECT id FROM sp),
+       procedure_id = (SELECT id FROM proc),
+       min_depth = $6::int,
+       max_depth = $7::int,
+       reference_period_start = $8,
+       reference_period_stop = $9,
+       is_categorical = $10::boolean,
+       -- Wrapped as in ingestRaster (docs/adr/0019).
+       description = CASE WHEN $11::text IS NULL THEN NULL ELSE jsonb_build_object('description', $11::text) END
+     WHERE file_id = $1::uuid AND band = $2::int AND deleted_at IS NULL AND EXISTS (SELECT 1 FROM sp)
+     RETURNING id`,
+    [
+      opts.fileId,
+      opts.band,
+      opts.soilPropertySlug,
+      opts.procedureSlug ?? null,
+      opts.datasetId,
+      opts.minDepth,
+      opts.maxDepth,
+      opts.referencePeriodStart ?? null,
+      opts.referencePeriodStop ?? null,
+      opts.isCategorical,
+      opts.description ?? null,
+    ],
+  );
+  return rows[0]?.id ?? null;
+}

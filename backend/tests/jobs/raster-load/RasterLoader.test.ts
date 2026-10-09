@@ -13,6 +13,9 @@ import { RasterLoadJob } from '../../../src/interfaces/Job';
 import { RasterFileMetadata } from '../../../src/interfaces/File';
 import { processRasterLoad } from '../../../src/jobs/raster-load/RasterLoader';
 import * as PgBossModule from '../../../src/services/PgBoss';
+import * as RasterIngestModule from '../../../src/services/RasterIngestService';
+import * as LoadLayerAssetsModule from '../../../src/jobs/raster-load/LoadLayerAssets';
+import * as UpdateDatasetMetadataModule from '../../../src/jobs/raster-load/UpdateDatasetMetadata';
 import { GISDataType, IngestionStatus, UnitConversionType } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
@@ -95,10 +98,14 @@ const setUpRasterLoad = async (
     fileName?: string;
     unitConversion?: UnitConversionSpec;
     unitConversions?: UnitConversionSpec[];
+    status?: IngestionStatus;
   },
 ) => {
   const dataSource = await getDataSource();
   const dataset = await addDataset(name, [-180, -90, 180, 90], GISDataType.RASTER);
+  // addDataset publishes, but a dataset reaching its first load has not been yet.
+  dataset.status = options?.status ?? IngestionStatus.PENDING;
+  await dataSource.getRepository(DatasetEntity).update({ id: dataset.id }, { status: dataset.status });
   const category = await addCategory(`category-${name}`);
   const property = await addSoilProperty(`property-${name}`, category.id);
   const conversion = options?.unitConversion
@@ -136,7 +143,40 @@ const setUpRasterLoad = async (
     }),
   );
 
-  return { dataset, file, property };
+  return { dataset, file, property, conversion, conversions };
+};
+
+/**
+ * Re-declares a file's band mapping the way the mapping step does — repointing its dataset file
+ * mapping at a new data mapping — and puts the file back to PENDING, as updateMapping does when the
+ * content changed.
+ */
+const remap = async (datasetId: string, fileId: string, mapping: Record<string, unknown>): Promise<void> => {
+  const dataSource = await getDataSource();
+  const dataMapping = await addDataMapping(mapping);
+  await dataSource
+    .getRepository(DatasetFileMappingEntity)
+    .update({ dataset_id: datasetId, file_id: fileId }, { data_mapping_id: dataMapping.id });
+  await dataSource.getRepository(FileEntity).update({ id: fileId }, { status: IngestionStatus.PENDING });
+};
+
+/** Adds a second pending raster file to a dataset, mapped with `mapping`. */
+const addRasterFile = async (datasetId: string, fileName: string, mapping: Record<string, unknown>): Promise<FileEntity> => {
+  const dataSource = await getDataSource();
+  const fileRepo = dataSource.getRepository(FileEntity);
+  const file = await fileRepo.save(
+    fileRepo.create({
+      name: uniqueName('extra-file'),
+      file_path: fileName,
+      created_by: 'tests',
+      status: IngestionStatus.PENDING,
+      metadata: rasterMetadata(2),
+    }),
+  );
+  const dataMapping = await addDataMapping(mapping);
+  const mappingRepo = dataSource.getRepository(DatasetFileMappingEntity);
+  await mappingRepo.save(mappingRepo.create({ dataset_id: datasetId, file_id: file.id, data_mapping_id: dataMapping.id }));
+  return file;
 };
 
 const getLayers = async (fileId: string): Promise<RasterLayerEntity[]> => {
@@ -912,7 +952,7 @@ describe('RasterLoader', () => {
       ]);
     });
 
-    it('returns the dataset to PENDING and leaves the file pending when a load fails', async () => {
+    it('returns a never-loaded dataset to PENDING and leaves the file pending when a load fails', async () => {
       const { dataset, file } = await setUpRasterLoad(uniqueName('failure-status'), () => null);
 
       await expect(processRasterLoad(getJob(dataset.slug))).rejects.toThrow();
@@ -940,14 +980,21 @@ describe('RasterLoader', () => {
       expect(await getLayers(file.id)).toHaveLength(0);
     });
 
-    it('re-ingests a file that is already loaded, so a corrected mapping can be re-run', async () => {
-      const { dataset, file } = await setUpRasterLoad(uniqueName('already-loaded'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+    it('puts a file back to PENDING when the load fails after marking it LOADED, so the retry finds it', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('rollup-failure'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      // File status is written before the rollup, so this is the latest a load can fail.
+      const rollup = jest
+        .spyOn(UpdateDatasetMetadataModule, 'updateRasterDatasetMetadata')
+        .mockRejectedValueOnce(new Error('rollup exploded'));
+
+      try {
+        await expect(processRasterLoad(getJob(dataset.slug))).rejects.toThrow('rollup exploded');
+      } finally {
+        rollup.mockRestore();
+      }
+
       const dataSource = await getDataSource();
-      // The state a load that failed at the metadata rollup leaves behind: file status is written
-      // before the rollup runs. Skipping non-pending files made that unrecoverable — the retry
-      // found nothing to ingest and went straight back to the rollup that had just failed. It also
-      // meant a Band Mapping edited after a successful load was never applied.
-      await dataSource.getRepository(FileEntity).update({ id: file.id }, { status: IngestionStatus.LOADED });
+      expect((await dataSource.getRepository(FileEntity).findOneByOrFail({ id: file.id })).status).toBe(IngestionStatus.PENDING);
 
       await processRasterLoad(getJob(dataset.slug));
 
@@ -955,6 +1002,273 @@ describe('RasterLoader', () => {
       const reloaded = await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id });
       expect(reloaded.status).toBe(IngestionStatus.LOADED);
       expect(reloaded.n_raster_layers).toBe(1);
+    });
+  });
+
+  describe('loading into a loaded or published dataset', () => {
+    const getFile = async (fileId: string): Promise<FileEntity> => {
+      const dataSource = await getDataSource();
+      return dataSource.getRepository(FileEntity).findOneByOrFail({ id: fileId });
+    };
+    const getDataset = async (datasetId: string): Promise<DatasetEntity> => {
+      const dataSource = await getDataSource();
+      return dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: datasetId });
+    };
+
+    it('ingests only the new file, leaving the layers of a loaded one untouched', async () => {
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('add-file'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      await processRasterLoad(getJob(dataset.slug));
+      const [before] = await getLayers(file.id);
+
+      const added = await addRasterFile(dataset.id, EPSG3857_FILE, { '2': bandEntry(property.slug, 5, 15) });
+      const ingest = jest.spyOn(RasterIngestModule, 'ingestRaster');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+        expect(ingest.mock.calls.map(([opts]) => opts.fileId)).toEqual([added.id]);
+      } finally {
+        ingest.mockRestore();
+      }
+
+      const [after] = await getLayers(file.id);
+      expect(after!.id).toBe(before!.id);
+      expect(after!.updated_at).toEqual(before!.updated_at);
+      expect((await getLayers(added.id)).map(layer => layer.band)).toEqual([2]);
+      expect((await getDataset(dataset.id)).n_raster_layers).toBe(2);
+    });
+
+    it('hides a PUBLISHED dataset while it loads and publishes it again afterwards', async () => {
+      const { dataset } = await setUpRasterLoad(uniqueName('published'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        status: IngestionStatus.PUBLISHED,
+      });
+      const statusesWhileIngesting: string[] = [];
+      const spy = jest.spyOn(PgBossModule, 'progressReporter').mockImplementation(() => async (_percentage, description) => {
+        if (description.includes('Ingesting band')) {
+          statusesWhileIngesting.push((await getDataset(dataset.id)).status);
+        }
+      });
+
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+      } finally {
+        spy.mockRestore();
+      }
+
+      expect(statusesWhileIngesting.length).toBeGreaterThan(0);
+      expect(statusesWhileIngesting.every(status => status === IngestionStatus.ONGOING)).toBe(true);
+      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.PUBLISHED);
+    });
+
+    it('applies a metadata-only edit in place, without ingesting the file again', async () => {
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('edit-metadata'), slug => ({
+        '1': bandEntry(slug, 0, 5),
+        '2': bandEntry(slug, 5, 15),
+      }));
+      await processRasterLoad(getJob(dataset.slug));
+      const before = await getLayers(file.id);
+      const footprintsBefore = await footprintCentroidX(before[0]!.id);
+
+      await remap(dataset.id, file.id, {
+        '1': { ...bandEntry(property.slug, 0, 10), layer_description: 'Corrected depth.', reference_period_start: '2001' },
+        '2': bandEntry(property.slug, 10, 30),
+      });
+      const ingest = jest.spyOn(RasterIngestModule, 'ingestRaster');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+        expect(ingest).not.toHaveBeenCalled();
+      } finally {
+        ingest.mockRestore();
+      }
+
+      const after = await getLayers(file.id);
+      expect(after.map(layer => layer.id)).toEqual(before.map(layer => layer.id));
+      expect(after.map(layer => [layer.min_depth, layer.max_depth])).toEqual([
+        [0, 10],
+        [10, 30],
+      ]);
+      expect(after[0]!.description).toEqual({ description: 'Corrected depth.' });
+      expect(after[0]!.reference_period_start).toBe('2001');
+      expect(await footprintCentroidX(after[0]!.id)).toBe(footprintsBefore);
+      expect((await getFile(file.id)).status).toBe(IngestionStatus.LOADED);
+      expect((await getDataset(dataset.id)).soil_depth).toEqual({ min: 0, max: 30 });
+    });
+
+    it('deletes the layer of a band the mapping stopped naming', async () => {
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('remove-band'), slug => ({
+        '1': bandEntry(slug, 0, 5),
+        '2': bandEntry(slug, 5, 15),
+      }));
+      await processRasterLoad(getJob(dataset.slug));
+
+      await remap(dataset.id, file.id, { '1': bandEntry(property.slug, 0, 5) });
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect((await getLayers(file.id)).map(layer => layer.band)).toEqual([1]);
+      expect((await getDataset(dataset.id)).n_raster_layers).toBe(1);
+    });
+
+    it('removes every layer of a loaded file whose mapping now declares no bands', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('unmap-all'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      await processRasterLoad(getJob(dataset.slug));
+
+      await remap(dataset.id, file.id, {});
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+      const reloadedFile = await getFile(file.id);
+      expect(reloadedFile.status).toBe(IngestionStatus.PENDING);
+      expect((reloadedFile.metadata as RasterFileMetadata).loaded_bands).toBeUndefined();
+    });
+
+    it('unlinks an asset the mapping stopped declaring and attaches a new one', async () => {
+      const manual = await addFile(uniqueName('kept-manual'));
+      const retracted = await addFile(uniqueName('retracted-manual'));
+      const added = await addFile(uniqueName('added-manual'));
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('edit-assets'), slug => ({
+        '1': { ...bandEntry(slug, 0, 5), additional_resources: [{ file_id: manual.slug }, { file_id: retracted.slug }] },
+      }));
+      await processRasterLoad(getJob(dataset.slug));
+
+      await remap(dataset.id, file.id, {
+        '1': { ...bandEntry(property.slug, 0, 5), additional_resources: [{ file_id: manual.slug }, { file_id: added.slug }] },
+      });
+      await processRasterLoad(getJob(dataset.slug));
+
+      const dataSource = await getDataSource();
+      const [layer] = await getLayers(file.id);
+      const assets = await dataSource.getRepository(RasterLayerAssetEntity).find({ where: { raster_layer_id: layer!.id } });
+      expect(assets.map(asset => asset.file_id).sort()).toEqual([manual.id, added.id].sort());
+    });
+
+    it('re-normalizes from the source when the unit conversion changes, rather than scaling the scaled file', async () => {
+      const storageDir = useScratchStorage(MULTIBAND_FILE);
+      const { dataset, file, property, conversions } = await setUpRasterLoad(
+        uniqueName('edit-conversion'),
+        (slug, _conversionSlug, conversionSlugs) => ({ '1': bandEntry(slug, 0, 5, conversionSlugs![0]!) }),
+        {
+          bandCount: 1,
+          fileName: MULTIBAND_FILE,
+          unitConversions: [
+            { originalUnit: 'cg/kg', formula: 'x*10' },
+            { originalUnit: 'g/kg', formula: 'x*1000' },
+          ],
+        },
+      );
+      const maxOfBand1 = async (): Promise<number> => {
+        const tiff = await fromFile(path.join(storageDir, (await getFile(file.id)).file_path));
+        const [band1] = (await (await tiff.getImage(0)).readRasters({ samples: [0] })) as unknown as ArrayLike<number>[];
+        let max = -Infinity;
+        for (let i = 0; i < band1!.length; i++) max = Math.max(max, band1![i] as number);
+        return max;
+      };
+
+      await processRasterLoad(getJob(dataset.slug));
+      expect(await maxOfBand1()).toBeCloseTo(77 * 10, 0);
+      const [before] = await getLayers(file.id);
+
+      await remap(dataset.id, file.id, { '1': bandEntry(property.slug, 0, 5, conversions![1]!.slug) });
+      await processRasterLoad(getJob(dataset.slug));
+
+      // From the source's 77, not from the first run's 770.
+      expect(await maxOfBand1()).toBeCloseTo(77 * 1000, 0);
+      expect((await getFile(file.id)).metadata).toMatchObject({ source_file_path: MULTIBAND_FILE, unit_conversion_applied: true });
+      // Re-ingested in place: the layer keeps its identity.
+      expect((await getLayers(file.id)).map(layer => layer.id)).toEqual([before!.id]);
+    });
+
+    it('rebuilds the COG with fresh overviews when a band flips between continuous and categorical', async () => {
+      useScratchStorage(MULTIBAND_FILE);
+      const name = uniqueName('edit-categorical');
+      const { dataset, file } = await setUpRasterLoad(name, slug => ({ '1': bandEntry(slug, 0, 5) }), { bandCount: 1 });
+      await processRasterLoad(getJob(dataset.slug));
+      // An uploaded COG is left as it is, so nothing has been converted yet.
+      expect((await getFile(file.id)).file_path).toBe(MULTIBAND_FILE);
+
+      const category = await addCategory(`category-classed-${name}`);
+      const classed = await addSoilProperty(`property-classed-${name}`, category.id, 'code 1-12', { '1': { label: 'Clay' } });
+      await remap(dataset.id, file.id, { '1': bandEntry(classed.slug, 0, 5) });
+
+      const translate = jest.spyOn(GdalCLI, 'translate');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+        const cogArgs = translate.mock.calls.find(([, dst]) => dst.endsWith('_cog.tif'))?.[2] ?? [];
+        expect(cogArgs).toContain('OVERVIEWS=IGNORE_EXISTING');
+        expect(cogArgs).toContain('OVERVIEW_RESAMPLING=NEAREST');
+      } finally {
+        translate.mockRestore();
+      }
+
+      const [layer] = await getLayers(file.id);
+      expect(layer!.is_categorical).toBe(true);
+    });
+
+    it('refuses to re-normalize a scaled file whose source cannot be found', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('lost-source'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      // A file normalized before source_file_path was recorded, whose original is gone.
+      const dataSource = await getDataSource();
+      await dataSource.query(
+        `UPDATE files SET file_path = 'gone_cog.tif', metadata = metadata || '{"unit_conversion_applied": true}'::jsonb WHERE id = $1`,
+        [file.id],
+      );
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'RL_SOURCE_FILE_NOT_FOUND',
+        params: { file_name: file.name },
+      });
+    });
+
+    it('on failure, removes the layers of the files it touched and publishes the dataset again', async () => {
+      const {
+        dataset,
+        file: edited,
+        property,
+      } = await setUpRasterLoad(uniqueName('edit-failure'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        status: IngestionStatus.PUBLISHED,
+      });
+      const untouched = await addRasterFile(dataset.id, EPSG3857_FILE, { '2': bandEntry(property.slug, 5, 15) });
+      await processRasterLoad(getJob(dataset.slug));
+
+      await remap(dataset.id, edited.id, { '1': bandEntry(property.slug, 0, 10) });
+      // Fails after the edited file's layers were rewritten.
+      const sync = jest.spyOn(LoadLayerAssetsModule, 'syncRasterLayerAssets').mockRejectedValueOnce(new Error('sync exploded'));
+      try {
+        await expect(processRasterLoad(getJob(dataset.slug))).rejects.toThrow('sync exploded');
+      } finally {
+        sync.mockRestore();
+      }
+
+      expect(await getLayers(edited.id)).toHaveLength(0);
+      const editedFile = await getFile(edited.id);
+      expect(editedFile.status).toBe(IngestionStatus.PENDING);
+      expect((editedFile.metadata as RasterFileMetadata).loaded_bands).toBeUndefined();
+      // A file the load never touched keeps its published layer.
+      expect((await getLayers(untouched.id)).map(layer => layer.band)).toEqual([2]);
+      const reloaded = await getDataset(dataset.id);
+      expect(reloaded.status).toBe(IngestionStatus.PUBLISHED);
+      expect(reloaded.n_raster_layers).toBe(1);
+
+      // The retry ingests the edited file from scratch.
+      await processRasterLoad(getJob(dataset.slug));
+      expect((await getLayers(edited.id)).map(layer => [layer.min_depth, layer.max_depth])).toEqual([[0, 10]]);
+    });
+
+    it('on failure, leaves the layers of a pending file it never reached', async () => {
+      const { dataset, file: edited, property } = await setUpRasterLoad(uniqueName('unreached'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      await processRasterLoad(getJob(dataset.slug));
+
+      // The edit is applied after every ingest, so a failing ingest of a new file comes first.
+      await remap(dataset.id, edited.id, { '1': bandEntry(property.slug, 0, 10) });
+      await addRasterFile(dataset.id, EPSG3857_FILE, { '2': bandEntry(property.slug, 5, 15) });
+      const ingest = jest.spyOn(RasterIngestModule, 'ingestRaster').mockRejectedValueOnce(new Error('ingest exploded'));
+      try {
+        await expect(processRasterLoad(getJob(dataset.slug))).rejects.toThrow('ingest exploded');
+      } finally {
+        ingest.mockRestore();
+      }
+
+      expect((await getLayers(edited.id)).map(layer => [layer.min_depth, layer.max_depth])).toEqual([[0, 5]]);
+      expect((await getFile(edited.id)).status).toBe(IngestionStatus.PENDING);
+      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.LOADED);
     });
   });
 });

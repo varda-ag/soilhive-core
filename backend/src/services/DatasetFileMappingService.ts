@@ -2,8 +2,10 @@ import { RequestData } from '../interfaces/RequestData';
 import { DatasetFileMappingRequest, DatasetFileMappingResponse } from '../interfaces/DatasetFileMapping';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import DatasetEntity from '../entities/Dataset';
+import { isDeepStrictEqual } from 'util';
 import { getEntity } from '../utils/slugs';
-import { EntityType } from '../types/data';
+import { EntityType, IngestionStatus } from '../types/data';
+import DataMappingEntity from '../entities/DataMapping';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../entities/File';
@@ -159,6 +161,7 @@ export default class DatasetFileMappingService {
 
     if (payload.mappingId !== undefined) {
       updateValues.data_mapping_id = payload.mappingId;
+      await this.reopenLoadedFile(requestData, dataset.id, mappingId, payload.mappingId);
     }
 
     // Update existing mapping
@@ -173,6 +176,51 @@ export default class DatasetFileMappingService {
 
     const row = result.raw[0] as DatasetFileMappingEntity;
     return repo.create(row);
+  };
+
+  /**
+   * Decides what repointing a loaded File at a different data mapping means for that File.
+   *
+   * Compared by content rather than by id: the mapping steps write a fresh data mapping on every
+   * save, so a new id alone says nothing about whether anything was edited.
+   *
+   *   - Raster: back to PENDING, so the next Raster Load applies the edit. The loader works out from
+   *     what it recorded at the last load whether that means rewriting layer metadata or ingesting
+   *     the file again.
+   *   - Vector: refused. A bulk load drops the file's raw table once its records are in, so there is
+   *     nothing left to apply a new column mapping to.
+   */
+  private reopenLoadedFile = async (
+    requestData: RequestData,
+    datasetId: string,
+    datasetFileMappingId: string,
+    newDataMappingId: string,
+  ): Promise<void> => {
+    const { entityManager } = requestData;
+    const current = await entityManager
+      .getRepository(DatasetFileMappingEntity)
+      .findOne({ where: { id: datasetFileMappingId, dataset_id: datasetId }, relations: { file: true } });
+    const file = current?.file;
+    if (!file || file.status !== IngestionStatus.LOADED || current.data_mapping_id === newDataMappingId) {
+      return;
+    }
+
+    const dataMappingRepo = entityManager.getRepository(DataMappingEntity);
+    const [before, after] = await Promise.all([
+      current.data_mapping_id ? dataMappingRepo.findOneBy({ id: current.data_mapping_id }) : null,
+      dataMappingRepo.findOneBy({ id: newDataMappingId }),
+    ]);
+    if (isDeepStrictEqual(before?.data_mapping ?? null, after?.data_mapping ?? null)) {
+      return;
+    }
+
+    if (!file.metadata?.is_raster) {
+      throw new ErrorResponse(
+        `File '${file.slug}' is already loaded, so its mapping can no longer be changed: its staged data was removed once it was loaded`,
+        StatusCodes.CONFLICT,
+      );
+    }
+    await entityManager.getRepository(FileEntity).update({ id: file.id }, { status: IngestionStatus.PENDING });
   };
 
   getDatasetFileMapping = async (requestData: RequestData, datasetFileMappingId: string): Promise<DatasetFileMappingEntity> => {

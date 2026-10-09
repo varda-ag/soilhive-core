@@ -75,12 +75,20 @@ export function useDatasetPreview(datasetId?: string) {
     enabled: !!datasetId,
   });
 
-  const { data: datasetFileMappings, isLoading: isLoadingFileMapping } = useApiQuery<DatasetFileMappingResponse[]>({
+  const { data: allFileMappings, isLoading: isLoadingFileMapping } = useApiQuery<DatasetFileMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/dataset-file-mapping`,
     method: 'GET',
     queryKey: ['datasets', datasetId, 'dataset-file-mapping'],
     enabled: !!datasetId,
   });
+
+  // A loaded file has nothing left to preview or edit: the bulk load drops its staged records once
+  // they are in. Held back until the files arrive, so the first selection is never a loaded file.
+  const datasetFileMappings = useMemo(() => {
+    if (!allFileMappings || !files) return undefined;
+    const loaded = new Set(files.filter(file => file.status === 'LOADED').map(file => file.id));
+    return allFileMappings.filter(mapping => !loaded.has(mapping.fileID));
+  }, [allFileMappings, files]);
 
   const { data: mappings, isLoading: isLoadingMappings } = useApiQuery<DataMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/mappings`,
@@ -125,11 +133,14 @@ export function useDatasetPreview(datasetId?: string) {
     selectedFileRef.current = selectedFile;
   }, [selectedFile]);
 
+  // Keeps the file the user picked when the list is rebuilt (a refetch of the mappings or the files),
+  // falling back to the first file only when nothing is selected or the selection left the list.
   useEffect(() => {
-    if (datasetFileMappings?.length) {
-      setSelectedFile(datasetFileMappings[0].fileID);
-      setSelectedMapping(datasetFileMappings[0]);
-    }
+    if (!datasetFileMappings?.length) return;
+    const current = datasetFileMappings.find(mapping => mapping.fileID === selectedFileRef.current) ?? datasetFileMappings[0];
+    setSelectedFile(current.fileID);
+    // Compared by value: the rebuilt list holds new objects even when nothing changed.
+    setSelectedMapping(prev => (prev?.id === current.id && prev?.mappingId === current.mappingId ? prev : current));
   }, [datasetFileMappings]);
 
   useEffect(() => {

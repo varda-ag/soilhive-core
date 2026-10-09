@@ -42,7 +42,7 @@ A geometry field, or separate latitude and longitude columns, is required, becau
 
 ### Uploading multiple files
 
-All files within the same dataset must share an identical field structure (the same fields and the same data types) and must be loaded together. The first file you upload sets the expected structure; any later file that differs is flagged in the file list, and a dialog shows exactly which fields are missing from it and which extra fields it carries. You cannot continue until every file matches.
+All files within the same dataset must share an identical field structure (the same fields and the same data types). The first file you upload sets the expected structure; any later file that differs is flagged in the file list, and a dialog shows exactly which fields are missing from it and which extra fields it carries. You cannot continue until every file matches.
 
 ### Coordinate Reference System
 
@@ -123,5 +123,13 @@ You can review exactly which rows and cells were affected directly in the previe
 Once you're satisfied with the preview, confirm to load the data into the SoilHive database. The system applies all field mappings, coordinate reprojection, and unit conversions defined in the previous steps.
 
 When the load finishes the dataset is marked **Loaded** and is ready to publish. See [Publication](1-data-management-portal.md#publication).
+
+While a load runs, the dataset is hidden from the catalog and from searches, even if it was already published. Once the load finishes, a published dataset is published again. If the load fails, the dataset is left as **Draft**, even if it was published, because any records written before the failure stay in it. Retry the load, then publish the dataset again.
+
+### Loading more files later
+
+A load only processes files that have not been loaded yet. A file that is already loaded is not loaded again, so its records are never duplicated.
+
+Once a file is loaded it no longer appears in the preview and its field mapping can no longer be changed.
 
 > **Note:** Data cleaning should ideally be done before upload. The portal supports row-level deletion as a final check but does not yet provide a full cleaning environment.

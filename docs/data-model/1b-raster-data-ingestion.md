@@ -116,15 +116,25 @@ Normalisation happens once per file, before any of its bands are ingested, becau
 
 **5. Additional resources are attached** to their layers, once every band has been ingested successfully.
 
-**6. Dataset metadata is rolled up** from the layers that were loaded (see below), and the dataset is marked **Loaded**.
+**6. Dataset metadata is rolled up** from the layers that were loaded (see below), and the dataset is marked **Loaded**. A dataset that was already **Published** is published again instead.
 
-### Re-running a load
+While a load runs, the dataset is hidden from the catalog and from searches, even if it was published, so nobody sees it half-loaded.
 
-A raster load is repeatable. Each band's layer is identified by its file and band number, so loading again updates the layer in place rather than creating a duplicate, and every field is refreshed from the current mapping, including clearing a layer description you have since removed from it. A load that failed part-way can simply be retried, and a mapping corrected after a successful load can be applied by running it again.
+### Loading again: new files and edited mappings
 
-A re-run costs as much as the first run. Every mapped band is re-read and its footprints retraced; nothing is skipped for having succeeded last time.
+A load only processes files that are waiting for one: files that have never been loaded, files whose band mapping changed since their last load, and files left over from a load that failed. A loaded file you have not touched is skipped, so adding a file to a dataset, published or not, costs only what loading that file costs.
 
-The one exception is additional resources, which are only ever added. Removing a resource from a mapping and re-running does not detach it from the layer.
+How an edited mapping is applied depends on what changed:
+
+- **Layer metadata** (procedure, depths, reference period, description, or a soil property of the same kind and unit): the layer is updated in place. Nothing is re-read and no footprint is retraced.
+- **The unit conversion, a soil property with a different standard unit, or a band switching between categorical and continuous**: the file is normalised again, starting from your original upload rather than from the converted copy, and every mapped band is ingested again. Switching between categorical and continuous always rebuilds the file's overviews, so they are resampled to match.
+- **A band added to the mapping**: the file is ingested again, so the new band's conversion is applied together with its siblings'.
+- **A band removed from the mapping**: its layer is deleted.
+- **Additional resources**: a layer's resources become exactly the ones the mapping declares, so removing one detaches it.
+
+Each band's layer is identified by its file and band number, so ingesting again updates the layer in place rather than creating a duplicate.
+
+If a load fails partway through, see [When a Load Fails](#when-a-load-fails) for what happens to files it had already started on.
 
 ### What the load writes to the dataset
 
@@ -145,7 +155,15 @@ Licenses are not derived. A raster has no per-record licence, so licence stays w
 
 ## When a Load Fails
 
-The dataset and its files go back to the unloaded state they were in before the job started, and the row in the dataset list carries an **Error details** link. It names the file and the band at fault and tells you how to fix that specific failure; some of those fixes link back to this page.
+The row in the dataset list carries an **Error details** link. It names the file and the band at fault and tells you how to fix that specific failure; some of those fixes link back to this page.
+
+What a failure leaves behind depends on how far the load got:
+
+- **Files the load had started on** (normalising, ingesting, or updating their layers) have all their layers removed and go back to waiting for a load. Nothing half-loaded is kept, and retrying ingests them from scratch. This applies to a file that was already loaded and whose mapping you edited, too: its previous layers are removed along with the new ones.
+- **Files the load had not reached** keep their layers as they were, and any edit you made to their mapping is still waiting to be applied.
+- **The dataset** returns to the status it had before the load: **Published**, **Loaded**, or **Draft**. Because the files the load had started on lost their layers, a published dataset is shown again without them until a retry succeeds.
+
+Every mapping is checked before anything is written, so a mistake in a mapping fails the load with nothing changed at all.
 
 These are the conditions a load enforces, and where each one is stated:
 
@@ -157,8 +175,9 @@ These are the conditions a load enforces, and where each one is stated:
 | An additional resource names no uploaded file, or names a URL | [Per-band details](#per-band-details-optional) |
 | A band's unit conversion is not a single multiplication of every pixel | [What the load does](#what-the-load-does-to-your-raster) |
 | A file cannot be normalised to a Cloud Optimized GeoTIFF | [What the load does](#what-the-load-does-to-your-raster) |
+| A file's unit conversion was changed, but its original upload can no longer be found. This only affects files converted before original uploads were tracked; re-upload the file | [Loading again](#loading-again-new-files-and-edited-mappings) |
 
-An empty mapping is not a failure. A file whose bands you have all unmapped is skipped, and the rest of the dataset loads.
+An empty mapping is not a failure. A file whose bands you have all unmapped is skipped, and the rest of the dataset loads. If that file had been loaded before, its layers are removed.
 
 ---
 

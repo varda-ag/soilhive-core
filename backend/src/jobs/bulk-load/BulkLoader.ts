@@ -18,9 +18,11 @@ import { CleaningReport } from '../../interfaces/CleaningReport';
 import { ProcessingSteps } from '../../interfaces/Dataset';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
-import { ErrorResponse } from '../../utils/error';
+import { ErrorResponse, getErrorMessage } from '../../utils/error';
+import { log } from '../../utils/logger';
 import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
+import { hideDatasetForLoad, statusAfterLoad } from '../LoadStatus';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import EntitlementService from '../../services/EntitlementService';
@@ -52,11 +54,11 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const requestData = { entityManager, token, entitlements };
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
+  const previousStatus = dataset.status;
   try {
     await reportProgress(0, `Bulk load started for dataset '${dataset.name}'`);
 
-    dataset.status = IngestionStatus.ONGOING;
-    await dataset.save();
+    await hideDatasetForLoad(entityManager, dataset);
 
     const mappingService = new DatasetFileMappingService();
     const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
@@ -101,7 +103,11 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
       if (data.delete_source_files) {
         // Delete source files
         const storage: FileStorage = FileService.getStorageEngine();
-        storage.deleteFile(file.file_path);
+        // Awaited so a failure cannot surface as an unhandled rejection, but only logged: the file's
+        // records are already in, and a leftover source file is not worth failing the load over.
+        await storage
+          .deleteFile(file.file_path)
+          .catch(error => log.warn('Failed to delete source file after bulk load', { file_id: file.id, error: getErrorMessage(error) }));
       }
     }
 
@@ -114,7 +120,7 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
 
     // Calculate new dataset metadata and update status
     await reportProgress(LOAD_PROGRESS_CEILING, 'Computing dataset metadata...');
-    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED);
+    await updateDatasetMetadata(entityManager, dataset.id, statusAfterLoad(previousStatus));
 
     // The job is still active here, so this last write lands; once the processor
     // returns, updateJobState's `state = 'active'` guard makes it a no-op.

@@ -100,8 +100,10 @@ function setupMocks(
     datasetData?: any;
     soilDataStats?: CleaningReport | undefined;
     isStatsLoading?: boolean;
+    filesData?: any;
   } = {},
 ) {
+  const filesData = 'filesData' in overrides ? overrides.filesData : [];
   const fileMappingsData = 'fileMappingsData' in overrides ? overrides.fileMappingsData : fileMappings;
   const mappingsData = 'mappingsData' in overrides ? overrides.mappingsData : rawMappings;
   const soilDataArr = 'soilData' in overrides ? overrides.soilData! : ([] as any[]);
@@ -124,7 +126,8 @@ function setupMocks(
       // accumulation effect doesn't fire before the reset effect can clear stale data.
       return { data: enabled ? soilDataArr : undefined, isLoading: isLoadingSoilData };
     }
-    if (key === 'files') return { data: [], isLoading: false };
+    // A fresh array on every call, as a refetch would produce.
+    if (key === 'files') return { data: filesData ? [...filesData] : undefined, isLoading: false };
     return { data: undefined, isLoading: false };
   });
 
@@ -327,6 +330,22 @@ describe('useDatasetPreview', () => {
     act(() => result.current.onFileChange('file-b'));
 
     expect(result.current.selectedFile).toBe('file-b');
+  });
+
+  it('hides loaded files: they are neither previewed nor saved', async () => {
+    setupMocks({
+      filesData: [
+        { id: 'file-a', status: 'LOADED' },
+        { id: 'file-b', status: 'STAGED' },
+      ],
+    });
+    const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
+    await waitFor(() => expect(result.current.selectedFile).toBe('file-b'));
+    expect(result.current.datasetFileMappings?.map(mapping => mapping.fileID)).toEqual(['file-b']);
+
+    await act(() => result.current.handleSaveAndContinueLater());
+
+    expect(updateMutateAsync).not.toHaveBeenCalledWith(expect.objectContaining({ fileID: 'file-a' }));
   });
 
   it('onFileChange does nothing when datasetFileMappings is empty', () => {
