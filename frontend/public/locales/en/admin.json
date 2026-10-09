@@ -377,7 +377,7 @@
                 "layer_description": "Layer description",
                 "layer_description_placeholder": "i.e. Additional information about the layer, such as its origin, characteristics, etc.",
                 "additional_resources_title": "Additional resources",
-                "additional_resources_subtitle": "(e.g. prediction layer)",
+                "additional_resources_subtitle": "(included in the dataset download, e.g. a prediction layer)",
                 "additional_resources_upload_caption": "Supported formats: TXT, PDF, DOC, DOCX, TIF and TIFF.",
                 "additional_resources_max_size_caption": "Max file size: {{size}}.",
                 "additional_resources_added_title": "Added resources",
