@@ -3,7 +3,7 @@ import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
 import type { MultiPolygon } from 'geojson';
-import { streamRasterFootprints } from '../../src/scripts/computeRasterFootprints';
+import { sanitizeFootprintRings, streamRasterFootprints } from '../../src/scripts/computeRasterFootprints';
 import { GdalCLI } from '../../src/utils/GdalCLI';
 import { writableAssets } from '../assets';
 
@@ -129,5 +129,61 @@ describe('streamRasterFootprints', () => {
       if (await exists(file)) surviving.push(file);
     }
     expect(surviving).toEqual([]);
+  });
+});
+
+describe('sanitizeFootprintRings', () => {
+  const square: number[][] = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 0],
+  ];
+  const hole: number[][] = [
+    [0.2, 0.2],
+    [0.4, 0.2],
+    [0.4, 0.4],
+    [0.2, 0.2],
+  ];
+  const twoPoint: number[][] = [
+    [-49.99, 81.88],
+    [-49.99, 81.88],
+  ];
+  const threePoint: number[][] = [
+    [-49.975, 81.58],
+    [-49.957, 81.58],
+    [-49.975, 81.58],
+  ];
+
+  it('drops polygons whose exterior ring collapsed below 4 points, keeping the rest', () => {
+    const result = sanitizeFootprintRings({ type: 'MultiPolygon', coordinates: [[square], [twoPoint], [threePoint]] });
+    expect(result).toEqual({ type: 'MultiPolygon', coordinates: [[square]] });
+  });
+
+  it('drops collapsed holes but keeps their polygon', () => {
+    const result = sanitizeFootprintRings({ type: 'MultiPolygon', coordinates: [[square, threePoint, hole]] });
+    expect(result).toEqual({ type: 'MultiPolygon', coordinates: [[square, hole]] });
+  });
+
+  it('returns null when every polygon collapsed', () => {
+    expect(sanitizeFootprintRings({ type: 'MultiPolygon', coordinates: [[twoPoint], [threePoint]] })).toBeNull();
+  });
+
+  it('re-closes a ring whose start (and so its closing copy) was dropped', () => {
+    const unclosed = [
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ];
+    const result = sanitizeFootprintRings({ type: 'MultiPolygon', coordinates: [[unclosed]] });
+    expect(result).toEqual({ type: 'MultiPolygon', coordinates: [[[...unclosed, [1, 0]]]] });
+  });
+
+  it('drops a ring that is still under 4 points after re-closing', () => {
+    const unclosedPair = [
+      [1, 0],
+      [1, 1],
+    ];
+    expect(sanitizeFootprintRings({ type: 'MultiPolygon', coordinates: [[unclosedPair]] })).toBeNull();
   });
 });
