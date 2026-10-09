@@ -124,6 +124,42 @@ describe('Menu Component', () => {
     expect(screen.getByTestId('test-icon')).toBeInTheDocument();
   });
 
+  describe('with groups', () => {
+    const groupedOptions: MenuOption[] = [
+      { code: 'a1', name: 'Apple', group: 'Fruits' },
+      { code: 'a2', name: 'Pear', group: 'Fruits' },
+      { code: 'v1', name: 'Leek', group: 'Vegetables' },
+    ];
+
+    it('shows one heading before the options of each group, in option order', () => {
+      const { container } = render(<Menu options={groupedOptions} onSelect={() => {}} />);
+
+      const rows = Array.from(
+        container.querySelectorAll('[data-testid="sh-ui-menugroup"], [data-testid="sh-ui-menuoption"]'),
+        row => row.textContent,
+      );
+      expect(rows).toEqual(['Fruits', 'Apple', 'Pear', 'Vegetables', 'Leek']);
+      expect(screen.getAllByTestId('sh-ui-menuoption')).toHaveLength(3);
+    });
+
+    it('selects nothing when a heading is clicked', () => {
+      const onSelect = jest.fn();
+      render(<Menu options={groupedOptions} onSelect={onSelect} />);
+
+      fireEvent.click(screen.getByText('Vegetables'));
+      expect(onSelect).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByText('Leek'));
+      expect(onSelect).toHaveBeenCalledWith(['v1']);
+    });
+
+    it('shows no heading for options without a group', () => {
+      render(<Menu options={[{ code: '1', name: 'Loose' }, ...groupedOptions]} onSelect={() => {}} />);
+
+      expect(screen.getAllByTestId('sh-ui-menugroup').map(heading => heading.textContent)).toEqual(['Fruits', 'Vegetables']);
+    });
+  });
+
   it('supports forwarded ref', () => {
     const ref = React.createRef<HTMLDivElement>();
 

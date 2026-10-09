@@ -10,6 +10,9 @@ export interface MenuOption {
   name: string;
   isDisabled?: boolean;
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
+  // The heading the option is listed under. A heading starts each run of consecutive options with
+  // the same group, so list each group's options together.
+  group?: string;
 }
 
 export type InfoCardContent = {
