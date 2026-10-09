@@ -3,6 +3,7 @@ import DatasetEntity from '../../entities/Dataset';
 import RasterLayerEntity from '../../entities/RasterLayer';
 import assert from 'assert';
 import { IngestionStatus } from '../../types/data';
+import { latestEnding } from '../../data-layer/SoilDataStorage';
 
 /**
  * Rolls a raster dataset's metadata up from its raster layers, and is the single writer of it —
@@ -35,7 +36,7 @@ export const updateRasterDatasetMetadata = async (
         'MIN(rl.min_depth) AS min_depth',
         'MAX(rl.max_depth) AS max_depth',
         'MIN(rl.reference_period_start) AS min_reference_period',
-        'MAX(rl.reference_period_stop) AS max_reference_period',
+        `${latestEnding('rl.reference_period_stop')} AS max_reference_period`,
         // Coarsest layer, so the advertised resolution never overstates the detail available.
         'MAX(rl.resolution_m) AS resolution_m',
         'ST_AsGeoJSON(ST_Extent(rl.bbox)) AS extent',
@@ -58,6 +59,14 @@ export const updateRasterDatasetMetadata = async (
     if (data.resolution_m !== null) inferred_properties.push('spatial_resolution');
     if (nRasterLayers > 0) inferred_properties.push('n_raster_layers');
 
+    // As in the bulk-load equivalent: the Dataset fallback (ADR 0058) matches on these, so an
+    // aggregate the Raster Layers left empty keeps the value already there instead of wiping it
+    const current = await manager.getRepository(DatasetEntity).findOneOrFail({
+      where: { id: datasetId },
+      select: { id: true, soil_depth: true, reference_period_start: true, reference_period_stop: true },
+    });
+    const currentDepth = (current.soil_depth ?? {}) as { min?: number | null; max?: number | null };
+
     await manager
       .getRepository(DatasetEntity)
       .createQueryBuilder()
@@ -69,11 +78,11 @@ export const updateRasterDatasetMetadata = async (
         // layer insert reveals whether it created a row, so it drifts on re-ingest. Counting here
         // also heals counters already drifted by earlier re-runs.
         n_raster_layers: nRasterLayers,
-        soil_depth: { min: data.min_depth, max: data.max_depth },
+        soil_depth: { min: data.min_depth ?? currentDepth.min ?? null, max: data.max_depth ?? currentDepth.max ?? null },
         spatial_extent: data.extent ? JSON.parse(data.extent) : null,
         spatial_resolution: data.resolution_m !== null ? `${data.resolution_m}m` : null,
-        reference_period_start: data.min_reference_period,
-        reference_period_stop: data.max_reference_period,
+        reference_period_start: data.min_reference_period ?? current.reference_period_start,
+        reference_period_stop: data.max_reference_period ?? current.reference_period_stop,
         inferred_properties,
         updated_by: updatedBy,
         updated_at: new Date(),

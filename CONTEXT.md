@@ -36,6 +36,10 @@ _Avoid_: Approximate date, truncated date, year-only date (one kind of Partial d
 The join record that links a Feature to a Layer within a Dataset and associates it with a soil property. The atomic unit that a soil property measurement is attached to.
 _Avoid_: Measurement record, join
 
+**Dataset fallback**:
+For matching a **Filter** and summarising what matched (never for the dates and depths on rows or in **Soil Statistics**), a **DatasetLayer** whose **Layer** records no sampling date, depth bound or licence takes its **Dataset**'s reference period, matching depth bound or licences in its place (each depth bound separately). It matches by overlap, as a **Raster Layer** does: a fallback period matches any date range it overlaps, and fallback licences match when any one of them is selected. It applies per DatasetLayer, so in a Dataset where only some Layers are dated, the undated ones take the period the dated ones were summarised into.
+_Avoid_: Layer default, inherited date (a Layer is shared across Datasets and inherits nothing — the fallback belongs to the DatasetLayer)
+
 **Observation**:
 A single numeric measurement value. Each Observation belongs to exactly one DatasetLayer (and thus one soil property + one Layer).
 _Avoid_: Measurement, value, data point
@@ -344,6 +348,9 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 > **Dev:** "My three pH **Classes** add up to 94%. Where's the rest?"
 > **Domain expert:** "In `unclassified`: values outside every Class. It counts toward the whole, so a field whose values mostly miss your Classes doesn't look like one where none do."
 
+> **Dev:** "I filtered on 2018 and got LUCAS, but every row in the Preview table has a blank sampling date. Bug?"
+> **Domain expert:** "No — its Layers recorded no date, so they matched through the **Dataset fallback** on the Dataset's 2018 period. The fallback decides what matches; the rows still show what was recorded. Filter `min_sampling_date: null` instead to see only the data with no recorded date."
+
 **Preprocessing Steps** (`preprocessing_steps`):
 An optional free-text field on a Dataset that documents the data cleaning and transformation steps applied to the raw source data prior to ingestion. Set by data admins; not computed by the system.
 _Avoid_: Processing instructions, pipeline steps, ETL steps
@@ -366,7 +373,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - Export failure messages say **"records"** for **Observations**, the word a user sees as rows in their files. It is a UI label only; in domain discussions and on admin pages say Observations.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
-- A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.
+- A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria. A null criterion sees what the Layer *recorded* and ignores the **Dataset fallback**, while a bounded one sees the fallback — so `min_sampling_date: null` finds exactly the data whose date match would otherwise rest on its Dataset's period.
 - **A File with no metadata is not a category.** Absent metadata means one of three unrelated things: a **Non-spatial File** (never probed), a File created by the raster ingestion CLI (which describes the raster by other means), or a test fixture. Never treat "has no metadata" as a way to identify Non-spatial Files — the distinction is known to whoever uploaded the File, not recoverable from the File itself.
 - **A data mapping means two different things depending on the Dataset's Data Type.** For a point or polygonal File its entries are *column references* — "the column named X supplies the sampling date". For a raster File its entries are a **Band Mapping**: keyed by Band number, and the values are *literal values* rather than references, because a Band has no columns to point at. The container is shared; the meaning is not. In domain discussions say **column mapping** or **Band Mapping**, never bare "mapping".
 
