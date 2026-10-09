@@ -82,8 +82,8 @@ export const stageObservations = async (
     return `$${params.length}`;
   };
   const slugPlaceholders = datasetSlugs.map(s => p(s)).join(', ');
-  // Coverage parity: filterVector applies status and visibility, which the
-  // /soil-data path does not (see buildObservationCriteria). Both are added here.
+  // Coverage parity: filterVector applies status and visibility in SQL, which
+  // buildObservationCriteria does not. Both are added here.
   const { whereClauses } = buildObservationCriteria(
     filter.parameters,
     p,

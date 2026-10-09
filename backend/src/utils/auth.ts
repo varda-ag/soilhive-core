@@ -2,6 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { ErrorResponse } from './error';
 import { RequestData } from '../interfaces/RequestData';
 import { Token } from '../interfaces/Token';
+import { IngestionStatus } from '../types/data';
 
 /**
  * Whether the caller acts under a privileged token scope — internal-request, data-admin or
@@ -9,7 +10,7 @@ import { Token } from '../interfaces/Token';
  *
  * This is the system's single notion of privilege and it grants two distinct powers: the
  * Entitlement bypass (EntitlementService.enforceEntitlements) and the ability to see Datasets
- * that are not PUBLISHED (DatasetService.getDatasets/getDataset). They are collapsed on purpose
+ * that are not PUBLISHED (DatasetService.getDatasets, datasetExistsFor). They are collapsed on purpose
  * — a second, subtly different predicate is exactly the drift that ADR 0022 documents — so add
  * new privileged behaviour here rather than re-deriving the booleans at the call site.
  *
@@ -18,6 +19,14 @@ import { Token } from '../interfaces/Token';
  */
 export const isPrivilegedCaller = (token?: Token): boolean => {
   return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
+};
+
+/**
+ * Whether a Dataset at this Ingestion Status exists for the caller: one that is not PUBLISHED is
+ * absent, not forbidden, to all but a Privileged caller (docs/adr/0057).
+ */
+export const datasetExistsFor = (token: Token | undefined, status: IngestionStatus): boolean => {
+  return status === IngestionStatus.PUBLISHED || isPrivilegedCaller(token);
 };
 
 /**

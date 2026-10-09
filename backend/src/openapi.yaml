@@ -1855,7 +1855,9 @@ paths:
         smaller than a pixel still returns the pixel it lies in), excluding nodata pixels, for each
         Raster Layer whose valid data meets that area and whose soil property, depth range,
         reference period and dataset licences match the filter. Datasets are subject to the same
-        rules for both kinds of rows. Raster rows are ordered by Raster Layer, then pixel row, then
+        rules for both kinds of rows. A dataset that is not `PUBLISHED` is treated as unknown, and
+        contributes no rows, unless the caller has the `data-admin`, `super-admin` or
+        `internal-request` scope. Raster rows are ordered by Raster Layer, then pixel row, then
         pixel column, whatever `sort` is: `sort` orders the vector rows only.
       tags:
         - soil-data

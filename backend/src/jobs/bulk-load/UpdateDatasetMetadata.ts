@@ -5,6 +5,9 @@ import assert from 'assert';
 import { GISDataType, IngestionStatus } from '../../types/data';
 import { toGisDatatype } from '../../utils/geometry';
 
+// Degrees (about a metre) a zero-area extent is padded by, so that it is stored as a Polygon
+const EXTENT_PADDING_DEG = 0.00001;
+
 export const updateDatasetMetadata = async (entityManager: EntityManager, datasetId: string, status: IngestionStatus): Promise<void> => {
   // Run inside a transaction to apply local statement_timeout override
   return await entityManager.transaction(async manager => {
@@ -26,7 +29,11 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
         'MAX(l.max_depth) AS max_depth',
         'MIN(l.sampling_date) AS min_sampling_date',
         'MAX(l.sampling_date) AS max_sampling_date',
-        'ST_AsGeoJSON(ST_Extent(f.geom)) as extent',
+        // One feature, or features on one line, have a zero-area extent, which PostGIS returns as a
+        // Point or LineString and the Polygon spatial_extent column rejects
+        `ST_AsGeoJSON(
+          CASE WHEN ST_Area(ST_Extent(f.geom)::geometry) = 0 THEN ST_Expand(ST_Extent(f.geom), ${EXTENT_PADDING_DEG}) ELSE ST_Extent(f.geom) END
+        ) as extent`,
         'array_agg(distinct ST_GeometryType(f.geom)) AS gis_datatypes',
         "array_agg(distinct jsonb_build_object('soil_property_id', prop.slug, 'procedure_id', proc.slug)) AS measured_properties",
         'array_agg(distinct lic.slug) AS licenses',

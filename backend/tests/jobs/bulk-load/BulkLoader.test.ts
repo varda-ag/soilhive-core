@@ -408,6 +408,34 @@ describe('BulkLoader class', () => {
     expect(datasetEntity!.spatial_extent?.coordinates[0][0][0]).toBe(minX);
     expect(datasetEntity!.spatial_extent?.coordinates[0][0][1]).toBe(minY);
   });
+
+  it.each([
+    ['one feature', [[0.1, 0.1]]],
+    [
+      'features on one line',
+      [
+        [0.1, 0.1],
+        [0.2, 0.1],
+      ],
+    ],
+  ])('updateDatasetMetadata stores a Polygon extent around %s', async (_, featureCoordinates) => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, featureCount: featureCoordinates.length, featureCoordinates });
+    const entityManager = await getEntityManager();
+
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED);
+
+    const reloaded = await entityManager.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id });
+    expect(reloaded.spatial_extent?.type).toBe('Polygon');
+    const ring = reloaded.spatial_extent!.coordinates[0]!;
+    const xs = ring.map(position => position[0]!);
+    const ys = ring.map(position => position[1]!);
+    for (const [x, y] of featureCoordinates) {
+      expect(Math.min(...xs)).toBeLessThan(x!);
+      expect(Math.max(...xs)).toBeGreaterThan(x!);
+      expect(Math.min(...ys)).toBeLessThan(y!);
+      expect(Math.max(...ys)).toBeGreaterThan(y!);
+    }
+  });
 });
 
 describe('parseWriteError', () => {
