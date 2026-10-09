@@ -436,6 +436,53 @@ describe('BulkLoader class', () => {
       expect(Math.max(...ys)).toBeGreaterThan(y!);
     }
   });
+
+  // The Dataset fallback matches on these (ADR 0058), so a load must not wipe them
+  it('updateDatasetMetadata keeps the Dataset values its Layers leave empty', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: 2 });
+    const entityManager = await getEntityManager();
+    await entityManager.query(
+      `UPDATE layers SET sampling_date = NULL, license = NULL, max_depth = NULL
+       WHERE id IN (SELECT layer_id FROM dataset_layers WHERE dataset_id = $1)`,
+      [dataset.id],
+    );
+    await entityManager.query(
+      `UPDATE datasets
+       SET reference_period_start = '2015', reference_period_stop = '2016', licenses = ARRAY['admin_license'],
+           soil_depth = '{"min": 5, "max": 200}'
+       WHERE id = $1`,
+      [dataset.id],
+    );
+
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED);
+
+    const reloaded = await entityManager.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id });
+    expect(reloaded.reference_period_start).toBe('2015');
+    expect(reloaded.reference_period_stop).toBe('2016');
+    expect(reloaded.licenses).toEqual(['admin_license']);
+    // Per bound: the recorded min_depth wins, the missing max_depth keeps the Dataset's
+    expect(reloaded.soil_depth).toEqual({ min: 0, max: 200 });
+    for (const property of ['reference_period_start', 'reference_period_stop', 'licenses', 'soil_depth']) {
+      expect(reloaded.inferred_properties).not.toContain(property);
+    }
+  });
+
+  // A year-only date ends after any date within that year, so it is the Dataset's stop
+  it('updateDatasetMetadata stores the latest-ending Layer date as the reference period stop', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: 2 });
+    const entityManager = await getEntityManager();
+    await entityManager.query(
+      `UPDATE layers SET sampling_date = CASE WHEN min_depth = 0 THEN '2015' ELSE '2015-06-01' END
+       WHERE id IN (SELECT layer_id FROM dataset_layers WHERE dataset_id = $1)`,
+      [dataset.id],
+    );
+
+    await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED);
+
+    const reloaded = await entityManager.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id });
+    expect(reloaded.reference_period_start).toBe('2015');
+    expect(reloaded.reference_period_stop).toBe('2015');
+  });
 });
 
 describe('parseWriteError', () => {
