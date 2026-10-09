@@ -4,6 +4,17 @@
     box-shadow: var(--shadow-interface);
     border-radius: 0.25rem;
 
+    > .GroupLabel {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        color: var(--color-neutral-dark-500);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        line-height: var(--line-height-lg);
+        cursor: default;
+    }
+
     > .MenuOption {
         display: flex;
         align-items: center;
@@ -70,6 +81,10 @@
         width: 17.5rem;
         padding: 0.38rem 1.25rem;
 
+        > .GroupLabel {
+            padding: 0.88rem 0 0.25rem;
+        }
+
         > .MenuOption {
             column-gap: 0.5rem;
             padding: 0.88rem 0;
@@ -90,6 +105,10 @@
         width: 15rem;
         padding: 0.25rem 1rem;
 
+        > .GroupLabel {
+            padding: 0.5rem 0 0.12rem;
+        }
+
         > .MenuOption {
             column-gap: 0.38rem;
             padding: 0.5rem 0;
@@ -109,6 +128,10 @@
     &.Tiny {
         width: 12.5rem;
         padding: 0.12rem 0.75rem;
+
+        > .GroupLabel {
+            padding: 0.38rem 0 0.12rem;
+        }
 
         > .MenuOption {
             column-gap: 0.25rem;

@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useMemo, useState, type ForwardedRef } from 'react';
+import { Fragment, forwardRef, useCallback, useMemo, useState, type ForwardedRef } from 'react';
 import classnames from 'classnames';
 
 import BigCheckIcon from '../assets/icons/big-check-mark-icon.svg?react';
@@ -69,20 +69,26 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
 
   return (
     <div ref={ref} data-testid="sh-ui-menu" className={classnames(styles.Menu, sizeClass, className)}>
-      {menuOptions.map(({ code, name, Icon, isDisabled, isSelected }) => (
-        <div
-          key={code}
-          data-testid="sh-ui-menuoption"
-          className={classnames(styles.MenuOption, {
-            [styles.Selected]: isSelected,
-            [styles.Disabled]: isDisabled,
-          })}
-          onClick={() => !isDisabled && selectOption(code, !!isSelected)}
-        >
-          {Icon && <Icon className={styles.OptionIcon} />}
-          <span className={styles.OptionName}>{name}</span>
-          {isSelected && showSelectedCheckIcon && <CheckIcon className={styles.CheckIcon} />}
-        </div>
+      {menuOptions.map(({ code, name, group, Icon, isDisabled, isSelected }, index) => (
+        <Fragment key={code}>
+          {group !== undefined && group !== menuOptions[index - 1]?.group && (
+            <div data-testid="sh-ui-menugroup" className={styles.GroupLabel}>
+              {group}
+            </div>
+          )}
+          <div
+            data-testid="sh-ui-menuoption"
+            className={classnames(styles.MenuOption, {
+              [styles.Selected]: isSelected,
+              [styles.Disabled]: isDisabled,
+            })}
+            onClick={() => !isDisabled && selectOption(code, !!isSelected)}
+          >
+            {Icon && <Icon className={styles.OptionIcon} />}
+            <span className={styles.OptionName}>{name}</span>
+            {isSelected && showSelectedCheckIcon && <CheckIcon className={styles.CheckIcon} />}
+          </div>
+        </Fragment>
       ))}
     </div>
   );
