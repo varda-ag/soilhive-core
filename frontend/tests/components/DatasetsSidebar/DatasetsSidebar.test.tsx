@@ -156,7 +156,7 @@ describe('DatasetsSidebar', () => {
     expect(screen.getByRole('button', { name: /download/i })).toBeEnabled();
   });
 
-  it.skip('passes isOpened correctly to PageSidebar', () => {
+  it('passes isOpened correctly to PageSidebar', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true });
 
     const { rerender } = render(<DatasetsSidebar isOpened={false} onClose={() => {}} />);

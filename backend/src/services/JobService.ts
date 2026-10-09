@@ -3,7 +3,6 @@ import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { AnyJob, ExportJob, Job, DataRequestJob, SoilIndexJob, RunJobData, BulkLoadJob } from '../interfaces/Job';
 import { Capability, JobQueues, SoilIndexType, StatisticsType, VariableType } from '../types/enums';
-import { EntitlementScope } from '../types/Entitlements';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
@@ -18,7 +17,7 @@ import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/DatasetJobs';
-import { existingDatasetSlugs, getEntity } from '../utils/slugs';
+import { getEntity } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
 
@@ -62,11 +61,9 @@ export default class JobService {
       await this.lockDataset(requestData, data as BulkLoadJob);
     }
 
-    // Checking entitlements, on the Datasets that exist for the caller only: a 403 would confirm that an
-    // unpublished private one exists, which the job must instead treat as unknown (docs/adr/0057)
+    // Checking entitlements
     if (data.type === JobQueues.EXPORT) {
-      const slugs = await existingDatasetSlugs(requestData, (data as ExportJob).dataset_ids);
-      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, slugs, Capability.DOWNLOAD);
+      await entitlementService.enforceDatasetEntitlements(requestData, (data as ExportJob).dataset_ids, Capability.DOWNLOAD);
     }
 
     if (data.type === JobQueues.DATA_REQUESTS) {
@@ -158,10 +155,8 @@ export default class JobService {
       await this.validateVariable(requestData, data, filter);
     }
 
-    // As for exports (see createJob)
     if (data.dataset_ids && data.dataset_ids.length > 0) {
-      const slugs = await existingDatasetSlugs(requestData, data.dataset_ids);
-      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, slugs, Capability.PREVIEW);
+      await entitlementService.enforceDatasetEntitlements(requestData, data.dataset_ids, Capability.PREVIEW);
     }
   };
 
