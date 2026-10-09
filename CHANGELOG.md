@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.0 (2026-10-09)
+
+## What's Changed
+* feat: raster sampling by @svaccari in https://github.com/varda-ag/soilhive-core/pull/875
+* fix: expired OIDC user by @svaccari in https://github.com/varda-ag/soilhive-core/pull/879
+* docs: improving quickstart by @svaccari in https://github.com/varda-ag/soilhive-core/pull/881
+* fix: excel sheet names by @svaccari in https://github.com/varda-ag/soilhive-core/pull/882
+* fix:sp-5750 raster load invalid_footprints by @d-rom in https://github.com/varda-ag/soilhive-core/pull/883
+* fix: data explorer table refresh by @svaccari in https://github.com/varda-ag/soilhive-core/pull/880
+* fix: unpublished Datasets are absent from GET /soil-data by @svaccari in https://github.com/varda-ag/soilhive-core/pull/884
+* fix: bulk load stores a Polygon extent for single-point Datasets by @svaccari in https://github.com/varda-ag/soilhive-core/pull/886
+* fix: rewording by @svaccari in https://github.com/varda-ag/soilhive-core/pull/885
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.4.0...v1.5.0
+
 ## 1.4.0 (2026-10-07)
 
 ## What's Changed
