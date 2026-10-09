@@ -19,6 +19,7 @@ import SoilDataStorage, {
   resetEnabledRasterFilterTablesCache,
 } from '../../src/data-layer/SoilDataStorage';
 import DatasetEntity from '../../src/entities/Dataset';
+import { Token } from '../../src/interfaces/Token';
 import { decodeCursor } from '../../src/utils/cursor';
 import { addRasterFilterData, addRasterFilterMappings } from '../helper';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
@@ -1174,6 +1175,22 @@ describe('SoilDataStorage class', () => {
       const { layers } = await sds.getRasterLayers({ entityManager, entitlements }, filter, [layer.dataset.slug]);
 
       expect(layers).toHaveLength(expected);
+    });
+
+    it('returns the Raster Layers of a Dataset that is not Published to a Privileged caller only (docs/adr/0057)', async () => {
+      const layer = await addRasterData(undefined, { dataset_status: IngestionStatus.LOADED, visibility: 'public' });
+
+      const sds = new SoilDataStorage();
+      const entityManager = await getEntityManager();
+      const filter = await makeFilter(entityManager, getPolygonFromBbox([-82, -35, -80, -33]));
+      const slugs = [layer.dataset.slug];
+      const anonymous = { entityManager, entitlements };
+      const admin = { entityManager, entitlements, token: { isDataAdmin: true } as Token };
+
+      expect((await sds.getRasterLayers(anonymous, filter, slugs)).layers).toHaveLength(0);
+      expect(await sds.getRasterLayerCount(anonymous, filter, slugs)).toBe(0);
+      expect((await sds.getRasterLayers(admin, filter, slugs)).layers).toHaveLength(1);
+      expect(await sds.getRasterLayerCount(admin, filter, slugs)).toBe(1);
     });
   });
 

@@ -450,8 +450,8 @@ describe('Testing /soil-data routes', () => {
     expect(createdData.n_layers).toBe(1);
     expect(createdData.n_dataset_layers).toBe(2);
     expect(createdData.n_observations).toBe(2);
-    // Verify sampling date
-    const dataResponse = await request(app).get(`/soil-data`).query({ datasets: dataset.slug });
+    // Verify sampling date. The Dataset is still PENDING, so only a Privileged caller can read it back
+    const dataResponse = await request(app).get(`/soil-data`).set('Authorization', `Bearer ${token}`).query({ datasets: dataset.slug });
     const data = dataResponse.body;
     expect(data.length).toBe(2);
     for (const item of data) {
@@ -577,6 +577,56 @@ describe('Testing /soil-data routes', () => {
       expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
       expect(res.body.detail).toContain('"bdfi33" holds class codes and must be numeric');
       expect((await getLoadedDataCount()).n_observations).toBe(0);
+    });
+  });
+
+  describe('Datasets that are not Published (docs/adr/0057)', () => {
+    const addDatasetAt = async (id: number, status: IngestionStatus, visibility: 'public' | 'private' = 'public') => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id, soilPropertyNames: [`ph_${id}`], featureCount: 2 });
+      dataset.status = status;
+      dataset.visibility = visibility;
+      return await dataset.save();
+    };
+
+    it('are absent to a non-privileged caller', async () => {
+      const dataset = await addDatasetAt(1010, IngestionStatus.LOADED);
+      const res = await request(app).get('/soil-data').query({ datasets: dataset.slug, limit: 100 });
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual([]);
+    });
+
+    it('answer no 403 when private, which would confirm that they exist', async () => {
+      const dataset = await addDatasetAt(1011, IngestionStatus.LOADED, 'private');
+      const res = await request(app).get('/soil-data').query({ datasets: dataset.slug, limit: 100 });
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toEqual([]);
+
+      // Once Published, the same request is refused: the 200 above is not for want of an entitlement check
+      dataset.status = IngestionStatus.PUBLISHED;
+      await dataset.save();
+      const published = await request(app).get('/soil-data').query({ datasets: dataset.slug, limit: 100 });
+      expect(published.statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    it('leave the Published Datasets requested with them untouched', async () => {
+      const published = await addDatasetAt(1012, IngestionStatus.PUBLISHED);
+      const loaded = await addDatasetAt(1013, IngestionStatus.LOADED);
+      const res = await request(app)
+        .get('/soil-data')
+        .query({ datasets: `${published.slug},${loaded.slug}`, limit: 100 });
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toHaveLength(2);
+      expect(res.body.every((row: any) => row.dataset_id === published.slug)).toBe(true);
+    });
+
+    it('are readable by a Privileged caller', async () => {
+      const dataset = await addDatasetAt(1014, IngestionStatus.LOADED, 'private');
+      const res = await request(app)
+        .get('/soil-data')
+        .set('Authorization', `Bearer ${await getDataAdminToken()}`)
+        .query({ datasets: dataset.slug, limit: 100 });
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toHaveLength(2);
     });
   });
 

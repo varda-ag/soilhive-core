@@ -12,6 +12,7 @@ import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import { decodeCursor, encodeCursor } from '../../src/utils/cursor';
 import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { SoilDataSample } from '../../src/interfaces/SoilDataSample';
+import { Token } from '../../src/interfaces/Token';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import { log } from '../../src/utils/logger';
@@ -383,25 +384,39 @@ describe('SoilDataStorage.getSoilData raster rows', () => {
     expect(summary?.max_sampling_date).toBe('2015');
   });
 
-  // CONTEXT.md, Published: /soil-data answers to Visibility and Entitlement only, for raster rows as for vector rows
-  it.each<[string, FilterCriteria, IngestionStatus]>([
-    ['Datasets that are not Published', {}, IngestionStatus.LOADED],
-    ['a visibility criterion the Datasets do not match', { visibility: 'private' }, IngestionStatus.PUBLISHED],
-    ['an empty data types list', { data_types: [] }, IngestionStatus.PUBLISHED],
-  ])('applies the dataset-level rules of vector rows: %s still yield both kinds of rows', async (_, parameters, status) => {
-    const raster = await addFixtureLayer('parity.tif', { status });
+  /** A raster and a vector Dataset at `status`, both meeting the fixture's footprint. */
+  const addBothKinds = async (fixture: string, status: IngestionStatus) => {
+    const raster = await addFixtureLayer(fixture, { status });
     const { dataset: vector } = await addSyntheticData({
       ...syntheticDataOptions,
       spatial_extent: [10.01, 49.93, 10.11, 49.99],
       featureCount: 2,
     });
     await (await getEntityManager()).query(`UPDATE datasets SET status = $1 WHERE id = $2`, [status, vector.id]);
-    const filter = await makeFilter(lonLatBox(ORIGIN_X, ORIGIN_Y - HEIGHT * RES, ORIGIN_X + WIDTH * RES, ORIGIN_Y), parameters);
+    return [raster.dataset.slug, vector.slug];
+  };
+  const fixtureBox = () => lonLatBox(ORIGIN_X, ORIGIN_Y - HEIGHT * RES, ORIGIN_X + WIDTH * RES, ORIGIN_Y);
 
-    const rows = await getSoilData(filter, [raster.dataset.slug, vector.slug], 200);
+  it.each<[string, FilterCriteria, IngestionStatus, Token | undefined]>([
+    ['Datasets that are not Published, to a Privileged caller', {}, IngestionStatus.LOADED, { isDataAdmin: true } as Token],
+    ['a visibility criterion the Datasets do not match', { visibility: 'private' }, IngestionStatus.PUBLISHED, undefined],
+    ['an empty data types list', { data_types: [] }, IngestionStatus.PUBLISHED, undefined],
+  ])('applies the dataset-level rules of vector rows: %s still yield both kinds of rows', async (_, parameters, status, token) => {
+    const slugs = await addBothKinds('parity.tif', status);
+    const filter = await makeFilter(fixtureBox(), parameters);
+
+    const requestData = { entityManager: await getEntityManager(), entitlements, ...(token && { token }) };
+    const rows = await sds.getSoilData(requestData, filter, slugs, 200);
 
     expect(rows.filter(row => row.gis_datatype === GISDataType.POINT)).toHaveLength(2);
     expect(rows.filter(row => row.gis_datatype === GISDataType.RASTER)).toHaveLength(WIDTH * HEIGHT - 2);
+  });
+
+  it('yields neither kind of row from Datasets that are not Published to a non-privileged caller (docs/adr/0057)', async () => {
+    const slugs = await addBothKinds('unpublished.tif', IngestionStatus.LOADED);
+    const filter = await makeFilter(fixtureBox());
+
+    expect(await getSoilData(filter, slugs, 200)).toEqual([]);
   });
 
   it('rejects a cursor with a malformed raster position', async () => {
