@@ -226,6 +226,10 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "'{soil_index_type}' is not a soil index this server can compute.",
     actions: ['Start the job again with one of: {supported}.'],
   },
+  SI_MOCK_DATA_UNAVAILABLE: {
+    message: 'The soil index data this server is configured with could not be loaded.',
+    actions: ['Contact your administrator.'],
+  },
   EX_XLSX_TOO_MANY_RECORDS: {
     message: 'Your selection contains {record_count} records, more than the {max_records} Excel limit.',
     actions: [

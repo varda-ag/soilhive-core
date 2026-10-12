@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { SoilIndexJob } from '../../../src/interfaces/Job';
 import { processSoilIndex } from '../../../src/jobs/soil-indexes/SoilIndexJob';
 import { initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../../src/services/PgBoss';
@@ -8,6 +8,7 @@ import { findSoilIndexRun } from '../../../src/data-layer/SoilIndexRuns';
 import { getEntityManager } from '../../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../../src/utils/geometry';
 import { getSoilIndexMockScores, sleep } from '../../../src/utils/utils';
+import { MOCK_SOIL_INDEX_COLUMNS } from '../../../src/jobs/soil-indexes/mockSoilIndexData';
 import {
   UNIT_A,
   UNIT_B,
@@ -18,6 +19,7 @@ import {
   readJobData,
   setJobState,
 } from '../runs/runTestHelpers';
+import { mockCsv, mockDataServer, mockRow } from './mockDataServer';
 
 // 500 under the test environment; the same as the job uses, whatever it is set to.
 const MOCK_SCORES = getSoilIndexMockScores();
@@ -203,6 +205,173 @@ describe('soil-indexes job', () => {
       expect(stored.units.find(unit => unit.record_ids.length === 2)!.label).toBe('North; North duplicate');
       // No raster mask is applied by this type, so the area caveat cannot arise.
       expect(stored.units.every(unit => unit.raster_filtered === false)).toBe(true);
+    });
+  });
+
+  describe("the filter's sampling dates", () => {
+    it('keep only the scores whose year overlaps them, numbered 1..n, and are recorded on the Run', async () => {
+      const filterId = await createFilter([UNIT_A], { min_sampling_date: '2018-06', max_sampling_date: '2019', min_depth: 0 });
+
+      const run = await runCrea(filterId);
+
+      const summary = await summarise(run);
+      expect(summary.count).toBeGreaterThan(0);
+      expect(summary.count).toBeLessThan(MOCK_SCORES);
+      expect(summary).toMatchObject({ min_year: 2018, max_year: 2019, min_id: 1, max_id: summary.count, distinct_ids: summary.count });
+      // Copied, since the Filter may be reaped before the Run.
+      const record = await findSoilIndexRun(await getEntityManager(), run);
+      expect(record!.request).toMatchObject({ min_sampling_date: '2018-06', max_sampling_date: '2019' });
+      expect(record!.data!.score_count).toBe(summary.count);
+      expect(await readJobData<SoilIndexJob>(run)).toMatchObject({ min_sampling_date: '2018-06', max_sampling_date: '2019' });
+    });
+
+    it('keep only scores with no year for a null bound, which the mock never produces, and record the null', async () => {
+      const run = await runCrea(await createFilter([UNIT_A], { max_sampling_date: null }));
+
+      expect((await summarise(run)).count).toBe(0);
+      const record = await findSoilIndexRun(await getEntityManager(), run);
+      expect(record!.request.max_sampling_date).toBeNull();
+      expect(record!.request).not.toHaveProperty('min_sampling_date');
+    });
+
+    it('are the only criteria applied: the rest are ignored, and nothing is recorded without them', async () => {
+      const run = await runCrea(await createFilter([UNIT_A], { min_depth: 0, max_depth: 30 }));
+
+      expect((await summarise(run)).count).toBe(MOCK_SCORES);
+      const record = await findSoilIndexRun(await getEntityManager(), run);
+      expect(record!.request).not.toHaveProperty('min_sampling_date');
+      expect(record!.request).not.toHaveProperty('max_sampling_date');
+    });
+  });
+
+  describe('crea-index from MOCK_SOIL_INDEX_DATA', () => {
+    const server = mockDataServer();
+
+    beforeAll(() => server.start());
+    afterAll(() => server.stop());
+    // setupTestEnv unsets it again before the next test.
+    beforeEach(() => {
+      process.env['MOCK_SOIL_INDEX_DATA'] = server.url();
+    });
+
+    const scores = async (run: string) => {
+      const entityManager = await getEntityManager();
+      return entityManager.query(
+        `SELECT id, ST_X(geometry) AS lon, ST_Y(geometry) AS lat, value, year, metadata
+         FROM ${schema()}.soil_index WHERE run = $1 ORDER BY id`,
+        [run],
+      );
+    };
+
+    it("scores only the rows inside the areas, numbered 1..n by the file's id", async () => {
+      server.serve(
+        mockCsv(
+          mockRow({ id: 7, lon: 1, lat: 1 }), // in A
+          mockRow({ id: 3, lon: 3, lat: 3 }), // in B
+          mockRow({ id: 5, lon: 10, lat: 10 }), // outside both
+          mockRow({ id: 9, lon: 2.2, lat: 2.2 }), // between A and B
+          mockRow({ id: 2, lon: 2, lat: 1 }), // on A's edge
+        ),
+      );
+
+      const run = await runCrea(await createFilter([UNIT_A, UNIT_B]));
+
+      const rows = await scores(run);
+      expect(rows.map((row: { id: number; metadata: { id: number } }) => [row.id, row.metadata.id])).toEqual([
+        [1, 2],
+        [2, 3],
+        [3, 7],
+      ]);
+      expect((await readJobData<SoilIndexJob>(run)).progress_description).toBe('Completed: 3 score(s)');
+    });
+
+    it('scores a row inside two overlapping areas once, under the lower unit_id', async () => {
+      server.serve(mockCsv(mockRow({ id: 1, lon: 1.5, lat: 1.5 })));
+
+      const run = await runCrea(await createFilter([UNIT_A, getPolygonFromBbox([1, 1, 3, 3])]));
+
+      const { units } = await readJobData<SoilIndexJob>(run);
+      expect(units).toHaveLength(2);
+      const rows = await scores(run);
+      expect(rows).toHaveLength(1);
+      expect(rows[0].metadata.unit_id).toBe(units.map(unit => unit.unit_id).sort()[0]);
+    });
+
+    it('stores the point as given, index_value to 3 decimals, and the other columns as metadata', async () => {
+      server.serve(
+        mockCsv(mockRow({ id: 4, lon: 1.123456789, lat: 0.987654321, year: 2011, index_value: 37.08428221219899, usda_texture: 'Loam' })),
+      );
+
+      const run = await runCrea(await createFilter([UNIT_A]));
+
+      const [row] = await scores(run);
+      expect(row).toMatchObject({ id: 1, lon: 1.123456789, lat: 0.987654321, value: 37.084, year: 2011 });
+      const stored = ['lon', 'lat', 'geom_wkt', 'year', 'index_value'];
+      expect(Object.keys(row.metadata).sort()).toEqual(
+        [...MOCK_SOIL_INDEX_COLUMNS.filter(column => !stored.includes(column)), 'unit_id'].sort(),
+      );
+      expect(row.metadata).toMatchObject({ id: 4, min_depth_cm: 30, max_depth_cm: 60, usda_texture: 'Loam', model_nema: 1 });
+    });
+
+    it('scores identically on a re-run, and from the same rows in another order', async () => {
+      const lines = [
+        mockRow({ id: 1, lon: 0.5, lat: 0.5 }),
+        mockRow({ id: 2, lon: 1.5, lat: 0.5, year: 2019 }),
+        mockRow({ id: 3, lon: 3, lat: 3, index_value: 27.7 }),
+      ];
+      const filterId = await createFilter([UNIT_A, UNIT_B]);
+
+      server.serve(mockCsv(...lines));
+      const first = await runCrea(filterId);
+      const second = await runCrea(filterId);
+      server.serve(mockCsv(...lines.reverse()));
+      const reordered = await runCrea(filterId);
+
+      const expected = await scores(first);
+      expect(expected).toHaveLength(3);
+      expect(await scores(second)).toEqual(expected);
+      expect(await scores(reordered)).toEqual(expected);
+    });
+
+    it('fails the Run when the file cannot be read, telling the caller neither where it is nor why', async () => {
+      server.serve('Forbidden', 403);
+      process.env['MOCK_SOIL_INDEX_DATA'] = server.url('/mock.csv?X-Amz-Signature=secret');
+      const filterId = await createFilter([UNIT_A]);
+      const { jobId, job } = await createActiveJob({ filter_id: filterId, soil_index_type: SoilIndexType.CREA_INDEX });
+
+      // Never random scores in its place.
+      await expect(processSoilIndex(job)).rejects.toMatchObject({ code: 'SI_MOCK_DATA_UNAVAILABLE', detail: 'HTTP 403' });
+
+      expect(await soilIndexPartitionExists(jobId)).toBe(false);
+      const record = await findSoilIndexRun(await getEntityManager(), jobId);
+      expect(record).toMatchObject({ status: 'failed', data: null });
+      expect(record!.message).toBe('The soil index data this server is configured with could not be loaded. Contact your administrator.');
+    });
+
+    it("drops the rows whose year falls outside the filter's sampling dates", async () => {
+      server.serve(
+        mockCsv(
+          mockRow({ id: 1, lon: 1, lat: 1, year: 2001 }),
+          mockRow({ id: 2, lon: 1, lat: 1, year: 2011 }),
+          mockRow({ id: 3, lon: 1, lat: 1, year: 2019 }),
+        ),
+      );
+
+      const run = await runCrea(await createFilter([UNIT_A], { min_sampling_date: '2010-03-15' }));
+
+      const rows = await scores(run);
+      expect(rows.map((row: { id: number; year: number; metadata: { id: number } }) => [row.id, row.year, row.metadata.id])).toEqual([
+        [1, 2011, 2],
+        [2, 2019, 3],
+      ]);
+    });
+
+    it('scores random points when the value is blank', async () => {
+      process.env['MOCK_SOIL_INDEX_DATA'] = '  ';
+
+      const run = await runCrea(await createFilter([UNIT_A]));
+
+      expect((await summarise(run)).count).toBe(MOCK_SCORES);
     });
   });
 

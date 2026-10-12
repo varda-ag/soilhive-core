@@ -8,6 +8,7 @@ import { soilIndexRunExists, soilIndexRunType, writeSoilIndexRun } from '../../s
 import { SoilIndexFeature } from '../../src/jobs/soil-indexes/types';
 import FilterService from '../../src/services/FilterService';
 import { RequestData } from '../../src/interfaces/RequestData';
+import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { ClassMethod, DepthRanges, SoilIndexType, ValueType } from '../../src/types/enums';
 
 const bboxUnit = async (bbox: number[]): Promise<string> => {
@@ -138,5 +139,32 @@ describe('soil index runs as a variable', () => {
 
     // (10, 10) is outside every unit.
     expect(overall).toMatchObject({ n_scores: 2, min: 0.12, max: 0.97 });
+  });
+
+  it("counts only the scores whose year overlaps the filter's sampling dates, ignoring its other criteria", async () => {
+    const dated = (value: number, year?: number): SoilIndexFeature => {
+      const feature = point(0.5, 0.5, value);
+      return year === undefined ? feature : { ...feature, properties: { value, year } };
+    };
+    const run = await writeRun([dated(0.1, 2014), dated(0.2, 2015), dated(0.3, 2018), dated(0.4, 2019), dated(0.5)]);
+    const unitA = await bboxUnit([0, 0, 2, 2]);
+    const rangeOf = async (parameters: FilterCriteria) =>
+      (
+        await computeValueRange(await getEntityManager(), {
+          filter: { geometryIds: [unitA], parameters, area: 0 },
+          unitIds: [unitA],
+          datasetSlugs: [],
+          variable: { soilIndexRun: run },
+          timeAggregation: 'none',
+          workMem: '64MB',
+          statementTimeoutMs: 120_000,
+        })
+      ).overall;
+
+    expect(
+      await rangeOf({ min_sampling_date: '2015-06-01', max_sampling_date: '2018-03', min_depth: 0, licenses: ['cc-by'] }),
+    ).toMatchObject({ n_scores: 2, min: 0.2, max: 0.3 });
+    expect(await rangeOf({ max_sampling_date: null })).toMatchObject({ n_scores: 1, min: 0.5, max: 0.5 });
+    expect(await rangeOf({ horizons: ['A'] })).toMatchObject({ n_scores: 5 });
   });
 });

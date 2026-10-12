@@ -16,5 +16,7 @@ export interface SoilIndexFeature {
     value: number;
     /** The year scored; absent when the methodology records none. */
     year?: number;
+    /** The methodology's own, stored with the score; `unit_id` is added and cannot be overridden. */
+    metadata?: Record<string, unknown>;
   };
 }

@@ -1,13 +1,15 @@
 import type { SoilIndexJobParameters } from './Job';
 import type { AggregationUnit } from '../jobs/runs/types';
+import type { SamplingRange } from '../jobs/soil-indexes/samplingRange';
 import type { DataRequestStatus } from '../types/enums';
 
 /**
  * What was asked, plus the scope it resolved to — the `request` of a Soil Index Run, as a Data
  * Request's is (docs/adr/0044). Never `created_by`, `isDataAdmin` or `isSuperAdmin`: anyone holding
- * the id can read it.
+ * the id can read it. The sampling dates are copied rather than read from the Filter, which may be
+ * reaped before the Run.
  */
-export interface SoilIndexRunParameters extends SoilIndexJobParameters {
+export interface SoilIndexRunParameters extends SoilIndexJobParameters, SamplingRange {
   /** Filter holding the Aggregation Units; null when they are `filter_id`'s own geometries. */
   derived_filter_id: string | null;
   unit_count: number;
