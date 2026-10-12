@@ -124,10 +124,19 @@
       width: calc(100% - 36px);
       padding: 4px;
       border: none;
+      // The search box shares the row with the polygon button, shown on every device but phones
+      display: flex;
+      align-items: center;
+      gap: 4px;
     }
 
     &.hidden {
       display: none;
+    }
+
+    // The open polygon menu spans the map in the compact layout: keep it above the map controls (z-index 2)
+    &:has(.selection-list.open) {
+      z-index: 3;
     }
 
     .maplibregl-ctrl-geocoder {
@@ -138,7 +147,8 @@
       font-size: 15px;
 
       @media (max-width: $bp-mobile-max) {
-        width: 100%;
+        flex: 1;
+        min-width: 0;
         max-width: 100%;
       }
 

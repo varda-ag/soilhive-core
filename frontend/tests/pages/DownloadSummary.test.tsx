@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import DownloadSummary from '../../src/pages/DownloadSummary';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
 import useDownloads from 'hooks/useDownloads';
-import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { GISDataType } from '../../src/types/backend';
 
 jest.mock('react-router', () => {
@@ -88,13 +88,7 @@ describe('DownloadSummary', () => {
 
   afterEach(() => {
     __resetIsMobileLayout();
-  });
-
-  it('disables download button on mobile layout', () => {
-    __setIsMobileLayout(true);
-    render(<DownloadSummary />);
-    const downloadButton = screen.getByRole('button', { name: /download data/i });
-    expect(downloadButton).toBeDisabled();
+    __resetIsMobileDevice();
   });
 
   it('renders download summary page', () => {
@@ -181,6 +175,26 @@ describe('DownloadSummary', () => {
       fireEvent.click(screen.getByRole('button', { name: /download data/i }));
 
       expect(startDownload).toHaveBeenCalledWith(expect.objectContaining({ formats: ['csv', 'tiff'] }));
+    });
+  });
+
+  describe('download button by device', () => {
+    // Datasets loaded and terms agreed, so only the device can disable the button
+    const renderReadyToDownload = () => {
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset], datasetsSummary: {} });
+      render(<DownloadSummary />);
+      fireEvent.click(screen.getByRole('checkbox'));
+      return screen.getByRole('button', { name: /download data/i });
+    };
+
+    it('disables download button on a phone', () => {
+      __setIsMobileDevice(true);
+      expect(renderReadyToDownload()).toBeDisabled();
+    });
+
+    it('enables download button in a narrow window on a laptop', () => {
+      __setIsMobileLayout(true);
+      expect(renderReadyToDownload()).toBeEnabled();
     });
   });
 });

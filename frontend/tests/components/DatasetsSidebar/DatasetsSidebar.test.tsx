@@ -119,7 +119,7 @@ describe('DatasetsSidebar', () => {
   });
 
   it('disables explore and download buttons when there are no available datasets', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
 
     renderWithDatasets([]);
 
@@ -128,7 +128,7 @@ describe('DatasetsSidebar', () => {
   });
 
   it('enables explore button when only raster datasets are available', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
     mockCan({ 'raster-dataset': [Capability.PREVIEW] });
 
     renderWithDatasets([{ id: 'raster-dataset', data_type: GISDataType.RASTER, visibility: 'private' }]);
@@ -137,7 +137,7 @@ describe('DatasetsSidebar', () => {
   });
 
   it('enables only explore for a dataset with PREVIEW but not DOWNLOAD', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
     mockCan({ 'preview-only-dataset': [Capability.PREVIEW] });
 
     renderWithDatasets([{ id: 'preview-only-dataset', visibility: 'private' }]);
@@ -147,7 +147,7 @@ describe('DatasetsSidebar', () => {
   });
 
   it('enables only download for a dataset with DOWNLOAD but not PREVIEW', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
     mockCan({ 'download-only-dataset': [Capability.DOWNLOAD] });
 
     renderWithDatasets([{ id: 'download-only-dataset', visibility: 'private' }]);
@@ -168,8 +168,8 @@ describe('DatasetsSidebar', () => {
     expect(screen.getByTestId('sh-ui-page-sidebar')).toHaveClass('Opened');
   });
 
-  it('disables download button on mobile layout', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true });
+  it('disables download button on a phone', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true, isMobileDevice: true });
 
     render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
 
@@ -177,8 +177,17 @@ describe('DatasetsSidebar', () => {
     expect(downloadButton).toBeDisabled();
   });
 
+  it('enables download button in a narrow window on a laptop', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: false, isMobileLayout: true, isMobileDevice: false });
+
+    render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+
+    const downloadButton = screen.getByRole('button', { name: /download/i });
+    expect(downloadButton).toBeEnabled();
+  });
+
   it('calls navigate when clicking on download button on desktop', () => {
-    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false });
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
 
     const navigateMockFn = jest.fn();
     (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);

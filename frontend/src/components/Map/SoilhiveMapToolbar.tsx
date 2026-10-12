@@ -27,7 +27,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUploadClick
   const selectionButtonRef = useRef<HTMLButtonElement>(null);
   const selectionListRef = useRef<HTMLDivElement>(null);
 
-  const { isMobileLayout } = useDevice();
+  const { isMobileDevice } = useDevice();
 
   const onWindowClick = (event: PointerEvent) => {
     const target = event.target as Node;
@@ -48,7 +48,7 @@ export default function SoilhiveMapToolbar({ visible, onDrawClick, onUploadClick
 
   return (
     <div className={classnames('soilhive-map-toolbar', { hidden: !visible })}>
-      {!isMobileLayout && (
+      {!isMobileDevice && (
         <button
           ref={selectionButtonRef}
           onClick={() => {
