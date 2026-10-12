@@ -210,6 +210,22 @@ describe('RasterLoader', () => {
     expect(reloadedFile.status).toBe(IngestionStatus.LOADED);
   });
 
+  // The Dataset fallback matches on it (ADR 0058), so a load must not wipe a period no Band Mapping gives
+  it('keeps the Dataset reference period when no Band Mapping gives one', async () => {
+    const { dataset } = await setUpRasterLoad(uniqueName('kept-period'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+    const dataSource = await getDataSource();
+    await dataSource
+      .getRepository(DatasetEntity)
+      .update({ id: dataset.id }, { reference_period_start: '2010', reference_period_stop: '2015' });
+
+    await processRasterLoad(getJob(dataset.slug));
+
+    const reloaded = await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id });
+    expect(reloaded.reference_period_start).toBe('2010');
+    expect(reloaded.reference_period_stop).toBe('2015');
+    expect(reloaded.inferred_properties).not.toContain('reference_period_start');
+  });
+
   it('derives footprints per band rather than reusing band 1 for every layer', async () => {
     const { dataset, file } = await setUpRasterLoad(uniqueName('footprints'), slug => ({
       '1': bandEntry(slug, 0, 5),
