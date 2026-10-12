@@ -2810,6 +2810,8 @@ components:
             type: string
         # An explicit null matches data where the value is unset (e.g. min_depth: null
         # matches layers without a depth), while an absent key means "no constraint".
+        # A bounded value matches a layer with no recorded value on its dataset's instead
+        # (licenses too); see the Dataset fallback in CONTEXT.md and ADR 0058.
         min_sampling_date:
           type: string
           pattern: '^\d{4}(-\d{2}){0,2}$'

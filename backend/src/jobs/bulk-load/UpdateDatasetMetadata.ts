@@ -4,6 +4,7 @@ import DatasetLayerEntity from '../../entities/DatasetLayer';
 import assert from 'assert';
 import { GISDataType, IngestionStatus } from '../../types/data';
 import { toGisDatatype } from '../../utils/geometry';
+import { latestEnding } from '../../data-layer/SoilDataStorage';
 
 // Degrees (about a metre) a zero-area extent is padded by, so that it is stored as a Polygon
 const EXTENT_PADDING_DEG = 0.00001;
@@ -28,7 +29,7 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
         'MIN(l.min_depth) AS min_depth',
         'MAX(l.max_depth) AS max_depth',
         'MIN(l.sampling_date) AS min_sampling_date',
-        'MAX(l.sampling_date) AS max_sampling_date',
+        `${latestEnding('l.sampling_date')} AS max_sampling_date`,
         // One feature, or features on one line, have a zero-area extent, which PostGIS returns as a
         // Point or LineString and the Polygon spatial_extent column rejects
         `ST_AsGeoJSON(
@@ -36,7 +37,7 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
         ) as extent`,
         'array_agg(distinct ST_GeometryType(f.geom)) AS gis_datatypes',
         "array_agg(distinct jsonb_build_object('soil_property_id', prop.slug, 'procedure_id', proc.slug)) AS measured_properties",
-        'array_agg(distinct lic.slug) AS licenses',
+        'array_remove(array_agg(distinct lic.slug), NULL) AS licenses',
       ])
       .getRawMany();
 
@@ -61,6 +62,14 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
     if (data.max_sampling_date !== null) inferred_properties.push('reference_period_stop');
     if (gis_datatype !== null) inferred_properties.push('gis_datatype');
 
+    // The Dataset fallback (ADR 0058) matches on these, so an aggregate the Layers left empty keeps
+    // the value already there, typically the admin's, instead of wiping it
+    const current = await manager.getRepository(DatasetEntity).findOneOrFail({
+      where: { id: datasetId },
+      select: { id: true, licenses: true, soil_depth: true, reference_period_start: true, reference_period_stop: true },
+    });
+    const currentDepth = (current.soil_depth ?? {}) as { min?: number | null; max?: number | null };
+
     // Update dataset
     await manager
       .getRepository(DatasetEntity)
@@ -69,12 +78,12 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
       .set({
         status,
         measured_properties: data.measured_properties,
-        licenses: data.licenses,
+        licenses: hasContent(data.licenses) ? data.licenses : current.licenses,
         n_observations: data.n_observations,
-        soil_depth: { min: data.min_depth, max: data.max_depth },
+        soil_depth: { min: data.min_depth ?? currentDepth.min ?? null, max: data.max_depth ?? currentDepth.max ?? null },
         spatial_extent: data.extent ? JSON.parse(data.extent) : null,
-        reference_period_start: data.min_sampling_date,
-        reference_period_stop: data.max_sampling_date,
+        reference_period_start: data.min_sampling_date ?? current.reference_period_start,
+        reference_period_stop: data.max_sampling_date ?? current.reference_period_stop,
         gis_datatype,
         inferred_properties,
         updated_at: new Date(),

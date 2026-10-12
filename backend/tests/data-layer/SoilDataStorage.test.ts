@@ -312,6 +312,139 @@ describe('SoilDataStorage class', () => {
     expect(rows.map(row => row.sampling_date)).toEqual(['2015']);
   });
 
+  // Dataset fallback (ADR 0058): a value the Layer did not record is matched on its Dataset's
+  describe('Dataset fallback', () => {
+    const updateLayers = async (entityManager: any, datasetId: string, set: string): Promise<void> => {
+      await entityManager.query(`UPDATE layers SET ${set} WHERE id IN (SELECT layer_id FROM dataset_layers WHERE dataset_id = $1)`, [
+        datasetId,
+      ]);
+    };
+
+    it.each([
+      ['2015-03-01', undefined, 1],
+      [undefined, '2015-01-31', 1],
+      ['2016-01-01', undefined, 0],
+      [undefined, '2014-12-31', 0],
+    ])('matches undated Layers on the Dataset reference period (from %s to %s)', async (min_sampling_date, max_sampling_date, expected) => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions });
+      const entityManager = await getEntityManager();
+      await updateLayers(entityManager, dataset.id, 'sampling_date = NULL');
+      await entityManager.query(`UPDATE datasets SET reference_period_start = '2015', reference_period_stop = '2015' WHERE id = $1`, [
+        dataset.id,
+      ]);
+      const sds = new SoilDataStorage();
+      const filter = await makeFilter(entityManager, bboxPolygon, {
+        ...(min_sampling_date ? { min_sampling_date } : {}),
+        ...(max_sampling_date ? { max_sampling_date } : {}),
+      });
+
+      expect(await sds.filterVector(entityManager, filter)).toHaveLength(expected);
+      expect(await sds.filterVectorDatasets(entityManager, filter)).toHaveLength(expected);
+      expect(await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], 100)).toHaveLength(expected);
+      expect(await sds.getSoilDataCount({ entityManager, entitlements }, filter, [dataset.slug])).toBe(expected);
+    });
+
+    it('reports the Dataset period for undated Layers, while their rows stay undated', async () => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions });
+      const entityManager = await getEntityManager();
+      await updateLayers(entityManager, dataset.id, 'sampling_date = NULL');
+      await entityManager.query(`UPDATE datasets SET reference_period_start = '2015', reference_period_stop = '2016-06' WHERE id = $1`, [
+        dataset.id,
+      ]);
+      const sds = new SoilDataStorage();
+      const filter = await makeFilter(entityManager, bboxPolygon, { min_sampling_date: '2016-01-01' });
+
+      const [summary] = await sds.filterVector(entityManager, filter);
+      expect(summary?.min_sampling_date).toBe('2015');
+      expect(summary?.max_sampling_date).toBe('2016-06');
+      const rows = await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], 100);
+      expect(rows.map(row => row.sampling_date)).toEqual([null]);
+    });
+
+    // Each depth bound falls back on its own: the Layer keeps its recorded min_depth of 0
+    it.each([
+      [{ min_depth: 150 }, 1],
+      [{ min_depth: 250 }, 0],
+      [{ max_depth: 5 }, 1],
+    ])('matches a Layer with no recorded max_depth on the Dataset depth (%j)', async (criteria, expected) => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions });
+      const entityManager = await getEntityManager();
+      await updateLayers(entityManager, dataset.id, 'max_depth = NULL');
+      await entityManager.query(`UPDATE datasets SET soil_depth = '{"min": 0, "max": 200}' WHERE id = $1`, [dataset.id]);
+      const sds = new SoilDataStorage();
+      const filter = await makeFilter(entityManager, bboxPolygon, criteria);
+
+      const summaries = await sds.filterVector(entityManager, filter);
+      expect(summaries).toHaveLength(expected);
+      expect(await sds.filterVectorDatasets(entityManager, filter)).toHaveLength(expected);
+      const rows = await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], 100);
+      expect(rows).toHaveLength(expected);
+      if (expected > 0) {
+        expect(summaries[0]?.max_depth).toBe(200);
+        expect(rows[0]?.max_depth).toBeNull();
+      }
+    });
+
+    it.each([
+      [true, 1],
+      [false, 0],
+    ])('matches unlicensed Layers on the Dataset licences (Dataset licence selected: %s)', async (selected, expected) => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions, datasetLicense: 'dataset only license' });
+      const datasetLicense = dataset.licenses![0]!;
+      const entityManager = await getEntityManager();
+      const sds = new SoilDataStorage();
+      const filter = await makeFilter(entityManager, bboxPolygon, { licenses: [selected ? datasetLicense : 'no_such_license'] });
+
+      const summaries = await sds.filterVector(entityManager, filter);
+      expect(summaries).toHaveLength(expected);
+      expect(await sds.filterVectorDatasets(entityManager, filter)).toHaveLength(expected);
+      expect(await sds.getSoilData({ entityManager, entitlements }, filter, [dataset.slug], 100)).toHaveLength(expected);
+      if (expected > 0) {
+        expect(summaries[0]?.licenses).toEqual([datasetLicense]);
+      }
+    });
+
+    it('reports recorded licences together with the Dataset licences an unlicensed Layer falls back to', async () => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions, depthLayers: 2 });
+      const recordedLicense = dataset.licenses![0]!;
+      const entityManager = await getEntityManager();
+      await entityManager.query(
+        `UPDATE layers SET license = NULL
+         WHERE id = (SELECT layer_id FROM dataset_layers WHERE dataset_id = $1 ORDER BY layer_id LIMIT 1)`,
+        [dataset.id],
+      );
+      await entityManager.query(`UPDATE datasets SET licenses = ARRAY[$2, 'extra_license'] WHERE id = $1`, [dataset.id, recordedLicense]);
+      const sds = new SoilDataStorage();
+
+      const [all] = await sds.filterVector(entityManager, await makeFilter(entityManager, bboxPolygon));
+      expect(all?.licenses.sort()).toEqual(['extra_license', recordedLicense].sort());
+
+      // Only the unlicensed Layer matches, and it carries every licence of its Dataset
+      const [extraOnly] = await sds.filterVector(
+        entityManager,
+        await makeFilter(entityManager, bboxPolygon, { licenses: ['extra_license'] }),
+      );
+      expect(extraOnly?.dataset_layer_count).toBe(1);
+      expect(extraOnly?.licenses.sort()).toEqual(['extra_license', recordedLicense].sort());
+    });
+
+    it('matches undated Layers in the live DAI without counting them as dated', async () => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions });
+      const entityManager = await getEntityManager();
+      await updateLayers(entityManager, dataset.id, 'sampling_date = NULL');
+      await entityManager.query(`UPDATE datasets SET reference_period_start = '2015', reference_period_stop = '2015' WHERE id = $1`, [
+        dataset.id,
+      ]);
+      const sds = new SoilDataStorage();
+      const filter = await makeFilter(entityManager, bboxPolygon, { min_sampling_date: '2015-01-01' });
+
+      const points = await sds.getDaiPointData(entityManager, filter, [0, 0, 1, 1]);
+      expect(points).toHaveLength(1);
+      expect(points[0]?.num_dated_layers).toBe(0);
+      expect(points[0]?.num_distinct_years).toBe(0);
+    });
+  });
+
   it.each([
     [undefined, 2, 20],
     [[], 2, 20],
@@ -430,6 +563,7 @@ describe('SoilDataStorage class', () => {
     [{ horizons: [null] }, 1, 1],
     [{ horizons: ['A0', null] }, 1, 2],
   ])('Filtering NULL values should return expected data points', async (filter, expectedResultCount, expectedCount) => {
+    // The Dataset has a depth range and period, yet null still matches the Layer that recorded none (ADR 0058)
     await addSyntheticData({ ...syntheticDataOptions, depthLayers: 1, addNullValues: true }); // Adding another layer with NULL values
     const sds = new SoilDataStorage();
     const entityManager = await getEntityManager();
@@ -1023,6 +1157,31 @@ describe('SoilDataStorage class', () => {
         await makeFilter(entityManager, getPolygonFromBbox([-179.9, -89.9, 179.9, 89.9]), filter),
       );
       expect(results).toHaveLength(expectedCount);
+    });
+
+    // Dataset fallback (ADR 0058): bounds a Raster Layer did not record are matched and reported on its Dataset's
+    it.each([
+      [{ min_sampling_date: '2012-01-01' }, 1],
+      [{ max_sampling_date: '2009-12-31' }, 0],
+      [{ min_depth: 150 }, 1],
+      [{ min_depth: 250 }, 0],
+    ])('Filtering raster data falls back on the Dataset period and depth (%j)', async (filter, expectedCount) => {
+      const rasterLayer = await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED });
+      const entityManager = await getEntityManager();
+      await entityManager.query(
+        `UPDATE datasets SET reference_period_start = '2010', reference_period_stop = '2015', soil_depth = '{"min": 0, "max": 200}'
+         WHERE id = $1`,
+        [rasterLayer.dataset_id],
+      );
+      const sds = new SoilDataStorage();
+      const results = await sds.filterRaster(
+        entityManager,
+        await makeFilter(entityManager, getPolygonFromBbox([-179.9, -89.9, 179.9, 89.9]), filter),
+      );
+      expect(results).toHaveLength(expectedCount);
+      if (expectedCount > 0) {
+        expect(results[0]).toMatchObject({ min_sampling_date: '2010', max_sampling_date: '2015', min_depth: 0, max_depth: 200 });
+      }
     });
 
     it.each([
