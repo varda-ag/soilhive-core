@@ -1,7 +1,8 @@
 import { SoilIndexJob } from '../../interfaces/Job';
 import { SoilIndexFeature } from './types';
 import { RunContext } from '../runs/runContext';
-import { getSoilIndexMockScores } from '../../utils/utils';
+import { getMockSoilIndexDataUrl, getSoilIndexMockScores } from '../../utils/utils';
+import { readMockSoilIndexData } from './mockSoilIndexData';
 
 const FIRST_YEAR = 2015;
 const YEARS = 10;
@@ -10,9 +11,55 @@ const YEARS = 10;
 const hashSql = (key: string): string => `(hashtext(${key}) & 1073741823)`;
 
 /**
- * The `crea-index` Soil Index Type. MOCK, not the CREA index: getSoilIndexMockScores() points
- * (50,000 by default), whatever the size of the area, spread evenly over the Run's
- * Aggregation Units, each with a value in [0, 1) and a year from FIRST_YEAR on.
+ * The `crea-index` Soil Index Type. MOCK, not the CREA index: scores come from the
+ * `MOCK_SOIL_INDEX_DATA` CSV when it is set, and are random points otherwise.
+ */
+export async function runCreaIndex(ctx: RunContext, _data: SoilIndexJob): Promise<SoilIndexFeature[]> {
+  const url = getMockSoilIndexDataUrl();
+  return url ? scoreFromMockData(ctx, url) : scoreRandomly(ctx);
+}
+
+/**
+ * One score per CSV row inside at least one of the Run's Aggregation Units, attributed to the
+ * lowest such unit_id: the same row stored once per unit would be counted twice by statistics
+ * over the Run. Ordered by the row's `id`, so a re-sorted file scores identically.
+ */
+async function scoreFromMockData(ctx: RunContext, url: string): Promise<SoilIndexFeature[]> {
+  const { entityManager, unitIds, report, assertNotCancelled } = ctx;
+
+  await report('Loading soil index data...', 20);
+  const rows = await readMockSoilIndexData(url);
+  await assertNotCancelled();
+
+  await report(`Scoring ${unitIds.length} area(s)...`, 40);
+  const located: { id: number; unit_id: string }[] = await entityManager.query(
+    `SELECT DISTINCT ON (source.id) source.id, piece.user_geometry_id AS unit_id
+     FROM jsonb_to_recordset($2::jsonb) AS source(id integer, lon float8, lat float8)
+     JOIN ${process.env.POSTGRES_SCHEMA}.user_geometry_subdivisions piece
+       ON piece.user_geometry_id = ANY($1::uuid[])
+      AND ST_Intersects(ST_SetSRID(ST_MakePoint(source.lon, source.lat), 4326), piece.geom)
+     ORDER BY source.id, piece.user_geometry_id`,
+    [unitIds, JSON.stringify(rows.map(({ id, lon, lat }) => ({ id, lon, lat })))],
+  );
+
+  await assertNotCancelled();
+
+  const byId = new Map(rows.map(row => [row.id, row]));
+  return located.map(({ id, unit_id }) => {
+    const row = byId.get(id)!;
+    return {
+      type: 'Feature' as const,
+      id: unit_id,
+      geometry: { type: 'Point' as const, coordinates: [row.lon, row.lat] },
+      properties: { value: row.value, year: row.year, metadata: row.metadata },
+    };
+  });
+}
+
+/**
+ * getSoilIndexMockScores() points (50,000 by default), whatever the size of the area, spread
+ * evenly over the Run's Aggregation Units, each with a value in [0, 1) and a year from
+ * FIRST_YEAR on.
  *
  * Points are generated per subdivision piece (docs/adr/0048), each piece's share in proportion to
  * its area and the shares rounded by largest remainder so they total exactly that: a piece
@@ -20,7 +67,7 @@ const hashSql = (key: string): string => `(hashtext(${key}) & 1073741823)`;
  * by unit and piece, so the same area always gets the same mock. Overlapping units each score
  * their overlap.
  */
-export async function runCreaIndex(ctx: RunContext, _data: SoilIndexJob): Promise<SoilIndexFeature[]> {
+async function scoreRandomly(ctx: RunContext): Promise<SoilIndexFeature[]> {
   const { entityManager, unitIds, report, assertNotCancelled } = ctx;
 
   await report(`Scoring ${unitIds.length} area(s)...`, 40);

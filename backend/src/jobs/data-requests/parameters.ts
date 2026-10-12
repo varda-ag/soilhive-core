@@ -1,6 +1,5 @@
 import { validate as isUuid } from 'uuid';
 import { ClassDefinition, DataRequestJobParameters } from '../../interfaces/Job';
-import { FilterCriteria } from '../../interfaces/DatasetFilter';
 import { ClassMethod, DepthRanges, StatisticsType, ValueType, VariableType } from '../../types/enums';
 import { MAX_CLASSES, MIN_CLASS_COUNT, UNCLASSIFIED } from './types';
 
@@ -69,25 +68,6 @@ const soilIndexVariableProblem = (data: DataRequestJobParameters): string | null
 
 /** One message for every unusable id: telling them apart needs the job, which may be gone. */
 export const notASoilIndexRun = (id: string): string => `Parameter variable.id '${id}' is not a completed soil index run`;
-
-/** Empty lists and objects don't count; an explicit null does, since it filters. */
-export const filterCriteriaGiven = (parameters: FilterCriteria): string[] =>
-  Object.entries(parameters ?? {})
-    .filter(([, value]) => {
-      if (value === undefined) return false;
-      if (Array.isArray(value)) return value.length > 0;
-      if (value !== null && typeof value === 'object') return Object.keys(value).length > 0;
-      return true;
-    })
-    .map(([name]) => name);
-
-/** A Soil Index variable takes a criteria-free Filter (docs/adr/0039). */
-export const soilIndexFilterProblem = (filterId: string, parameters: FilterCriteria): string | null => {
-  const given = filterCriteriaGiven(parameters);
-  return given.length > 0
-    ? `Filter '${filterId}' carries criteria (${given.join(', ')}), which do not apply to soil index scores: use a filter with geometries only`
-    : null;
-};
 
 /** Required by every type: how years are bucketed. */
 const timeAggregationProblem = ({ time_aggregation, statistics_type }: DataRequestJobParameters): string | null => {

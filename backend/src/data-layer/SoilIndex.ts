@@ -114,13 +114,14 @@ export async function writeSoilIndexRun(
   await entityManager.query(`DROP TABLE IF EXISTS "${schema}"."${soilIndexTilesPartition(run)}"`);
   await entityManager.query(`DELETE FROM "${schema}"."soil_index_runs" WHERE "run" = $1`, [run]);
 
-  // `metadata` carries the unit_id because nothing else does. Ids number the scores within the
-  // Run, in the order the methodology produced them.
+  // `metadata` carries the unit_id because nothing else does, after the methodology's own so it
+  // cannot be overridden. Ids number the scores within the Run, in the order the methodology
+  // produced them.
   const rows = features.map((feature, index) => ({
     id: index + 1,
     geom: feature.geometry,
     val: feature.properties.value,
-    meta: { unit_id: feature.id },
+    meta: { ...feature.properties.metadata, unit_id: feature.id },
     yr: feature.properties.year ?? null,
   }));
 

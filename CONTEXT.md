@@ -29,7 +29,7 @@ A depth/date slice — `min_depth`, `max_depth`, `horizon`, `sampling_date` and 
 _Avoid_: Measurement, record, "the feature's layers" (a Layer is not owned by a Feature)
 
 **Partial date**:
-A sampling date or reference-period bound given only to the year (`2015`) or month (`2015-06`). It stands for the whole year or month it names: as a start it begins on that period's first day, as a stop or a sampling date it reaches that period's last day. So a Layer sampled in `2015` and a Raster Layer whose reference period stops at `2015` both overlap a date range starting in March 2015.
+A sampling date or reference-period bound given only to the year (`2015`) or month (`2015-06`). It stands for the whole year or month it names: as a start it begins on that period's first day, as a stop or a sampling date it reaches that period's last day. So a Layer sampled in `2015` and a Raster Layer whose reference period stops at `2015` both overlap a date range starting in March 2015. A **Scored Geometry**'s year is a Partial date too.
 _Avoid_: Approximate date, truncated date, year-only date (one kind of Partial date, not the concept)
 
 **DatasetLayer**:
@@ -301,9 +301,10 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
 - An **Aggregation Unit** *is* one **UserGeometry**; a **Derived Filter** has one Aggregation Unit per geometry of its source file, and equivalent geometries in that file collapse to a single Unit
 - A data-requests run has exactly one **Statistics Type** and one set of **Aggregation Units**; the Units are resolved identically for every type, and only what is computed over them differs
-- A **Class Distribution** is computed for one variable, which narrows within the **Filter**'s criteria and never widens them; over a **Soil Index** Run's scores the Filter must carry no criteria
+- A **Class Distribution** is computed for one variable, which narrows within the **Filter**'s criteria and never widens them; over a **Soil Index** Run's scores only the Filter's sampling dates narrow, and its other criteria are ignored
 - A **Run** computes either one **Statistics Type** or one **Soil Index**, never both; either way it resolves its **Aggregation Units** from one **Filter** and at most one source file, and summarises exactly those Units or scores within them
 - A Soil Index **Run** has zero or more **Scored Geometries**, each with one year; the same location may be scored in several years
+- A Soil Index **Run** keeps only the **Scored Geometries** whose year overlaps its **Filter**'s sampling dates, and records those dates, since the Filter may not outlive it; the Filter's other criteria never apply to scores
 - On a map, a **Year Window** groups **Scored Geometries** and never merges them across years: a location scored in three years of one window appears three times, once per score
 - On a map zoomed out past where a Run's **Scored Geometries** can be drawn one by one, those of the same year are summarised per grid cell (mean, extremes, count) rather than drawn; the summary never spans two years
 - An **Entitlement** grants one **Capability** over one **Dataset** or config item to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s

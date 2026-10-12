@@ -11,7 +11,7 @@ import FilterService from './FilterService';
 import FileService from './FileService';
 import SoilPropertyService from './SoilPropertyService';
 import { DataFilter } from '../interfaces/DatasetFilter';
-import { misplacedParameter, notASoilIndexRun, parametersProblem, soilIndexFilterProblem } from '../jobs/data-requests/parameters';
+import { misplacedParameter, notASoilIndexRun, parametersProblem } from '../jobs/data-requests/parameters';
 import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
@@ -163,14 +163,10 @@ export default class JobService {
   private validateVariable = async (requestData: RequestData, data: DataRequestJob, filter: DataFilter): Promise<void> => {
     const { id, type } = data.variable!;
 
-    // Needs an attached partition and a criteria-free Filter (docs/adr/0039).
+    // Needs an attached partition. The Filter's criteria other than its sampling dates are ignored (docs/adr/0058).
     if (type === VariableType.SOIL_INDEX) {
       if (!(await soilIndexRunExists(requestData.entityManager, id))) {
         throw new ErrorResponse(notASoilIndexRun(id), StatusCodes.BAD_REQUEST);
-      }
-      const problem = soilIndexFilterProblem(data.filter_id, filter.parameters);
-      if (problem) {
-        throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
       }
       return;
     }

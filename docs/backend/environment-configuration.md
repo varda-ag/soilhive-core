@@ -54,6 +54,7 @@ Shared by both, since both resolve their aggregation areas the same way:
 
 `soil-indexes` only:
 - `SOIL_INDEX_MOCK_SCORES` (default `50000`): points the mock `crea-index` generates per run. The test environment sets `500`.
+- `MOCK_SOIL_INDEX_DATA` (optional): http(s) URL of a CSV the mock `crea-index` scores from instead of random points. It is downloaded on every run, and each row inside the areas becomes one score. Columns are read by position and the header must match the reference columns exactly (`MOCK_SOIL_INDEX_COLUMNS` in `mockSoilIndexData.ts`). An unreadable or invalid file fails the run. The query string is never logged, so a pre-signed URL is safe. `SOIL_INDEX_MOCK_SCORES` is ignored while this is set.
 
 Soil index map tiles (ADR 0043). Budgets count vertices, so a point costs one and a polygon its ring length:
 - `TILES_AGGREGATION_MAX_VERTICES` (default `1000`): most vertices a tile may hold before it shows grid cells instead of scored geometries. Fixed per run when the run is written, so a change affects later runs only.

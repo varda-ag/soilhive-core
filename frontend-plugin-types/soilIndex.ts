@@ -45,6 +45,8 @@ export interface PluginSoilIndexSubmission {
 // What was asked, plus the aggregation areas it resolved to.
 export type PluginSoilIndexRunParameters = PluginSoilIndexSubmission & {
   config_id?: string; // the config item the Run is attached to
+  min_sampling_date?: string | null; // the filter's bounds as applied to the scores; null keeps only scores with no year
+  max_sampling_date?: string | null;
   derived_filter_id: string | null;
   unit_count: number;
   units: PluginAggregationUnit[];
