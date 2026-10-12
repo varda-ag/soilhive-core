@@ -38,14 +38,16 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
     return size === 'tiny' ? SmallCheckIcon : BigCheckIcon;
   }, [size]);
 
-  const menuOptions = useMemo(
-    () =>
-      options.map(option => ({
-        ...option,
-        isSelected: currentlySelectedOptions?.includes(option.code),
-      })),
-    [options, currentlySelectedOptions],
-  );
+  // Options without a group first, then each group under one heading, in the order the groups first
+  // appear. Options keep their order within a group.
+  const menuGroups = useMemo(() => {
+    const groups = new Map<string, (MenuOption & { isSelected: boolean })[]>([['', []]]);
+    options.forEach(option => {
+      const group = option.group || '';
+      groups.set(group, [...(groups.get(group) ?? []), { ...option, isSelected: currentlySelectedOptions.includes(option.code) }]);
+    });
+    return [...groups].filter(([, groupOptions]) => groupOptions.length > 0);
+  }, [options, currentlySelectedOptions]);
 
   const selectOption = useCallback(
     (optionCode: string, isSelected: boolean) => {
@@ -69,25 +71,28 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
 
   return (
     <div ref={ref} data-testid="sh-ui-menu" className={classnames(styles.Menu, sizeClass, className)}>
-      {menuOptions.map(({ code, name, group, Icon, isDisabled, isSelected }, index) => (
-        <Fragment key={code}>
-          {group !== undefined && group !== menuOptions[index - 1]?.group && (
+      {menuGroups.map(([group, groupOptions]) => (
+        <Fragment key={group}>
+          {group && (
             <div data-testid="sh-ui-menugroup" className={styles.GroupLabel}>
               {group}
             </div>
           )}
-          <div
-            data-testid="sh-ui-menuoption"
-            className={classnames(styles.MenuOption, {
-              [styles.Selected]: isSelected,
-              [styles.Disabled]: isDisabled,
-            })}
-            onClick={() => !isDisabled && selectOption(code, !!isSelected)}
-          >
-            {Icon && <Icon className={styles.OptionIcon} />}
-            <span className={styles.OptionName}>{name}</span>
-            {isSelected && showSelectedCheckIcon && <CheckIcon className={styles.CheckIcon} />}
-          </div>
+          {groupOptions.map(({ code, name, Icon, isDisabled, isSelected }) => (
+            <div
+              key={code}
+              data-testid="sh-ui-menuoption"
+              className={classnames(styles.MenuOption, {
+                [styles.Selected]: isSelected,
+                [styles.Disabled]: isDisabled,
+              })}
+              onClick={() => !isDisabled && selectOption(code, isSelected)}
+            >
+              {Icon && <Icon className={styles.OptionIcon} />}
+              <span className={styles.OptionName}>{name}</span>
+              {isSelected && showSelectedCheckIcon && <CheckIcon className={styles.CheckIcon} />}
+            </div>
+          ))}
         </Fragment>
       ))}
     </div>
