@@ -1,10 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
-import {
-  filterCriteriaGiven,
-  misplacedParameter,
-  parametersProblem,
-  soilIndexFilterProblem,
-} from '../../../src/jobs/data-requests/parameters';
+import { misplacedParameter, parametersProblem } from '../../../src/jobs/data-requests/parameters';
 import { DataRequestJobParameters } from '../../../src/interfaces/Job';
 import { ClassMethod, DepthRanges, StatisticsType, ValueType, VariableType } from '../../../src/types/enums';
 
@@ -50,24 +45,5 @@ describe('parametersProblem — soil-index variables', () => {
         }),
       ),
     ).toContain('depth_ranges does not apply to a soil-index variable');
-  });
-});
-
-describe('filterCriteriaGiven', () => {
-  it('counts explicit nulls as criteria, and empty lists or objects as none', () => {
-    expect(filterCriteriaGiven({})).toEqual([]);
-    expect(filterCriteriaGiven({ soil_properties: [], raster_filters: {} })).toEqual([]);
-    expect(filterCriteriaGiven({ min_depth: 0, max_sampling_date: null, horizons: ['A'] })).toEqual([
-      'min_depth',
-      'max_sampling_date',
-      'horizons',
-    ]);
-  });
-
-  it('turns any criterion into a refusal for a soil-index variable', () => {
-    expect(soilIndexFilterProblem('f1', {})).toBeNull();
-    expect(soilIndexFilterProblem('f1', { licenses: ['cc-by'] })).toBe(
-      "Filter 'f1' carries criteria (licenses), which do not apply to soil index scores: use a filter with geometries only",
-    );
   });
 });

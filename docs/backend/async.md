@@ -366,8 +366,8 @@ POST /data-requests
 
 - The id must be a completed run, and holding it is the permission to read its scores. Any unusable id gives the same `400`.
 - A score belongs to the areas containing its representative point.
-- The filter must carry no criteria, since it supplies only the area.
-- Scores have no dataset, depth or location, so `dataset_ids` and `depth_ranges` are `400`s, rows have no `dataset_id`/`n_features`, and a value range has no `datasets`. CREA records no year, so its scores fall in the no-year window.
+- Of the filter's criteria only `min_sampling_date` and `max_sampling_date` apply (docs/adr/0058). A score's year counts as the whole year, so it is kept when that year overlaps the range, and a `null` bound keeps only scores with no year. The other criteria are ignored.
+- Scores have no dataset, depth or location, so `dataset_ids` and `depth_ranges` are `400`s, rows have no `dataset_id`/`n_features`, and a value range has no `datasets`. Scores with no year fall in the no-year window.
 - Output opens with `run` and `soil_index_type` (absent for an empty run) instead of `soil_property`/`standard_unit`, and counts are `n_scores` instead of `n_observations`.
 
 ## `soil-indexes`
@@ -376,7 +376,7 @@ Computes a **soil index** — a set of scored geometries from a named methodolog
 
 | `soil_index_type` | Product |
 |---|---|
-| `crea-index` | **Mock:** 50,000 scored points spread over the areas in proportion to their size, each with a value in [0, 1) to 3 decimals and a year from 2015 to 2024. Seeded by area, so the same areas always get the same points. |
+| `crea-index` | **Mock:** 50,000 scored points spread over the areas in proportion to their size, each with a value in [0, 1) to 3 decimals and a year from 2015 to 2024. Seeded by area, so the same areas always get the same points. When `MOCK_SOIL_INDEX_DATA` is set, the mock scores that CSV's rows inside the areas instead: one score per row, even where areas overlap, numbered in the file's `id` order. The rest of each row is kept as the score's `metadata`. |
 
 > Not to be confused with the **DAI**, which is also an index but scores *data availability* per map cell and is computed by the `refresh-dai-stats` job. The two share nothing.
 
@@ -408,7 +408,7 @@ This queue runs **one job at a time per node** (`SOIL_INDEXES_CONCURRENCY`), whi
 **Sequence of operations**
 
 1. Resolve the filter and build the aggregation units, creating the derived filter when `file_id` is given, and write `derived_filter_id`, `unit_count` and `units[]`.
-2. Generate the scores.
+2. Generate the scores, and drop those whose year falls outside the filter's `min_sampling_date`/`max_sampling_date`, which are copied into `request`. The filter's other criteria are ignored (docs/adr/0058).
 3. In one transaction: lock the job, and stop if it was cancelled; write the scores, numbered 1..n, into a fresh partition for the run; record the run as completed in `soil_index_runs`, with its bounds and detail zoom; attach the partition.
 4. Mark the job complete, and enqueue `soil-index-tiles` for the run.
 

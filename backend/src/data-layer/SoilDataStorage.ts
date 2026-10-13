@@ -7,7 +7,6 @@ import { Cursor, RasterCursor } from '../interfaces/Cursor';
 import { ErrorResponse } from '../utils/error';
 import { selectOverviewTable } from '../utils/raster';
 import { Capability, OverlapType } from '../types/enums';
-import { EntitlementScope } from '../types/Entitlements';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, FilteredRasterLayer, DataFilter } from '../interfaces/DatasetFilter';
 import DatasetEntity from '../entities/Dataset';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
@@ -27,6 +26,7 @@ import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedQuery } from '../utils/query-cache';
 import { runCancelableQuery } from '../utils/cancelable-query';
 import { classLabel } from '../utils/soilPropertyClasses';
+import { existingDatasetSlugs } from '../utils/slugs';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const rasterFilterService = new RasterFilterService();
@@ -104,6 +104,7 @@ export default class SoilDataStorage {
     // dataset_layers rows. Soil-property filtering happens in active_soil_properties.
     const datasetWhere: string[] = ['ds.deleted_at IS NULL', `ds.status = 'PUBLISHED'`];
     const layerWhere: string[] = [];
+    const effective = effectiveLayer('layer', 'ds');
 
     if (filters.data_types && filters.data_types.length > 0) {
       datasetWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
@@ -115,25 +116,25 @@ export default class SoilDataStorage {
       layerWhere.push('layer.sampling_date IS NULL');
     } else if (filters.min_sampling_date) {
       datasetWhere.push(datasetEndsOnOrAfter('ds.reference_period_stop', p(filters.min_sampling_date)));
-      layerWhere.push(endsOnOrAfter('layer.sampling_date', p(filters.min_sampling_date)));
+      layerWhere.push(endsOnOrAfter(effective.stop, p(filters.min_sampling_date)));
     }
     if (filters.max_sampling_date === null) {
       layerWhere.push('layer.sampling_date IS NULL');
     } else if (filters.max_sampling_date) {
       datasetWhere.push(startsOnOrBefore('ds.reference_period_start', p(filters.max_sampling_date)));
-      layerWhere.push(startsOnOrBefore('layer.sampling_date', p(filters.max_sampling_date)));
+      layerWhere.push(startsOnOrBefore(effective.start, p(filters.max_sampling_date)));
     }
     if (filters.min_depth === null) {
       layerWhere.push('layer.min_depth IS NULL');
     } else if (filters.min_depth !== undefined) {
       datasetWhere.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
-      layerWhere.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+      layerWhere.push(`${effective.maxDepth} >= ${p(filters.min_depth)}`);
     }
     if (filters.max_depth === null) {
       layerWhere.push('layer.max_depth IS NULL');
     } else if (filters.max_depth !== undefined) {
       datasetWhere.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
-      layerWhere.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+      layerWhere.push(`${effective.minDepth} <= ${p(filters.max_depth)}`);
     }
     if (filters.horizons && filters.horizons.length > 0) {
       const nonNull = filters.horizons.filter(h => h !== null);
@@ -149,7 +150,7 @@ export default class SoilDataStorage {
       soilPropertiesWhere = ` AND slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`;
     }
     if (filters.licenses && filters.licenses.length > 0) {
-      outerWhere.push(`license.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
+      outerWhere.push(effectiveLicenseMatch('license.slug', 'base_agg.license', 'ds', filters.licenses.map(v => p(v)).join(', ')));
     }
 
     const activeSoilPropertiesCte = `,
@@ -188,19 +189,21 @@ export default class SoilDataStorage {
       -- License rollup and layer-level filters on the collapsed set: layers is now
       -- probed once per distinct (dataset, layer) instead of once per raw row.
       -- soil_properties may repeat slugs across layers; the mapper dedupes client-side.
+      -- datasets supplies the Dataset fallback for the filters and the summary.
       , base_agg AS (
         SELECT
           pl.dataset_id,
           layer.license,
           SUM(pl.feature_layer_count) AS dataset_layer_count,
-          MIN(layer.sampling_date) AS min_sampling_date,
-          ${latestEnding('layer.sampling_date')} AS max_sampling_date,
-          MIN(layer.min_depth) AS min_depth,
-          MAX(layer.max_depth) AS max_depth,
+          MIN(${effective.start}) AS min_sampling_date,
+          ${latestEnding(effective.stop)} AS max_sampling_date,
+          MIN(${effective.minDepth}) AS min_depth,
+          MAX(${effective.maxDepth}) AS max_depth,
           STRING_AGG(DISTINCT layer.horizon, ',') AS horizons,
           STRING_AGG(DISTINCT array_to_string(pl.prop_slugs, ','), ',') AS soil_properties
         FROM per_layer pl
         INNER JOIN ${schema}.layers layer ON layer.id = pl.layer_id
+        INNER JOIN ${schema}.datasets ds ON ds.id = pl.dataset_id
         ${layerWhereClause}
         GROUP BY pl.dataset_id, layer.license
       )
@@ -210,7 +213,12 @@ export default class SoilDataStorage {
         ds.name AS dataset_name,
         ds.slug AS dataset_slug,
         ds.visibility,
-        COALESCE(STRING_AGG(DISTINCT license.slug, ','), array_to_string(ds.licenses, ',')) AS licenses,
+        -- Recorded licences plus the Dataset's when some matched Layer has none; the mapper dedupes.
+        array_to_string(
+          ARRAY_AGG(license.slug) FILTER (WHERE license.slug IS NOT NULL)
+            || CASE WHEN BOOL_OR(base_agg.license IS NULL) THEN ds.licenses END,
+          ','
+        ) AS licenses,
         SUM(base_agg.dataset_layer_count) AS dataset_layer_count,
         MIN(base_agg.min_sampling_date) AS min_sampling_date,
         ${latestEnding('base_agg.max_sampling_date')} AS max_sampling_date,
@@ -235,7 +243,7 @@ export default class SoilDataStorage {
       name: row.dataset_name,
       data_type: row.gis_datatype,
       visibility: row.visibility,
-      licenses: row.licenses ? row.licenses.split(',') : [],
+      licenses: row.licenses ? [...new Set(row.licenses.split(','))] : [],
       min_sampling_date: row.min_sampling_date,
       max_sampling_date: row.max_sampling_date,
       min_depth: row.min_depth !== null ? parseFloat(row.min_depth) : null,
@@ -383,16 +391,16 @@ export default class SoilDataStorage {
         ds.visibility AS visibility,
         ds.licenses AS licenses,
         COUNT(rl.id) AS raster_layer_count,
-        COALESCE(MIN(rl.min_depth), (ds.soil_depth->>'min')::int) AS min_depth,
-        COALESCE(MAX(rl.max_depth), (ds.soil_depth->>'max')::int) AS max_depth,
-        COALESCE(MIN(rl.reference_period_start), ds.reference_period_start) AS min_sampling_date,
-        COALESCE(${latestEnding('rl.reference_period_stop')}, ds.reference_period_stop) AS max_sampling_date,
+        MIN(${EFFECTIVE_RASTER_LAYER.minDepth}) AS min_depth,
+        MAX(${EFFECTIVE_RASTER_LAYER.maxDepth}) AS max_depth,
+        MIN(${EFFECTIVE_RASTER_LAYER.start}) AS min_sampling_date,
+        ${latestEnding(EFFECTIVE_RASTER_LAYER.stop)} AS max_sampling_date,
         STRING_AGG(DISTINCT sp.slug, ',') AS soil_properties
       FROM surviving_layers sl
       INNER JOIN ${schema}.raster_layers rl ON rl.id = sl.id
       INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
       INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
-      GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses, ds.soil_depth, ds.reference_period_start, ds.reference_period_stop
+      GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses
     `;
 
     const rows = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
@@ -418,11 +426,14 @@ export default class SoilDataStorage {
   getRasterLayers = async (
     requestData: RequestData,
     filter: DataFilter,
-    datasetSlugs: string[],
+    requestedSlugs: string[],
     includeProcedureInfo: boolean = false,
   ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> => {
     const { geometryIds, parameters: filters } = filter;
-    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.DOWNLOAD);
+    const datasetSlugs = await entitlementService.enforceDatasetEntitlements(requestData, requestedSlugs, Capability.DOWNLOAD);
+    if (datasetSlugs.length === 0) {
+      return { layers: [], aoi: null };
+    }
 
     const schema = process.env.POSTGRES_SCHEMA;
     // Unlike the filtering paths, this aoi is returned to the caller as a GeoJSON
@@ -461,7 +472,8 @@ export default class SoilDataStorage {
       }
       candidateQuery
         .setParameter('geometryIds', geometryIds)
-        .innerJoin('rl.dataset', 'ds', `ds.status = 'PUBLISHED'`)
+        // Status is settled by enforceDatasetEntitlements; an archived Dataset may share a live one's slug
+        .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL')
         .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
         .innerJoin('rl.soil_property', 'sp')
         .select('rl.id', 'id')
@@ -516,9 +528,12 @@ export default class SoilDataStorage {
   // per-layer column fetch — the export progress estimate only needs how many raster
   // layers match. An empty AOI (e.g. raster filters matching no pixels) naturally
   // yields 0 via the `rl.bbox && (SELECT geom FROM aoi)` predicate.
-  getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
+  getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> => {
     const { geometryIds, parameters: filters } = filter;
-    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.DOWNLOAD);
+    const datasetSlugs = await entitlementService.enforceDatasetEntitlements(requestData, requestedSlugs, Capability.DOWNLOAD);
+    if (datasetSlugs.length === 0) {
+      return 0;
+    }
 
     const schema = process.env.POSTGRES_SCHEMA;
     const aoiCtes: CteDef[] = hasRasterFilters(filters)
@@ -542,7 +557,8 @@ export default class SoilDataStorage {
       }
       candidateQuery
         .setParameter('geometryIds', geometryIds)
-        .innerJoin('rl.dataset', 'ds', `ds.status = 'PUBLISHED'`)
+        // As in getRasterLayers
+        .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL')
         .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
         .innerJoin('rl.soil_property', 'sp')
         .select('COUNT(rl.id)', 'count');
@@ -586,13 +602,16 @@ export default class SoilDataStorage {
   getSoilData = async (
     requestData: RequestData,
     filter: DataFilter,
-    datasetSlugs: string[],
+    requestedSlugs: string[],
     limit: number,
     cursor?: string,
     sort?: string,
   ): Promise<SoilDataSample[]> => {
-    await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, datasetSlugs, Capability.PREVIEW);
     const rasterCursor = cursor ? decodeRasterCursor(decodeCursor(cursor), sort) : undefined;
+    const datasetSlugs = await entitlementService.enforceDatasetEntitlements(requestData, requestedSlugs, Capability.PREVIEW);
+    if (datasetSlugs.length === 0) {
+      return [];
+    }
 
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
@@ -640,8 +659,8 @@ export default class SoilDataStorage {
    * touches the Filter's AOI and is not nodata, ordered by Raster Layer, then pixel row, then column.
    *
    * Dataset-level rules are those of this endpoint's vector rows: a raster Dataset among the requested
-   * ones, at any Ingestion Status, with the Filter's `visibility` criterion not applied — only
-   * Visibility and Entitlement gate it, through getSoilData's preview check (CONTEXT.md, Published).
+   * ones, which getSoilData has already narrowed to those that exist for the caller (docs/adr/0057)
+   * and checked for preview, with the Filter's `visibility` criterion not applied.
    * Within such a Dataset, Raster Layers match as they do for coverage (filterRaster): a bbox and
    * valid-data footprint meeting the AOI, and the Filter's criteria as they apply to a Raster Layer.
    * Pixel sampling needs an AOI, as a raster export does, so a Filter without geometries yields no
@@ -819,7 +838,11 @@ export default class SoilDataStorage {
     return pixels.map(pixel => rasterRowTranslation(layersById.get(pixel.layerId), pixel, sort));
   };
 
-  getSoilDataCount = async (requestData: RequestData, filter: DataFilter, datasetSlugs: string[]): Promise<number> => {
+  getSoilDataCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> => {
+    const datasetSlugs = await existingDatasetSlugs(requestData, requestedSlugs);
+    if (datasetSlugs.length === 0) {
+      return 0;
+    }
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
@@ -863,6 +886,7 @@ export default class SoilDataStorage {
 
     const whereClauses: string[] = [];
     const joins: string[] = [];
+    const effective = effectiveLayer('layer', 'ds');
 
     if (filters.data_types && filters.data_types.length > 0) {
       whereClauses.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
@@ -874,25 +898,25 @@ export default class SoilDataStorage {
       whereClauses.push('layer.sampling_date IS NULL');
     } else if (filters.min_sampling_date) {
       whereClauses.push(datasetEndsOnOrAfter('ds.reference_period_stop', p(filters.min_sampling_date)));
-      whereClauses.push(endsOnOrAfter('layer.sampling_date', p(filters.min_sampling_date)));
+      whereClauses.push(endsOnOrAfter(effective.stop, p(filters.min_sampling_date)));
     }
     if (filters.max_sampling_date === null) {
       whereClauses.push('layer.sampling_date IS NULL');
     } else if (filters.max_sampling_date) {
       whereClauses.push(startsOnOrBefore('ds.reference_period_start', p(filters.max_sampling_date)));
-      whereClauses.push(startsOnOrBefore('layer.sampling_date', p(filters.max_sampling_date)));
+      whereClauses.push(startsOnOrBefore(effective.start, p(filters.max_sampling_date)));
     }
     if (filters.min_depth === null) {
       whereClauses.push('layer.min_depth IS NULL');
     } else if (filters.min_depth !== undefined) {
       whereClauses.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
-      whereClauses.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+      whereClauses.push(`${effective.maxDepth} >= ${p(filters.min_depth)}`);
     }
     if (filters.max_depth === null) {
       whereClauses.push('layer.max_depth IS NULL');
     } else if (filters.max_depth !== undefined) {
       whereClauses.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
-      whereClauses.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+      whereClauses.push(`${effective.minDepth} <= ${p(filters.max_depth)}`);
     }
     if (filters.horizons && filters.horizons.length > 0) {
       const nonNull = filters.horizons.filter(h => h !== null);
@@ -909,7 +933,7 @@ export default class SoilDataStorage {
     }
     if (filters.licenses && filters.licenses.length > 0) {
       joins.push(`LEFT JOIN ${schema}.licenses lic ON lic.id = layer.license AND lic.deleted_at IS NULL`);
-      whereClauses.push(`lic.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
+      whereClauses.push(effectiveLicenseMatch('lic.slug', 'layer.license', 'ds', filters.licenses.map(v => p(v)).join(', ')));
     }
 
     const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n      AND ')}` : '';
@@ -1196,10 +1220,10 @@ const endsOnOrAfter = (column: string, param: string): string =>
 const startsOnOrBefore = (column: string, param: string): string => `${column} <= rpad(${param}::text, 10, '-99-99')`;
 
 /**
- * A vector Dataset's stored reference period stop is the text MAX of its Layers' dates, which picks
- * `2015-06-01` over `2015` though `2015` ends later. It is never wrong beyond its own year, so it is
- * compared at year precision: a coarser prune that never drops a Dataset with a matching Layer, whose
- * own date then decides. (Its stored start, the text MIN, is exact.)
+ * Vector Datasets loaded before ADR 0058 store their reference period stop as the text MAX of their
+ * Layers' dates, which picks `2015-06-01` over `2015` though `2015` ends later. It is never wrong beyond
+ * its own year, so it is compared at year precision: a coarser prune that never drops a Dataset with a
+ * matching Layer, whose own date then decides. (Its stored start, the text MIN, is exact.)
  */
 const datasetEndsOnOrAfter = (column: string, param: string): string => `LEFT(${column}, 4) >= LEFT(${param}::text, 4)`;
 
@@ -1208,7 +1232,33 @@ const datasetEndsOnOrAfter = (column: string, param: string): string => `LEFT(${
  * day for the comparison (`2015` as `2015-99-99`, which beats `2015-06-01`) and the padding is stripped
  * again; no real date has a month or day of 99. Plain MIN already gives the earliest start.
  */
-const latestEnding = (column: string): string => `regexp_replace(MAX(rpad(${column}, 10, '-99-99')), '(-99)+$', '')`;
+export const latestEnding = (column: string): string => `regexp_replace(MAX(rpad(${column}, 10, '-99-99')), '(-99)+$', '')`;
+
+/*
+ * Dataset fallback (CONTEXT.md, ADR 0058): bounded criteria and coverage summaries read a value the
+ * Layer did not record from its Dataset instead. Null criteria, and the dates and depths on rows, keep
+ * the recorded one.
+ */
+
+/** Effective period bounds and depth bounds of a vector Layer `layer` within Dataset `ds`. */
+const effectiveLayer = (layer: string, ds: string) => ({
+  start: `COALESCE(${layer}.sampling_date, ${ds}.reference_period_start)`,
+  stop: `COALESCE(${layer}.sampling_date, ${ds}.reference_period_stop)`,
+  minDepth: `COALESCE(${layer}.min_depth, (${ds}.soil_depth->>'min')::int)`,
+  maxDepth: `COALESCE(${layer}.max_depth, (${ds}.soil_depth->>'max')::int)`,
+});
+
+/** The same for a Raster Layer, aliased `rl`, of Dataset `ds`. */
+const EFFECTIVE_RASTER_LAYER = {
+  start: 'COALESCE(rl.reference_period_start, ds.reference_period_start)',
+  stop: 'COALESCE(rl.reference_period_stop, ds.reference_period_stop)',
+  minDepth: `COALESCE(rl.min_depth, (ds.soil_depth->>'min')::int)`,
+  maxDepth: `COALESCE(rl.max_depth, (ds.soil_depth->>'max')::int)`,
+};
+
+/** A recorded licence `licenseSlug` is selected, or the Layer has none and any of its Dataset's is. */
+const effectiveLicenseMatch = (licenseSlug: string, layerLicense: string, ds: string, placeholders: string): string =>
+  `(${licenseSlug} IN (${placeholders}) OR (${layerLicense} IS NULL AND ${ds}.licenses && ARRAY[${placeholders}]))`;
 
 /**
  * Whether a Filter's `data_types` criterion admits raster Datasets to coverage. Note an empty list
@@ -1237,22 +1287,22 @@ export const buildRasterLayerCriteria = (
   if (filters.min_depth === null) {
     whereClauses.push('rl.min_depth IS NULL');
   } else if (filters.min_depth !== undefined) {
-    whereClauses.push(`rl.max_depth >= ${p(filters.min_depth)}`);
+    whereClauses.push(`${EFFECTIVE_RASTER_LAYER.maxDepth} >= ${p(filters.min_depth)}`);
   }
   if (filters.max_depth === null) {
     whereClauses.push('rl.max_depth IS NULL');
   } else if (filters.max_depth !== undefined) {
-    whereClauses.push(`rl.min_depth <= ${p(filters.max_depth)}`);
+    whereClauses.push(`${EFFECTIVE_RASTER_LAYER.minDepth} <= ${p(filters.max_depth)}`);
   }
   if (filters.min_sampling_date === null) {
     whereClauses.push('rl.reference_period_start IS NULL');
   } else if (filters.min_sampling_date) {
-    whereClauses.push(endsOnOrAfter('rl.reference_period_stop', p(filters.min_sampling_date)));
+    whereClauses.push(endsOnOrAfter(EFFECTIVE_RASTER_LAYER.stop, p(filters.min_sampling_date)));
   }
   if (filters.max_sampling_date === null) {
     whereClauses.push('rl.reference_period_stop IS NULL');
   } else if (filters.max_sampling_date) {
-    whereClauses.push(startsOnOrBefore('rl.reference_period_start', p(filters.max_sampling_date)));
+    whereClauses.push(startsOnOrBefore(EFFECTIVE_RASTER_LAYER.start, p(filters.max_sampling_date)));
   }
   if (filters.soil_properties?.length) {
     whereClauses.push(`sp.slug IN (${filters.soil_properties.map(v => p(v)).join(', ')})`);
@@ -1317,7 +1367,8 @@ export interface ObservationCriteria {
  * through dataset_layers — extracted verbatim from buildRawSoilQuery so both it and
  * the data-requests job share one implementation of the null-vs-absent semantics
  * (`min_depth: null` means "no recorded depth", an absent min_depth means
- * "unconstrained"; see the Flagged ambiguities in CONTEXT.md).
+ * "unconstrained"; see the Flagged ambiguities in CONTEXT.md). Bounded criteria
+ * apply the Dataset fallback, so `aliases.dataset` must carry `licenses` too.
  *
  * With the default aliases and `includeVisibility` off, the emitted SQL and the
  * parameter order are byte-identical to what buildRawSoilQuery produced inline —
@@ -1337,6 +1388,7 @@ export const buildObservationCriteria = (
 ): ObservationCriteria => {
   const { dataset: ds, layer, soilProperty, license } = aliases;
   const whereClauses: string[] = [];
+  const effective = effectiveLayer(layer, ds);
   let needsLayerJoin = false;
   let needsSoilPropertyJoin = false;
   let needsLicenseJoin = false;
@@ -1354,7 +1406,7 @@ export const buildObservationCriteria = (
   } else if (filters.min_sampling_date) {
     needsLayerJoin = true;
     whereClauses.push(datasetEndsOnOrAfter(`${ds}.reference_period_stop`, p(filters.min_sampling_date)));
-    whereClauses.push(endsOnOrAfter(`${layer}.sampling_date`, p(filters.min_sampling_date)));
+    whereClauses.push(endsOnOrAfter(effective.stop, p(filters.min_sampling_date)));
   }
   if (filters.max_sampling_date === null) {
     needsLayerJoin = true;
@@ -1362,7 +1414,7 @@ export const buildObservationCriteria = (
   } else if (filters.max_sampling_date) {
     needsLayerJoin = true;
     whereClauses.push(startsOnOrBefore(`${ds}.reference_period_start`, p(filters.max_sampling_date)));
-    whereClauses.push(startsOnOrBefore(`${layer}.sampling_date`, p(filters.max_sampling_date)));
+    whereClauses.push(startsOnOrBefore(effective.start, p(filters.max_sampling_date)));
   }
   if (filters.min_depth === null) {
     needsLayerJoin = true;
@@ -1370,7 +1422,7 @@ export const buildObservationCriteria = (
   } else if (filters.min_depth !== undefined) {
     needsLayerJoin = true;
     whereClauses.push(`(${ds}.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
-    whereClauses.push(`${layer}.max_depth >= ${p(filters.min_depth)}`);
+    whereClauses.push(`${effective.maxDepth} >= ${p(filters.min_depth)}`);
   }
   if (filters.max_depth === null) {
     needsLayerJoin = true;
@@ -1378,7 +1430,7 @@ export const buildObservationCriteria = (
   } else if (filters.max_depth !== undefined) {
     needsLayerJoin = true;
     whereClauses.push(`(${ds}.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
-    whereClauses.push(`${layer}.min_depth <= ${p(filters.max_depth)}`);
+    whereClauses.push(`${effective.minDepth} <= ${p(filters.max_depth)}`);
   }
   if (filters.horizons && filters.horizons.length > 0) {
     needsLayerJoin = true;
@@ -1400,7 +1452,7 @@ export const buildObservationCriteria = (
     needsLayerJoin = true;
     needsLicenseJoin = true;
     const lPlaceholders = filters.licenses.map((v: string) => p(v)).join(', ');
-    whereClauses.push(`${license}.slug IN (${lPlaceholders})`);
+    whereClauses.push(effectiveLicenseMatch(`${license}.slug`, `${layer}.license`, ds, lPlaceholders));
   }
 
   return { whereClauses, needsLayerJoin, needsSoilPropertyJoin, needsLicenseJoin };
@@ -1419,6 +1471,9 @@ export const buildDatasetFilterClauses = (
   const lateralJoins: string[] = [];
   const lateralWhere: string[] = [];
   let needsLayerJoin = false;
+  // The Dataset fallback reads the Layer's Dataset inside the lateral part too
+  let needsDatasetJoin = false;
+  const effective = effectiveLayer('layer', 'ds');
 
   if (filters.data_types && filters.data_types.length > 0) {
     outerWhere.push(`ds.gis_datatype IN (${filters.data_types.map(v => p(v)).join(', ')})`);
@@ -1433,8 +1488,9 @@ export const buildDatasetFilterClauses = (
     needsLayerJoin = true;
   } else if (filters.min_sampling_date) {
     outerWhere.push(datasetEndsOnOrAfter('ds.reference_period_stop', p(filters.min_sampling_date)));
-    lateralWhere.push(endsOnOrAfter('layer.sampling_date', p(filters.min_sampling_date)));
+    lateralWhere.push(endsOnOrAfter(effective.stop, p(filters.min_sampling_date)));
     needsLayerJoin = true;
+    needsDatasetJoin = true;
   }
 
   if (filters.max_sampling_date === null) {
@@ -1442,8 +1498,9 @@ export const buildDatasetFilterClauses = (
     needsLayerJoin = true;
   } else if (filters.max_sampling_date) {
     outerWhere.push(startsOnOrBefore('ds.reference_period_start', p(filters.max_sampling_date)));
-    lateralWhere.push(startsOnOrBefore('layer.sampling_date', p(filters.max_sampling_date)));
+    lateralWhere.push(startsOnOrBefore(effective.start, p(filters.max_sampling_date)));
     needsLayerJoin = true;
+    needsDatasetJoin = true;
   }
 
   if (filters.min_depth === null) {
@@ -1451,8 +1508,9 @@ export const buildDatasetFilterClauses = (
     needsLayerJoin = true;
   } else if (filters.min_depth !== undefined) {
     outerWhere.push(`(ds.soil_depth->>'max')::int >= ${p(filters.min_depth)}`);
-    lateralWhere.push(`layer.max_depth >= ${p(filters.min_depth)}`);
+    lateralWhere.push(`${effective.maxDepth} >= ${p(filters.min_depth)}`);
     needsLayerJoin = true;
+    needsDatasetJoin = true;
   }
 
   if (filters.max_depth === null) {
@@ -1460,8 +1518,9 @@ export const buildDatasetFilterClauses = (
     needsLayerJoin = true;
   } else if (filters.max_depth !== undefined) {
     outerWhere.push(`(ds.soil_depth->>'min')::int <= ${p(filters.max_depth)}`);
-    lateralWhere.push(`layer.min_depth <= ${p(filters.max_depth)}`);
+    lateralWhere.push(`${effective.minDepth} <= ${p(filters.max_depth)}`);
     needsLayerJoin = true;
+    needsDatasetJoin = true;
   }
 
   if (filters.horizons && filters.horizons.length > 0) {
@@ -1480,8 +1539,13 @@ export const buildDatasetFilterClauses = (
 
   if (filters.licenses && filters.licenses.length > 0) {
     needsLayerJoin = true;
+    needsDatasetJoin = true;
     lateralJoins.push(`LEFT JOIN ${schema}.licenses lic ON lic.id = layer.license AND lic.deleted_at IS NULL`);
-    lateralWhere.push(`lic.slug IN (${filters.licenses.map(v => p(v)).join(', ')})`);
+    lateralWhere.push(effectiveLicenseMatch('lic.slug', 'layer.license', 'ds', filters.licenses.map(v => p(v)).join(', ')));
+  }
+
+  if (needsDatasetJoin) {
+    lateralJoins.push(`INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id`);
   }
 
   // Layer join must come first since license joins through it
@@ -1780,7 +1844,7 @@ const buildRawSoilQuery = (
     ${usesMatchingFeatures ? `${rasterCtes},` : candidate_features_cte}
     -- Resolve slug(s) to dataset id(s) first — drives the join order
     target_dataset AS MATERIALIZED (
-      SELECT ds.id, ds.gis_datatype, ds.reference_period_start, ds.reference_period_stop, ds.soil_depth
+      SELECT ds.id, ds.gis_datatype, ds.reference_period_start, ds.reference_period_stop, ds.soil_depth, ds.licenses
       FROM ${schema}.datasets ds
       WHERE ds.slug IN (${slugPlaceholders})
         AND ds.deleted_at IS NULL
@@ -1950,22 +2014,22 @@ const applyRasterLayerFilters = (query: SelectQueryBuilder<RasterLayerEntity>, f
   if (filters.min_depth === null) {
     query.andWhere('rl.min_depth IS NULL');
   } else if (filters.min_depth !== undefined) {
-    query.andWhere('rl.max_depth >= :min_depth', { min_depth: filters.min_depth });
+    query.andWhere(`${EFFECTIVE_RASTER_LAYER.maxDepth} >= :min_depth`, { min_depth: filters.min_depth });
   }
   if (filters.max_depth === null) {
     query.andWhere('rl.max_depth IS NULL');
   } else if (filters.max_depth !== undefined) {
-    query.andWhere('rl.min_depth <= :max_depth', { max_depth: filters.max_depth });
+    query.andWhere(`${EFFECTIVE_RASTER_LAYER.minDepth} <= :max_depth`, { max_depth: filters.max_depth });
   }
   if (filters.min_sampling_date === null) {
     query.andWhere('rl.reference_period_start IS NULL');
   } else if (filters.min_sampling_date) {
-    query.andWhere(endsOnOrAfter('rl.reference_period_stop', ':min_sampling_date'), { min_sampling_date: filters.min_sampling_date });
+    query.andWhere(endsOnOrAfter(EFFECTIVE_RASTER_LAYER.stop, ':min_sampling_date'), { min_sampling_date: filters.min_sampling_date });
   }
   if (filters.max_sampling_date === null) {
     query.andWhere('rl.reference_period_stop IS NULL');
   } else if (filters.max_sampling_date) {
-    query.andWhere(startsOnOrBefore('rl.reference_period_start', ':max_sampling_date'), { max_sampling_date: filters.max_sampling_date });
+    query.andWhere(startsOnOrBefore(EFFECTIVE_RASTER_LAYER.start, ':max_sampling_date'), { max_sampling_date: filters.max_sampling_date });
   }
   if (filters.soil_properties?.length) {
     query.andWhere('sp.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });

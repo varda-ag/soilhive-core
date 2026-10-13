@@ -8,6 +8,7 @@ import { DataRequestStatus, JobQueues } from '../types/enums';
 import { PG_BOSS_SCHEMA } from '../services/PgBoss';
 import { DataRequestParameters } from '../interfaces/DataRequest';
 import { DataRequestJob } from '../interfaces/Job';
+import { SamplingRange, samplingRangeOf, yearInSamplingRangeSql } from '../jobs/soil-indexes/samplingRange';
 
 /** One row per Observation (or score), before any fan-out across units. */
 const SST_OBS_DDL = `CREATE TEMP TABLE sst_obs (
@@ -82,8 +83,8 @@ export const stageObservations = async (
     return `$${params.length}`;
   };
   const slugPlaceholders = datasetSlugs.map(s => p(s)).join(', ');
-  // Coverage parity: filterVector applies status and visibility, which the
-  // /soil-data path does not (see buildObservationCriteria). Both are added here.
+  // Coverage parity: filterVector applies status and visibility in SQL, which
+  // buildObservationCriteria does not. Both are added here.
   const { whereClauses } = buildObservationCriteria(
     filter.parameters,
     p,
@@ -144,24 +145,32 @@ export interface StageScoresOptions {
   run: string;
   /** UserGeometry ids that are the Aggregation Units. */
   unitIds: string[];
+  /** The Filter's only criteria that apply to scores (docs/adr/0058). */
+  samplingRange: SamplingRange;
   onPhase: (description: string, percentage: number) => Promise<void>;
   assertNotCancelled: () => Promise<void>;
 }
 
 /**
  * Like stageObservations, but with a Soil Index Run's scores: each gets a synthetic Feature/Layer id
- * and belongs to the units containing its representative point (docs/adr/0039).
+ * and belongs to the units containing its representative point (docs/adr/0039). Of the Filter's
+ * criteria only the sampling dates apply (docs/adr/0058).
  */
 export const stageScores = async (em: EntityManager, options: StageScoresOptions): Promise<void> => {
-  const { run, unitIds } = options;
+  const { run, unitIds, samplingRange } = options;
   const schema = process.env.POSTGRES_SCHEMA;
 
+  const params: unknown[] = [run];
+  const p = (value: unknown): string => {
+    params.push(value);
+    return `$${params.length}`;
+  };
   await em.query(
     `CREATE TEMP TABLE sst_scores ON COMMIT DROP AS
      SELECT gen_random_uuid() AS score_id, s.value, s.year, s.soil_index_type, ST_PointOnSurface(s.geometry) AS pt
      FROM ${schema}.soil_index s
-     WHERE s.run = $1::uuid`,
-    [run],
+     WHERE s.run = $1::uuid AND ${yearInSamplingRangeSql('s.year', samplingRange, p)}`,
+    params,
   );
   await em.query('CREATE INDEX ON sst_scores USING GIST (pt)');
   await em.query('ANALYZE sst_scores');
@@ -208,7 +217,13 @@ export interface StageVariableOptions {
 export const stageVariable = async (em: EntityManager, options: StageVariableOptions): Promise<void> => {
   const { variable, unitIds, onPhase, assertNotCancelled } = options;
   if ('soilIndexRun' in variable) {
-    await stageScores(em, { run: variable.soilIndexRun, unitIds, onPhase, assertNotCancelled });
+    await stageScores(em, {
+      run: variable.soilIndexRun,
+      unitIds,
+      samplingRange: samplingRangeOf(options.filter.parameters),
+      onPhase,
+      assertNotCancelled,
+    });
     return;
   }
   await stageObservations(em, { ...options, soilPropertySlug: variable.soilPropertySlug });

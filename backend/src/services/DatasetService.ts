@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { getSubject, isPrivilegedCaller } from '../utils/auth';
+import { datasetExistsFor, getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
@@ -46,7 +46,7 @@ export default class DatasetService {
    */
   getDataset = async (requestData: RequestData, slug: string): Promise<DatasetEntity> => {
     const entity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
-    if (entity.status !== IngestionStatus.PUBLISHED && !isPrivilegedCaller(requestData.token)) {
+    if (!datasetExistsFor(requestData.token, entity.status)) {
       throw new ErrorResponse(`Resource '${slug}' not found`, StatusCodes.NOT_FOUND);
     }
     this.decorateWithCapabilities(entity, requestData);

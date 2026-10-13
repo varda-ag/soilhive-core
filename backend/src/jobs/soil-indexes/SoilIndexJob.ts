@@ -6,6 +6,7 @@ import { processRun, RunProduct } from '../runs/runContext';
 import { failureMessage } from '../runs/failureMessage';
 import { runCreaIndex } from './creaIndex';
 import { SoilIndexFeature } from './types';
+import { samplingRangeOf, yearInSamplingRange } from './samplingRange';
 import { writeSoilIndexRun } from '../../data-layer/SoilIndex';
 import { insertFailedSoilIndexRun, lockLiveSoilIndexJob, toSoilIndexRunParameters } from '../../data-layer/SoilIndexRuns';
 import { getJobCreatedOn, getPgBoss, updateJobState } from '../../services/PgBoss';
@@ -20,6 +21,24 @@ import { log } from '../../utils/logger';
 const INDEXES: Record<SoilIndexType, RunProduct<SoilIndexJob, SoilIndexFeature[]>> = {
   [SoilIndexType.CREA_INDEX]: { appliesRasterMask: false, run: runCreaIndex },
 };
+
+/**
+ * Narrows any Soil Index Type's scores to the Filter's sampling dates, the only criteria a Soil
+ * Index honours (docs/adr/0058). Done here, once, so no methodology can forget it. The range is
+ * written to job data and to the copy held here, as processRun does with the Units, so the record
+ * keeps it after the Filter is gone.
+ */
+const narrowedToSamplingRange = (index: RunProduct<SoilIndexJob, SoilIndexFeature[]>): RunProduct<SoilIndexJob, SoilIndexFeature[]> => ({
+  ...index,
+  run: async (ctx, data) => {
+    const range = samplingRangeOf(ctx.filter.parameters);
+    Object.assign(data, range);
+    await updateJobState(ctx.jobId, range as Partial<SoilIndexJob>);
+
+    const features = await index.run(ctx, data);
+    return features.filter(feature => yearInSamplingRange(feature.properties.year, range));
+  },
+});
 
 /**
  * Runs a Soil Index and records its outcome: the single write site for `soil_index_runs`
@@ -49,7 +68,7 @@ export async function processSoilIndex(job: Job<SoilIndexJob>): Promise<void> {
           supported: Object.keys(INDEXES).join(', '),
         });
       }
-      return index;
+      return narrowedToSamplingRange(index);
     });
     if (!features) {
       log.info('Soil index run cancelled, nothing written', { job_id: jobId });

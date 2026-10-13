@@ -12,7 +12,6 @@ import { JobError } from '../../errors/JobError';
 import { RunContext } from '../runs/runContext';
 import { StagedVariable } from '../../data-layer/DataRequests';
 import { soilIndexRunExists, soilIndexRunType } from '../../data-layer/SoilIndex';
-import { soilIndexFilterProblem } from './parameters';
 import { SoilIndexVariableHeader, SoilPropertyVariableHeader } from './types';
 
 /** The source Filter's criteria over the Aggregation Units. */
@@ -71,10 +70,6 @@ export const resolveVariable = async (ctx: RunContext, data: DataRequestJob): Pr
   const variable = data.variable!;
 
   if (variable.type === VariableType.SOIL_INDEX) {
-    const problem = soilIndexFilterProblem(data.filter_id, ctx.filter.parameters);
-    if (problem) {
-      throw new JobError('DR_INVALID_PARAMETERS', { reason: problem });
-    }
     if (!(await soilIndexRunExists(ctx.entityManager, variable.id))) {
       throw new JobError('DR_UNKNOWN_SOIL_INDEX_RUN', { run: variable.id });
     }

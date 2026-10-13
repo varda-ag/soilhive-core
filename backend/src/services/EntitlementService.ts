@@ -8,7 +8,7 @@ import { ConfigKind, EntitlementScope, type Entitlements, type CapabilityGrants,
 import { Capability } from '../types/enums';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
-import { getEntitySlugs } from '../utils/slugs';
+import { existingDatasetSlugs, getEntitySlugs } from '../utils/slugs';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { JsonStorage } from '../entities/JsonStorage';
@@ -505,5 +505,17 @@ export default class EntitlementService {
         throw new ErrorResponse(`User does not have ${capability} entitlement for ${scope} ${key}`, StatusCodes.FORBIDDEN);
       }
     }
+  }
+
+  /**
+   * The requested Dataset slugs that exist for the caller (docs/adr/0057), once `capability` is enforced on them.
+   * Filters before enforcing: a 403 on an unpublished private Dataset would confirm that it exists.
+   */
+  async enforceDatasetEntitlements(requestData: RequestData, slugs: string[], capability: Capability): Promise<string[]> {
+    const existing = await existingDatasetSlugs(requestData, slugs);
+    if (existing.length > 0) {
+      await this.enforceEntitlements(requestData, EntitlementScope.DATASETS, existing, capability);
+    }
+    return existing;
   }
 }

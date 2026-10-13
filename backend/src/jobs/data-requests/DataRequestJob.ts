@@ -1,6 +1,6 @@
 import { Job } from 'pg-boss';
 import { DataRequestJob } from '../../interfaces/Job';
-import { DataRequestStatus, StatisticsType } from '../../types/enums';
+import { DataRequestStatus, StatisticsType, VariableType } from '../../types/enums';
 import { JobError } from '../../errors/JobError';
 import { insertDataRequest, toDataRequestParameters } from '../../data-layer/DataRequests';
 import { getJobCreatedOn } from '../../services/PgBoss';
@@ -86,7 +86,9 @@ export async function processDataRequest(job: Job<DataRequestJob>): Promise<void
           supported: Object.keys(PRODUCERS).join(', '),
         });
       }
-      return producer;
+      // Scores are never masked: raster_filters are ignored for them (docs/adr/0058), so flagging
+      // the Units' area as raster-filtered would be a caveat about nothing.
+      return data.variable?.type === VariableType.SOIL_INDEX ? { ...producer, appliesRasterMask: false } : producer;
     });
   } catch (error) {
     // The failure the caller is told about must not be replaced by a failure to write it down.

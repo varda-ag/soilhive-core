@@ -10,6 +10,7 @@ import EntitlementService from '../../src/services/EntitlementService';
 import DatasetService from '../../src/services/DatasetService';
 import { EntitlementScope, ConfigKind, CapabilityGrants } from '../../src/types/Entitlements';
 import { Capability } from '../../src/types/enums';
+import { IngestionStatus } from '../../src/types/data';
 import DatasetEntity from '../../src/entities/Dataset';
 import LicenseEntity from '../../src/entities/License';
 import { log } from '../../src/utils/logger';
@@ -987,6 +988,33 @@ describe('EntitlementService', () => {
           expect(row.configs).toEqual({ 'dataset-1-renamed': ['download'] });
         });
       });
+    });
+  });
+
+  describe('enforceDatasetEntitlements', () => {
+    it('returns the existing slugs in their requested order, dropping unknown ones', async () => {
+      const grants = { 'dataset-2': [Capability.PREVIEW], 'dataset-3': [Capability.PREVIEW] };
+      const rd = { ...requestData, entitlements: { datasets: grants, configs: {} } };
+      await expect(service.enforceDatasetEntitlements(rd, ['dataset-3', 'non-existent', 'dataset-2'], Capability.PREVIEW)).resolves.toEqual(
+        ['dataset-3', 'dataset-2'],
+      );
+    });
+
+    it('throws 403 on a published private Dataset the user lacks the capability for', async () => {
+      await expect(service.enforceDatasetEntitlements(requestData, ['dataset-2'], Capability.DOWNLOAD)).rejects.toMatchObject({
+        status: 403,
+      });
+    });
+
+    it('drops an unpublished private Dataset instead of throwing 403, which would confirm it exists', async () => {
+      await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-2' }, { status: IngestionStatus.LOADED });
+      await expect(service.enforceDatasetEntitlements(requestData, ['dataset-2'], Capability.DOWNLOAD)).resolves.toEqual([]);
+    });
+
+    it('keeps an unpublished Dataset for a privileged caller', async () => {
+      await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-2' }, { status: IngestionStatus.LOADED });
+      const rd = { ...requestData, token: { ...mockToken, isDataAdmin: true } };
+      await expect(service.enforceDatasetEntitlements(rd, ['dataset-2'], Capability.DOWNLOAD)).resolves.toEqual(['dataset-2']);
     });
   });
 });

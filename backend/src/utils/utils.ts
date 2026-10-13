@@ -262,6 +262,11 @@ export const getSoilIndexMockScores = (): number => {
   return Number(process.env['SOIL_INDEX_MOCK_SCORES']) || 50_000;
 };
 
+/** CSV the mock `crea-index` scores from instead of random points; undefined when unset or blank. */
+export const getMockSoilIndexDataUrl = (): string | undefined => {
+  return process.env['MOCK_SOIL_INDEX_DATA']?.trim() || undefined;
+};
+
 /**
  * Vertices a Soil Index tile may hold before it is drawn as grid cells instead (docs/adr/0043).
  * Fixed per Run when the Run is written, so changing it affects only later Runs.

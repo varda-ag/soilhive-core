@@ -828,6 +828,42 @@ describe('processDataRequest', () => {
       ]);
     });
 
+    it("narrows a soil index run to the filter's sampling dates, ignores its other criteria and flags no raster mask", async () => {
+      const run = uuidv4();
+      const score = (value: number, year: number) => ({
+        type: 'Feature' as const,
+        id: uuidv4(),
+        geometry: { type: 'Point' as const, coordinates: [1, 1] },
+        properties: { value, year },
+      });
+      await writeSoilIndexRun(await getEntityManager(), run, SoilIndexType.CREA_INDEX, [
+        score(0.1, 2014),
+        score(0.4, 2016),
+        score(0.9, 2020),
+      ]);
+      const filterId = await createFilter([UNIT_A], {
+        min_sampling_date: '2015',
+        max_sampling_date: '2019-12-31',
+        min_depth: 0,
+        raster_filters: { land_cover: [30] },
+      });
+
+      const { jobId, job } = await createActiveJob({
+        filter_id: filterId,
+        statistics_type: StatisticsType.VALUE_RANGE,
+        variable: { type: VariableType.SOIL_INDEX, id: run },
+        time_aggregation: 'none',
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.data).toMatchObject({ run, n_scores: 1, min: 0.4, max: 0.4 });
+      expect(record.request.units).toHaveLength(1);
+      expect(record.request.units[0].raster_filtered).toBe(false);
+    });
+
     it('fails when the soil index run named has no partition by the time it runs', async () => {
       const filterId = await createFilter([UNIT_A]);
       const { job } = await createActiveJob({

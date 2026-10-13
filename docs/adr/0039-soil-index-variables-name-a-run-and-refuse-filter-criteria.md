@@ -1,5 +1,7 @@
 # A Soil Index variable names a Run, and refuses Filter criteria
 
+> **Amended by docs/adr/0058.** Filter criteria are no longer refused: the sampling dates now apply to scores and the rest are ignored.
+
 `class-distribution` and `value-range` accept `variable: { type: 'soil-index', id: '<Soil Index Run id>' }`. The population is that Run's scored geometries. Each one belongs to the units containing its representative point. A Run counts as completed when its `soil_index` partition is attached, never by its pg-boss job, which expires. A Filter carrying any criteria is refused: it supplies only the area.
 
 ## Considered options

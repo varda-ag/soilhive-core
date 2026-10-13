@@ -89,6 +89,24 @@ describe('Testing /jobs routes', () => {
     expect(res.body.detail ?? '').not.toContain('require the data-admin or super-admin scope');
   });
 
+  it('POST /jobs export answers a private Dataset that is not Published as an unknown one, with no 403 (docs/adr/0057)', async () => {
+    const exportSpy = jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
+    const dataset = await addDataset('unpublished-export-ds', [0, 0, 2, 2]);
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE datasets SET visibility = 'private', status = 'LOADED' WHERE id = $1`, [dataset.id]);
+    const submit = () =>
+      request(app)
+        .post('/jobs')
+        .send({ type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv'], dataset_ids: [dataset.slug] });
+
+    expect((await submit()).statusCode).toBe(201);
+
+    // Once Published, the same submission is refused: the 201 above is not for want of an entitlement check
+    await entityManager.query(`UPDATE datasets SET status = 'PUBLISHED' WHERE id = $1`, [dataset.id]);
+    expect((await submit()).statusCode).toBe(403);
+    exportSpy.mockRestore();
+  });
+
   it('POST /jobs creates two jobs, GET endpoints return both', async () => {
     const token = await getDataAdminToken();
 

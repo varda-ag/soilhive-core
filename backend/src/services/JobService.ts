@@ -3,7 +3,6 @@ import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
 import { AnyJob, ExportJob, Job, DataRequestJob, SoilIndexJob, RunJobData, BulkLoadJob } from '../interfaces/Job';
 import { Capability, JobQueues, SoilIndexType, StatisticsType, VariableType } from '../types/enums';
-import { EntitlementScope } from '../types/Entitlements';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
 import { createSignedPath } from '../utils/presigned-url';
@@ -12,7 +11,7 @@ import FilterService from './FilterService';
 import FileService from './FileService';
 import SoilPropertyService from './SoilPropertyService';
 import { DataFilter } from '../interfaces/DatasetFilter';
-import { misplacedParameter, notASoilIndexRun, parametersProblem, soilIndexFilterProblem } from '../jobs/data-requests/parameters';
+import { misplacedParameter, notASoilIndexRun, parametersProblem } from '../jobs/data-requests/parameters';
 import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
@@ -64,12 +63,7 @@ export default class JobService {
 
     // Checking entitlements
     if (data.type === JobQueues.EXPORT) {
-      await entitlementService.enforceEntitlements(
-        requestData,
-        EntitlementScope.DATASETS,
-        (data as ExportJob).dataset_ids,
-        Capability.DOWNLOAD,
-      );
+      await entitlementService.enforceDatasetEntitlements(requestData, (data as ExportJob).dataset_ids, Capability.DOWNLOAD);
     }
 
     if (data.type === JobQueues.DATA_REQUESTS) {
@@ -162,21 +156,17 @@ export default class JobService {
     }
 
     if (data.dataset_ids && data.dataset_ids.length > 0) {
-      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, data.dataset_ids, Capability.PREVIEW);
+      await entitlementService.enforceDatasetEntitlements(requestData, data.dataset_ids, Capability.PREVIEW);
     }
   };
 
   private validateVariable = async (requestData: RequestData, data: DataRequestJob, filter: DataFilter): Promise<void> => {
     const { id, type } = data.variable!;
 
-    // Needs an attached partition and a criteria-free Filter (docs/adr/0039).
+    // Needs an attached partition. The Filter's criteria other than its sampling dates are ignored (docs/adr/0058).
     if (type === VariableType.SOIL_INDEX) {
       if (!(await soilIndexRunExists(requestData.entityManager, id))) {
         throw new ErrorResponse(notASoilIndexRun(id), StatusCodes.BAD_REQUEST);
-      }
-      const problem = soilIndexFilterProblem(data.filter_id, filter.parameters);
-      if (problem) {
-        throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
       }
       return;
     }

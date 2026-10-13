@@ -124,6 +124,64 @@ describe('Menu Component', () => {
     expect(screen.getByTestId('test-icon')).toBeInTheDocument();
   });
 
+  describe('with groups', () => {
+    const groupedOptions: MenuOption[] = [
+      { code: 'a1', name: 'Apple', group: 'Fruits' },
+      { code: 'a2', name: 'Pear', group: 'Fruits' },
+      { code: 'v1', name: 'Leek', group: 'Vegetables' },
+    ];
+
+    // Headings and options, in the order the Menu shows them.
+    const rows = (container: HTMLElement) =>
+      Array.from(container.querySelectorAll('[data-testid="sh-ui-menugroup"], [data-testid="sh-ui-menuoption"]'), row => row.textContent);
+
+    it('shows one heading before the options of each group, in option order', () => {
+      const { container } = render(<Menu options={groupedOptions} onSelect={() => {}} />);
+
+      expect(rows(container)).toEqual(['Fruits', 'Apple', 'Pear', 'Vegetables', 'Leek']);
+      expect(screen.getAllByTestId('sh-ui-menuoption')).toHaveLength(3);
+    });
+
+    it('shows one heading for a group whose options are apart, where the group first appears', () => {
+      const [apple, pear, leek] = groupedOptions;
+      const { container } = render(<Menu options={[apple, leek, pear]} onSelect={() => {}} />);
+
+      expect(rows(container)).toEqual(['Fruits', 'Apple', 'Pear', 'Vegetables', 'Leek']);
+    });
+
+    it('selects nothing when a heading is clicked', () => {
+      const onSelect = jest.fn();
+      render(<Menu options={groupedOptions} onSelect={onSelect} />);
+
+      fireEvent.click(screen.getByText('Vegetables'));
+      expect(onSelect).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByText('Leek'));
+      expect(onSelect).toHaveBeenCalledWith(['v1']);
+    });
+
+    it('lists options without a group first, under no heading', () => {
+      const { container } = render(<Menu options={[...groupedOptions, { code: '1', name: 'Loose' }]} onSelect={() => {}} />);
+
+      expect(rows(container)).toEqual(['Loose', 'Fruits', 'Apple', 'Pear', 'Vegetables', 'Leek']);
+    });
+
+    it('takes an empty or null group as no group', () => {
+      const { container } = render(
+        <Menu
+          options={[
+            ...groupedOptions,
+            { code: 'e', name: 'Empty', group: '' },
+            { code: 'n', name: 'Null', group: null as unknown as string },
+          ]}
+          onSelect={() => {}}
+        />,
+      );
+
+      expect(rows(container)).toEqual(['Empty', 'Null', 'Fruits', 'Apple', 'Pear', 'Vegetables', 'Leek']);
+    });
+  });
+
   it('supports forwarded ref', () => {
     const ref = React.createRef<HTMLDivElement>();
 

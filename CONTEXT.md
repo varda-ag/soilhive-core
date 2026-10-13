@@ -29,12 +29,16 @@ A depth/date slice — `min_depth`, `max_depth`, `horizon`, `sampling_date` and 
 _Avoid_: Measurement, record, "the feature's layers" (a Layer is not owned by a Feature)
 
 **Partial date**:
-A sampling date or reference-period bound given only to the year (`2015`) or month (`2015-06`). It stands for the whole year or month it names: as a start it begins on that period's first day, as a stop or a sampling date it reaches that period's last day. So a Layer sampled in `2015` and a Raster Layer whose reference period stops at `2015` both overlap a date range starting in March 2015.
+A sampling date or reference-period bound given only to the year (`2015`) or month (`2015-06`). It stands for the whole year or month it names: as a start it begins on that period's first day, as a stop or a sampling date it reaches that period's last day. So a Layer sampled in `2015` and a Raster Layer whose reference period stops at `2015` both overlap a date range starting in March 2015. A **Scored Geometry**'s year is a Partial date too.
 _Avoid_: Approximate date, truncated date, year-only date (one kind of Partial date, not the concept)
 
 **DatasetLayer**:
 The join record that links a Feature to a Layer within a Dataset and associates it with a soil property. The atomic unit that a soil property measurement is attached to.
 _Avoid_: Measurement record, join
+
+**Dataset fallback**:
+For matching a **Filter** and summarising what matched (never for the dates and depths on rows or in **Soil Statistics**), a **DatasetLayer** whose **Layer** records no sampling date, depth bound or licence takes its **Dataset**'s reference period, matching depth bound or licences in its place (each depth bound separately). It matches by overlap, as a **Raster Layer** does: a fallback period matches any date range it overlaps, and fallback licences match when any one of them is selected. It applies per DatasetLayer, so in a Dataset where only some Layers are dated, the undated ones take the period the dated ones were summarised into.
+_Avoid_: Layer default, inherited date (a Layer is shared across Datasets and inherits nothing — the fallback belongs to the DatasetLayer)
 
 **Observation**:
 A single numeric measurement value. Each Observation belongs to exactly one DatasetLayer (and thus one soil property + one Layer).
@@ -225,11 +229,11 @@ The single ZIP an **Export** produces: a readme PDF, one file or worksheet per *
 _Avoid_: **Export** (the execution that produces it), the ZIP/the archive (names the container, and "archive" already means the reversible retirement of a **Dataset**), the download, output files
 
 **Ingestion Status**:
-The lifecycle stage of a Dataset — `PENDING`, `ONGOING`, `STAGED`, `LOADED`, `PUBLISHED`, `ARCHIVED` — recording how far its data has progressed through ingestion. A catalog/lifecycle attribute, **not** an access axis: it says whether a Dataset is offered in the catalog, never what a caller may do with its data. Access is governed by **Visibility** and **Entitlement** alone.
+The lifecycle stage of a Dataset — `PENDING`, `ONGOING`, `STAGED`, `LOADED`, `PUBLISHED`, `ARCHIVED` — recording how far its data has progressed through ingestion. **Not** an access axis: it decides whether a Dataset exists for a caller who is not a **Privileged caller**, never what that caller may do with it. Access is governed by **Visibility** and **Entitlement** alone.
 _Avoid_: State, stage, publication state, visibility (the access attribute), "active"/"live" (already taken — see Flagged ambiguities)
 
 **Published**:
-The Ingestion Status a Dataset must hold to be **listed** — to appear in the catalog and in every filter, coverage and DAI result. It is not a release of the data: a Dataset's soil data is readable through `/soil-data` by anyone holding its slug at any Ingestion Status, subject only to **Visibility** and **Entitlement**. Say "listed", never "released".
+The Ingestion Status a Dataset must hold to exist for a caller who is not a **Privileged caller**: to be listed, and for its data to be readable on any path. An unpublished Dataset is absent to such a caller, not forbidden, whatever its **Visibility**.
 _Avoid_: Live, public (that is a **Visibility** value), released, available, approved
 
 **Queued**:
@@ -297,9 +301,10 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Filter** has a *set* of zero or more **UserGeometries** (duplicates in a submission collapse to one); each **UserGeometry** may belong to more than one **Filter**
 - An **Aggregation Unit** *is* one **UserGeometry**; a **Derived Filter** has one Aggregation Unit per geometry of its source file, and equivalent geometries in that file collapse to a single Unit
 - A data-requests run has exactly one **Statistics Type** and one set of **Aggregation Units**; the Units are resolved identically for every type, and only what is computed over them differs
-- A **Class Distribution** is computed for one variable, which narrows within the **Filter**'s criteria and never widens them; over a **Soil Index** Run's scores the Filter must carry no criteria
+- A **Class Distribution** is computed for one variable, which narrows within the **Filter**'s criteria and never widens them; over a **Soil Index** Run's scores only the Filter's sampling dates narrow, and its other criteria are ignored
 - A **Run** computes either one **Statistics Type** or one **Soil Index**, never both; either way it resolves its **Aggregation Units** from one **Filter** and at most one source file, and summarises exactly those Units or scores within them
 - A Soil Index **Run** has zero or more **Scored Geometries**, each with one year; the same location may be scored in several years
+- A Soil Index **Run** keeps only the **Scored Geometries** whose year overlaps its **Filter**'s sampling dates, and records those dates, since the Filter may not outlive it; the Filter's other criteria never apply to scores
 - On a map, a **Year Window** groups **Scored Geometries** and never merges them across years: a location scored in three years of one window appears three times, once per score
 - On a map zoomed out past where a Run's **Scored Geometries** can be drawn one by one, those of the same year are summarised per grid cell (mean, extremes, count) rather than drawn; the summary never spans two years
 - An **Entitlement** grants one **Capability** over one **Dataset** or config item to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s
@@ -319,7 +324,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
 - An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
 - A **Dataset** accepts no edits while it has a Bulk Load, Raster Load or **Purge** Queued or running; being **Queued** is only the first part of that window
-- **Ingestion Status**, **Visibility** and **Entitlement** are three independent attributes of a Dataset: the first decides whether it is listed, the other two decide what may be done with its data
+- **Ingestion Status**, **Visibility** and **Entitlement** are three independent attributes of a Dataset: the first decides whether it exists for a non-privileged caller, the other two decide what that caller may do with its data
 
 ## Example dialogue
 
@@ -333,7 +338,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 > **Domain expert:** "Depends which delete. An **Archive** changes nothing — the **Entitlements** are still there, because the data is still there and we might bring it back. A **Purge** takes them with it: once the **Observations** are gone there is nothing left to be entitled to. And only ours — if the external endpoint still hands out `download` for that Dataset, that is its business, not ours."
 
 > **Dev:** "A **Dataset** is sitting at `LOADED` because the pH column was mis-mapped. Nobody outside can get at it, right?"
-> **Domain expert:** "Nobody can *find* it — it is not **Published**, so it is not in the catalog and not in any filter or coverage result. But **Published** only governs listing. Anyone who has the slug can still pull the **Observations**, because that path answers to **Visibility** and **Entitlement** and those say nothing about status. If the Dataset is `public`, the bad pH is one URL away. Fix the mapping or make it `private` — do not rely on it being unpublished."
+> **Domain expert:** "Right. It is not **Published**, so to anyone but a **Privileged caller** it does not exist: not in the catalog, not in any result, and its **Observations** cannot be read even with the slug. Public or private makes no difference until it is Published."
 
 > **Dev:** "Two of my fields overlap, and there's one sampling point in the overlap. Does it count once or twice?"
 > **Domain expert:** "Twice — once in each **Aggregation Unit**. 'Mean pH in this field' has to be the mean pH in that field, whatever else it overlaps. But the `overall` figure counts that **Observation** once, so don't expect the per-unit counts to add up to it."
@@ -343,6 +348,9 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 
 > **Dev:** "My three pH **Classes** add up to 94%. Where's the rest?"
 > **Domain expert:** "In `unclassified`: values outside every Class. It counts toward the whole, so a field whose values mostly miss your Classes doesn't look like one where none do."
+
+> **Dev:** "I filtered on 2018 and got LUCAS, but every row in the Preview table has a blank sampling date. Bug?"
+> **Domain expert:** "No — its Layers recorded no date, so they matched through the **Dataset fallback** on the Dataset's 2018 period. The fallback decides what matches; the rows still show what was recorded. Filter `min_sampling_date: null` instead to see only the data with no recorded date."
 
 **Preprocessing Steps** (`preprocessing_steps`):
 An optional free-text field on a Dataset that documents the data cleaning and transformation steps applied to the raw source data prior to ingestion. Set by data admins; not computed by the system.
@@ -356,7 +364,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 - **"Config" names two things.** A **Config item** is stored, owned and entitlement-gated; the deployment's auth and storage configuration is derived from the environment and is neither. The API keeps the singular `config` for the latter and the plural `configs` for the collection of Config items.
 - **"scope" names both storage namespaces and Config Kinds.** `GET /entitlements?scope=` accepts `datasets`, `configs` and `dashboards`, but only the first two are namespaces. Resolved: `dashboards` is a **Config Kind**, a filtered view over `configs`; the query param keeps its name because it is API.
-- **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: it means **listed only**. Every dataset-listing path pins `status = 'PUBLISHED'`, but `/soil-data` deliberately does not — an unpublished Dataset's Observations are readable by anyone holding its slug, gated by **Visibility** and **Entitlement** and nothing else. So "unpublished datasets aren't visible" is true of the catalog and false of the data. Always say *where*.
+- **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: for a non-privileged caller it means both, because an unpublished Dataset is absent everywhere. It was once "listed only" (ADR 0034), leaving `/soil-data` open by slug; that is superseded.
 - **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.
 - **"Preview" names both a Capability and a view.** Resolved: `preview` is the **Capability**; the table on the Data Explorer page is the **Preview table**, which needs that Capability. Never say "the preview" for the table.
 
@@ -366,7 +374,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - Export failure messages say **"records"** for **Observations**, the word a user sees as rows in their files. It is a UI label only; in domain discussions and on admin pages say Observations.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
-- A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria.
+- A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria. A null criterion sees what the Layer *recorded* and ignores the **Dataset fallback**, while a bounded one sees the fallback — so `min_sampling_date: null` finds exactly the data whose date match would otherwise rest on its Dataset's period.
 - **A File with no metadata is not a category.** Absent metadata means one of three unrelated things: a **Non-spatial File** (never probed), a File created by the raster ingestion CLI (which describes the raster by other means), or a test fixture. Never treat "has no metadata" as a way to identify Non-spatial Files — the distinction is known to whoever uploaded the File, not recoverable from the File itself.
 - **A data mapping means two different things depending on the Dataset's Data Type.** For a point or polygonal File its entries are *column references* — "the column named X supplies the sampling date". For a raster File its entries are a **Band Mapping**: keyed by Band number, and the values are *literal values* rather than references, because a Band has no columns to point at. The container is shared; the meaning is not. In domain discussions say **column mapping** or **Band Mapping**, never bare "mapping".
 

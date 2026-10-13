@@ -156,6 +156,17 @@ describe('Testing /data-requests routes', () => {
       expect(res.statusCode).toBe(403);
     });
 
+    // The test above is the same Dataset, Published
+    it('accepts a named private dataset that is not Published, as it would an unknown one (docs/adr/0057)', async () => {
+      const dataset = await addDataset('unpublished-dr-ds', [0, 0, 2, 2], GISDataType.POINT);
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE datasets SET visibility = 'private', status = 'LOADED' WHERE id = $1`, [dataset.id]);
+
+      const filterId = await createFilter([polygon]);
+      const res = await submit(await descriptive(filterId, { dataset_ids: [dataset.slug] }));
+      expect(res.statusCode).toBe(201);
+    });
+
     it('rejects a missing statistics_type', async () => {
       const filterId = await createFilter([polygon]);
       const res = await submit({ filter_id: filterId });
@@ -465,10 +476,9 @@ describe('Testing /data-requests routes', () => {
       expect(res.body.detail).toContain('is not a completed soil index run');
     });
 
-    it('rejects a filter that carries any criteria', async () => {
-      const res = await submitOverRun(await writeRun(), {}, { min_depth: 0, max_depth: 30 });
-      expect(res.statusCode).toBe(400);
-      expect(res.body.detail).toContain('do not apply to soil index scores');
+    it('accepts a filter with criteria: the sampling dates apply to scores and the rest are ignored', async () => {
+      const res = await submitOverRun(await writeRun(), {}, { min_depth: 0, max_depth: 30, min_sampling_date: '2015' });
+      expect(res.statusCode).toBe(201);
     });
 
     it('rejects dataset_ids and depth_ranges, which scores have no use for', async () => {

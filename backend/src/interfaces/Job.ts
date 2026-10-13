@@ -1,5 +1,6 @@
 import type { StatisticsType, SoilIndexType, VariableType, DepthRanges, ValueType, ClassMethod } from '../types/enums';
 import type { AggregationUnit } from '../jobs/runs/types';
+import type { SamplingRange } from '../jobs/soil-indexes/samplingRange';
 
 export type AnyJob =
   | BulkLoadJob
@@ -158,7 +159,8 @@ export interface SoilIndexJobParameters extends RunJobParameters {
   config_id?: string;
 }
 
-export interface SoilIndexJob extends SoilIndexJobParameters, RunJobData {}
+/** `SamplingRange`: the Filter's sampling dates as applied to the scores, written by the processor (docs/adr/0058). */
+export interface SoilIndexJob extends SoilIndexJobParameters, RunJobData, SamplingRange {}
 
 /** Enqueued by a completed Soil Index Run, never by a caller. */
 export interface SoilIndexTilesJob {

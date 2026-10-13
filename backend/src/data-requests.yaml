@@ -359,8 +359,9 @@ components:
         Required by every statistics_type: what it is computed for. A `soil-property` must exist and be admitted by
         the filter's own soil property criterion, if it has one. A `soil-index` names a completed
         soil index run, whose scores are read in place of observations: each score belongs to the
-        areas containing its representative point, the filter must carry no criteria at all (it
-        supplies only the area), and dataset_ids and depth_ranges are rejected. Holding the run id
+        areas containing its representative point, only scores whose year falls within the filter's
+        min_sampling_date and max_sampling_date count, its other criteria are ignored, and
+        dataset_ids and depth_ranges are rejected. Holding the run id
         is the whole of the permission to read its scores.
       additionalProperties: false
       required:

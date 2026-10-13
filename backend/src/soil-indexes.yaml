@@ -25,7 +25,9 @@ components:
           format: uuid
           description: >-
             Filter supplying the aggregation areas, unless file_id is given — in which case the
-            filter's own geometries are not used.
+            filter's own geometries are not used. Of its criteria only min_sampling_date and
+            max_sampling_date apply: scores whose year falls outside them are dropped. The rest are
+            ignored.
         file_id:
           type: string
           description: >-
@@ -62,6 +64,16 @@ components:
           type: string
         config_id:
           type: string
+        min_sampling_date:
+          type: string
+          nullable: true
+          description: >-
+            The filter's bound as applied to the scores, copied so it outlives the filter. Absent
+            when the filter has none; null keeps only scores with no year.
+        max_sampling_date:
+          type: string
+          nullable: true
+          description: As min_sampling_date.
         derived_filter_id:
           type: string
           format: uuid

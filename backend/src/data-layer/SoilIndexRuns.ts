@@ -5,6 +5,7 @@ import { DataRequestStatus, JobQueues } from '../types/enums';
 import { SoilIndexJob } from '../interfaces/Job';
 import { SoilIndexRunOutput, SoilIndexRunParameters } from '../interfaces/SoilIndexRun';
 import { soilIndexPartition, soilIndexTilesPartition } from './SoilIndex';
+import { samplingRangeOf } from '../jobs/soil-indexes/samplingRange';
 
 /** A Soil Index Run's `soil_index_runs` row, as `/soil-indexes` reads it (docs/adr/0044). */
 export interface SoilIndexRunRecord {
@@ -30,6 +31,7 @@ export const toSoilIndexRunParameters = (data: SoilIndexJob): SoilIndexRunParame
   ...(data.file_id !== undefined ? { file_id: data.file_id } : {}),
   ...(data.label_field !== undefined ? { label_field: data.label_field } : {}),
   ...(data.config_id !== undefined ? { config_id: data.config_id } : {}),
+  ...samplingRangeOf(data),
   derived_filter_id: data.derived_filter_id ?? null,
   unit_count: data.unit_count ?? 0,
   units: data.units ?? [],
