@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react';
 import {
   Map,
   NavigationControl,
@@ -18,6 +18,7 @@ import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
 import type { MapLibreEvent } from 'maplibre-gl';
 import GeocoderControl from './GeocoderControl';
+import { answerMapRequests } from './mapRequest';
 import MarkerPinIcon from 'assets/icons/marker-pin-icon.svg?react';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
@@ -36,6 +37,10 @@ interface SoilhiveSimpleMapProps {
   minZoom?: number;
   maxZoom?: number;
   onBboxChange?: (bbox: number[]) => void;
+  // Once the map has loaded its style.
+  onLoad?: () => void;
+  // Drawn inside the map, above its own layers: e.g. a <Source> with its <Layer>s.
+  children?: ReactNode;
 }
 
 const geometryFillLayer: LayerProps = {
@@ -135,6 +140,8 @@ function SoilhiveSimpleMap({
   minZoom = 0,
   maxZoom = 24,
   onBboxChange = undefined,
+  onLoad = undefined,
+  children = undefined,
 }: SoilhiveSimpleMapProps) {
   const geometryLayer = geometryStyle === 'fill' ? geometryFillLayer : geometryLineLayer;
   const mapRef = useRef<any>(null);
@@ -182,8 +189,11 @@ function SoilhiveSimpleMap({
   }, [fitBoundsToGeometryFeature, geometryFeature, selectedFeature]);
 
   function onMapLoad(mapEvent: MapLibreEvent) {
+    // So the dashboard PDF export can wait for the map to finish loading before capturing it.
+    answerMapRequests(mapEvent.target);
     updateH3Cells(mapEvent);
     fitBoundsToGeometryFeature();
+    onLoad?.();
   }
 
   function onMapRender(mapEvent: MapLibreEvent) {
@@ -205,6 +215,9 @@ function SoilhiveSimpleMap({
         renderWorldCopies={false}
         dragRotate={false}
         mapStyle={mapStyle}
+        // Keeps the last frame readable after it's drawn, so the dashboard PDF export can capture
+        // the map; without it, the canvas reads back blank.
+        canvasContextAttributes={{ preserveDrawingBuffer: true }}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onDragEnd={updateH3Cells}
         onLoad={onMapLoad}
@@ -226,6 +239,7 @@ function SoilhiveSimpleMap({
           </Source>
         )}
         {selectedFeature && <MapSelection feature={selectedFeature} />}
+        {children}
         {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}
       </Map>
     </div>
