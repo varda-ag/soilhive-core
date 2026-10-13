@@ -29,6 +29,6 @@ A Dataset that is already LOADED or PUBLISHED can take more Files, and a loaded 
 - `files.status` is the "needs a load" flag, which assumes a File belongs to one Dataset.
 - A loaded vector File's mapping is read-only: `updateMapping` refuses a content change with 409, and the preview step hides loaded Files.
 - A normalization always starts from the source, so the File-level `unit_conversion_applied` flag can no longer hide a conversion added to another band later.
-- A scaled File converted before `source_file_path` was recorded falls back to the `_cog.tif` naming convention. If its original is gone, a conversion change fails with `RL_SOURCE_FILE_NOT_FOUND`.
+- A scaled File converted before `source_file_path` was recorded falls back to the name its converted copy was given. A File loaded before `loaded_bands` was recorded is ingested again on any edit, so if its original is gone, any edit to it fails with `RL_SOURCE_FILE_NOT_FOUND`. The source is resolved while the load is planned, so that failure comes before anything is written and the File keeps its layers.
 - Deleting layers on failure removes them from Raster Layer groups, and the retry recreates them with new ids.
 - A worker that dies mid-load leaves the Dataset ONGOING. The previous status is not stored, so a retry ends it LOADED and it has to be published again by hand.

@@ -1030,6 +1030,14 @@ describe('RasterLoader', () => {
       const dataSource = await getDataSource();
       return dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: datasetId });
     };
+    /** The largest band 1 pixel of whatever the file record points at, read from scratch storage. */
+    const maxOfBand1 = async (storageDir: string, fileId: string): Promise<number> => {
+      const tiff = await fromFile(path.join(storageDir, (await getFile(fileId)).file_path));
+      const [band1] = (await (await tiff.getImage(0)).readRasters({ samples: [0] })) as unknown as ArrayLike<number>[];
+      let max = -Infinity;
+      for (let i = 0; i < band1!.length; i++) max = Math.max(max, band1![i] as number);
+      return max;
+    };
 
     it('ingests only the new file, leaving the layers of a loaded one untouched', async () => {
       const { dataset, file, property } = await setUpRasterLoad(uniqueName('add-file'), slug => ({ '1': bandEntry(slug, 0, 5) }));
@@ -1169,23 +1177,16 @@ describe('RasterLoader', () => {
           ],
         },
       );
-      const maxOfBand1 = async (): Promise<number> => {
-        const tiff = await fromFile(path.join(storageDir, (await getFile(file.id)).file_path));
-        const [band1] = (await (await tiff.getImage(0)).readRasters({ samples: [0] })) as unknown as ArrayLike<number>[];
-        let max = -Infinity;
-        for (let i = 0; i < band1!.length; i++) max = Math.max(max, band1![i] as number);
-        return max;
-      };
 
       await processRasterLoad(getJob(dataset.slug));
-      expect(await maxOfBand1()).toBeCloseTo(77 * 10, 0);
+      expect(await maxOfBand1(storageDir, file.id)).toBeCloseTo(77 * 10, 0);
       const [before] = await getLayers(file.id);
 
       await remap(dataset.id, file.id, { '1': bandEntry(property.slug, 0, 5, conversions![1]!.slug) });
       await processRasterLoad(getJob(dataset.slug));
 
       // From the source's 77, not from the first run's 770.
-      expect(await maxOfBand1()).toBeCloseTo(77 * 1000, 0);
+      expect(await maxOfBand1(storageDir, file.id)).toBeCloseTo(77 * 1000, 0);
       expect((await getFile(file.id)).metadata).toMatchObject({ source_file_path: MULTIBAND_FILE, unit_conversion_applied: true });
       // Re-ingested in place: the layer keeps its identity.
       expect((await getLayers(file.id)).map(layer => layer.id)).toEqual([before!.id]);
@@ -1217,20 +1218,73 @@ describe('RasterLoader', () => {
       expect(layer!.is_categorical).toBe(true);
     });
 
-    it('refuses to re-normalize a scaled file whose source cannot be found', async () => {
-      const { dataset, file } = await setUpRasterLoad(uniqueName('lost-source'), slug => ({ '1': bandEntry(slug, 0, 5) }));
-      // A file normalized before source_file_path was recorded, whose original is gone.
+    it('refuses a scaled file whose source cannot be found before writing anything, so it keeps its layers', async () => {
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('lost-source'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        status: IngestionStatus.PUBLISHED,
+      });
+      await processRasterLoad(getJob(dataset.slug));
+      const before = await getLayers(file.id);
+      // As a file loaded before source_file_path and loaded_bands were recorded, whose original is gone.
       const dataSource = await getDataSource();
       await dataSource.query(
-        `UPDATE files SET file_path = 'gone_cog.tif', metadata = metadata || '{"unit_conversion_applied": true}'::jsonb WHERE id = $1`,
+        `UPDATE files SET file_path = 'gone_cog.tif',
+           metadata = (metadata - 'source_file_path' - 'loaded_bands') || '{"unit_conversion_applied": true}'::jsonb
+         WHERE id = $1`,
         [file.id],
       );
+      // With nothing recorded about its last load, even a description edit re-ingests the file.
+      await remap(dataset.id, file.id, { '1': { ...bandEntry(property.slug, 0, 5), layer_description: 'Edited.' } });
 
       await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({
         name: 'JobError',
         code: 'RL_SOURCE_FILE_NOT_FOUND',
         params: { file_name: file.name },
       });
+
+      expect((await getLayers(file.id)).map(layer => layer.id)).toEqual(before.map(layer => layer.id));
+      expect((await getFile(file.id)).file_path).toBe('gone_cog.tif');
+      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.PUBLISHED);
+    });
+
+    it.each(['legacy_upload.tiff', 'LEGACY_UPLOAD.TIF'])(
+      'finds the source of a file scaled before source_file_path was recorded, uploaded as %s',
+      async fileName => {
+        const storageDir = useScratchStorage();
+        fs.copyFileSync(path.join(rasterAssetsPath, MULTIBAND_FILE), path.join(storageDir, fileName));
+        const { dataset, file } = await setUpRasterLoad(
+          uniqueName('legacy-source'),
+          (slug, conversionSlug) => ({ '1': bandEntry(slug, 0, 5, conversionSlug!) }),
+          { bandCount: 1, fileName, unitConversion: { originalUnit: 'cg/kg', formula: 'x*10' } },
+        );
+        // Pointed at its converted copy, named the way convertRasterFile names it.
+        const dataSource = await getDataSource();
+        await dataSource.query(
+          `UPDATE files SET file_path = $2, metadata = metadata || '{"unit_conversion_applied": true}'::jsonb WHERE id = $1`,
+          [file.id, fileName.replace(/(\.tif)?$/i, '_cog.tif')],
+        );
+
+        await processRasterLoad(getJob(dataset.slug));
+
+        // Scaled once, from the source's 77.
+        expect(await maxOfBand1(storageDir, file.id)).toBeCloseTo(77 * 10, 0);
+        expect((await getLayers(file.id)).map(layer => layer.band)).toEqual([1]);
+      },
+    );
+
+    it('starts from the file as it stands when its recorded source is gone and it was never scaled', async () => {
+      const { dataset, file, property } = await setUpRasterLoad(uniqueName('gone-unscaled-source'), slug => ({
+        '1': bandEntry(slug, 0, 5),
+      }));
+      await processRasterLoad(getJob(dataset.slug));
+      const dataSource = await getDataSource();
+      await dataSource.query(`UPDATE files SET metadata = metadata || '{"source_file_path": "gone.tif"}'::jsonb WHERE id = $1`, [file.id]);
+
+      // A new band makes the whole file ingest again.
+      await remap(dataset.id, file.id, { '1': bandEntry(property.slug, 0, 5), '2': bandEntry(property.slug, 5, 15) });
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect((await getFile(file.id)).file_path).toBe(MULTIBAND_FILE);
+      expect((await getLayers(file.id)).map(layer => layer.band)).toEqual([1, 2]);
     });
 
     it('on failure, removes the layers of the files it touched and publishes the dataset again', async () => {

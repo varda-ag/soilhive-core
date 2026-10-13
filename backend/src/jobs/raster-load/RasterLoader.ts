@@ -66,6 +66,8 @@ interface FilePlan {
   forceCog: boolean;
   /** Bands with a layer that the mapping no longer names. */
   removedBands: number[];
+  /** What an ingest starts from (see resolveSourceFile); null to start from the file as it stands. */
+  sourcePath: string | null;
 }
 
 export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> {
@@ -105,7 +107,9 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     // rather than from the pixels, so it cannot be applied on top of a previous run's output.
     for (const plan of ingestPlans) {
       touchedFileIds.add(plan.file.id);
-      await resetToSourceFile(entityManager, plan.file);
+      if (plan.sourcePath) {
+        await resetToSourceFile(entityManager, plan.file.id, plan.sourcePath);
+      }
     }
 
     // Normalize each file once, before any band is ingested: conversion is per file, so doing it
@@ -320,36 +324,56 @@ const planMode = (file: FileEntity, bands: StagedBand[], existingBands: Set<numb
 };
 
 /**
- * Points the file back at the upload as it was before any normalization, and forgets the scaling a
- * previous normalization applied, so the one about to run starts from the original pixels.
+ * Where an ingest of the file starts from: the upload as it was before any normalization, so the one
+ * about to run applies to the original pixels rather than to a previous run's output. Null when the
+ * file as it stands is that starting point.
  *
- * Files normalized before source_file_path was recorded fall back to the deterministic name the
- * converted output was given (`<source>.tif` → `<source>_cog.tif`). A file whose pixels were scaled
- * and whose source cannot be found is refused: ingesting it would apply the conversion again.
+ * Read-only, and called while the plans are prepared, so a file that cannot be normalized again fails
+ * the load before anything is written. Refusing it any later would cost the file its layers, since
+ * the catch in processRasterLoad removes the layers of every file the run has touched.
+ *
+ * A recorded source is checked to still exist: repointing the file at a missing one would leave it
+ * unreadable. A file whose pixels were scaled and whose source cannot be found is refused, because
+ * ingesting it would apply the conversion again.
  */
-const resetToSourceFile = async (entityManager: EntityManager, file: FileEntity): Promise<void> => {
-  const [row] = await entityManager.query(`SELECT file_path, metadata FROM files WHERE id = $1`, [file.id]);
-  const filePath: string = row.file_path;
-  const metadata = row.metadata as RasterFileMetadata | null;
-
-  let sourcePath: string | null = metadata?.source_file_path ?? null;
-  if (!sourcePath && filePath.endsWith('_cog.tif')) {
-    const candidate = filePath.replace(/_cog\.tif$/, '.tif');
-    if (await FileService.getStorageEngine().fileExists(candidate)) {
-      sourcePath = candidate;
+const resolveSourceFile = async (file: FileEntity): Promise<string | null> => {
+  const metadata = file.metadata as RasterFileMetadata | undefined;
+  const candidates = metadata?.source_file_path ? [metadata.source_file_path] : legacySourceCandidates(file.file_path);
+  const storage = FileService.getStorageEngine();
+  for (const candidate of candidates) {
+    if (await storage.fileExists(candidate)) {
+      return candidate;
     }
   }
-  if (!sourcePath) {
-    if (metadata?.unit_conversion_applied) {
-      throw new JobError('RL_SOURCE_FILE_NOT_FOUND', { file_name: file.name });
-    }
-    // Never scaled: the file as it stands is a valid starting point, converted for layout at most.
-    return;
+  if (metadata?.unit_conversion_applied) {
+    throw new JobError('RL_SOURCE_FILE_NOT_FOUND', { file_name: file.name });
   }
+  // Never scaled: the file as it stands is a valid starting point, converted for layout at most.
+  return null;
+};
 
+/**
+ * The uploads a file normalized before source_file_path was recorded may have been converted from.
+ * convertRasterFile names its output by replacing a trailing `.tif` of any case with `_cog.tif`, and
+ * by appending `_cog.tif` to any other name, so `<base>_cog.tif` came from `<base>.tif`, `<base>.TIF`
+ * or `<base>` itself (`x.tiff` → `x.tiff_cog.tif`).
+ */
+const legacySourceCandidates = (filePath: string): string[] => {
+  if (!filePath.endsWith('_cog.tif')) {
+    return [];
+  }
+  const base = filePath.slice(0, -'_cog.tif'.length);
+  return [`${base}.tif`, `${base}.TIF`, base];
+};
+
+/**
+ * Points the file back at its source (see resolveSourceFile) and forgets the scaling a previous
+ * normalization applied, so the one about to run starts from the original pixels.
+ */
+const resetToSourceFile = async (entityManager: EntityManager, fileId: string, sourcePath: string): Promise<void> => {
   await entityManager.query(
     `UPDATE files SET file_path = $2, metadata = COALESCE(metadata, '{}'::jsonb) - 'unit_conversion_applied', updated_at = now() WHERE id = $1`,
-    [file.id, sourcePath],
+    [fileId, sourcePath],
   );
 };
 
@@ -432,7 +456,8 @@ const normalizeFiles = async (
 /**
  * Resolves each file's Band Mapping and checks every band against the bands the file actually has,
  * along with the auxiliary Files its additional resources reference, then plans how each file's
- * mapping gets applied (see planMode).
+ * mapping gets applied (see planMode) and what each file to be ingested starts from (see
+ * resolveSourceFile).
  *
  * Band counts come from the metadata probed at upload, so an invalid band is rejected without
  * opening the raster. Bands a mapping does not name are skipped, which is how uncertainty and
@@ -498,17 +523,23 @@ const prepareFilePlans = async (
     }
   }
 
-  return files.map(file => {
+  // One file at a time, so a refusal from resolveSourceFile always names the same file.
+  const plans: FilePlan[] = [];
+  for (const file of files) {
     const bands = bandsByFile.get(file.id)!;
     const existing = existingBands.get(file.id)!;
     const mapped = new Set(bands.map(({ bandMapping }) => bandMapping.band));
-    return {
+    const { mode, forceCog } = planMode(file, bands, existing);
+    plans.push({
       file,
       bands,
-      ...planMode(file, bands, existing),
+      mode,
+      forceCog,
       removedBands: [...existing].filter(band => !mapped.has(band)),
-    };
-  });
+      sourcePath: mode === 'ingest' && bands.length > 0 ? await resolveSourceFile(file) : null,
+    });
+  }
+  return plans;
 };
 
 /**
