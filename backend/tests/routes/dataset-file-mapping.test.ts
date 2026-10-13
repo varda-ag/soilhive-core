@@ -4,6 +4,9 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { StatusCodes } from 'http-status-codes';
 import { addFile, addSyntheticIngestionData, syntheticIngestionDataOptions } from '../../src/utils/mock';
+import FileEntity from '../../src/entities/File';
+import { IngestionStatus } from '../../src/types/data';
+import { getDataSource } from '../../src/utils/data-source';
 
 describe('Testing /datasets/{datasetId}/dataset-file-mapping routes', () => {
   describe('POST /datasets/{datasetId}/dataset-file-mapping', () => {
@@ -149,6 +152,70 @@ describe('Testing /datasets/{datasetId}/dataset-file-mapping routes', () => {
       expect(datasetFileMappingUpdate.statusCode).toBe(StatusCodes.OK);
       expect(datasetFileMappingUpdate.body.mappingId).toBe(mapping.body.id);
       expect(datasetFileMappingUpdate.body.fileID).toBe(file.slug);
+    });
+
+    describe('repointing a loaded file at a different mapping', () => {
+      /** A dataset with one LOADED file mapped to `iron`, and a second mapping that declares `zinc` instead. */
+      const setUpLoadedFile = async (isRaster: boolean) => {
+        const token = await getDataAdminToken();
+        const dataset = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'Loaded file dataset' });
+        const loaded = await request(app)
+          .post('/mappings')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ iron: { property_id: 'iron', conversion_id: 'mg/kg' } });
+        const edited = await request(app)
+          .post('/mappings')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ zinc: { property_id: 'zinc', conversion_id: 'mg/kg' } });
+
+        const file = await addFile(`loaded-file-${isRaster ? 'raster' : 'vector'}`);
+        const dataSource = await getDataSource();
+        await dataSource
+          .getRepository(FileEntity)
+          .update({ id: file.id }, { status: IngestionStatus.LOADED, metadata: { is_raster: isRaster } as FileEntity['metadata'] });
+
+        const datasetFileMapping = await request(app)
+          .post(`/datasets/${dataset.body.id}/dataset-file-mapping`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ mappingId: loaded.body.id, fileID: file.slug });
+
+        const patch = (mappingId: string) =>
+          request(app)
+            .patch(`/datasets/${dataset.body.id}/dataset-file-mapping/${datasetFileMapping.body.id}`)
+            .set('Authorization', `Bearer ${token}`)
+            .send({ mappingId });
+        const fileStatus = async () => (await dataSource.getRepository(FileEntity).findOneByOrFail({ id: file.id })).status;
+
+        return { loadedMappingId: loaded.body.id as string, editedMappingId: edited.body.id as string, patch, fileStatus };
+      };
+
+      it('puts a raster file back to PENDING when the mapping content changed', async () => {
+        const { editedMappingId, patch, fileStatus } = await setUpLoadedFile(true);
+
+        const response = await patch(editedMappingId);
+
+        expect(response.statusCode).toBe(StatusCodes.OK);
+        expect(response.body.mappingId).toBe(editedMappingId);
+        expect(await fileStatus()).toBe(IngestionStatus.PENDING);
+      });
+
+      it('leaves a raster file LOADED when the mapping is unchanged', async () => {
+        const { loadedMappingId, patch, fileStatus } = await setUpLoadedFile(true);
+
+        const response = await patch(loadedMappingId);
+
+        expect(response.statusCode).toBe(StatusCodes.OK);
+        expect(await fileStatus()).toBe(IngestionStatus.LOADED);
+      });
+
+      it('refuses with 409 for a loaded vector file, whose staged records are gone', async () => {
+        const { editedMappingId, patch, fileStatus } = await setUpLoadedFile(false);
+
+        const response = await patch(editedMappingId);
+
+        expect(response.statusCode).toBe(StatusCodes.CONFLICT);
+        expect(await fileStatus()).toBe(IngestionStatus.LOADED);
+      });
     });
   });
 

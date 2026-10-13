@@ -300,6 +300,54 @@ describe('BulkLoader class', () => {
     mockMakeRequest.mockRestore();
   });
 
+  it('hides a PUBLISHED dataset while it loads more files and publishes it again afterwards', async () => {
+    const options = JSON.parse(JSON.stringify(syntheticIngestionDataOptions));
+    delete options.columnMapping.bdfi33.max_val;
+    delete options.columnMapping.bdfiod.min_val;
+    delete options.columnMapping.drop_records;
+    const { dataset } = await addSyntheticIngestionData({ ...options });
+    dataset.status = IngestionStatus.PUBLISHED;
+    await dataset.save();
+
+    const dataSource = await getDataSource();
+    const statusOf = async () => (await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id })).status;
+    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const statusesWhileLoading: IngestionStatus[] = [];
+    const mockMakeRequest = jest
+      .spyOn(BulkLoaderModule, 'makeRequest')
+      .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
+        statusesWhileLoading.push(await statusOf());
+        const response = await request(app)
+          .post(`/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`)
+          .set('Authorization', `Bearer ${token}`)
+          .send(payload);
+        expect(response.statusCode).toBe(StatusCodes.CREATED);
+        return response;
+      });
+
+    await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
+
+    expect(statusesWhileLoading.length).toBeGreaterThan(0);
+    expect(statusesWhileLoading.every(status => status === IngestionStatus.ONGOING)).toBe(true);
+    expect(await statusOf()).toBe(IngestionStatus.PUBLISHED);
+
+    mockMakeRequest.mockRestore();
+  });
+
+  it('leaves a PUBLISHED dataset PENDING when a load fails, rather than publishing it half-loaded', async () => {
+    const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    dataset.status = IngestionStatus.PUBLISHED;
+    await dataset.save();
+    const mockMakeRequest = jest.spyOn(BulkLoaderModule, 'makeRequest').mockRejectedValue(new Error('write failed'));
+
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({ code: 'BL_RECORD_WRITE_FAILED' });
+
+    const dataSource = await getDataSource();
+    expect((await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id })).status).toBe(IngestionStatus.PENDING);
+
+    mockMakeRequest.mockRestore();
+  });
+
   it('Bulk loading treats POST /soil-data error properly', async () => {
     const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
 
