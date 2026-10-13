@@ -22,7 +22,7 @@ interface Props {
 export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { t } = useTranslation(['availability', 'common']);
 
-  const { isDesktopLayout, isMobileLayout } = useDevice();
+  const { isDesktopLayout, isMobileDevice } = useDevice();
   const { availableDatasets, filterId, datasetFrontendFilters, datasetsSummary, isCoverageLoading, isDatasetsLoading } = useAvailability();
   const { selectionType, locationName } = useAvailabilityMap();
   const { can } = useEntitlements(EntitlementScope.DATASETS);
@@ -90,7 +90,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
           <Button
             className={styles.DownloadButton}
-            isDisabled={isMobileLayout || downloadDatasetIds.length === 0}
+            isDisabled={isMobileDevice || downloadDatasetIds.length === 0}
             onClick={handleDownloadClick}
           >
             <DownloadIcon />

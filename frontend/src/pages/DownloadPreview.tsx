@@ -28,7 +28,7 @@ const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 function DownloadPreview() {
   const navigate = useNavigate();
   const { t } = useTranslation(['download', 'common']);
-  const { isMobileLayout } = useDevice();
+  const { isMobileDevice } = useDevice();
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -189,7 +189,7 @@ function DownloadPreview() {
             <ArrowLeftIcon />
             {t('download_preview.back')}
           </Button>
-          <Button type="primary" className={styles.DownloadButton} isDisabled={isMobileLayout} onClick={navigateToDownload}>
+          <Button type="primary" className={styles.DownloadButton} isDisabled={isMobileDevice} onClick={navigateToDownload}>
             <DownloadIcon />
             {t('download_preview.download_button')}
           </Button>

@@ -10,7 +10,7 @@ import DownloadPreview from '../pages/DownloadPreview';
 import Availability from '../pages/Availability';
 
 const AvailabilityDataLayout = () => {
-  const { isMobileLayout } = useDevice();
+  const { isMobileDevice } = useDevice();
   const { t } = useTranslation(['common']);
   const [showMobileDialog, setShowMobileDialog] = useState(true);
 
@@ -18,7 +18,7 @@ const AvailabilityDataLayout = () => {
     <AvailabilityProvider>
       <Outlet />
       <InfoDialog
-        isVisible={isMobileLayout && showMobileDialog}
+        isVisible={isMobileDevice && showMobileDialog}
         storageKey="no-download-on-mobile"
         header={t('mobile_download_dialog.header')}
         title={t('mobile_download_dialog.title')}
