@@ -205,7 +205,7 @@ For an "upload via a button" flow instead of drag-and-drop, use the `onUploadCli
 
 ## Using host data and hooks (`PluginContext`)
 
-Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, stored filters by id, the logged-in user, your plugin's own persisted config, and dataset metadata URLs.
+Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, stored filters by id, the logged-in user, your plugin's own persisted config, dataset metadata URLs, and a client for your plugin's own backend.
 
 See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`, plus an optional `requiresAuth`.
 
@@ -471,6 +471,68 @@ const SoilIndexLayer: React.FC<{ context: PluginContext; runId: string }> = ({ c
 ```
 
 This draws scored points and cells, which are points at every zoom. If the Run scores polygons, add a `fill` layer filtered on `['==', ['geometry-type'], 'Polygon']` for them, and filter this one on `['==', ['geometry-type'], 'Point']`.
+
+### Calling your plugin's own backend
+
+If your plugin's deployment also serves an API, call it with `context.usePluginApi(pluginId)`. It returns a client with `get`, `post`, `put`, `patch` and `delete`. Paths are relative to your backend: `api.get('/zones')` calls your backend's `/zones`.
+
+The client does not call your backend directly. It calls the core backend at `{BACKEND_BASE_URL}/plugins/{pluginId}/zones`, and the core backend forwards the call to your backend. So your backend needs no CORS setup for the host, and the host attaches the signed-in user's token. On a `401`, the host tries to renew the token and retry once, as it does for its own calls. See `soilhive-core` ADR 0059.
+
+> The core backend does not serve `/plugins/{pluginId}/` yet. Until it does, every call rejects with a `404`.
+
+```tsx
+import { useEffect, useState } from 'react';
+import type { PluginApiError, PluginContext } from 'frontend-plugin-types';
+
+type Zone = { id: string; name: string };
+
+const Zones: React.FC<{ context: PluginContext; bbox: string }> = ({ context, bbox }) => {
+  const api = context.usePluginApi('my-plugin');
+  const [zones, setZones] = useState<Zone[]>();
+  const [error, setError] = useState<PluginApiError>();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .get<Zone[]>('/zones', { params: { bbox }, signal: controller.signal })
+      .then(setZones)
+      .catch(caught => {
+        // An abort is this effect cleaning up, not a failure.
+        if (caught.name !== 'AbortError') setError(caught);
+      });
+    return () => controller.abort();
+  }, [api, bbox]);
+
+  if (error?.status === 404) return <p>No zones here.</p>;
+  if (error) return <p>{error.message}</p>;
+  return (
+    <ul>
+      {zones?.map(zone => (
+        <li key={zone.id}>{zone.name}</li>
+      ))}
+    </ul>
+  );
+};
+```
+
+`usePluginApi` returns the same client on every render for the same `pluginId`, so it is safe in effect dependencies. The client only sends requests. It does not cache results. If your plugin bundles its own `@tanstack/react-query`, call the client from `queryFn`: `queryFn: ({ signal }) => api.get<Zone[]>('/zones', { params: { bbox }, signal })`.
+
+Every method takes an optional last `options` argument:
+
+| Option | Meaning |
+|---|---|
+| `params` | Query string parameters. An array repeats its key once per item: `{ type: ['a', 'b'] }` sends `?type=a&type=b`. `null` and `undefined` values leave the key out |
+| `headers` | Extra request headers |
+| `signal` | An `AbortSignal`. Aborting rejects the call with the `AbortError` itself |
+| `responseType` | `'json'` (default) or `'blob'`. With `'blob'`, the call reads a response of any type as a `Blob`, for example a file download. Without it, the response must be JSON, or the call rejects |
+
+`post`, `put` and `patch` take a body before `options`. They send it as JSON, or as multipart when it is a `FormData`. A `204` or an empty response resolves to `undefined`.
+
+The client never shows a toast. A failed call rejects with a `PluginApiError`. This is an `Error` with the response's `status` (`0` when there was no response) and its JSON `body`, if it had one. For an HTTP error, `message` is the body's `detail` or `message` field.
+
+The client encodes `pluginId` as one path segment. A path that resolves outside `/plugins/{pluginId}/`, for example `'/../other-plugin/zones'`, rejects before anything is sent. Encode any value you put in a path yourself: ``api.get(`/zones/${encodeURIComponent(zoneId)}`)``.
+
+In local preview there is no core backend, so the mock context's client rejects every call. To reach your backend in local preview, pass your own client: `createMockContext({ usePluginApi: () => myApi })`.
 
 ## Registering your plugin with the host
 

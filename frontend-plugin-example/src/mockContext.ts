@@ -1,4 +1,5 @@
 import type {
+  PluginApi,
   PluginConfigEntitlements,
   PluginConfigResult,
   PluginContext,
@@ -209,6 +210,14 @@ const notifications: PluginNotificationsResult = {
   showNotification: notification => console.info('[notification]', notification),
 };
 
+// Stub: local preview has no core backend to forward calls to your backend, so every call rejects
+// the way a call that got no response does. Pass your own through createMockContext's overrides.
+const noBackend = async (): Promise<never> => {
+  throw Object.assign(new Error('The plugin API is not available in local preview'), { name: 'PluginApiError', status: 0 });
+};
+
+const pluginApi: PluginApi = { get: noBackend, post: noBackend, put: noBackend, patch: noBackend, delete: noBackend };
+
 export const createMockContext = (overrides: Partial<PluginContext> = {}): PluginContext => ({
   user: { profile: { name: 'Local Preview User' } },
   useTheme: () => query(theme),
@@ -236,5 +245,6 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   metadataUrl: datasetId => `https://local.preview/datasets/${datasetId}`,
   // No host toast stack in local preview, so notifications go to the console.
   useNotifications: () => notifications,
+  usePluginApi: () => pluginApi,
   ...overrides,
 });

@@ -1,3 +1,4 @@
+import type { PluginApi } from './api';
 import type {
   PluginConfigEntitlements,
   PluginConfigResult,
@@ -33,6 +34,7 @@ export * from './soil';
 export * from './dataRequest';
 export * from './notification';
 export * from './soilIndex';
+export * from './api';
 
 export interface PluginContext {
   user?: PluginUser | null;
@@ -93,4 +95,8 @@ export interface PluginContext {
   // Shows a toast in the host's stack. Ids are namespaced under plugin:{pluginId}:, so they
   // never collide with the host's or another plugin's.
   useNotifications: (pluginId: string) => PluginNotificationsResult;
+  // Calls the plugin's own backend through the core backend, which forwards /plugins/{pluginId}/...
+  // to it: the call goes where every host call goes, with the signed-in user's token. Never toasts:
+  // a failed call rejects with a PluginApiError for the plugin to handle.
+  usePluginApi: (pluginId: string) => PluginApi;
 }
