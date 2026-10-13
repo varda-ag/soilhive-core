@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
 import { useNavigate } from 'react-router';
-import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 import { useSoilData } from 'hooks/useSoilData';
 
@@ -62,6 +62,7 @@ describe('DownloadPreview', () => {
 
   afterEach(() => {
     __resetIsMobileLayout();
+    __resetIsMobileDevice();
   });
 
   it('renders download preview page', () => {
@@ -69,11 +70,18 @@ describe('DownloadPreview', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('disables download button on mobile', () => {
-    __setIsMobileLayout(true);
+  it('disables download button on a phone', () => {
+    __setIsMobileDevice(true);
     render(<DownloadPreview />);
     const downloadButton = screen.getByRole('button', { name: /download data/i });
     expect(downloadButton).toBeDisabled();
+  });
+
+  it('enables download button in a narrow window on a laptop', () => {
+    __setIsMobileLayout(true);
+    render(<DownloadPreview />);
+    const downloadButton = screen.getByRole('button', { name: /download data/i });
+    expect(downloadButton).toBeEnabled();
   });
 
   it('calls navigate when clicking on download button on desktop', async () => {

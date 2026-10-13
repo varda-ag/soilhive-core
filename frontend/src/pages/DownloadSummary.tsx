@@ -53,7 +53,7 @@ export const MIXED_FORMAT_OPTIONS: FormatOption[] = [
 function DownloadSummary() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
-  const { isMobileLayout } = useDevice();
+  const { isMobileDevice } = useDevice();
   const { startDownload, setIsOpened } = useDownloads();
 
   const [searchParams] = useSearchParams();
@@ -258,7 +258,7 @@ function DownloadSummary() {
               size="medium"
               type="primary"
               className={styles.DownloadButton}
-              isDisabled={isMobileLayout || isLoading || !termsAgreed || selectedDatasets.length === 0}
+              isDisabled={isMobileDevice || isLoading || !termsAgreed || selectedDatasets.length === 0}
               onClick={onDownloadButtonClick}
             >
               <DownloadIcon />

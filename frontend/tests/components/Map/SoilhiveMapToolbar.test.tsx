@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import SoilhiveMapToolbar from 'components/Map/SoilhiveMapToolbar';
-import { __setIsMobileLayout, __resetIsMobileLayout } from 'hooks/useDevice';
+import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 
 jest.mock('hooks/useDevice');
 
@@ -12,6 +12,7 @@ describe('SoilhiveMapToolbar', () => {
 
   afterEach(() => {
     __resetIsMobileLayout();
+    __resetIsMobileDevice();
     jest.clearAllMocks();
   });
 
@@ -20,10 +21,16 @@ describe('SoilhiveMapToolbar', () => {
     expect(screen.getByText('Polygon')).toBeInTheDocument();
   });
 
-  it('does not render the polygon button on mobile', () => {
-    __setIsMobileLayout(true);
+  it('does not render the polygon button on a phone', () => {
+    __setIsMobileDevice(true);
     render(<SoilhiveMapToolbar {...defaultProps} />);
     expect(screen.queryByText('Polygon')).not.toBeInTheDocument();
+  });
+
+  it('renders the polygon button in a narrow window on a laptop', () => {
+    __setIsMobileLayout(true);
+    render(<SoilhiveMapToolbar {...defaultProps} />);
+    expect(screen.getByText('Polygon')).toBeInTheDocument();
   });
 
   it('does not render an upload option when onUploadClick is omitted (the plugin scenario)', () => {

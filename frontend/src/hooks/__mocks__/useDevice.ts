@@ -2,11 +2,13 @@ const defaultIsDesktopLayout = false;
 const defaultIsMobileLayout = false;
 const defaultIsTouchScreen = false;
 const defaultIsTabletLayout = false;
+const defaultIsMobileDevice = false;
 
 export let __isDesktopLayout = defaultIsDesktopLayout;
 export let __isMobileLayout = defaultIsMobileLayout;
 export let __isTabletLayout = defaultIsTabletLayout;
 export let __isTouchScreen = defaultIsTouchScreen;
+export let __isMobileDevice = defaultIsMobileDevice;
 
 export const __setIsMobileLayout = (isMobileLayout: boolean) => {
   __isMobileLayout = isMobileLayout;
@@ -22,6 +24,10 @@ export const __setIsDesktopLayout = (isDesktopLayout: boolean) => {
 
 export const __setIsTouchScreen = (isTouchScreen: boolean) => {
   __isTouchScreen = isTouchScreen;
+};
+
+export const __setIsMobileDevice = (isMobileDevice: boolean) => {
+  __isMobileDevice = isMobileDevice;
 };
 
 export const __resetIsMobileLayout = () => {
@@ -40,12 +46,17 @@ export const __resetIsTouchScreen = () => {
   __isTouchScreen = defaultIsTouchScreen;
 };
 
+export const __resetIsMobileDevice = () => {
+  __isMobileDevice = defaultIsMobileDevice;
+};
+
 const useDevice = () => {
   return {
     isMobileLayout: __isMobileLayout,
     isTabletLayout: __isTabletLayout,
     isTouchScreen: __isTouchScreen,
     isDesktopLayout: __isDesktopLayout,
+    isMobileDevice: __isMobileDevice,
   };
 };
 
