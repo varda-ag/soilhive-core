@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react';
 import {
   Map,
   NavigationControl,
@@ -16,7 +16,7 @@ import { bbox as bboxFn } from '@turf/turf';
 import { EOX_SATELLITE_MAP_STYLE, h3ResolutionForZoomLevel } from '../../utilities/map';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
-import type { MapLibreEvent } from 'maplibre-gl';
+import type { Map as MapLibreMap, MapLibreEvent } from 'maplibre-gl';
 import GeocoderControl from './GeocoderControl';
 import MarkerPinIcon from 'assets/icons/marker-pin-icon.svg?react';
 
@@ -36,6 +36,13 @@ interface SoilhiveSimpleMapProps {
   minZoom?: number;
   maxZoom?: number;
   onBboxChange?: (bbox: number[]) => void;
+  // Once the map has loaded its style.
+  onLoad?: (map: MapLibreMap) => void;
+  // Keeps the last frame readable after it's drawn, so the map can be captured as an image. Off by
+  // default: it can slow drawing on some devices.
+  preserveDrawingBuffer?: boolean;
+  // Drawn inside the map, above its own layers: e.g. a <Source> with its <Layer>s.
+  children?: ReactNode;
 }
 
 const geometryFillLayer: LayerProps = {
@@ -135,6 +142,9 @@ function SoilhiveSimpleMap({
   minZoom = 0,
   maxZoom = 24,
   onBboxChange = undefined,
+  onLoad = undefined,
+  preserveDrawingBuffer = false,
+  children = undefined,
 }: SoilhiveSimpleMapProps) {
   const geometryLayer = geometryStyle === 'fill' ? geometryFillLayer : geometryLineLayer;
   const mapRef = useRef<any>(null);
@@ -184,6 +194,7 @@ function SoilhiveSimpleMap({
   function onMapLoad(mapEvent: MapLibreEvent) {
     updateH3Cells(mapEvent);
     fitBoundsToGeometryFeature();
+    onLoad?.(mapEvent.target);
   }
 
   function onMapRender(mapEvent: MapLibreEvent) {
@@ -205,6 +216,8 @@ function SoilhiveSimpleMap({
         renderWorldCopies={false}
         dragRotate={false}
         mapStyle={mapStyle}
+        // Read when the map is created: a later change has no effect.
+        canvasContextAttributes={{ preserveDrawingBuffer }}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onDragEnd={updateH3Cells}
         onLoad={onMapLoad}
@@ -226,6 +239,7 @@ function SoilhiveSimpleMap({
           </Source>
         )}
         {selectedFeature && <MapSelection feature={selectedFeature} />}
+        {children}
         {showNavigation && <NavigationControl position="bottom-right" showCompass={false} showZoom={true} visualizePitch={false} />}
       </Map>
     </div>
