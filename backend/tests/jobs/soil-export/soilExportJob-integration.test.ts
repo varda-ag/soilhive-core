@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterAll, afterEach, jest 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import extractZip from 'extract-zip';
+import { extractZip } from '../../../src/utils/zip';
 import request from 'supertest';
 import { FileStorage } from '@flystorage/file-storage';
 import { app } from '../../../src/app';
