@@ -1,6 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
-import { requestMap } from 'components/Map/mapRequest';
 
 jest.mock('utilities/map', () => ({
   EOX_SATELLITE_MAP_STYLE: 'eox-style',
@@ -97,21 +96,23 @@ describe('SoilhiveSimpleMap', () => {
     expect(screen.getByTestId('map')).toContainElement(screen.getByTestId('child'));
   });
 
-  it('keeps the drawing buffer, so the map can be captured as an image', () => {
-    render(<SoilhiveSimpleMap />);
+  it('keeps the drawing buffer only when asked, so that only a map to capture as an image pays for it', () => {
+    const { unmount } = render(<SoilhiveSimpleMap />);
+    expect(screen.getByTestId('map').dataset.preserveDrawingBuffer).toBe('false');
+    unmount();
 
+    render(<SoilhiveSimpleMap preserveDrawingBuffer />);
     expect(screen.getByTestId('map').dataset.preserveDrawingBuffer).toBe('true');
   });
 
-  it('calls onLoad once the map has loaded, and from then on answers requests for the map', () => {
+  it('calls onLoad with the map once it has loaded', () => {
     const onLoad = jest.fn();
     render(<SoilhiveSimpleMap onLoad={onLoad} />);
-    const container = screen.getByTestId('map');
-    expect(requestMap(container)).toBeUndefined();
+    expect(onLoad).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByTestId('trigger-load'));
 
     expect(onLoad).toHaveBeenCalledTimes(1);
-    expect(requestMap(container)?.getContainer()).toBe(container);
+    expect(onLoad.mock.calls[0][0].getContainer()).toBe(screen.getByTestId('map'));
   });
 });

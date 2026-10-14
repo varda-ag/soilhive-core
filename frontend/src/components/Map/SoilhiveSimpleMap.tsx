@@ -16,9 +16,8 @@ import { bbox as bboxFn } from '@turf/turf';
 import { EOX_SATELLITE_MAP_STYLE, h3ResolutionForZoomLevel } from '../../utilities/map';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import type { Feature, FeatureCollection, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'geojson';
-import type { MapLibreEvent } from 'maplibre-gl';
+import type { Map as MapLibreMap, MapLibreEvent } from 'maplibre-gl';
 import GeocoderControl from './GeocoderControl';
-import { answerMapRequests } from './mapRequest';
 import MarkerPinIcon from 'assets/icons/marker-pin-icon.svg?react';
 
 type MapStyle = string | StyleSpecification | ImmutableLike<StyleSpecification>;
@@ -38,7 +37,10 @@ interface SoilhiveSimpleMapProps {
   maxZoom?: number;
   onBboxChange?: (bbox: number[]) => void;
   // Once the map has loaded its style.
-  onLoad?: () => void;
+  onLoad?: (map: MapLibreMap) => void;
+  // Keeps the last frame readable after it's drawn, so the map can be captured as an image. Off by
+  // default: it can slow drawing on some devices.
+  preserveDrawingBuffer?: boolean;
   // Drawn inside the map, above its own layers: e.g. a <Source> with its <Layer>s.
   children?: ReactNode;
 }
@@ -141,6 +143,7 @@ function SoilhiveSimpleMap({
   maxZoom = 24,
   onBboxChange = undefined,
   onLoad = undefined,
+  preserveDrawingBuffer = false,
   children = undefined,
 }: SoilhiveSimpleMapProps) {
   const geometryLayer = geometryStyle === 'fill' ? geometryFillLayer : geometryLineLayer;
@@ -189,11 +192,9 @@ function SoilhiveSimpleMap({
   }, [fitBoundsToGeometryFeature, geometryFeature, selectedFeature]);
 
   function onMapLoad(mapEvent: MapLibreEvent) {
-    // So the dashboard PDF export can wait for the map to finish loading before capturing it.
-    answerMapRequests(mapEvent.target);
     updateH3Cells(mapEvent);
     fitBoundsToGeometryFeature();
-    onLoad?.();
+    onLoad?.(mapEvent.target);
   }
 
   function onMapRender(mapEvent: MapLibreEvent) {
@@ -215,9 +216,8 @@ function SoilhiveSimpleMap({
         renderWorldCopies={false}
         dragRotate={false}
         mapStyle={mapStyle}
-        // Keeps the last frame readable after it's drawn, so the dashboard PDF export can capture
-        // the map; without it, the canvas reads back blank.
-        canvasContextAttributes={{ preserveDrawingBuffer: true }}
+        // Read when the map is created: a later change has no effect.
+        canvasContextAttributes={{ preserveDrawingBuffer }}
         {...(initialViewBoundingBox ? { initialViewState: { bounds: initialViewBoundingBox } } : {})}
         onDragEnd={updateH3Cells}
         onLoad={onMapLoad}
