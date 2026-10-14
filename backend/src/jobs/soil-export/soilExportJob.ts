@@ -282,11 +282,9 @@ async function exportRasterData(
 
   const writer = new RasterFileWriter(fileFormat, tempDir);
   const maskCache = new Map<string, string>();
-  // Raster Layer Asset content, memoized per file_id for the duration of this job run: a File
-  // referenced by several exported layers is read from storage once, but still written into
-  // every referencing layer's own assets subfolder — the ZIP is not smaller in that case, each
-  // layer's folder just stays self-contained.
-  const assetContentCache = new Map<string, Buffer>();
+  // file_id → local path of the first written copy of a Raster Layer Asset. A File referenced by
+  // several layers is read from storage once and copied locally into each layer's own subfolder.
+  const assetPathCache = new Map<string, string>();
   let totalLayersProcessed = 0;
 
   try {
@@ -312,7 +310,7 @@ async function exportRasterData(
 
       totalLayersProcessed++;
 
-      await writeRasterLayerAssets(writer, layer, targetCrs, assetsByLayerId.get(layer.id) ?? [], assetContentCache, jobId);
+      await writeRasterLayerAssets(writer, layer, targetCrs, assetsByLayerId.get(layer.id) ?? [], assetPathCache, jobId);
 
       const stored_data = await getJobData(jobId);
       const progress_percentage = computeCombinedProgress(
@@ -373,41 +371,41 @@ async function getMaskForLayer(
 
 /**
  * Writes a layer's Raster Layer Assets into its assets subfolder, once its raster output has
- * already been written to the ZIP. Each unique File is read from storage once per job run
- * (memoized in `assetContentCache` by file_id) and written into every referencing layer's own
- * subfolder. A storage read failure is logged and only that asset is skipped — never fatal to
- * the export job, and never cached, so a later layer referencing the same File gets its own
- * attempt (and its own warning) rather than silently inheriting the first failure.
+ * already been written to the ZIP. Each unique File is streamed from storage once per job run;
+ * later layers referencing it copy the first local copy (`assetPathCache`, by file_id). A storage
+ * read failure is logged and only that asset is skipped — never fatal to the export job, and
+ * never cached, so a later layer referencing the same File gets its own attempt (and its own
+ * warning) rather than silently inheriting the first failure.
  */
 async function writeRasterLayerAssets(
   writer: RasterFileWriter,
   layer: FilteredRasterLayer,
   targetCrs: number | undefined,
   assets: RasterLayerAssetFile[],
-  assetContentCache: Map<string, Buffer>,
+  assetPathCache: Map<string, string>,
   jobId: string,
 ): Promise<void> {
   if (assets.length === 0) return;
 
   const layerName = writer.buildLayerName(layer, targetCrs);
   for (const asset of assets) {
-    let content = assetContentCache.get(asset.file_id);
-    if (!content) {
-      try {
-        const stream = await FileService.getStorageEngine().read(asset.file_path);
-        content = await FileService.streamToBuffer(stream as Readable);
-        assetContentCache.set(asset.file_id, content);
-      } catch (error) {
-        log.warn('Could not read Raster Layer Asset from storage; skipping', {
-          jobId,
-          layerId: layer.id,
-          fileId: asset.file_id,
-          error: getErrorMessage(error),
-        });
-        continue;
-      }
+    const cachedPath = assetPathCache.get(asset.file_id);
+    if (cachedPath) {
+      await writer.writeAsset(layerName, asset.name, fs.createReadStream(cachedPath));
+      continue;
     }
-    writer.writeAsset(layerName, asset.name, content);
+    try {
+      const stream = await FileService.getStorageEngine().read(asset.file_path);
+      const writtenPath = await writer.writeAsset(layerName, asset.name, stream as Readable);
+      assetPathCache.set(asset.file_id, writtenPath);
+    } catch (error) {
+      log.warn('Could not read Raster Layer Asset from storage; skipping', {
+        jobId,
+        layerId: layer.id,
+        fileId: asset.file_id,
+        error: getErrorMessage(error),
+      });
+    }
   }
 }
 

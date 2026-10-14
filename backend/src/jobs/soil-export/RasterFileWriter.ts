@@ -1,5 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 import { SyntaxValidator } from 'fast-xml-validator';
 import * as turf from '@turf/turf';
 import { fromFile, writeArrayBuffer, GeoTIFFImage } from 'geotiff';
@@ -414,12 +416,13 @@ ${sources}
   }
 
   /**
-   * Writes a Raster Layer Asset's bytes into this layer's assets subfolder
+   * Streams a Raster Layer Asset into this layer's assets subfolder
    * ({outputDir}/assets/{layerName}/{sanitized original filename}), creating the subfolder as
    * needed. When two assets on the same layer sanitize to the same filename, later ones are
-   * disambiguated with a numeric suffix rather than overwriting the first.
+   * disambiguated with a numeric suffix rather than overwriting the first. A failed stream
+   * leaves no partial file behind.
    */
-  writeAsset(layerName: string, originalFilename: string, content: Buffer): string {
+  async writeAsset(layerName: string, originalFilename: string, content: Readable): Promise<string> {
     const assetsDir = path.join(this.outputDir, 'assets', layerName);
     fs.mkdirSync(assetsDir, { recursive: true });
 
@@ -433,7 +436,12 @@ ${sources}
     }
 
     const filePath = path.join(assetsDir, candidate);
-    fs.writeFileSync(filePath, content);
+    try {
+      await pipeline(content, fs.createWriteStream(filePath));
+    } catch (error) {
+      fs.rmSync(filePath, { force: true });
+      throw error;
+    }
     return filePath;
   }
 

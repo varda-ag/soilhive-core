@@ -133,6 +133,14 @@ const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       `What normalizing a raster involves: ${RASTER_DOCS_URL}#what-the-load-does-to-your-raster`,
     ],
   },
+  RL_SOURCE_FILE_NOT_FOUND: {
+    message:
+      "The band mapping for '{file_name}' changed how its pixels are converted, but the file as originally uploaded can no longer be found.",
+    actions: [
+      "Re-upload '{file_name}', map its bands again, then retry data loading.",
+      `What the load does to your raster: ${RASTER_DOCS_URL}#what-the-load-does-to-your-raster`,
+    ],
+  },
   RL_UNIT_NOT_CONVERTIBLE: {
     message:
       "Band {band} of '{file_name}' is in '{original_unit}' but '{soil_property}' is stored in '{standard_unit}', and the conversion '{formula}' cannot be applied automatically.",

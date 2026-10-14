@@ -49,6 +49,8 @@ export interface IngestRasterOptions {
 /** What a file fails to satisfy, and therefore what the conversion has to fix. */
 interface FormatDeviations {
   notCog: boolean;
+  /** Regenerate overviews rather than carrying over the ones the file already has. */
+  rebuildOverviews: boolean;
   /** One factor per band of the file, in band order; 1 leaves a band untouched. */
   unitFactors: number[] | null;
 }
@@ -78,6 +80,12 @@ export interface RasterFormatCheckOptions {
    * are left at factor 1.
    */
   bands: RasterBandUnit[];
+  /**
+   * Rebuild the COG even when the file already is one, regenerating its overviews. Overviews are
+   * resampled according to whether the bands are categorical, so a band flipping between
+   * categorical and continuous leaves the existing ones wrong.
+   */
+  forceCog?: boolean;
   /** Reports 0..100 across the conversion; not called when the file already conforms. */
   onProgress?: RasterConversionProgressCallback | undefined;
 }
@@ -160,9 +168,10 @@ export async function checkFileFormat(opts: RasterFormatCheckOptions): Promise<R
 
   const deviations: FormatDeviations = {
     notCog: !isCog,
+    rebuildOverviews: Boolean(opts.forceCog),
     unitFactors: anyScaling && !alreadyUnitConverted ? unitFactors : null,
   };
-  if (!deviations.notCog && deviations.unitFactors === null) {
+  if (!deviations.notCog && !deviations.rebuildOverviews && deviations.unitFactors === null) {
     return { filePath, converted: false };
   }
 
@@ -189,6 +198,7 @@ async function convertRasterFile(
 ): Promise<string> {
   const reasons = [
     deviations.notCog ? 'not a COG' : null,
+    deviations.rebuildOverviews ? 'overviews rebuilt' : null,
     deviations.unitFactors !== null ? `unit conversion x${deviations.unitFactors.join('/x')}` : null,
   ].filter(Boolean);
   log.info('Normalizing raster before ingest', { filePath, bands: opts.bands.map(b => b.band), reasons });
@@ -227,7 +237,12 @@ async function convertRasterFile(
     }
     await storage.write(convertedKey, createReadStream(producedPath));
 
-    const metadataPatch: Partial<RasterFileMetadata> = deviations.unitFactors !== null ? { unit_conversion_applied: true } : {};
+    // filePath is the source here: the loader points the file back at its source before every
+    // normalization, so a later one can start from unscaled pixels rather than this output.
+    const metadataPatch: Partial<RasterFileMetadata> = {
+      source_file_path: filePath,
+      ...(deviations.unitFactors !== null ? { unit_conversion_applied: true } : {}),
+    };
     await em.query(
       `UPDATE files SET file_path = $1, metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = now() WHERE id = $3`,
       [convertedKey, JSON.stringify(metadataPatch), opts.fileId],
@@ -335,7 +350,8 @@ async function convertRaster(
         '-co',
         'BLOCKSIZE=512',
         '-co',
-        'OVERVIEWS=AUTO',
+        // AUTO carries over overviews the source already has, resampled however it was built.
+        deviations.rebuildOverviews ? 'OVERVIEWS=IGNORE_EXISTING' : 'OVERVIEWS=AUTO',
         '-co',
         'BIGTIFF=YES',
         '-co',
@@ -423,6 +439,7 @@ export async function ingestRaster(opts: IngestRasterOptions): Promise<string> {
        max_depth = EXCLUDED.max_depth,
        reference_period_start = EXCLUDED.reference_period_start,
        reference_period_stop = EXCLUDED.reference_period_stop,
+       is_categorical = EXCLUDED.is_categorical,
        -- Refreshed like every sibling field: the band mapping is authoritative, so dropping
        -- layer_description from it clears the description on the next load.
        description = EXCLUDED.description

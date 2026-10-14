@@ -8,13 +8,35 @@ export interface StagedLayerAssets {
 }
 
 /**
- * Attaches auxiliary Files to the Raster Layers a Raster Load just created.
+ * Makes each Raster Layer's assets exactly the Files its Band Mapping declares: unlinks the ones the
+ * mapping has stopped declaring, then attaches the missing ones. The Band Mapping is authoritative
+ * for assets as it is for every other layer field, so removing a resource from it removes the asset.
  *
- * A Raster Layer Asset is identified by the pair (raster layer, file), and this is insert-only:
- * a re-run of a Raster Load adds nothing it already added, but it also never *unlinks* an asset
- * the Band Mapping has stopped declaring. That asymmetry with the Raster Layer's own fields —
- * which the ingest refreshes from the mapping — is deliberate: unlinking would mean deciding
- * whether an asset removed from a mapping was retracted or merely edited elsewhere.
+ * Layers absent from `staged` are left alone, so a caller passes every layer of the files it loaded,
+ * including the ones that declare no assets.
+ */
+export const syncRasterLayerAssets = async (entityManager: EntityManager, staged: StagedLayerAssets[]): Promise<void> => {
+  if (staged.length === 0) {
+    return;
+  }
+  // A raw DELETE resolves to [rows, rowCount].
+  const [, removed]: [unknown[], number] = await entityManager.query(
+    `DELETE FROM raster_layer_assets a
+     USING jsonb_to_recordset($1::jsonb) AS s(raster_layer_id uuid, file_ids uuid[])
+     WHERE a.raster_layer_id = s.raster_layer_id AND NOT (a.file_id = ANY(s.file_ids))`,
+    [JSON.stringify(staged.map(({ rasterLayerId, fileIds }) => ({ raster_layer_id: rasterLayerId, file_ids: fileIds })))],
+  );
+  if (removed > 0) {
+    log.info('Raster layer assets unlinked', { removed });
+  }
+  await createRasterLayerAssets(entityManager, staged);
+};
+
+/**
+ * Attaches auxiliary Files to Raster Layers.
+ *
+ * A Raster Layer Asset is identified by the pair (raster layer, file), so this adds nothing it
+ * already added. Unlinking what a mapping stopped declaring is syncRasterLayerAssets' job.
  *
  * The ON CONFLICT target repeats the index predicate because Postgres will not infer a *partial*
  * unique index from a bare column list.

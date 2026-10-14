@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, jest, afterAll } from '@jest/globals';
 import * as path from 'path';
 import * as fs from 'node:fs';
+import { Readable } from 'stream';
 import { execFileSync } from 'child_process';
 import { writeArrayBuffer } from 'geotiff';
 import { RasterFileWriter } from '../../../src/jobs/soil-export/RasterFileWriter';
@@ -585,27 +586,41 @@ describe('RasterFileWriter', () => {
   });
 
   describe('writeAsset', () => {
-    it('writes a buffer to assets/{layerName}/{filename}', () => {
+    it('streams content to assets/{layerName}/{filename}', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       const layerName = writer.buildLayerName(makeLayer());
 
-      const writtenPath = writer.writeAsset(layerName, 'manual.pdf', Buffer.from('technical manual'));
+      const writtenPath = await writer.writeAsset(layerName, 'manual.pdf', Readable.from(['technical manual']));
 
       const expectedPath = path.join(TEST_OUTPUT_DIR, 'assets', layerName, 'manual.pdf');
       expect(writtenPath).toBe(expectedPath);
       expect(fs.readFileSync(expectedPath, 'utf-8')).toBe('technical manual');
     });
 
-    it('disambiguates two same-layer assets that share an original filename, rather than overwriting', () => {
+    it('disambiguates two same-layer assets that share an original filename, rather than overwriting', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       const layerName = writer.buildLayerName(makeLayer());
 
-      const firstPath = writer.writeAsset(layerName, 'manual.pdf', Buffer.from('first'));
-      const secondPath = writer.writeAsset(layerName, 'manual.pdf', Buffer.from('second'));
+      const firstPath = await writer.writeAsset(layerName, 'manual.pdf', Readable.from(['first']));
+      const secondPath = await writer.writeAsset(layerName, 'manual.pdf', Readable.from(['second']));
 
       expect(firstPath).not.toBe(secondPath);
       expect(fs.readFileSync(firstPath, 'utf-8')).toBe('first');
       expect(fs.readFileSync(secondPath, 'utf-8')).toBe('second');
+    });
+
+    it('removes the partial file when the source stream fails', async () => {
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      const layerName = writer.buildLayerName(makeLayer());
+      const failing = Readable.from(
+        (async function* () {
+          yield 'partial';
+          throw new Error('connection reset');
+        })(),
+      );
+
+      await expect(writer.writeAsset(layerName, 'manual.pdf', failing)).rejects.toThrow('connection reset');
+      expect(fs.existsSync(path.join(TEST_OUTPUT_DIR, 'assets', layerName, 'manual.pdf'))).toBe(false);
     });
   });
 });
