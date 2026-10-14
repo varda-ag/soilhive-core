@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import AuthService from '../../src/services/AuthService';
+import { getPasswordGrantKey } from '../../src/utils/password-grant-key';
 
 describe('Testing AuthService', () => {
   beforeEach(() => {
@@ -51,5 +52,14 @@ describe('Testing AuthService', () => {
     const decoded = jwt.decode(token, { complete: true });
     expect(decoded).toBeDefined();
     expect(decoded!.payload).toMatchObject(expectedTokenClaims);
+  });
+
+  it('signs with the Password-grant key', () => {
+    const token = new AuthService().getToken('superadmin');
+    expect(jwt.decode(token, { complete: true })!.header).toMatchObject({ alg: 'ES256', kid: getPasswordGrantKey().kid });
+  });
+
+  it('publishes only the Password-grant public key', () => {
+    expect(new AuthService().getJwks()).toEqual({ keys: [getPasswordGrantKey().jwk] });
   });
 });

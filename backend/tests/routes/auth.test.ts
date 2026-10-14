@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from '@jest/globals';
 import request from 'supertest';
 import jwt from 'jsonwebtoken';
+import { createPublicKey } from 'crypto';
 import { app } from '../../src/app';
 import { StatusCodes } from 'http-status-codes';
 import AuthService from '../../src/services/AuthService';
@@ -78,5 +79,45 @@ describe('POST /oauth/token', () => {
 
     Object.assign(process.env, saved);
     expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+  });
+});
+
+describe('GET /.well-known/jwks.json', () => {
+  afterEach(() => {
+    authService.resetAuthConfig();
+  });
+
+  it('returns one ES256 public key, cacheable, with no private material', async () => {
+    const res = await request(app).get('/.well-known/jwks.json');
+
+    expect(res.statusCode).toBe(StatusCodes.OK);
+    expect(res.headers['cache-control']).toBe('public, max-age=300');
+    expect(res.body).toEqual({
+      keys: [{ kty: 'EC', crv: 'P-256', x: expect.any(String), y: expect.any(String), kid: expect.any(String), use: 'sig', alg: 'ES256' }],
+    });
+  });
+
+  it('publishes the key that verifies a Password-grant token', async () => {
+    const [jwk] = (await request(app).get('/.well-known/jwks.json')).body.keys;
+    const token = (await postToken(validBody)).body.access_token;
+
+    expect(jwt.decode(token, { complete: true })!.header.kid).toBe(jwk.kid);
+    expect(jwt.verify(token, createPublicKey({ key: jwk, format: 'jwk' }), { algorithms: ['ES256'] })).toMatchObject({
+      sub: 'super-admin',
+    });
+  });
+
+  it('returns 404 when password authentication is not configured', async () => {
+    const saved = {
+      SUPER_ADMIN_PASSWORD_HASH: process.env.SUPER_ADMIN_PASSWORD_HASH,
+      DATA_ADMIN_PASSWORD_HASH: process.env.DATA_ADMIN_PASSWORD_HASH,
+    };
+    delete process.env.SUPER_ADMIN_PASSWORD_HASH;
+    delete process.env.DATA_ADMIN_PASSWORD_HASH;
+
+    const res = await request(app).get('/.well-known/jwks.json');
+
+    Object.assign(process.env, saved);
+    expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
   });
 });
