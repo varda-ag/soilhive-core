@@ -317,7 +317,8 @@ export const getRawTableName = (fileId: string): string => {
   return `file_${sanitizeField(fileId)}_raw`;
 };
 
-export const signToken = (payload: string | object | Buffer, expiresIn?: number, header?: any) => {
+// Internal-request and download tokens; Password-grant tokens are signed in utils/password-grant-key.ts
+export const signToken = (payload: string | object | Buffer, expiresIn?: number) => {
   assert(process.env.SELF_SIGNING_SECRET, 'Self-signing secret is not defined');
   let signOpts: any = {
     algorithm: 'HS256',
@@ -325,9 +326,6 @@ export const signToken = (payload: string | object | Buffer, expiresIn?: number,
   };
   if (expiresIn) {
     signOpts = { ...signOpts, expiresIn };
-  }
-  if (header) {
-    signOpts = { ...signOpts, header };
   }
   const token = jwt.sign(payload, process.env.SELF_SIGNING_SECRET, signOpts);
   return token;

@@ -13,6 +13,12 @@ Platform is in read-only mode. All token protected endpoints are not reachable.
 Basic support for `super-admin` and `data-admin` roles with hardcoded passwords.
 No user support is provided.
 
+Tokens are signed with ES256, and `GET /.well-known/jwks.json` publishes the public key, so a gateway can verify them (e.g. an Envoy Gateway `SecurityPolicy` JWT provider with `issuer: soilhive-core` and `remoteJWKS` pointed at that URL):
+
+- The key is derived from `SELF_SIGNING_SECRET`. Rotating the secret rotates the key and signs everyone out.
+- In other modes the endpoint returns 404.
+- See `docs/adr/0060-password-grant-tokens-are-es256-with-a-key-derived-from-the-signing-secret.md`.
+
 ## `oidc`
 An external identity provider (IDP) will be used to generate tokens and define users and roles.
 Frontend will receive the login configuration from this backend.
@@ -32,7 +38,7 @@ Set the following backend environment variables to enable password authenticatio
 
 - `SUPER_ADMIN_PASSWORD_HASH`: bcrypt hash of password required to access the admin section
 - `DATA_ADMIN_PASSWORD_HASH`: bcrypt hash of password required to manage data
-- `SELF_SIGNING_SECRET`: secret used to sign authentication tokens (can be any string of your choice)
+- `SELF_SIGNING_SECRET`: secret used to sign authentication tokens. Use a long random string: the published token key is derived from it, so a guessable secret can be brute-forced offline
 
 ### OIDC Authentication
 Set the following backend environment variables to enable OIDC authentication (see below for an exampe on how to setup an oidc provider):

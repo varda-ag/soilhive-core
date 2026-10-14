@@ -6,7 +6,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import { PgBoss } from 'pg-boss';
 import { destroyDataSource, getDataSource, initializeSchema, isDBAvailable } from '../src/utils/data-source';
-import { signToken, sleep } from '../src/utils/utils';
+import { sleep } from '../src/utils/utils';
+import { signPasswordGrantToken } from '../src/utils/password-grant-key';
 import { TOKEN_ISSUER } from '../src/types/enums';
 import { schemaForWorker, setupTestEnv, tmpDirForWorker } from './environment';
 import assert from 'assert';
@@ -167,8 +168,8 @@ export const getDataAdminToken = async (): Promise<string> => {
  * a test whose sub and email are the same string cannot detect a regression to sub-keying.
  */
 export const getUserToken = (sub: string, email: string): string => {
-  setupTestEnv(); // Guarantees SELF_SIGNING_SECRET, which signToken asserts on
-  return signToken({ sub, email, email_verified: true, scope: 'user', iss: TOKEN_ISSUER }, 3600, { alg: 'HS256', kid: 'kid' });
+  setupTestEnv(); // Guarantees SELF_SIGNING_SECRET, which the Password-grant key is derived from
+  return signPasswordGrantToken({ sub, email, email_verified: true, scope: 'user', iss: TOKEN_ISSUER }, 3600);
 };
 
 const getToken = async (password: string): Promise<string> => {
