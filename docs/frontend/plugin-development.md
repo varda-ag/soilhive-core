@@ -577,6 +577,7 @@ On the way back, the core backend drops `Set-Cookie` and CORS headers and adds `
 | `405` | The method is not `GET`, `HEAD`, `POST`, `PUT`, `PATCH` or `DELETE` |
 | `413` | The body is over the core backend's `MAX_UPLOAD_SIZE_MB` |
 | `502` | Your backend could not be reached, it answered `401`, or it redirected to its own origin outside the base URL. A `401` from your backend can only mean the secret is wrong, so it never reaches the host, which would drop the user's token. To turn a user away, answer `403` |
+| `503` | The core backend's `PLUGIN_BACKENDS` or `PLUGIN_BACKEND_SECRETS` is malformed, or your secret there is missing or too short. Its log says what is wrong |
 | `504` | Your backend did not start answering within `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) of getting the whole request. A slow upload or a long download does not count |
 
 `soilhive-core` ADR 0061 explains why the core backend does each of these.

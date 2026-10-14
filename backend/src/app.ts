@@ -14,6 +14,7 @@ import { setupCLI } from './utils/cli';
 import { cacheBypassMiddleware, isCacheBypassEnabled } from './utils/cache-bypass';
 import { startCacheEpochWatcher } from './utils/cache-epoch';
 import { getEntityManager, initializeSchema } from './utils/data-source';
+import { getErrorMessage } from './utils/error';
 import { log } from './utils/logger';
 import { isQueryDebugEnabled, queryDebugMiddleware } from './utils/query-debug';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
@@ -37,8 +38,14 @@ const PLUGIN_ROUTES = ['/api/v1/plugins/:pluginId', '/plugins/:pluginId'];
 
 export const initApp = async (app: Application) => {
   await setupCLI();
-  // A malformed PLUGIN_BACKENDS or PLUGIN_BACKEND_SECRETS stops the start, not the first plugin call.
-  ConfigService.getPluginBackends();
+  // A malformed PLUGIN_BACKENDS or PLUGIN_BACKEND_SECRETS shows in the log at start, rather than on
+  // the first plugin call. It does not stop the start: only the plugin route answers 503, and the
+  // rest of the core backend keeps serving (docs/adr/0061).
+  try {
+    ConfigService.getPluginBackends();
+  } catch (error) {
+    log.error('Plugin Backends are misconfigured: every /plugins/ call will answer 503', { error: getErrorMessage(error) });
+  }
 
   const origin = (process.env.CORS_ORIGINS || 'http://localhost,http://localhost:3000').split(',').map(o => o.trim());
 

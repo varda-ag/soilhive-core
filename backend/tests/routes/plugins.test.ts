@@ -168,6 +168,22 @@ describe('/plugins/{pluginId}/ forwards to the Plugin Backend registered for plu
     expect(res.body.detail).toBe('No Plugin Backend is registered for plugin "other-plugin"');
   });
 
+  it.each([
+    ['PLUGIN_BACKENDS is not JSON', '{"zones-plugin": "http://', undefined],
+    ['a secret is too short', undefined, '{"zones-plugin": "short"}'],
+  ])('answers 503 on this route only when %s, and tells the caller nothing more', async (_case, urls, secrets) => {
+    if (urls !== undefined) process.env.PLUGIN_BACKENDS = urls;
+    if (secrets !== undefined) process.env.PLUGIN_BACKEND_SECRETS = secrets;
+
+    const res = await request(app).get(`/api/v1/plugins/${PLUGIN_ID}/zones`);
+    const health = await request(app).get('/health');
+
+    expect(res.statusCode).toBe(StatusCodes.SERVICE_UNAVAILABLE);
+    expect(res.body.detail).toBe('Plugin Backends are misconfigured on this deployment');
+    expect(health.statusCode).toBe(StatusCodes.OK);
+    expect(received).toHaveLength(0);
+  });
+
   it.each(['/..', '/../admin', '/%2e%2e/admin', '/zones%2F..%2F..%2Fadmin', '/zones%5C..%5C..%5Cadmin'])(
     'refuses %s, which leaves the base path, and calls nothing',
     async path => {

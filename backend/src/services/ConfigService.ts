@@ -234,11 +234,19 @@ export default class ConfigService {
    * The Plugin Backends this deployment forwards /plugins/{pluginId}/ to, by pluginId. Only the
    * deployment's environment names them, never a request: a URL taken from a request would let
    * any caller point the core backend at any address it can reach (docs/adr/0061). Parsed once
-   * per value of the two variables, which in a running deployment means once.
+   * per value of the two variables, which in a running deployment means once, and a malformed
+   * value throws the same error on every call.
    */
   static getPluginBackends = (): Map<string, PluginBackend> => {
     const raw = `${process.env.PLUGIN_BACKENDS ?? ''}\n${process.env.PLUGIN_BACKEND_SECRETS ?? ''}`;
-    if (pluginBackends?.raw !== raw) pluginBackends = { raw, backends: parsePluginBackends() };
+    if (pluginBackends?.raw !== raw) {
+      try {
+        pluginBackends = { raw, backends: parsePluginBackends() };
+      } catch (error) {
+        pluginBackends = { raw, error: error as Error };
+      }
+    }
+    if ('error' in pluginBackends) throw pluginBackends.error;
     return pluginBackends.backends;
   };
 
@@ -248,7 +256,7 @@ export default class ConfigService {
   };
 }
 
-let pluginBackends: { raw: string; backends: Map<string, PluginBackend> } | undefined;
+let pluginBackends: ({ raw: string } & ({ backends: Map<string, PluginBackend> } | { error: Error })) | undefined;
 
 const parsePluginBackends = (): Map<string, PluginBackend> => {
   const urls = parsePluginIdMap('PLUGIN_BACKENDS');

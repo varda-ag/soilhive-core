@@ -49,7 +49,7 @@ PLUGIN_BACKENDS={"my-plugin":"http://my-plugin-backend:8080/api"}
 PLUGIN_BACKEND_SECRETS={"my-plugin":"<output of openssl rand -hex 32>"}
 ```
 
-The backend does not start if either variable is malformed, if a plugin has no secret or one under 32 characters, or if a secret names a plugin with no URL. The secret travels with every call, so use `https` for a Plugin Backend outside the cluster's private network. A request body is capped at `MAX_UPLOAD_SIZE_MB`, as for uploads.
+If either variable is malformed, a plugin has no secret or one under 32 characters, or a secret names a plugin with no URL, the backend still starts and serves everything else. It logs `Plugin Backends are misconfigured` at start, with what is wrong, and answers every `/plugins/...` call with a `503` until the variables are fixed and it restarts. The secret travels with every call, so use `https` for a Plugin Backend outside the cluster's private network. A request body is capped at `MAX_UPLOAD_SIZE_MB`, as for uploads.
 
 ## Asynchronous jobs
 

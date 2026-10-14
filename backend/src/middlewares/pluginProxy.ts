@@ -65,7 +65,15 @@ const hasBody = (req: Request): boolean =>
 
 const forward = async (req: Request, res: Response, signal: AbortSignal): Promise<void> => {
   const pluginId = req.params['pluginId'] as string;
-  const backend = ConfigService.getPluginBackends().get(pluginId);
+  let backends: Map<string, PluginBackend>;
+  try {
+    backends = ConfigService.getPluginBackends();
+  } catch {
+    // Which variable is wrong, and how, is in the log from the start; a caller learns only that the
+    // route is out of service.
+    throw new ErrorResponse('Plugin Backends are misconfigured on this deployment', StatusCodes.SERVICE_UNAVAILABLE);
+  }
+  const backend = backends.get(pluginId);
   if (!backend) {
     throw new ErrorResponse(`No Plugin Backend is registered for plugin "${pluginId}"`, StatusCodes.NOT_FOUND);
   }

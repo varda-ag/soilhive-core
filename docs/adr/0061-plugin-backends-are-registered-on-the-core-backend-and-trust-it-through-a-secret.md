@@ -22,7 +22,7 @@ The header carries the Subject, the identity that Entitlements and every `create
 
 ## What else the core backend does to a forwarded call, and why
 
-The registry and the secret decide where a call may go and who it says it comes from. Each of the rules below closes another way to misuse the route. `backend/tests/routes/plugins.test.ts` tests each one, except the start-up checks, which `backend/tests/services/ConfigService.test.ts` covers.
+The registry and the secret decide where a call may go and who it says it comes from. Each of the rules below closes another way to misuse the route. `backend/tests/routes/plugins.test.ts` tests each one, and `backend/tests/services/ConfigService.test.ts` covers each way the variables can be malformed.
 
 | The core backend | Because |
 |---|---|
@@ -39,7 +39,7 @@ The registry and the secret decide where a call may go and who it says it comes 
 | Caps the body at `MAX_UPLOAD_SIZE_MB` with a `413`, and counts a chunked body as it streams | The body streams through and is never held in memory, but without a cap anyone could push unlimited data through the core backend. The cap is the one uploads already use |
 | Waits at most `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) for the Plugin Backend to start answering once it has the whole request, then answers `504` | A Plugin Backend that hangs would otherwise hold a core backend connection open until the caller gives up. The clock starts once the request is sent and stops once the answer starts, so slow uploads and long downloads still work |
 | Allows any request header in the CORS preflight on this route, for the origins the core backend already accepts | A plugin may send its own headers to its Plugin Backend. Every other route keeps the core backend's short list. The proxy still drops the headers that are not the plugin's to set |
-| Refuses to start if either variable is malformed, or if a secret is missing or under 32 characters | A mistake shows up at deploy time, when the new pods fail their readiness check and the old ones keep serving, not on a user's first call. Below 32 characters, a secret is within reach of guessing |
+| Checks both variables at start, and if either is malformed, or a secret is missing or under 32 characters, logs what is wrong and answers every call on this route with a `503` | The mistake shows in the log at deploy time, not on a user's first call, and the rest of the core backend keeps serving: a typo in one plugin's config must not take the whole API down. The caller learns only that the route is out of service. Below 32 characters, a secret is within reach of guessing |
 
 ## Considered options
 
@@ -49,10 +49,11 @@ The registry and the secret decide where a call may go and who it says it comes 
 - **The Plugin declares its backend in its manifest, and the core backend reads it from there**: not now. It ties the URL to the manifest the operator registered, but the core backend would trust whatever every manifest says, and whoever runs it could not review which addresses it calls.
 - **Forward the user's token to the Plugin Backend**: rejected. Every Plugin Backend would hold a token it could replay against the core API as that user, and it would have to validate the token against the deployment's identity provider.
 - **A short-lived token signed by the core backend for each call** (a JWT whose audience is the `pluginId`): not now. No long-lived secret would travel with every call, and a stolen token would expire. But every Plugin Backend would have to verify signatures, and the core backend would have to manage keys. Worth revisiting when a Plugin Backend holds sensitive data.
+- **Refusing to start on malformed variables**: rejected. It makes the mistake impossible to miss, and with a rolling update the old pods keep serving while the new ones fail to start. But on any other deploy, a first install, a restart of every pod, or a recreate, a typo in one plugin's config takes down the whole core API.
 
 ## Consequences
 
-- Adding or moving a Plugin Backend is a change to the core backend's deployment: two environment variables and a restart, by whoever runs the core backend. A Plugin cannot add or move one by itself. The core backend refuses to start on a malformed entry, a missing secret or one under 32 characters.
+- Adding or moving a Plugin Backend is a change to the core backend's deployment: two environment variables and a restart, by whoever runs the core backend. A Plugin cannot add or move one by itself. A malformed entry, a missing secret or one under 32 characters is logged at start and turns every call on the route into a `503`, while the rest of the core backend keeps serving. Nothing else signals it: a deploy that gets the variables wrong still passes its readiness check.
 - The Plugin's bundle carries no backend URL, so one build serves every environment, and `usePluginApi` keeps its single argument.
 - A Plugin Backend must refuse every call that does not carry its secret, and trust `X-SoilHive-Subject` only on a call that does. It must turn a user away with a `403`, not a `401`. A `401` from it reaches the host as a `502`, because it can only mean that the secret is wrong (ADR 0060).
 - The secret is static and travels with every call. Use `https` unless the Plugin Backend is on the cluster's private network. Rotating it means restarting both sides.
