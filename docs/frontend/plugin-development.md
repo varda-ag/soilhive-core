@@ -476,9 +476,9 @@ This draws scored points and cells, which are points at every zoom. If the Run s
 
 If your plugin's deployment also serves an API, call it with `context.usePluginApi(pluginId)`. It returns a client with `get`, `post`, `put`, `patch` and `delete`. Paths are relative to your backend: `api.get('/zones')` calls your backend's `/zones`.
 
-The client does not call your backend directly. It calls the core backend at `{BACKEND_BASE_URL}/plugins/{pluginId}/zones`, and the core backend forwards the call to your backend. So your backend needs no CORS setup for the host, and the host attaches the signed-in user's token. On a `401`, the host tries to renew the token and retry once, as it does for its own calls. See `soilhive-core` ADR 0059.
+The client does not call your backend directly. It calls the core backend at `{BACKEND_BASE_URL}/plugins/{pluginId}/zones`, and the core backend forwards the call to your backend. So your backend needs no CORS setup for the host, and the host attaches the signed-in user's token. On a `401`, the host tries to renew the token and retry once, as it does for its own calls. See `soilhive-core` ADR 0060.
 
-> The core backend does not serve `/plugins/{pluginId}/` yet. Until it does, every call rejects with a `404`.
+Your plugin does not say where its backend is, and cannot. Whoever runs the core backend registers it, by `pluginId`: see [Your backend's side](#your-backends-side). Until then, every call rejects with a `404`.
 
 ```tsx
 import { useEffect, useState } from 'react';
@@ -534,11 +534,52 @@ The client encodes `pluginId` as one path segment. A path that resolves outside 
 
 In local preview there is no core backend, so the mock context's client rejects every call. To reach your backend in local preview, pass your own client: `createMockContext({ usePluginApi: () => myApi })`.
 
+#### Your backend's side
+
+The core backend finds your backend only in its own deployment's config, never in a request (`soilhive-core` ADR 0061). To register it, whoever runs the core backend adds your `pluginId` to two environment variables, and restarts it:
+
+- `PLUGIN_BACKENDS`: your backend's base URL. `api.get('/zones')` reaches `{base URL}/zones`.
+- `PLUGIN_BACKEND_SECRETS`: a secret of at least 32 characters, which your backend is configured with too.
+
+See [environment configuration](../backend/environment-configuration.md#plugin-backends). Your backend serves your remote over the same port, so anyone can call it directly, not only through the core backend. It must refuse any call that does not carry the secret:
+
+```ts
+import { timingSafeEqual } from 'node:crypto';
+
+const expected = Buffer.from(`Bearer ${process.env.CORE_BACKEND_SECRET}`);
+
+// Express: on every API route, before anything reads X-SoilHive-Subject.
+app.use('/api', (req, res, next) => {
+  const sent = Buffer.from(req.headers.authorization ?? '');
+  if (sent.length !== expected.length || !timingSafeEqual(sent, expected)) return res.sendStatus(401);
+  res.locals.subject = req.headers['x-soilhive-subject']; // undefined for an anonymous caller
+  next();
+});
+```
+
+A call your backend gets from the core backend is the one the plugin made, with the same method, path, query, body and headers, except that:
+
+- `Authorization` is `Bearer <the secret>`. The user's token never reaches your backend.
+- `X-SoilHive-Subject` is the signed-in user's Subject: the identity the core backend keys Entitlements and `created_by` by, usually their email. It is missing for an anonymous caller, and the core backend has already checked the token it came from. The plugin cannot set it.
+- Cookies are dropped.
+
+On the way back, the core backend drops `Set-Cookie` and CORS headers and adds `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox`. It hands a redirect back to the browser instead of following it. Every other status and body reaches the plugin as your backend sent it, except for these, which the core backend answers itself:
+
+| Status | Meaning |
+|---|---|
+| `401` | The core backend rejected the user's token. The host renews it and retries once |
+| `404` | No backend is registered for this `pluginId`, or your backend answered `404` |
+| `413` | The body is over the core backend's `MAX_UPLOAD_SIZE_MB` |
+| `502` | Your backend could not be reached, or it answered `401`. A `401` from your backend can only mean the secret is wrong, so it never reaches the host, which would drop the user's token. To turn a user away, answer `403` |
+| `504` | Your backend did not start answering within `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) |
+
 ## Registering your plugin with the host
 
 Scaffolding and syncing a plugin does not make it appear in the host. That is a separate step, and it currently has no UI. You must add an entry directly to the host's `ThemeConfig.plugins` — for example through `PUT /configs/theme`, or directly in the database — with `url` pointing at your remote's `mf-manifest.json`.
 
 See [Module Federation § Configuring remotes](./module-federation.md#configuring-remotes) for the full field list: `enabled`, `mustBeLoggedIn`, `enableACL`, `acl`.
+
+A plugin's backend is registered apart from it, in the core backend's own environment: see [Your backend's side](#your-backends-side).
 
 ## Troubleshooting
 

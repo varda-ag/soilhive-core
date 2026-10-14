@@ -96,7 +96,8 @@ export interface PluginContext {
   // never collide with the host's or another plugin's.
   useNotifications: (pluginId: string) => PluginNotificationsResult;
   // Calls the plugin's own backend through the core backend, which forwards /plugins/{pluginId}/...
-  // to it: the call goes where every host call goes, with the signed-in user's token. Never toasts:
-  // a failed call rejects with a PluginApiError for the plugin to handle.
+  // to the backend its deployment registered for that id: the call goes where every host call goes,
+  // with the signed-in user's token. Never toasts: a failed call rejects with a PluginApiError for
+  // the plugin to handle.
   usePluginApi: (pluginId: string) => PluginApi;
 }

@@ -269,7 +269,7 @@ The data and host-injected query hooks a Plugin receives as its one prop: the si
 _Avoid_: Plugin props, context (too generic — always say "Plugin Context")
 
 **Plugin Backend**:
-The HTTP API that a **Plugin**'s own deployment may serve next to its remote. The Plugin's frontend reaches it only through the core backend, which forwards `/plugins/{pluginId}/...` to it, so the call stays on the host's API origin and carries the **Signed-in user**'s token (docs/adr/0059).
+The HTTP API that a **Plugin**'s own deployment may serve next to its remote. The Plugin's frontend reaches it only through the core backend, which forwards `/plugins/{pluginId}/...` to it, so the call stays on the host's API origin and carries the **Signed-in user**'s token (docs/adr/0060). The core backend finds it only in its own deployment's config, by `pluginId`, never in a request, and sends it the caller's **Subject** and a secret proving the call came from the core backend, never the caller's token (docs/adr/0061).
 _Avoid_: Plugin API (the client for it that the **Plugin Context** hands out, `usePluginApi`), plugin server
 
 **Remote Plugin** (`RemotePlugin`):
@@ -318,6 +318,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
 - A **Plugin** has at most one **Plugin Backend**, and its frontend calls it only through the core backend, under its own `pluginId`
+- A **Plugin Backend** is registered by whoever runs the core backend, never by the **Plugin**: a Plugin cannot name the address its calls go to
 - A **Plugin** requires a **Signed-in user** if it says so itself (`requiresAuth`) or if the deployment's config for it says so (`mustBeLoggedIn`); neither can lift the other's requirement
 - A **Plugin** that requires a **Signed-in user** keeps its menu entry for an anonymous visitor, and opening it asks them to sign in rather than showing the Plugin or sending them elsewhere; on a deployment with no identity system it is not available at all, menu entry and address included
 - A new-tab **Plugin** is never gated on a **Signed-in user**, whatever its flags say: its page is outside the host, so it is listed and opens for everyone, on every deployment

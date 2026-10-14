@@ -5,8 +5,10 @@ import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware } from './middlewares/error';
 import { loggingMiddleware } from './middlewares/logging';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
+import { pluginProxy } from './middlewares/pluginProxy';
 import { transactionMiddleware } from './middlewares/transaction';
 import { uploadSizeLimit } from './middlewares/uploadSizeLimit';
+import ConfigService from './services/ConfigService';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
 import { cacheBypassMiddleware, isCacheBypassEnabled } from './utils/cache-bypass';
@@ -33,6 +35,8 @@ if (isJest()) {
 
 export const initApp = async (app: Application) => {
   await setupCLI();
+  // A malformed PLUGIN_BACKENDS or PLUGIN_BACKEND_SECRETS stops the start, not the first plugin call.
+  ConfigService.getPluginBackends();
 
   const origin = (process.env.CORS_ORIGINS || 'http://localhost,http://localhost:3000').split(',').map(o => o.trim());
 
@@ -54,6 +58,9 @@ export const initApp = async (app: Application) => {
       maxAge: 86400, // 24 hours
     }),
   );
+
+  // Ahead of the body parsers, so that a plugin's request body streams through to its Plugin Backend untouched.
+  app.use(['/api/v1/plugins/:pluginId', '/plugins/:pluginId'], pluginProxy);
 
   app.use(uploadSizeLimit);
   app.use(express.urlencoded({ extended: true }));
