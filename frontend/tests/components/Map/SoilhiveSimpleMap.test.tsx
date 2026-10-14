@@ -1,5 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
+import { requestMap } from 'components/Map/mapRequest';
 
 jest.mock('utilities/map', () => ({
   EOX_SATELLITE_MAP_STYLE: 'eox-style',
@@ -7,17 +8,30 @@ jest.mock('utilities/map', () => ({
 }));
 
 jest.mock('react-map-gl/maplibre', () => ({
-  Map: ({ children, attributionControl, onRender, minZoom, maxZoom }: any) => (
+  Map: ({ children, attributionControl, onRender, onLoad, minZoom, maxZoom, canvasContextAttributes }: any) => (
     <div
       data-testid="map"
       data-attribution-control={JSON.stringify(attributionControl)}
       data-min-zoom={String(minZoom)}
       data-max-zoom={String(maxZoom)}
+      data-preserve-drawing-buffer={String(canvasContextAttributes?.preserveDrawingBuffer)}
     >
       <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
       <button
         data-testid="trigger-render"
         onClick={() => onRender?.({ target: { getContainer: () => document.querySelector('[data-testid="map"]') } })}
+      />
+      {/* Loads a stand-in for the MapLibre map, with what the component reads of it on load. */}
+      <button
+        data-testid="trigger-load"
+        onClick={() =>
+          onLoad?.({
+            target: {
+              getContainer: () => document.querySelector('[data-testid="map"]'),
+              getBounds: () => ({ toArray: () => [] }),
+            },
+          })
+        }
       />
       {children}
     </div>
@@ -71,5 +85,33 @@ describe('SoilhiveSimpleMap', () => {
 
     expect(attributionEl.getAttribute('open')).toBeNull();
     expect(attributionEl.classList.contains('maplibregl-compact-show')).toBe(false);
+  });
+
+  it('draws its children inside the map', () => {
+    render(
+      <SoilhiveSimpleMap>
+        <div data-testid="child" />
+      </SoilhiveSimpleMap>,
+    );
+
+    expect(screen.getByTestId('map')).toContainElement(screen.getByTestId('child'));
+  });
+
+  it('keeps the drawing buffer, so the map can be captured as an image', () => {
+    render(<SoilhiveSimpleMap />);
+
+    expect(screen.getByTestId('map').dataset.preserveDrawingBuffer).toBe('true');
+  });
+
+  it('calls onLoad once the map has loaded, and from then on answers requests for the map', () => {
+    const onLoad = jest.fn();
+    render(<SoilhiveSimpleMap onLoad={onLoad} />);
+    const container = screen.getByTestId('map');
+    expect(requestMap(container)).toBeUndefined();
+
+    fireEvent.click(screen.getByTestId('trigger-load'));
+
+    expect(onLoad).toHaveBeenCalledTimes(1);
+    expect(requestMap(container)?.getContainer()).toBe(container);
   });
 });
