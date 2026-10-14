@@ -139,6 +139,17 @@ describe('/plugins/{pluginId}/ forwards to the Plugin Backend registered for plu
     },
   );
 
+  it.each([
+    ['TRACE', StatusCodes.METHOD_NOT_ALLOWED],
+    // A CORS preflight, which the core backend answers itself
+    ['OPTIONS', StatusCodes.NO_CONTENT],
+  ])('does not forward %s', async (method, expected) => {
+    const status = await sendRaw(`/api/v1/plugins/${PLUGIN_ID}/zones`, { method });
+
+    expect(status).toBe(expected);
+    expect(received).toHaveLength(0);
+  });
+
   it('streams a JSON body through as it was sent', async () => {
     const res = await request(app)
       .post(`/api/v1/plugins/${PLUGIN_ID}/zones`)

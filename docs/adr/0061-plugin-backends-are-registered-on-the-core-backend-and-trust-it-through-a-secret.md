@@ -20,6 +20,25 @@ A Plugin Backend serves its Plugin's remote over the same port, and every visito
 
 The header carries the Subject, the identity that Entitlements and every `created_by` are keyed by, rather than the token's `sub`. So a Plugin Backend records the same identity the core backend does.
 
+## What else the core backend does to a forwarded call, and why
+
+The registry and the secret decide where a call may go and who it says it comes from. Each of the rules below closes another way to misuse the route. `backend/tests/routes/plugins.test.ts` tests each one, except the start-up checks, which `backend/tests/services/ConfigService.test.ts` covers.
+
+| The core backend | Because |
+|---|---|
+| Checks the caller's token, then sends the plugin's secret in its place, and drops cookies | A Plugin Backend never holds a credential it could replay against the core API as the user. A bad token gets the core backend's own `401`, which the host knows how to renew |
+| Drops every `X-SoilHive-*` header the caller sent | Only the core backend may say who the caller is. Otherwise anyone could send `X-SoilHive-Subject: admin@…` through the route, and the Plugin Backend would believe it, since the call carries the secret |
+| Refuses a path that resolves outside the base URL, or that holds an encoded slash (`%2F`) or a backslash, with a `400` | The base URL is the part of the Plugin Backend the deployment exposed. `/../admin` would reach the rest of that host. `%2F..%2F` would reach it too, on a server that decodes the path before routing it |
+| Forwards only `GET`, `HEAD`, `POST`, `PUT`, `PATCH` and `DELETE`, and answers `405` to the rest | No plugin call needs another method, and some are harmful: `TRACE` echoes the request back, headers included, and `CONNECT` asks for a tunnel |
+| Hands a redirect back to the caller instead of following it | Following it would send the core backend wherever the Plugin Backend points, `169.254.169.254` included. That is the SSRF from above again, through a Plugin Backend that is compromised or careless. The browser can follow a redirect safely, since it reaches nothing the user can't |
+| Turns a Plugin Backend's `401` into a `502` | The host drops the user's token after a `401` it cannot renew (ADR 0060). From a Plugin Backend, a `401` can only mean the deployment's secret is wrong, so it must not cost the user their session |
+| Drops `Set-Cookie` from the response | The response comes from the core backend's origin. A cookie set by a Plugin Backend would belong to the core backend, and the browser would send it with every later request there. The core backend never forwards cookies, so a Plugin Backend has no use for them anyway |
+| Drops `Access-Control-*` headers from the response | Which web pages may read a core backend response is the core backend's CORS policy to decide. A Plugin Backend's `Access-Control-Allow-Origin: *` would widen it, or clash with the headers the core backend sets |
+| Sends every response with `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox` | Opened in a tab at the core backend's URL, a Plugin Backend's HTML or SVG would otherwise run its scripts on the core backend's origin. `sandbox` gives the page an opaque origin and no scripts. `nosniff` stops a browser from treating a mislabelled response as a page |
+| Caps the body at `MAX_UPLOAD_SIZE_MB` with a `413`, and counts a chunked body as it streams | The body streams through and is never held in memory, but without a cap anyone could push unlimited data through the core backend. The cap is the one uploads already use |
+| Waits at most `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) for the Plugin Backend to start answering, then answers `504` | A Plugin Backend that hangs would otherwise hold a core backend connection open until the caller gives up. A response that has started may take as long as it needs, so long downloads still work |
+| Refuses to start if either variable is malformed, or if a secret is missing or under 32 characters | A mistake shows up at deploy time, when the new pods fail their readiness check and the old ones keep serving, not on a user's first call. Below 32 characters, a secret is within reach of guessing |
+
 ## Considered options
 
 - **The Plugin names its backend's URL, and the host sends it with every call**: rejected, see above.
@@ -35,5 +54,5 @@ The header carries the Subject, the identity that Entitlements and every `create
 - The Plugin's bundle carries no backend URL, so one build serves every environment, and `usePluginApi` keeps its single argument.
 - A Plugin Backend must refuse every call that does not carry its secret, and trust `X-SoilHive-Subject` only on a call that does. It must turn a user away with a `403`, not a `401`. A `401` from it reaches the host as a `502`, because it can only mean that the secret is wrong (ADR 0060).
 - The secret is static and travels with every call. Use `https` unless the Plugin Backend is on the cluster's private network. Rotating it means restarting both sides.
-- Responses are served from the core backend's origin. So the core backend hands a Plugin Backend's redirect back to the caller instead of following it, drops `Set-Cookie` and CORS headers, and sends every response with `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox`.
-- A request body is capped at `MAX_UPLOAD_SIZE_MB`, as for uploads. `PLUGIN_BACKEND_TIMEOUT_MS` (default one minute) caps the wait for a Plugin Backend to start answering. Rate limiting is not part of the route yet.
+- A Plugin Backend cannot set cookies or CORS headers through the route, and a page it serves cannot run scripts there. None of this affects a Plugin reading a response with `usePluginApi`, a file included (`responseType: 'blob'`).
+- The route has no rate limiting yet, so one caller can send as many calls as the core backend accepts.

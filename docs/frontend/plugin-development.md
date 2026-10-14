@@ -567,11 +567,15 @@ On the way back, the core backend drops `Set-Cookie` and CORS headers and adds `
 
 | Status | Meaning |
 |---|---|
+| `400` | The path leaves your backend's base URL: a `..` segment, an encoded slash (`%2F`) or a backslash |
 | `401` | The core backend rejected the user's token. The host renews it and retries once |
 | `404` | No backend is registered for this `pluginId`, or your backend answered `404` |
+| `405` | The method is not `GET`, `HEAD`, `POST`, `PUT`, `PATCH` or `DELETE` |
 | `413` | The body is over the core backend's `MAX_UPLOAD_SIZE_MB` |
 | `502` | Your backend could not be reached, or it answered `401`. A `401` from your backend can only mean the secret is wrong, so it never reaches the host, which would drop the user's token. To turn a user away, answer `403` |
 | `504` | Your backend did not start answering within `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) |
+
+`soilhive-core` ADR 0061 explains why the core backend does each of these.
 
 ## Registering your plugin with the host
 
