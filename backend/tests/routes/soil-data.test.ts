@@ -2,6 +2,7 @@ import { describe, it, expect, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import {
+  addLicense,
   addRasterData,
   addSyntheticData,
   syntheticDataOptions,
@@ -15,6 +16,7 @@ import { StatusCodes } from 'http-status-codes';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
+import { getDataSource } from '../../src/utils/data-source';
 
 // addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
 // these tiny fixtures.
@@ -646,6 +648,56 @@ describe('Testing /soil-data routes', () => {
     expect(res.statusCode).toBe(StatusCodes.OK);
     const licenses = res.body.map((r: any) => r.license_name);
     licenses.forEach((l: string) => expect(l).toBe(datasetLicense));
+  });
+
+  it('Sorts and paginates by license_name as returned, including the dataset licence fallback', async () => {
+    const spatial_extent = [0, 0, 10, 10];
+    // Three layers, two features each: A0 and A2 get their own licence, A1 falls back to the dataset's,
+    // which sorts between them
+    const { dataset } = await addSyntheticData({
+      ...syntheticDataOptions,
+      id: 1010,
+      spatial_extent,
+      featureCount: 2,
+      depthLayers: 3,
+      datasetLicense: 'm fallback licence 1010',
+    });
+    const first = await addLicense('a layer licence 1010');
+    const last = await addLicense('z layer licence 1010');
+    const dataSource = await getDataSource();
+    const setLayerLicense = (horizon: string, licenseId: string) =>
+      dataSource.query(
+        `UPDATE layers SET license = $1
+         WHERE horizon = $2 AND id IN (SELECT layer_id FROM dataset_layers WHERE dataset_id = $3)`,
+        [licenseId, horizon, dataset.id],
+      );
+    await setLayerLicense('A0', first.id);
+    await setLayerLicense('A2', last.id);
+
+    const filterId = await createFilter(spatial_extent);
+    const expected = [first.name, first.name, 'm fallback licence 1010', 'm fallback licence 1010', last.name, last.name];
+
+    for (const [sort, order] of [
+      ['license_name', expected],
+      ['-license_name', [...expected].reverse()],
+    ] as const) {
+      const all = await request(app).get(`/soil-data?filterId=${filterId}&datasets=${dataset.slug}&limit=100&sort=${sort}`);
+      expect(all.statusCode).toBe(StatusCodes.OK);
+      expect(all.body.map((r: any) => r.license_name)).toEqual(order);
+
+      // Pages of 2 end on a fallback row, whose cursor value only the projected expression matches
+      const paged: any[] = [];
+      let cursor: string | undefined;
+      do {
+        const page = await request(app)
+          .get(`/soil-data`)
+          .query({ filterId, datasets: dataset.slug, limit: 2, sort, ...(cursor ? { cursor } : {}) });
+        expect(page.statusCode).toBe(StatusCodes.OK);
+        paged.push(...page.body);
+        cursor = page.body.length === 2 ? page.body[1].cursor : undefined;
+      } while (cursor);
+      expect(paged.map(r => r.id)).toEqual(all.body.map((r: any) => r.id));
+    }
   });
 });
 

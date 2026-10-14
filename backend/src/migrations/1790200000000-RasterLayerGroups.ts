@@ -57,9 +57,10 @@ export class RasterLayerGroups1790200000000 implements MigrationInterface {
     //
     // The advisory lock serializes concurrent loads that could race on the same group hash. It is
     // keyed by schema, so schemas sharing a database (one per Jest worker) don't queue on each
-    // other; the backfill script takes the same key. On DELETE, the row-level
-    // delete_orphan_raster_footprints trigger has already run (row-level AFTER triggers fire before
-    // statement-level ones), so orphaned footprints are gone and simply drop out of `affected`.
+    // other; the backfill script takes the same key. On DELETE, the
+    // delete_orphan_raster_footprints trigger has already run (statement-level since
+    // StatementLevelOrphanFootprintTrigger1791936000000; same-event triggers fire in name order),
+    // so orphaned footprints are gone and simply drop out of `affected`.
     //
     // Each of those orphan deletes cascades into a 0-row DELETE here, firing this trigger once per
     // orphaned footprint. Those firings return early: otherwise a bulk delete would run the

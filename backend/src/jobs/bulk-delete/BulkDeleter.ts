@@ -17,6 +17,10 @@ import { EntitlementScope } from '../../types/Entitlements';
 // Postgres: query_canceled — raised when a statement exceeds the `statement_timeout` set below.
 const STATEMENT_TIMEOUT_CODE = '57014';
 
+// Footprints unlinked per statement. Each takes its links to every layer of the dataset with it,
+// so a statement removes up to this many times the dataset's layer count.
+export const FOOTPRINT_CHUNK_SIZE = 10000;
+
 export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void> {
   const { data } = job;
   const datasetService = new DatasetService();
@@ -47,8 +51,32 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
       );
 
       if (dataset.gis_datatype === GISDataType.RASTER) {
-        // For raster datasets, only raster_layer entity deletion is required. The assets and footprints
-        // that reference it get deleted, and the delete_orphan_raster_footprints trigger removes raster_footprints
+        // A raster layer has hundreds of thousands of footprint links, so letting the raster_layers
+        // delete cascade into them puts millions of rows in one statement. Unlink in batches of
+        // footprints first, taking each footprint's links to every layer of the dataset at once:
+        // the group triggers then recompute each footprint once, from its final layer set.
+        const layerIds: string[] = (await manager.query(`SELECT id FROM raster_layers WHERE dataset_id = $1`, [datasetId])).map(
+          (r: { id: string }) => r.id,
+        );
+
+        for (const layerId of layerIds) {
+          while (true) {
+            // A raw DELETE resolves to [rows, rowCount].
+            const [, unlinked]: [unknown[], number] = await manager.query(
+              `DELETE FROM raster_layer_footprints
+               WHERE raster_layer_id = ANY($1::uuid[])
+                 AND raster_footprint_id IN (
+                   SELECT raster_footprint_id FROM raster_layer_footprints
+                   WHERE raster_layer_id = $2
+                   LIMIT $3
+                 )`,
+              [layerIds, layerId, FOOTPRINT_CHUNK_SIZE],
+            );
+            if (unlinked === 0) break;
+          }
+        }
+
+        // The assets and group memberships that reference the layers cascade with them
         const subQuery = manager
           .getRepository(RasterLayerEntity)
           .createQueryBuilder('rl')

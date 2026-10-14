@@ -1,4 +1,6 @@
 import { describe, it, expect, jest } from '@jest/globals';
+import fs from 'fs';
+import path from 'path';
 import { Job } from 'pg-boss';
 import { QueryFailedError } from 'typeorm';
 import DatasetEntity from '../../../src/entities/Dataset';
@@ -10,7 +12,10 @@ import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { addRasterData, addSyntheticData, getLoadedDataCount, syntheticDataOptions } from '../../../src/utils/mock';
 import * as computeRasterFootprints from '../../../src/scripts/computeRasterFootprints';
-import { writableAsset } from '../../assets';
+import { writableAsset, writableAssets } from '../../assets';
+
+// The fixture addRasterData loads when given no path
+const DEFAULT_RASTER_FIXTURE = 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif';
 
 // addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
 // these tiny fixtures. Lowering it here doesn't affect production (see computeRasterFootprints.ts).
@@ -204,6 +209,79 @@ describe('BulkDeleter class - raster datasets', () => {
     expect(kept).toHaveLength(1);
     const removed = await dataSource.query(`SELECT id FROM raster_layers WHERE id = $1`, [remove.id]);
     expect(removed).toHaveLength(0);
+  });
+
+  it('unlinks in footprint batches, keeping footprints another dataset still uses and their groups exact', async () => {
+    // Copies of the default fixture: same footprints, but distinct files, so addRasterData does not
+    // upsert one layer into the other's dataset through the (file_id, band) conflict
+    const fixture = path.join(writableAssets('raster'), DEFAULT_RASTER_FIXTURE);
+    const copyOf = (suffix: string) => {
+      const copy = fixture.replace(/\.tif$/, `_${suffix}.tif`);
+      if (!fs.existsSync(copy)) fs.copyFileSync(fixture, copy);
+      return copy;
+    };
+    const keep = await addRasterData(copyOf('shared_keep'), { dataset: 'bulk-delete-raster-shared-keep' });
+    const removeShared = [
+      await addRasterData(copyOf('shared_remove_a'), { dataset: 'bulk-delete-raster-shared-remove' }),
+      await addRasterData(copyOf('shared_remove_b'), { dataset: 'bulk-delete-raster-shared-remove' }),
+    ];
+    const removeOwn = await addRasterData(writableAsset('raster/bdod_5-15cm_mean.tif'), {
+      dataset: 'bulk-delete-raster-shared-remove',
+    });
+    const removedIds = [...removeShared, removeOwn].map(l => l.id);
+
+    const dataSource = await getDataSource();
+    const footprintsOf = async (layerIds: string[]): Promise<string[]> =>
+      (
+        await dataSource.query(
+          `SELECT DISTINCT raster_footprint_id AS id FROM raster_layer_footprints WHERE raster_layer_id = ANY($1::uuid[])`,
+          [layerIds],
+        )
+      )
+        .map((r: { id: string }) => r.id)
+        .sort();
+    const keptFootprints = await footprintsOf([keep.id]);
+    const ownFootprints = (await footprintsOf(removedIds)).filter(id => !keptFootprints.includes(id));
+    expect(ownFootprints.length).toBeGreaterThan(0);
+
+    // Small enough that every layer takes several batches
+    const chunked = BulkDeleterModule as unknown as { FOOTPRINT_CHUNK_SIZE: number };
+    const chunkSize = chunked.FOOTPRINT_CHUNK_SIZE;
+    chunked.FOOTPRINT_CHUNK_SIZE = 3;
+    try {
+      await BulkDeleterModule.processBulkDeletion(getJob(removeOwn.dataset.slug));
+    } finally {
+      chunked.FOOTPRINT_CHUNK_SIZE = chunkSize;
+    }
+
+    const removedLayers = await dataSource.query(`SELECT id FROM raster_layers WHERE id = ANY($1::uuid[])`, [removedIds]);
+    expect(removedLayers).toHaveLength(0);
+
+    // The kept layer still has every link, and the footprints only the purged dataset used are gone
+    expect(await footprintsOf([keep.id])).toEqual(keptFootprints);
+    const orphans = await dataSource.query(`SELECT id FROM raster_footprints WHERE id = ANY($1::uuid[])`, [ownFootprints]);
+    expect(orphans).toHaveLength(0);
+
+    // Every footprint's group lists exactly the layers linking it, and no group outlives its footprints
+    const wrongGroup = await dataSource.query(
+      `SELECT rf.id
+       FROM raster_footprints rf
+       LEFT JOIN LATERAL (
+         SELECT array_agg(raster_layer_id ORDER BY raster_layer_id) AS ids
+         FROM raster_layer_footprints WHERE raster_footprint_id = rf.id
+       ) linked ON true
+       LEFT JOIN LATERAL (
+         SELECT array_agg(raster_layer_id ORDER BY raster_layer_id) AS ids
+         FROM raster_layer_group_members WHERE layer_group_id = rf.layer_group_id
+       ) grp ON true
+       WHERE linked.ids IS DISTINCT FROM grp.ids`,
+    );
+    expect(wrongGroup).toEqual([]);
+    const emptyGroups = await dataSource.query(
+      `SELECT g.id FROM raster_layer_groups g
+       WHERE NOT EXISTS (SELECT 1 FROM raster_footprints rf WHERE rf.layer_group_id = g.id)`,
+    );
+    expect(emptyGroups).toEqual([]);
   });
 
   // The raster branch returns early from the purge transaction, so the strip has to sit above
