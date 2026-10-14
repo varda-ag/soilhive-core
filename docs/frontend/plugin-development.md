@@ -522,7 +522,7 @@ Every method takes an optional last `options` argument:
 | Option | Meaning |
 |---|---|
 | `params` | Query string parameters. An array repeats its key once per item: `{ type: ['a', 'b'] }` sends `?type=a&type=b`. `null` and `undefined` values leave the key out |
-| `headers` | Extra request headers |
+| `headers` | Extra request headers. The core backend passes them on to your backend, except `Authorization`, `Cookie`, `X-SoilHive-*` and the ones that only describe the connection |
 | `signal` | An `AbortSignal`. Aborting rejects the call with the `AbortError` itself |
 | `responseType` | `'json'` (default) or `'blob'`. With `'blob'`, the call reads a response of any type as a `Blob`, for example a file download. Without it, the response must be JSON, or the call rejects |
 
@@ -546,13 +546,17 @@ See [environment configuration](../backend/environment-configuration.md#plugin-b
 ```ts
 import { timingSafeEqual } from 'node:crypto';
 
-const expected = Buffer.from(`Bearer ${process.env.CORE_BACKEND_SECRET}`);
+// Without a secret, every caller would match `Bearer undefined`: refuse to start instead.
+const secret = process.env.CORE_BACKEND_SECRET;
+if (!secret || secret.length < 32) throw new Error('Set CORE_BACKEND_SECRET to this plugin\'s secret in PLUGIN_BACKEND_SECRETS');
+const expected = Buffer.from(`Bearer ${secret}`);
 
 // Express: on every API route, before anything reads X-SoilHive-Subject.
 app.use('/api', (req, res, next) => {
   const sent = Buffer.from(req.headers.authorization ?? '');
   if (sent.length !== expected.length || !timingSafeEqual(sent, expected)) return res.sendStatus(401);
-  res.locals.subject = req.headers['x-soilhive-subject']; // undefined for an anonymous caller
+  const subject = req.headers['x-soilhive-subject'];
+  res.locals.subject = typeof subject === 'string' ? decodeURIComponent(subject) : undefined; // undefined for an anonymous caller
   next();
 });
 ```
@@ -560,10 +564,10 @@ app.use('/api', (req, res, next) => {
 A call your backend gets from the core backend is the one the plugin made, with the same method, path, query, body and headers, except that:
 
 - `Authorization` is `Bearer <the secret>`. The user's token never reaches your backend.
-- `X-SoilHive-Subject` is the signed-in user's Subject: the identity the core backend keys Entitlements and `created_by` by, usually their email. It is missing for an anonymous caller, and the core backend has already checked the token it came from. The plugin cannot set it.
+- `X-SoilHive-Subject` is the signed-in user's Subject: the identity the core backend keys Entitlements and `created_by` by, usually their email. It is percent-encoded as UTF-8, since a header cannot carry every character an email may hold, so decode it with `decodeURIComponent`. A plain ASCII address arrives as it is. It is missing for an anonymous caller, and the core backend has already checked the token it came from. The plugin cannot set it.
 - Cookies are dropped.
 
-On the way back, the core backend drops `Set-Cookie` and CORS headers and adds `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox`. It hands a redirect back to the browser instead of following it. Every other status and body reaches the plugin as your backend sent it, except for these, which the core backend answers itself:
+On the way back, the core backend drops `Set-Cookie` and CORS headers and adds `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox`. It hands a redirect back to the browser instead of following it. A `Location` within your base URL, relative or absolute, is rewritten so that the browser comes back through the core backend: your backend's own address is not one the browser can reach. A `Location` on another origin, a presigned download for example, is passed on as it is. Every other status and body reaches the plugin as your backend sent it, except for these, which the core backend answers itself:
 
 | Status | Meaning |
 |---|---|
@@ -572,8 +576,8 @@ On the way back, the core backend drops `Set-Cookie` and CORS headers and adds `
 | `404` | No backend is registered for this `pluginId`, or your backend answered `404` |
 | `405` | The method is not `GET`, `HEAD`, `POST`, `PUT`, `PATCH` or `DELETE` |
 | `413` | The body is over the core backend's `MAX_UPLOAD_SIZE_MB` |
-| `502` | Your backend could not be reached, or it answered `401`. A `401` from your backend can only mean the secret is wrong, so it never reaches the host, which would drop the user's token. To turn a user away, answer `403` |
-| `504` | Your backend did not start answering within `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) |
+| `502` | Your backend could not be reached, it answered `401`, or it redirected to its own origin outside the base URL. A `401` from your backend can only mean the secret is wrong, so it never reaches the host, which would drop the user's token. To turn a user away, answer `403` |
+| `504` | Your backend did not start answering within `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) of getting the whole request. A slow upload or a long download does not count |
 
 `soilhive-core` ADR 0061 explains why the core backend does each of these.
 

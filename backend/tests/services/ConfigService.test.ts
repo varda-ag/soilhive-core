@@ -100,6 +100,19 @@ describe('ConfigService.getPluginBackends', () => {
     expect(() => ConfigService.getPluginBackends()).toThrow(message);
   });
 
+  it('parses the variables once, and again only when they change', () => {
+    register({ zones: 'http://zones-backend' }, { zones: secret });
+    const first = ConfigService.getPluginBackends();
+
+    expect(ConfigService.getPluginBackends()).toBe(first);
+
+    register({ zones: 'http://zones-backend-2' }, { zones: secret });
+    const changed = ConfigService.getPluginBackends();
+
+    expect(changed).not.toBe(first);
+    expect(changed.get('zones')!.url.href).toBe('http://zones-backend-2/');
+  });
+
   it('does not quote a malformed PLUGIN_BACKEND_SECRETS in its error', () => {
     register({ zones: 'http://zones-backend' }, '{"zones": "the-secret-itself');
     expect(() => ConfigService.getPluginBackends()).toThrow(new Error('PLUGIN_BACKEND_SECRETS is not valid JSON'));

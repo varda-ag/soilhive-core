@@ -42,7 +42,7 @@ The core backend forwards `/plugins/{pluginId}/...` to a Plugin's own backend (`
 
 - `PLUGIN_BACKENDS`: a JSON object from `pluginId` to the Plugin Backend's base URL, `http` or `https`, with no credentials, query or fragment. A call to `/plugins/{pluginId}/zones` goes to `{base URL}/zones`.
 - `PLUGIN_BACKEND_SECRETS`: a JSON object from `pluginId` to a secret of at least 32 characters, one for every plugin in `PLUGIN_BACKENDS`. The core backend sends it to that Plugin Backend as `Authorization: Bearer <secret>`, and the Plugin Backend refuses any call without it. Generate one with `openssl rand -hex 32`, and keep this variable in a secret store, apart from `PLUGIN_BACKENDS`.
-- `PLUGIN_BACKEND_TIMEOUT_MS` (default `60000`): how long the core backend waits for a Plugin Backend to start answering. Past it the call fails with a `504`. A response that has started may take as long as it needs.
+- `PLUGIN_BACKEND_TIMEOUT_MS` (default `60000`): how long the core backend waits for a Plugin Backend to start answering, once it has sent it the whole request. Past it the call fails with a `504`. Neither a slow upload nor a long download counts against it.
 
 ```
 PLUGIN_BACKENDS={"my-plugin":"http://my-plugin-backend:8080/api"}

@@ -33,6 +33,8 @@ if (isJest()) {
   app.use((_req, _res, next) => ready.then(next));
 }
 
+const PLUGIN_ROUTES = ['/api/v1/plugins/:pluginId', '/plugins/:pluginId'];
+
 export const initApp = async (app: Application) => {
   await setupCLI();
   // A malformed PLUGIN_BACKENDS or PLUGIN_BACKEND_SECRETS stops the start, not the first plugin call.
@@ -49,18 +51,20 @@ export const initApp = async (app: Application) => {
     app.use(cacheBypassMiddleware);
   }
   app.use(loggingMiddleware);
-  app.use(
-    cors({
-      origin,
-      credentials: true, // Allow cookies/auth headers
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      maxAge: 86400, // 24 hours
-    }),
-  );
+  const corsOptions = {
+    origin,
+    credentials: true, // Allow cookies/auth headers
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    maxAge: 86400, // 24 hours
+  };
+  // A plugin may send its own headers to its Plugin Backend (usePluginApi's headers option), so its
+  // route allows whichever headers a page from an allowed origin asks for. The proxy still drops
+  // the ones that are not the plugin's to set.
+  app.use(PLUGIN_ROUTES, cors(corsOptions));
+  app.use(cors({ ...corsOptions, allowedHeaders: ['Content-Type', 'Authorization'] }));
 
   // Ahead of the body parsers, so that a plugin's request body streams through to its Plugin Backend untouched.
-  app.use(['/api/v1/plugins/:pluginId', '/plugins/:pluginId'], pluginProxy);
+  app.use(PLUGIN_ROUTES, pluginProxy);
 
   app.use(uploadSizeLimit);
   app.use(express.urlencoded({ extended: true }));

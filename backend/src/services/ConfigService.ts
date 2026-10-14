@@ -233,32 +233,13 @@ export default class ConfigService {
   /**
    * The Plugin Backends this deployment forwards /plugins/{pluginId}/ to, by pluginId. Only the
    * deployment's environment names them, never a request: a URL taken from a request would let
-   * any caller point the core backend at any address it can reach (docs/adr/0061).
+   * any caller point the core backend at any address it can reach (docs/adr/0061). Parsed once
+   * per value of the two variables, which in a running deployment means once.
    */
   static getPluginBackends = (): Map<string, PluginBackend> => {
-    const urls = parsePluginIdMap('PLUGIN_BACKENDS');
-    const secrets = parsePluginIdMap('PLUGIN_BACKEND_SECRETS');
-    for (const pluginId of secrets.keys()) {
-      if (!urls.has(pluginId)) {
-        throw new Error(`PLUGIN_BACKEND_SECRETS has a secret for "${pluginId}", which PLUGIN_BACKENDS does not list`);
-      }
-    }
-
-    const backends = new Map<string, PluginBackend>();
-    for (const [pluginId, value] of urls) {
-      const url = URL.canParse(value) ? new URL(value) : undefined;
-      if (!url || !['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
-        throw new Error(`PLUGIN_BACKENDS: "${pluginId}" must be an http(s) URL with no credentials, query or fragment`);
-      }
-      const secret = secrets.get(pluginId) ?? '';
-      if (secret.length < MIN_PLUGIN_BACKEND_SECRET_LENGTH) {
-        throw new Error(`PLUGIN_BACKEND_SECRETS: "${pluginId}" needs a secret of at least ${MIN_PLUGIN_BACKEND_SECRET_LENGTH} characters`);
-      }
-      // So a call's path is appended to the base path rather than replacing its last segment.
-      if (!url.pathname.endsWith('/')) url.pathname += '/';
-      backends.set(pluginId, { url, secret });
-    }
-    return backends;
+    const raw = `${process.env.PLUGIN_BACKENDS ?? ''}\n${process.env.PLUGIN_BACKEND_SECRETS ?? ''}`;
+    if (pluginBackends?.raw !== raw) pluginBackends = { raw, backends: parsePluginBackends() };
+    return pluginBackends.backends;
   };
 
   static getPluginBackendTimeoutMs = (): number => {
@@ -266,6 +247,34 @@ export default class ConfigService {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PLUGIN_BACKEND_TIMEOUT_MS;
   };
 }
+
+let pluginBackends: { raw: string; backends: Map<string, PluginBackend> } | undefined;
+
+const parsePluginBackends = (): Map<string, PluginBackend> => {
+  const urls = parsePluginIdMap('PLUGIN_BACKENDS');
+  const secrets = parsePluginIdMap('PLUGIN_BACKEND_SECRETS');
+  for (const pluginId of secrets.keys()) {
+    if (!urls.has(pluginId)) {
+      throw new Error(`PLUGIN_BACKEND_SECRETS has a secret for "${pluginId}", which PLUGIN_BACKENDS does not list`);
+    }
+  }
+
+  const backends = new Map<string, PluginBackend>();
+  for (const [pluginId, value] of urls) {
+    const url = URL.canParse(value) ? new URL(value) : undefined;
+    if (!url || !['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+      throw new Error(`PLUGIN_BACKENDS: "${pluginId}" must be an http(s) URL with no credentials, query or fragment`);
+    }
+    const secret = secrets.get(pluginId) ?? '';
+    if (secret.length < MIN_PLUGIN_BACKEND_SECRET_LENGTH) {
+      throw new Error(`PLUGIN_BACKEND_SECRETS: "${pluginId}" needs a secret of at least ${MIN_PLUGIN_BACKEND_SECRET_LENGTH} characters`);
+    }
+    // So a call's path is appended to the base path rather than replacing its last segment.
+    if (!url.pathname.endsWith('/')) url.pathname += '/';
+    backends.set(pluginId, { url, secret });
+  }
+  return backends;
+};
 
 // A JSON object from pluginId to string. JSON.parse's own message is not passed on: it quotes the
 // input, which for PLUGIN_BACKEND_SECRETS is a secret.

@@ -3,6 +3,7 @@ import { StatusCodes } from 'http-status-codes';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { ReadableStream } from 'stream/web';
+import { PluginBackend } from '../interfaces/PluginBackend';
 import { RequestData } from '../interfaces/RequestData';
 import ConfigService from '../services/ConfigService';
 import { getSubject } from '../utils/auth';
@@ -39,6 +40,25 @@ const DROPPED_REQUEST_HEADERS = new Set([...HOP_BY_HOP_HEADERS, 'authorization',
 const DROPPED_RESPONSE_HEADERS = new Set([...HOP_BY_HOP_HEADERS, 'content-encoding', 'content-length', 'set-cookie']);
 
 const BODY_TOO_LARGE = 'The request body exceeds the maximum allowed size';
+
+// A header value holds Latin-1 at most, and a Subject is an email, which may hold any character. It
+// goes percent-encoded as UTF-8, which leaves a plain ASCII address as it is.
+const encodeSubject = (subject: string): string => subject.replace(/[^\x21-\x7e]|%/gu, character => encodeURIComponent(character));
+
+// A Location on the Plugin Backend's own origin is reachable only through the core backend. Inside
+// the base URL it is rewritten relative to the request, which keeps whatever prefix the browser
+// reached the core backend under. Outside it there is no way back, and passing it on would only
+// reveal the Plugin Backend's address, so it is left out (undefined). Any other origin, a
+// presigned download say, is the browser's to follow.
+const relocate = (location: string, target: URL, backend: PluginBackend, path: string): string | undefined => {
+  if (!URL.canParse(location, target)) return location;
+  const resolved = new URL(location, target);
+  if (resolved.origin !== backend.url.origin) return location;
+  if (!resolved.pathname.startsWith(backend.url.pathname)) return undefined;
+  // From /plugins/{pluginId}/a/b, '../' climbs back to /plugins/{pluginId}/.
+  const up = '../'.repeat(path.split('/').length - 2) || './';
+  return `${up}${resolved.pathname.slice(backend.url.pathname.length)}${resolved.search}${resolved.hash}`;
+};
 
 const hasBody = (req: Request): boolean =>
   !['GET', 'HEAD'].includes(req.method) && (Number(req.headers['content-length']) > 0 || req.headers['transfer-encoding'] !== undefined);
@@ -82,6 +102,7 @@ const forward = async (req: Request, res: Response, signal: AbortSignal): Promis
       if (bodySize > maxBodySize) throw new Error(BODY_TOO_LARGE);
       yield chunk;
     }
+    startTimeout();
   }
 
   const headers = new Headers();
@@ -90,17 +111,22 @@ const forward = async (req: Request, res: Response, signal: AbortSignal): Promis
     for (const item of [value].flat()) headers.append(name, item);
   }
   headers.set('authorization', `Bearer ${backend.secret}`);
-  if (req.customData.token) headers.set(SUBJECT_HEADER, getSubject(req.customData));
+  if (req.customData.token) headers.set(SUBJECT_HEADER, encodeSubject(getSubject(req.customData)));
   // A length with no body to send would leave the Plugin Backend waiting for one.
   const withBody = hasBody(req);
   if (!withBody) headers.delete('content-length');
 
-  // The timeout covers the wait for the Plugin Backend to start answering, not a long download.
+  // The timeout covers the wait for the Plugin Backend to start answering once it has the whole
+  // request: neither a slow upload nor a long download counts.
   const answered = new AbortController();
-  const timer = setTimeout(
-    () => answered.abort(new DOMException('The Plugin Backend did not answer in time', 'TimeoutError')),
-    ConfigService.getPluginBackendTimeoutMs(),
-  );
+  let timer: NodeJS.Timeout | undefined;
+  const startTimeout = () => {
+    timer = setTimeout(
+      () => answered.abort(new DOMException('The Plugin Backend did not answer in time', 'TimeoutError')),
+      ConfigService.getPluginBackendTimeoutMs(),
+    );
+  };
+  if (!withBody) startTimeout();
   // Node's fetch streams an async iterable body and needs duplex to do so; the DOM types it is
   // declared with know neither.
   const init: RequestInit & { duplex: 'half' } = {
@@ -108,8 +134,8 @@ const forward = async (req: Request, res: Response, signal: AbortSignal): Promis
     headers,
     body: withBody ? (body() as unknown as BodyInit) : null,
     duplex: 'half',
-    // A redirect goes back to the caller, whose browser follows it. Followed here, it would send
-    // the core backend wherever the Plugin Backend pointed.
+    // A redirect goes back to the caller, whose browser follows it (see relocate). Followed here, it
+    // would send the core backend wherever the Plugin Backend pointed.
     redirect: 'manual',
     signal: AbortSignal.any([signal, answered.signal]),
   };
@@ -136,10 +162,18 @@ const forward = async (req: Request, res: Response, signal: AbortSignal): Promis
     throw new ErrorResponse('The Plugin Backend rejected this deployment', StatusCodes.BAD_GATEWAY);
   }
 
+  const location = upstream.headers.get('location');
+  const relocated = location === null ? undefined : relocate(location, target, backend, path!);
+  if (location !== null && relocated === undefined && upstream.status >= 300 && upstream.status < 400) {
+    await upstream.body?.cancel();
+    throw new ErrorResponse('The Plugin Backend redirected outside its base URL', StatusCodes.BAD_GATEWAY);
+  }
+
   res.status(upstream.status);
   upstream.headers.forEach((value, name) => {
-    if (!DROPPED_RESPONSE_HEADERS.has(name) && !name.startsWith('access-control-')) res.setHeader(name, value);
+    if (!DROPPED_RESPONSE_HEADERS.has(name) && !name.startsWith('access-control-') && name !== 'location') res.setHeader(name, value);
   });
+  if (relocated !== undefined) res.setHeader('Location', relocated);
   // The body is served from the core backend's origin: a browser must not sniff it into a page,
   // or run it as one there.
   res.setHeader('X-Content-Type-Options', 'nosniff');

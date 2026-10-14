@@ -34,7 +34,10 @@ const pluginBackend = http.createServer(async (req, res) => {
 // supertest resolves dot segments before it sends a path, and always sends a Content-Length, so these
 // go out as written: the path as is, the body chunked. The server is the one tests/jest.beforeEach.ts
 // already started for app.
-const sendRaw = (path: string, { method = 'GET', headers = {} as Record<string, string>, chunks = [] as string[] } = {}) =>
+const sendRaw = (
+  path: string,
+  { method = 'GET', headers = {} as Record<string, string>, chunks = [] as string[], chunkDelayMs = 0 } = {},
+) =>
   new Promise<number>((resolve, reject) => {
     const { port } = http.createServer(app).address() as AddressInfo;
     const req = http.request({ host: '127.0.0.1', port, path, method, headers }, res => {
@@ -42,8 +45,14 @@ const sendRaw = (path: string, { method = 'GET', headers = {} as Record<string, 
       resolve(res.statusCode!);
     });
     req.on('error', reject);
-    for (const chunk of chunks) req.write(chunk);
-    req.end();
+    const send = async () => {
+      for (const chunk of chunks) {
+        if (chunkDelayMs) await new Promise(wait => setTimeout(wait, chunkDelayMs));
+        req.write(chunk);
+      }
+      req.end();
+    };
+    void send();
   });
 
 const listen = (server: http.Server) =>
@@ -53,11 +62,13 @@ describe('/plugins/{pluginId}/ forwards to the Plugin Backend registered for plu
   let port: number;
   let closedPort: number;
   let token: string;
+  let unicodeToken: string;
   const originalMaxUploadSizeMB = process.env.MAX_UPLOAD_SIZE_MB;
 
   beforeAll(async () => {
     // Not in the test: getUserToken resets the environment, Plugin Backends included.
     token = getUserToken('user-sub', 'user@example.com');
+    unicodeToken = getUserToken('other-sub', '用户@例子.广告');
     port = await listen(pluginBackend);
     // A port nothing listens on any more
     const closed = http.createServer();
@@ -107,6 +118,32 @@ describe('/plugins/{pluginId}/ forwards to the Plugin Backend registered for plu
     expect(headers['cookie']).toBeUndefined();
     expect(headers['x-requested-with']).toBe('zones-ui');
     expect(JSON.stringify(headers)).not.toContain(token);
+  });
+
+  it('percent-encodes a Subject that a header cannot carry as it is', async () => {
+    const res = await request(app).get(`/api/v1/plugins/${PLUGIN_ID}/zones`).set('Authorization', `Bearer ${unicodeToken}`);
+
+    expect(res.statusCode).toBe(StatusCodes.OK);
+    const subject = received[0]!.headers['x-soilhive-subject'] as string;
+    expect(subject).toBe('%E7%94%A8%E6%88%B7@%E4%BE%8B%E5%AD%90.%E5%B9%BF%E5%91%8A');
+    expect(decodeURIComponent(subject)).toBe('用户@例子.广告');
+  });
+
+  it('lets a page from an allowed origin send its own headers through the CORS preflight, on this route only', async () => {
+    const preflight = (path: string) =>
+      request(app)
+        .options(path)
+        .set('Origin', 'http://localhost:3000')
+        .set('Access-Control-Request-Method', 'GET')
+        .set('Access-Control-Request-Headers', 'x-request-id');
+
+    const plugin = await preflight(`/api/v1/plugins/${PLUGIN_ID}/zones`);
+    const core = await preflight('/api/v1/configs/theme');
+
+    expect(plugin.headers['access-control-allow-headers']).toBe('x-request-id');
+    expect(plugin.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+    expect(core.headers['access-control-allow-headers']).toBe('Content-Type,Authorization');
+    expect(received).toHaveLength(0);
   });
 
   it('forwards an anonymous call with no Subject, whatever the caller claims', async () => {
@@ -252,6 +289,55 @@ describe('/plugins/{pluginId}/ forwards to the Plugin Backend registered for plu
     expect(received).toHaveLength(1);
   });
 
+  it.each([
+    ['a relative', '/api/zones/', '/zones', './zones/'],
+    ['an absolute', 'ABSOLUTE/api/zones/?page=2', '/zones', './zones/?page=2'],
+    ['a relative', '/api/zones/north', '/zones/north/shape/', '../../../zones/north'],
+  ])('brings %s redirect within the base URL (%s) back through the core backend', async (_kind, location, path, expected) => {
+    respond = (_req, res) => {
+      res.writeHead(StatusCodes.TEMPORARY_REDIRECT, { Location: location.replace('ABSOLUTE', `http://127.0.0.1:${port}`) });
+      res.end();
+    };
+
+    const res = await request(app).get(`/api/v1/plugins/${PLUGIN_ID}${path}`).redirects(0);
+
+    expect(res.statusCode).toBe(StatusCodes.TEMPORARY_REDIRECT);
+    expect(res.headers['location']).toBe(expected);
+    const followed = new URL(expected, `https://api.example/api/v1/plugins/${PLUGIN_ID}${path}`);
+    expect(followed.pathname).toBe(`/api/v1/plugins/${PLUGIN_ID}/${location.replace(/^.*\/api\//, '').split('?')[0]}`);
+  });
+
+  it("answers 502 to a redirect outside the base URL, without revealing the Plugin Backend's address", async () => {
+    respond = (_req, res) => {
+      res.writeHead(StatusCodes.MOVED_TEMPORARILY, { Location: `http://127.0.0.1:${port}/admin` });
+      res.end();
+    };
+
+    const res = await request(app).get(`/api/v1/plugins/${PLUGIN_ID}/zones`).redirects(0);
+
+    expect(res.statusCode).toBe(StatusCodes.BAD_GATEWAY);
+    expect(res.headers['location']).toBeUndefined();
+    expect(res.text).not.toContain(String(port));
+  });
+
+  it("rewrites a created resource's Location, and leaves out one outside the base URL", async () => {
+    let location = '/api/zones/z1';
+    respond = (_req, res) => {
+      res.writeHead(StatusCodes.CREATED, { Location: location, 'Content-Type': 'application/json' });
+      res.end('{"id":"z1"}');
+    };
+
+    const inside = await request(app).post(`/api/v1/plugins/${PLUGIN_ID}/zones`).send({ name: 'North' });
+    location = '/admin/z1';
+    const outside = await request(app).post(`/api/v1/plugins/${PLUGIN_ID}/zones`).send({ name: 'North' });
+
+    expect(inside.statusCode).toBe(StatusCodes.CREATED);
+    expect(inside.headers['location']).toBe('./zones/z1');
+    expect(outside.statusCode).toBe(StatusCodes.CREATED);
+    expect(outside.headers['location']).toBeUndefined();
+    expect(outside.body).toEqual({ id: 'z1' });
+  });
+
   it('answers 502 when the Plugin Backend cannot be reached', async () => {
     const res = await request(app).get('/api/v1/plugins/gone-plugin/zones');
 
@@ -268,6 +354,17 @@ describe('/plugins/{pluginId}/ forwards to the Plugin Backend registered for plu
     const res = await request(app).get(`/api/v1/plugins/${PLUGIN_ID}/zones`);
 
     expect(res.statusCode).toBe(StatusCodes.GATEWAY_TIMEOUT);
+  });
+
+  it('starts the timeout once the whole request is sent, so a slow upload is not cut off', async () => {
+    process.env.PLUGIN_BACKEND_TIMEOUT_MS = '300';
+    const chunks = Array.from({ length: 6 }, () => 'x'.repeat(100));
+
+    // 600 bytes over about 600 ms, which the Plugin Backend answers as soon as it has read them
+    const status = await sendRaw(`/api/v1/plugins/${PLUGIN_ID}/upload`, { method: 'POST', chunks, chunkDelayMs: 100 });
+
+    expect(status).toBe(StatusCodes.OK);
+    expect(received[0]!.body).toHaveLength(600);
   });
 
   it('lets a response that has started take longer than the timeout', async () => {
