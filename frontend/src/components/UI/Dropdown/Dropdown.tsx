@@ -16,6 +16,7 @@ import styles from './Dropdown.module.scss';
 interface Props {
   className?: string;
   inputClassName?: string;
+  optionsClassName?: string;
   size?: ComponentSizeType;
   name?: string;
   label?: string;
@@ -37,6 +38,7 @@ interface Props {
 export function Dropdown({
   className,
   inputClassName,
+  optionsClassName,
   size = 'medium',
   name,
   label,
@@ -189,7 +191,7 @@ export function Dropdown({
             <div ref={portalRef} style={menuStyle} className={styles.PortalMenu}>
               <Menu
                 size={size}
-                className={styles.FullWidthMenu}
+                className={classnames(styles.FullWidthMenu, optionsClassName)}
                 options={options}
                 isMultiselect={isMultiselect}
                 keepSelection={true}
