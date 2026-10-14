@@ -12,8 +12,7 @@ import JobService from '../../src/services/JobService';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { IngestionStatus } from '../../src/types/data';
-import { addRasterFilterData, addRasterFilterMappings } from '../helper';
-import { makeFilter } from './SoilDataStorage.test';
+import { addRasterFilterData, addRasterFilterMappings, makeFilter } from '../helper';
 
 const worldBbox: [number, number, number, number] = [0, 0, 1, 1];
 const worldPolygon: Polygon = getPolygonFromBbox(worldBbox);

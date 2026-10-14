@@ -4,7 +4,7 @@ import * as path from 'path';
 import { Readable } from 'stream';
 import { Job } from 'pg-boss';
 import { ExportJob, ExportOutputs } from '../../interfaces/Job';
-import { EXPORT_CONFIG, VectorFileFormat, RasterFileFormat } from './types';
+import { VectorFileFormat, RasterFileFormat } from './types';
 import { getEntityManager } from '../../utils/data-source';
 import {
   getTotalRecordsCount,
@@ -29,6 +29,7 @@ import {
   mergeGPKG,
   moveToDownloadFolder,
   zipFiles,
+  createTempDirectory,
 } from './storageHelpers';
 import EntitlementService from '../../services/EntitlementService';
 import { EVERYONE } from '../../constants/constants';
@@ -58,7 +59,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
 
   // Fresh working directory on every run, and therefore no partial output from any previous one.
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), EXPORT_CONFIG.TEMP_DIR_PREFIX));
+  const tempDir = await createTempDirectory();
   let localZipPath: string | null = null;
 
   try {

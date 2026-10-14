@@ -17,7 +17,7 @@ import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import { log } from '../../src/utils/logger';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
-import { addRasterFilterData, addRasterFilterMappings } from '../helper';
+import { addRasterFilterData, addRasterFilterMappings, makeFilter as makeFilterFor } from '../helper';
 import { workerOutputDir, writableAsset } from '../assets';
 
 // addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
@@ -70,29 +70,8 @@ const writeFixture = (name: string, offset = 0): string => {
 
 const lonLatBox = (west: number, south: number, east: number, north: number): Polygon => getPolygonFromBbox([west, south, east, north]);
 
-const makeFilter = async (geometry?: Polygon | MultiPolygon, parameters: FilterCriteria = {}): Promise<DataFilter> => {
-  if (!geometry) return { geometryIds: [], parameters, area: 0 };
-  const entityManager = await getEntityManager();
-  // Mirrors FilterService.insertUserGeometry (and makeFilter in SoilDataStorage.test.ts)
-  const [{ id, area }] = await entityManager.query(
-    `WITH input AS (
-       SELECT ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure') AS geom
-     ), inserted AS (
-       INSERT INTO user_geometries (geom)
-       SELECT geom FROM input
-       ON CONFLICT (geom_hash) DO NOTHING
-       RETURNING id, area
-     )
-     SELECT id, area FROM inserted
-     UNION ALL
-     SELECT ug.id, ug.area
-     FROM user_geometries ug, input
-     WHERE ug.geom_hash = encode(sha256(input.geom::TEXT::BYTEA), 'hex')
-     LIMIT 1`,
-    [JSON.stringify(geometry)],
-  );
-  return { geometryIds: [id], parameters, area: Number(area) };
-};
+const makeFilter = async (geometry?: Polygon | MultiPolygon, parameters: FilterCriteria = {}): Promise<DataFilter> =>
+  makeFilterFor(await getEntityManager(), geometry, parameters);
 
 const addFixtureLayer = async (
   name: string,

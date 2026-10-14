@@ -20,7 +20,7 @@ const DOCS_BASE_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/
 const VECTOR_DOCS_URL = `${DOCS_BASE_URL}/1a-vector-data-ingestion.md`;
 const RASTER_DOCS_URL = `${DOCS_BASE_URL}/1b-raster-data-ingestion.md`;
 
-const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
+export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   FTD_FILE_NOT_FOUND: {
     message: 'Your file was removed from storage before processing could start.',
     actions: ['Re-upload the file and start the staging job again.'],

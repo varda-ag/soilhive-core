@@ -164,11 +164,6 @@ export default class FileService {
     return adapter;
   };
 
-  getFiles = async (requestData: RequestData): Promise<FileEntity[]> => {
-    const repo = requestData.entityManager.getRepository(FileEntity);
-    return await repo.find();
-  };
-
   getFile = async (requestData: RequestData, slug: string): Promise<FileEntity> => {
     return await getEntity(requestData, FileEntity, EntityType.FILE, slug);
   };
