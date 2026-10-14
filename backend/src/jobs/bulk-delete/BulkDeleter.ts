@@ -59,20 +59,30 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
           (r: { id: string }) => r.id,
         );
 
+        // Batches page through each layer's links by footprint id. Restarting the scan from the
+        // layer's first link would walk every link earlier batches deleted: dead index entries stay
+        // until a vacuum, which cannot run while this transaction is open.
         for (const layerId of layerIds) {
+          let after = '00000000-0000-0000-0000-000000000000';
           while (true) {
-            // A raw DELETE resolves to [rows, rowCount].
-            const [, unlinked]: [unknown[], number] = await manager.query(
-              `DELETE FROM raster_layer_footprints
-               WHERE raster_layer_id = ANY($1::uuid[])
-                 AND raster_footprint_id IN (
-                   SELECT raster_footprint_id FROM raster_layer_footprints
-                   WHERE raster_layer_id = $2
-                   LIMIT $3
-                 )`,
-              [layerIds, layerId, FOOTPRINT_CHUNK_SIZE],
+            // A data-modifying CTE always runs, whether or not the outer query reads it
+            const [last]: { raster_footprint_id: string }[] = await manager.query(
+              `WITH batch AS MATERIALIZED (
+                 SELECT raster_footprint_id FROM raster_layer_footprints
+                 WHERE raster_layer_id = $2 AND raster_footprint_id > $3
+                 ORDER BY raster_footprint_id
+                 LIMIT $4
+               ),
+               unlinked AS (
+                 DELETE FROM raster_layer_footprints
+                 WHERE raster_layer_id = ANY($1::uuid[])
+                   AND raster_footprint_id IN (SELECT raster_footprint_id FROM batch)
+               )
+               SELECT raster_footprint_id FROM batch ORDER BY raster_footprint_id DESC LIMIT 1`,
+              [layerIds, layerId, after, FOOTPRINT_CHUNK_SIZE],
             );
-            if (unlinked === 0) break;
+            if (!last) break;
+            after = last.raster_footprint_id;
           }
         }
 

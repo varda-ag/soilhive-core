@@ -1838,6 +1838,9 @@ const buildRawSoilQuery = (
     LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = dl.soil_property_id AND soil_property.deleted_at IS NULL
     LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL
     ${procedureJoins(schema!, 'obs.procedure_id')}`;
+  // Kept out of leftJoinBlock because it reads ds, which `matched` and the count phase only join
+  // when a dataset column is needed. Joined only where license_fallback is read, so it is never
+  // pruned; UQ_licenses_slug makes it a unique lookup there.
   const licenseFallbackJoin = `LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]`;
   const sortAndCursor = `${sortExpr ?? ''} ${cursorClause}`;
   const needsLicenseFallbackInMatched = sortAndCursor.includes('license_fallback.');
