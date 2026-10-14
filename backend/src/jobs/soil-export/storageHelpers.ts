@@ -108,11 +108,8 @@ export async function mergeGPKG(tempDir: string, globalFilename: string = 'expor
 export async function moveToDownloadFolder(localZipPath: string, downloadPath: string): Promise<string> {
   const storage: FileStorage = FileService.getStorageEngine();
 
-  // Read the local zip file
-  const fileContent = await fs.promises.readFile(localZipPath);
-
-  // Write to storage engine (handles both local FS and S3)
-  await storage.write(downloadPath, fileContent);
+  // Streamed, never buffered: S3 goes through a multipart upload, local FS through a write stream
+  await storage.write(downloadPath, fs.createReadStream(localZipPath));
 
   // Return the download path (can be used to construct URL)
   return downloadPath;
