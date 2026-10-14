@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import DownloadSummary from '../../src/pages/DownloadSummary';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
 import useDownloads from 'hooks/useDownloads';
@@ -62,9 +62,14 @@ jest.mock('primereact/dropdown', () => {
 });
 
 jest.mock('primereact/datatable', () => {
-  const DataTable = ({ children }: { children: React.ReactNode }) => <div>Mock DataTable {children}</div>;
-  return { DataTable };
+  const mockDataTableProps = jest.fn();
+  const DataTable = (props: { children: React.ReactNode }) => {
+    mockDataTableProps(props);
+    return <div>Mock DataTable {props.children}</div>;
+  };
+  return { DataTable, mockDataTableProps };
 });
+const { mockDataTableProps } = jest.requireMock('primereact/datatable');
 
 jest.mock('primereact/column', () => {
   const Column = () => <div>Mock Column</div>;
@@ -141,6 +146,37 @@ describe('DownloadSummary', () => {
       expect(screen.getByRole('option', { name: 'CSV + Geotiff' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Geopackage' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: 'CSV' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('format selection when changing datasets', () => {
+    const selectDatasets = (value: unknown[]) => act(() => mockDataTableProps.mock.lastCall[0].onSelectionChange({ value }));
+
+    it('keeps options and format when all datasets are deselected', () => {
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [rasterDataset], datasetsSummary: {} });
+      render(<DownloadSummary />);
+      const dropdown = screen.getByTestId('format-dropdown');
+      fireEvent.change(dropdown, { target: { value: 'gpkg' } });
+
+      selectDatasets([]);
+      expect(dropdown).toHaveValue('gpkg');
+      expect(screen.getByRole('option', { name: 'Geotiff' })).toBeInTheDocument();
+
+      selectDatasets([rasterDataset]);
+      expect(dropdown).toHaveValue('gpkg');
+    });
+
+    it('resets to the default format when the dataset types change', () => {
+      (useDownloadSummary as jest.Mock).mockReturnValue({
+        datasets: [vectorDataset, rasterDataset],
+        datasetsSummary: {},
+      });
+      render(<DownloadSummary />);
+      const dropdown = screen.getByTestId('format-dropdown');
+      expect(dropdown).toHaveValue('gpkg');
+
+      selectDatasets([rasterDataset]);
+      expect(dropdown).toHaveValue('tiff');
     });
   });
 
