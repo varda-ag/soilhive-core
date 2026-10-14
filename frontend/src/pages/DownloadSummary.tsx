@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState } from 'react';
 import useDevice from 'hooks/useDevice';
 import { Button } from 'components/UI';
 import styles from './DownloadSummary.module.scss';
@@ -50,6 +50,20 @@ export const MIXED_FORMAT_OPTIONS: FormatOption[] = [
   { id: 'xlsx+tiff', name: 'XLSX + Geotiff', formats: ['xlsx', 'tiff'] },
 ];
 
+const SCENARIO_FORMATS = {
+  vector: { options: VECTOR_FORMAT_OPTIONS, defaultFormat: 'csv' },
+  raster: { options: RASTER_FORMAT_OPTIONS, defaultFormat: 'tiff' },
+  mixed: { options: MIXED_FORMAT_OPTIONS, defaultFormat: 'gpkg' },
+};
+
+type Scenario = keyof typeof SCENARIO_FORMATS;
+
+const getScenario = (datasets: DownloadSummaryDataset[]): Scenario => {
+  if (datasets.every(d => d.dataType !== GISDataType.RASTER)) return 'vector';
+  if (datasets.every(d => d.dataType === GISDataType.RASTER)) return 'raster';
+  return 'mixed';
+};
+
 function DownloadSummary() {
   const navigate = useNavigate();
   const { t } = useTranslation('download');
@@ -66,25 +80,23 @@ function DownloadSummary() {
 
   const [summaryExpanded, setSummaryExpanded] = useState(false);
   const [selectedDatasets, setSelectedDatasets] = useState<DownloadSummaryDataset[]>([]);
-  const [selectedFormat, setSelectedFormat] = useState<string>('csv');
+  const [scenario, setScenario] = useState<Scenario>('vector');
+  const [selectedFormat, setSelectedFormat] = useState<string>(SCENARIO_FORMATS.vector.defaultFormat);
   const [showUpdatedMessage, setShowUpdatedMessage] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
 
-  const scenario = useMemo(() => {
-    if (selectedDatasets.length === 0 || selectedDatasets.every(d => d.dataType !== GISDataType.RASTER)) return 'vector' as const;
-    if (selectedDatasets.every(d => d.dataType === GISDataType.RASTER)) return 'raster' as const;
-    return 'mixed' as const;
-  }, [selectedDatasets]);
+  const activeFormatOptions = SCENARIO_FORMATS[scenario].options;
 
-  const { activeFormatOptions, defaultFormat } = useMemo(() => {
-    if (scenario === 'raster') return { activeFormatOptions: RASTER_FORMAT_OPTIONS, defaultFormat: 'tiff' };
-    if (scenario === 'mixed') return { activeFormatOptions: MIXED_FORMAT_OPTIONS, defaultFormat: 'gpkg' };
-    return { activeFormatOptions: VECTOR_FORMAT_OPTIONS, defaultFormat: 'csv' };
-  }, [scenario]);
-
-  useEffect(() => {
-    setSelectedFormat(defaultFormat);
-  }, [scenario, defaultFormat]);
+  const onSelectedDatasetsChange = (datasets: DownloadSummaryDataset[]) => {
+    setSelectedDatasets(datasets);
+    // With nothing selected, keep the current options and format
+    if (datasets.length === 0) return;
+    const newScenario = getScenario(datasets);
+    if (newScenario !== scenario) {
+      setScenario(newScenario);
+      setSelectedFormat(SCENARIO_FORMATS[newScenario].defaultFormat);
+    }
+  };
 
   const onFormatDropdownChange = (e: DropdownChangeEvent) => {
     setSelectedFormat(e.value);
@@ -137,9 +149,7 @@ function DownloadSummary() {
   });
 
   // Select all datasets the first time they are loaded
-  useOnceDefined(datasets, newDatasets => {
-    setSelectedDatasets(newDatasets);
-  });
+  useOnceDefined(datasets, onSelectedDatasetsChange);
 
   return (
     <div className={styles.DownloadSummary}>
@@ -214,7 +224,7 @@ function DownloadSummary() {
                   selectionMode="checkbox"
                   selection={selectedDatasets}
                   onSelectionChange={e => {
-                    setSelectedDatasets(e.value);
+                    onSelectedDatasetsChange(e.value);
                   }}
                   dataKey="id"
                   scrollable
