@@ -273,7 +273,7 @@ The data and host-injected query hooks a Plugin receives as its one prop: the si
 _Avoid_: Plugin props, context (too generic — always say "Plugin Context")
 
 **Plugin Backend**:
-The HTTP API that a **Plugin**'s own deployment may serve next to its remote. The Plugin's frontend reaches it only through the core backend, which forwards `/plugins/{pluginId}/...` to it, so the call stays on the host's API origin and carries the **Signed-in user**'s token (docs/adr/0060). The core backend finds it only in its own deployment's config, by `pluginId`, never in a request, and sends it the caller's **Subject** and a secret proving the call came from the core backend, never the caller's token (docs/adr/0061).
+The HTTP API that a **Plugin**'s own deployment may serve next to its remote. The Plugin's frontend reaches it only through the core backend, which forwards `/plugins/{pluginId}/...` to it, so the call stays on the host's API origin and carries the **Signed-in user**'s token (docs/adr/0061). The core backend finds it only in its own deployment's config, by `pluginId`, never in a request, and sends it the caller's **Subject** and a secret proving the call came from the core backend, never the caller's token (docs/adr/0062).
 _Avoid_: Plugin API (the client for it that the **Plugin Context** hands out, `usePluginApi`), plugin server
 
 **Remote Plugin** (`RemotePlugin`):

@@ -476,7 +476,7 @@ This draws scored points and cells, which are points at every zoom. If the Run s
 
 If your plugin's deployment also serves an API, call it with `context.usePluginApi(pluginId)`. It returns a client with `get`, `post`, `put`, `patch` and `delete`. Paths are relative to your backend: `api.get('/zones')` calls your backend's `/zones`.
 
-The client does not call your backend directly. It calls the core backend at `{BACKEND_BASE_URL}/plugins/{pluginId}/zones`, and the core backend forwards the call to your backend. So your backend needs no CORS setup for the host, and the host attaches the signed-in user's token. On a `401`, the host tries to renew the token and retry once, as it does for its own calls. See `soilhive-core` ADR 0060.
+The client does not call your backend directly. It calls the core backend at `{BACKEND_BASE_URL}/plugins/{pluginId}/zones`, and the core backend forwards the call to your backend. So your backend needs no CORS setup for the host, and the host attaches the signed-in user's token. On a `401`, the host tries to renew the token and retry once, as it does for its own calls. See `soilhive-core` ADR 0061.
 
 Your plugin does not say where its backend is, and cannot. Whoever runs the core backend registers it, by `pluginId`: see [Your backend's side](#your-backends-side). Until then, every call rejects with a `404`.
 
@@ -536,7 +536,7 @@ In local preview there is no core backend, so the mock context's client rejects 
 
 #### Your backend's side
 
-The core backend finds your backend only in its own deployment's config, never in a request (`soilhive-core` ADR 0061). To register it, whoever runs the core backend adds your `pluginId` to two environment variables, and restarts it:
+The core backend finds your backend only in its own deployment's config, never in a request (`soilhive-core` ADR 0062). To register it, whoever runs the core backend adds your `pluginId` to two environment variables, and restarts it:
 
 - `PLUGIN_BACKENDS`: your backend's base URL. `api.get('/zones')` reaches `{base URL}/zones`.
 - `PLUGIN_BACKEND_SECRETS`: a secret of at least 32 characters, which your backend is configured with too.
@@ -580,7 +580,7 @@ On the way back, the core backend drops `Set-Cookie` and CORS headers and adds `
 | `503` | The core backend's `PLUGIN_BACKENDS` or `PLUGIN_BACKEND_SECRETS` is malformed, or your secret there is missing or too short. Its log says what is wrong |
 | `504` | Your backend did not start answering within `PLUGIN_BACKEND_TIMEOUT_MS` (one minute by default) of getting the whole request. A slow upload or a long download does not count |
 
-`soilhive-core` ADR 0061 explains why the core backend does each of these.
+`soilhive-core` ADR 0062 explains why the core backend does each of these.
 
 ## Registering your plugin with the host
 

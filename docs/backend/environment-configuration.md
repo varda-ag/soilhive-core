@@ -38,7 +38,7 @@ Per-upload memory use is bounded by `queueSize × partSize`; size these together
 
 ## Plugin Backends
 
-The core backend forwards `/plugins/{pluginId}/...` to a Plugin's own backend (`docs/adr/0060`). Only these variables say where each one is, never the call itself (`docs/adr/0061`). A plugin with no entry gets a `404`.
+The core backend forwards `/plugins/{pluginId}/...` to a Plugin's own backend (`docs/adr/0061`). Only these variables say where each one is, never the call itself (`docs/adr/0062`). A plugin with no entry gets a `404`.
 
 - `PLUGIN_BACKENDS`: a JSON object from `pluginId` to the Plugin Backend's base URL, `http` or `https`, with no credentials, query or fragment. A call to `/plugins/{pluginId}/zones` goes to `{base URL}/zones`.
 - `PLUGIN_BACKEND_SECRETS`: a JSON object from `pluginId` to a secret of at least 32 characters, one for every plugin in `PLUGIN_BACKENDS`. The core backend sends it to that Plugin Backend as `Authorization: Bearer <secret>`, and the Plugin Backend refuses any call without it. Generate one with `openssl rand -hex 32`, and keep this variable in a secret store, apart from `PLUGIN_BACKENDS`.

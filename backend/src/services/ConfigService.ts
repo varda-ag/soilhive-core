@@ -233,7 +233,7 @@ export default class ConfigService {
   /**
    * The Plugin Backends this deployment forwards /plugins/{pluginId}/ to, by pluginId. Only the
    * deployment's environment names them, never a request: a URL taken from a request would let
-   * any caller point the core backend at any address it can reach (docs/adr/0061). Parsed once
+   * any caller point the core backend at any address it can reach (docs/adr/0062). Parsed once
    * per value of the two variables, which in a running deployment means once, and a malformed
    * value throws the same error on every call.
    */

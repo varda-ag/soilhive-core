@@ -40,7 +40,7 @@ export const initApp = async (app: Application) => {
   await setupCLI();
   // A malformed PLUGIN_BACKENDS or PLUGIN_BACKEND_SECRETS shows in the log at start, rather than on
   // the first plugin call. It does not stop the start: only the plugin route answers 503, and the
-  // rest of the core backend keeps serving (docs/adr/0061).
+  // rest of the core backend keeps serving (docs/adr/0062).
   try {
     ConfigService.getPluginBackends();
   } catch (error) {

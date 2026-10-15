@@ -11,7 +11,7 @@ The Plugin passes its own `pluginId`, as it does to `usePluginConfig` and `useNo
 
 ## Consequences
 
-- How the core backend finds each Plugin Backend, and what it tells it about the caller, is ADR 0061.
+- How the core backend finds each Plugin Backend, and what it tells it about the caller, is ADR 0062.
 - A `401` on this route means the core backend rejected the user's token. The host tries to renew the token and retry once, and if the call still ends in a `401` it drops the token, as for any core call. So the core backend never passes a Plugin Backend's own `401` through: it answers `502` instead.
 - The client never shows a toast. A failed call rejects with a `PluginApiError`, which carries the HTTP status (`0` when there was no response) and the JSON error body, and the Plugin decides what to show. An aborted call rejects with its `AbortError` unchanged.
 - The route is not in the OpenAPI spec, whose paths cannot end in a path of any depth. The core backend mounts it ahead of its body parsers, so a request body, multipart included, streams through untouched.

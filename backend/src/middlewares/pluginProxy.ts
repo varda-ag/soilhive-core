@@ -163,7 +163,7 @@ const forward = async (req: Request, res: Response, signal: AbortSignal): Promis
   }
 
   // A 401 from here would read as the core backend rejecting the user's token, and the host would
-  // drop it (docs/adr/0060). From a Plugin Backend it can only mean this deployment's secret is wrong.
+  // drop it (docs/adr/0061). From a Plugin Backend it can only mean this deployment's secret is wrong.
   if (upstream.status === StatusCodes.UNAUTHORIZED) {
     await upstream.body?.cancel();
     log.warn('Plugin Backend rejected the core backend secret', { pluginId });
@@ -198,7 +198,7 @@ const forward = async (req: Request, res: Response, signal: AbortSignal): Promis
 
 /**
  * Forwards /plugins/{pluginId}/{path} to the Plugin Backend this deployment registered for
- * pluginId (docs/adr/0060, 0061). Mounted ahead of the body parsers, so that the body streams
+ * pluginId (docs/adr/0061, 0062). Mounted ahead of the body parsers, so that the body streams
  * through untouched, and outside the OpenAPI spec, whose paths cannot end in a path of any depth.
  */
 export const pluginProxy = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
