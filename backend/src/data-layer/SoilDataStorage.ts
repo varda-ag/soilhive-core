@@ -6,9 +6,8 @@ import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { Cursor, RasterCursor } from '../interfaces/Cursor';
 import { ErrorResponse } from '../utils/error';
 import { selectOverviewTable } from '../utils/raster';
-import { Capability, OverlapType } from '../types/enums';
+import { Capability } from '../types/enums';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, FilteredRasterLayer, DataFilter } from '../interfaces/DatasetFilter';
-import DatasetEntity from '../entities/Dataset';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
 import RasterFilterService from '../services/RasterFilterService';
@@ -33,29 +32,6 @@ const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
 
 export default class SoilDataStorage {
-  /**
-   * @returns A map of dataset UUIDs to their overlap type with the provided geometry
-   */
-  getOverlapType = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon): Promise<Map<string, OverlapType>> => {
-    const repo = entityManager.getRepository(DatasetEntity);
-    const results = await repo
-      .createQueryBuilder('datasets')
-      .addCommonTableExpression(selectGeometry(), 'input')
-      .select([
-        'datasets.id as dataset_id',
-        `CASE 
-            WHEN ST_Contains(input.geom, datasets.spatial_extent) THEN 'full'
-            WHEN ST_Intersects(input.geom, datasets.spatial_extent) THEN 'partial'
-            ELSE 'none'
-        END as overlap_type`,
-      ])
-      .where('datasets.spatial_extent IS NOT NULL')
-      .from('input', 'input')
-      .setParameter('inputGeom', JSON.stringify(geometry))
-      .getRawMany();
-    return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
-  };
-
   filterVector = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDatasetSummary[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
@@ -1963,10 +1939,6 @@ const buildRawSoilQuery = (
   }
 
   return { sql, params };
-};
-
-const selectGeometry = (): string => {
-  return "SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(:inputGeom), 'method=structure'), 3) AS geom";
 };
 
 /**

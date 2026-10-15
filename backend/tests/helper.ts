@@ -12,6 +12,11 @@ import { TOKEN_ISSUER } from '../src/types/enums';
 import { schemaForWorker, setupTestEnv, tmpDirForWorker } from './environment';
 import assert from 'assert';
 import fs, { readFileSync } from 'fs';
+import { DataSource, EntityManager } from 'typeorm';
+import { MultiPolygon, Polygon } from 'geojson';
+import FilterService from '../src/services/FilterService';
+import { DataFilter, FilterCriteria } from '../src/interfaces/DatasetFilter';
+import { RequestData } from '../src/interfaces/RequestData';
 
 const execAsync = promisify(exec);
 
@@ -90,52 +95,65 @@ export const teardown = async () => {
   await destroyDataSource();
 };
 
+/**
+ * The entity tables plus every table referencing them by foreign key, transitively: the set
+ * `TRUNCATE ... CASCADE` reaches. Partitions are left out, a DELETE on the parent covers them.
+ * Looked up once per test file.
+ */
+let tablesToClear: string[] | undefined;
+
+const findTablesToClear = async (dataSource: DataSource): Promise<string[]> => {
+  const rows: Array<{ name: string }> = await dataSource.query(
+    `
+      WITH RECURSIVE reached(oid) AS (
+        SELECT unnest($1::regclass[])::oid
+        UNION
+        SELECT con.conrelid FROM pg_constraint con JOIN reached ON con.confrelid = reached.oid WHERE con.contype = 'f'
+      )
+      SELECT c.oid::regclass::text AS name FROM reached JOIN pg_class c ON c.oid = reached.oid WHERE NOT c.relispartition`,
+    [dataSource.entityMetadatas.map(entity => `"${entity.tableName}"`)],
+  );
+  return rows.map(row => row.name);
+};
+
 export const clearDatabase = async () => {
   assert(
     process.env.POSTGRES_SCHEMA?.startsWith('testschema'),
     `clearDatabase can only be run on a test schema, got '${process.env.POSTGRES_SCHEMA}'`,
   );
-  const excludeTables: string[] = [];
-  const includeTables: string[] = ['land_cover', 'soil_groups'];
   const dataSource = await getDataSource();
-  const tableNames = dataSource?.entityMetadatas
-    .filter(entity => !excludeTables.includes(entity.tableName))
-    .map(entity => `"${entity.tableName}"`)
-    .join(', ');
-  await dataSource?.query(`TRUNCATE TABLE ${tableNames} CASCADE;`);
+  tablesToClear ??= await findTablesToClear(dataSource);
+  // Tables that may not exist: to_regclass gives NULL for those
+  const optional: Array<{ name: string | null }> = await dataSource.query(`SELECT to_regclass(t)::text AS name FROM unnest($1::text[]) t`, [
+    RASTER_FIXTURE_TABLES,
+  ]);
+  const toDelete = [...tablesToClear, ...optional.map(({ name }) => name).filter(name => name !== null)];
 
-  // Different method for tables that may not exist
-  for (const table of includeTables) {
-    await dataSource?.query(`
-    DO $$
-      BEGIN
-        IF EXISTS (
-          SELECT 1 FROM information_schema.tables
-          WHERE table_schema = '${process.env.POSTGRES_SCHEMA}'
-          AND table_name = '${table}'
-        ) THEN
-          TRUNCATE TABLE ${table};
-        END IF;
-      END
-      $$;`);
-  }
+  // DELETE, not TRUNCATE: TRUNCATE recreates the files of every table and index, about 1-3s per call on the
+  // emulated (amd64) test Postgres, while DELETE on the few rows a test leaves takes milliseconds.
+  // The replica role skips FK triggers, so the tables can be emptied in any order.
+  await dataSource.transaction(async manager => {
+    await manager.query(`SET LOCAL session_replication_role = replica`);
+    await manager.query(toDelete.map(table => `DELETE FROM ${table};`).join('\n'));
+  });
 
-  // Drop raw data tables
-  const tables: Array<{ table_name: string }> = await dataSource.query(
+  // Drop raw data tables, and the per-Run soil index partitions: the DELETE above empties them, but
+  // only deleting a Run through the app drops its partitions, and the worker schemas outlive the run
+  const tables: Array<{ name: string }> = await dataSource.query(
     `
-      SELECT table_name
-      FROM information_schema.tables
-      WHERE table_schema = $1
-        AND table_type = 'BASE TABLE'
-        AND table_name LIKE 'file\\_%\\_raw' ESCAPE '\\'`,
+      SELECT c.oid::regclass::text AS name
+      FROM pg_class c
+      WHERE c.relnamespace = to_regnamespace($1)
+        AND c.relkind = 'r'
+        AND (
+          c.relname LIKE 'file\\_%\\_raw' ESCAPE '\\'
+          OR c.oid IN (SELECT inhrelid FROM pg_inherits WHERE inhparent IN (to_regclass('soil_index'), to_regclass('soil_index_tiles')))
+        )`,
     [process.env.POSTGRES_SCHEMA],
   );
-
-  await dataSource.transaction(async manager => {
-    for (const { table_name } of tables) {
-      await manager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${table_name}" CASCADE`);
-    }
-  });
+  if (tables.length > 0) {
+    await dataSource.query(`DROP TABLE IF EXISTS ${tables.map(({ name }) => name).join(', ')} CASCADE`);
+  }
 };
 
 export const getTableColumns = async (tableName: string): Promise<Array<{ column_name: string; data_type: string }>> => {
@@ -256,4 +274,15 @@ export const addRasterFilters = async (): Promise<void> => {
       INSERT INTO "raster_filters" (id,name,description) VALUES ('agroecological_zones', 'Agroecological zones', 'The Food and Agriculture Organization of the United Nations (FAO) and the International Institute for Applied Systems Analysis (IIASA) have cooperated over several decades to develop and implement the Agro-Ecological Zones (AEZ) modeling framework and databases. AEZ relies on well-established land evaluation principles to assess natural resources for finding suitable agricultural land utilization options. Compilation of an AEZ agro-climatic inventory using several climatic variables (e.g. temperature, precipitation, sunshine fraction, relative humidity) gives a <strong>general characterization of climatic resources, signifies their suitability for agricultural use and provides data and indicators related to climatic requirements of crop growth, development and yield formation. Source: © FAO, 2021. Global Agro-Ecological Zones v4');
       INSERT INTO "raster_filters" (id,name,description) VALUES ('soil_groups', 'Soil Groups', 'This filter refers to the categories defined by the WRB, an international soil classification system developed by the IUSS. These groups classify soils based on their physical and chemical properties, providing a standardized framework for naming soils and creating legends for soil maps. FAO & IIASA. 2023. Harmonized World Soil Database version 2.0. Rome and Laxenburg.');
     `);
+};
+
+/** Builds a DataFilter for `geometry`, storing it through the same path as a real filter submission. */
+export const makeFilter = async (
+  entityManager: EntityManager,
+  geometry?: Polygon | MultiPolygon,
+  parameters: FilterCriteria = {},
+): Promise<DataFilter> => {
+  if (!geometry) return { geometryIds: [], parameters, area: 0 };
+  const { id, area } = await new FilterService().insertUserGeometry({ entityManager, entitlements: {} } as RequestData, geometry);
+  return { geometryIds: [id], parameters, area: Number(area) };
 };

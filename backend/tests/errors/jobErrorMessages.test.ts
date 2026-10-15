@@ -1,6 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { JobError } from '../../src/errors/JobError';
-import { translateJobError, translateQueueMessage, UNEXPECTED_JOB_ERROR_CODE } from '../../src/errors/jobErrorMessages';
+import { JOB_ERROR_MESSAGES, translateJobError, translateQueueMessage, UNEXPECTED_JOB_ERROR_CODE } from '../../src/errors/jobErrorMessages';
 
 describe('JobError', () => {
   it('stores detail when provided', () => {
@@ -29,32 +29,8 @@ describe('translateQueueMessage', () => {
 });
 
 describe('translateJobError', () => {
-  const DEFINED_CODES = [
-    'FTD_FILE_NOT_FOUND',
-    'FTD_GDAL_PARSE_ERROR',
-    'FTD_NO_DATA_COLUMNS',
-    'FTD_MISSING_LAYER_NAME',
-    'FTD_MISSING_COLUMN_MAPPING',
-    'FTD_RASTER_NOT_SUPPORTED',
-    'FTD_STALE_STAGING_TABLE',
-    'BL_RAW_TABLE_NOT_FOUND',
-    'BL_MISSING_COLUMN_MAPPING',
-    'BL_RECORD_WRITE_FAILED',
-    'BL_RECORD_VALIDATION_FAILED',
-    'RL_MAPPING_NOT_CONFIGURED',
-    'RL_INVALID_BAND',
-    'RL_INVALID_REFERENCE_PERIOD',
-    'RL_INVALID_DEPTH',
-    'RL_INVALID_DEPTH_RANGE',
-    'RL_CONVERSION_FAILED',
-    'RL_SOURCE_FILE_NOT_FOUND',
-    'RL_UNIT_NOT_CONVERTIBLE',
-    'EX_XLSX_TOO_MANY_RECORDS',
-    'EX_AREA_LIMIT_EXCEEDED',
-    'EX_AREA_LIMIT_NO_AOI',
-    'EX_RASTER_LAYER_LIMIT_EXCEEDED',
-    'EX_OBSERVATION_LIMIT_EXCEEDED',
-  ];
+  // Read from the map itself so a newly added code is covered without touching this file
+  const DEFINED_CODES = Object.keys(JOB_ERROR_MESSAGES);
 
   it.each(DEFINED_CODES)('returns non-empty message and actions for %s', code => {
     const result = translateJobError(code);

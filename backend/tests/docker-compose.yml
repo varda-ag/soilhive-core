@@ -3,8 +3,17 @@ services:
   postgis:
     image: postgis/postgis:18-3.6
     platform: linux/amd64
-    # max_connections is raised because every Jest worker opens its own poolSize=50 pool
-    command: ["postgres", "-c", "postgis.gdal_enabled_drivers=ENABLE_ALL", "-c", "max_connections=300"]
+    # max_connections is raised because every Jest worker opens its own poolSize=50 pool.
+    # Durability is off: the test database is throwaway, and skipping the disk syncs speeds up every write.
+    command:
+      [
+        "postgres",
+        "-c", "postgis.gdal_enabled_drivers=ENABLE_ALL",
+        "-c", "max_connections=300",
+        "-c", "fsync=off",
+        "-c", "synchronous_commit=off",
+        "-c", "full_page_writes=off",
+      ]
     environment:
       POSTGRES_DB: database
       POSTGRES_USER: dbuser
