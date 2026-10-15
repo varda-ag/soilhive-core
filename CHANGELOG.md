@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.6.0 (2026-10-15)
+
+## What's Changed
+* fix:  sp-5724 laptop detected as a mobile device by @cristbello in https://github.com/varda-ag/soilhive-core/pull/890
+* feat(be): incremental ingestions by @d-rom in https://github.com/varda-ag/soilhive-core/pull/891
+* fix(be): SP-4889 fit constraint names to Postgres 63-char limit by @svaccari in https://github.com/varda-ag/soilhive-core/pull/896
+* fix: format dropdown by @svaccari in https://github.com/varda-ag/soilhive-core/pull/895
+* fix: file streaming by @svaccari in https://github.com/varda-ag/soilhive-core/pull/897
+* feat(fe): SP-5763 sync SoilhiveSimpleMap from the dashboards plugin by @cristbello in https://github.com/varda-ag/soilhive-core/pull/894
+* feat: jwks endpoint by @svaccari in https://github.com/varda-ag/soilhive-core/pull/898
+* fix(be): getSoilData timeout by @d-rom in https://github.com/varda-ag/soilhive-core/pull/899
+* fix: replace extract-zip library by @svaccari in https://github.com/varda-ag/soilhive-core/pull/900
+* test(be): remove recurring tests, simplify clearDatabase by @d-rom in https://github.com/varda-ag/soilhive-core/pull/902
+* feat: sp-5762 - dropdown ui component update by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/901
+* fix(be): SP-5785 raster export layers follow coverage by @svaccari in https://github.com/varda-ag/soilhive-core/pull/903
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.5.0...v1.6.0
+
 ## 1.5.0 (2026-10-12)
 
 ## What's Changed
