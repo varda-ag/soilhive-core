@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useApiQuery } from 'hooks/useApiQuery';
-import { useSoilIndexScore, useSoilIndexTileSource } from 'hooks/useSoilIndexTiles';
+import { retrySoilIndexScore, useSoilIndexScore, useSoilIndexTileSource } from 'hooks/useSoilIndexTiles';
 
 jest.mock('hooks/useApiQuery', () => ({ useApiQuery: jest.fn() }));
 jest.mock('configuration/api', () => ({
@@ -108,6 +108,7 @@ describe('useSoilIndexScore', () => {
       endpoint: `/soil-indexes/${RUN}/scores/7`,
       enabled: true,
       staleTime: Infinity,
+      retry: retrySoilIndexScore,
       authenticate: false,
       showErrorNotification: false,
     });
@@ -137,5 +138,21 @@ describe('useSoilIndexScore', () => {
     rerender({ scoreId: undefined });
 
     expect(result.current.data).toBeUndefined();
+  });
+});
+
+describe('retrySoilIndexScore', () => {
+  const httpError = (status: number) => Object.assign(new Error(`HTTP ${status}`), { status });
+
+  it.each([400, 403, 404, 422])('does not retry a %i: a score never changes, so it would answer the same', status => {
+    expect(retrySoilIndexScore(0, httpError(status))).toBe(false);
+  });
+
+  it('retries a server or network error, a timeout or a rate limit, up to three times', () => {
+    expect(retrySoilIndexScore(0, httpError(500))).toBe(true);
+    expect(retrySoilIndexScore(1, httpError(408))).toBe(true);
+    expect(retrySoilIndexScore(1, httpError(429))).toBe(true);
+    expect(retrySoilIndexScore(2, new TypeError('Failed to fetch'))).toBe(true);
+    expect(retrySoilIndexScore(3, httpError(500))).toBe(false);
   });
 });
