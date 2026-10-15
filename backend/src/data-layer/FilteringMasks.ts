@@ -69,6 +69,12 @@ const hasMatchingRasterValues = async (
 
 export type CteDef = { name: string; sql: string; materialized?: boolean };
 
+/** The body of a raw-SQL `WITH`, binding `:geometryIds` to the placeholder `geometryIdsParam`. */
+export const renderCtes = (ctes: CteDef[], geometryIdsParam: string): string =>
+  ctes
+    .map(cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParam)})`)
+    .join(',\n      ');
+
 /**
  * Returns a chain of CTEs that resolves to an `aoi` CTE containing the vector mask
  * geometry (user geometry intersected with any active raster filter values).
@@ -152,10 +158,7 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
 
 export const getVectorMask = async (entityManager: EntityManager, filter: DataFilter): Promise<Polygon | MultiPolygon> => {
   const ctes = await getVectorMaskCtes(entityManager, filter);
-  const cteStrings = ctes.map(
-    cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, '$1')})`,
-  );
-  const [row] = await entityManager.query(`WITH ${cteStrings.join(',\n')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`, [
+  const [row] = await entityManager.query(`WITH ${renderCtes(ctes, '$1')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`, [
     filter.geometryIds,
   ]);
   return row.geom;
