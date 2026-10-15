@@ -6,9 +6,8 @@ import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { Cursor, RasterCursor } from '../interfaces/Cursor';
 import { ErrorResponse } from '../utils/error';
 import { selectOverviewTable } from '../utils/raster';
-import { Capability, OverlapType } from '../types/enums';
+import { Capability } from '../types/enums';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, FilteredRasterLayer, DataFilter } from '../interfaces/DatasetFilter';
-import DatasetEntity from '../entities/Dataset';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
 import RasterFilterService from '../services/RasterFilterService';
@@ -33,29 +32,6 @@ const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
 
 export default class SoilDataStorage {
-  /**
-   * @returns A map of dataset UUIDs to their overlap type with the provided geometry
-   */
-  getOverlapType = async (entityManager: EntityManager, geometry: Polygon | MultiPolygon): Promise<Map<string, OverlapType>> => {
-    const repo = entityManager.getRepository(DatasetEntity);
-    const results = await repo
-      .createQueryBuilder('datasets')
-      .addCommonTableExpression(selectGeometry(), 'input')
-      .select([
-        'datasets.id as dataset_id',
-        `CASE 
-            WHEN ST_Contains(input.geom, datasets.spatial_extent) THEN 'full'
-            WHEN ST_Intersects(input.geom, datasets.spatial_extent) THEN 'partial'
-            ELSE 'none'
-        END as overlap_type`,
-      ])
-      .where('datasets.spatial_extent IS NOT NULL')
-      .from('input', 'input')
-      .setParameter('inputGeom', JSON.stringify(geometry))
-      .getRawMany();
-    return new Map(results.map(row => [row.dataset_id, row.overlap_type as OverlapType]));
-  };
-
   filterVector = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDatasetSummary[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
@@ -1752,7 +1728,9 @@ const buildRawSoilQuery = (
       property_acronym: 'soil_property.property_acronym',
       standard_unit: 'soil_property.standard_unit',
       geometry: 'feature_source.geom',
-      license_name: 'license.name',
+      // As projected: the cursor carries the projected value, so sorting on license.name alone
+      // misplaced rows falling back to the dataset's licence and skipped or repeated them across pages
+      license_name: 'COALESCE(license.name, license_fallback.name)',
       sampling_date: 'layer.sampling_date',
       min_depth: 'layer.min_depth',
       max_depth: 'layer.max_depth',
@@ -1835,8 +1813,13 @@ const buildRawSoilQuery = (
   const leftJoinBlock = `LEFT JOIN ${schema}.layers layer ON layer.id = dl.layer_id
     LEFT JOIN ${schema}.soil_properties soil_property ON soil_property.id = dl.soil_property_id AND soil_property.deleted_at IS NULL
     LEFT JOIN ${schema}.licenses license ON license.id = layer.license AND license.deleted_at IS NULL
-    LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]
     ${procedureJoins(schema!, 'obs.procedure_id')}`;
+  // Kept out of leftJoinBlock because it reads ds, which `matched` and the count phase only join
+  // when a dataset column is needed. Joined only where license_fallback is read, so it is never
+  // pruned; UQ_licenses_slug makes it a unique lookup there.
+  const licenseFallbackJoin = `LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]`;
+  const sortAndCursor = `${sortExpr ?? ''} ${cursorClause}`;
+  const needsLicenseFallbackInMatched = sortAndCursor.includes('license_fallback.');
 
   // Spatial/raster fences + dataset/layer narrowing, shared by every mode.
   const ctePrefix = `WITH
@@ -1883,9 +1866,14 @@ const buildRawSoilQuery = (
         ${whereClause}
     )`;
 
+  // target_layers holds only target_dataset's live datasets, so joining datasets adds no filter;
+  // it is joined only where a column of it is read.
+  const datasetJoin = `INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id`;
+  // The licence fallback joins on ds.licenses
+  const needsDatasetInMatched = needsLicenseFallbackInMatched || /\bds\./.test(sortAndCursor);
+
   // FROM/JOIN block anchored on target_layers, used for the count phase.
   const baseFrom = `FROM target_layers dl
-    INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
     INNER JOIN ${schema}.observations obs ON obs.dataset_layer_id = dl.id
     ${leftJoinBlock}`;
 
@@ -1900,8 +1888,9 @@ const buildRawSoilQuery = (
   // target_layers is still joined back for the projection/filter columns.
   const matchedFrom = `FROM ${schema}.observations obs
     INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id
-    INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+    ${needsDatasetInMatched ? datasetJoin : ''}
     ${leftJoinBlock}
+    ${needsLicenseFallbackInMatched ? licenseFallbackJoin : ''}
     ${needsFeatureGeomInMatched ? featureGeomJoin : ''}`;
 
   let sql: string;
@@ -1919,7 +1908,9 @@ const buildRawSoilQuery = (
     //    by index on dataset_layer_id (the target_layers join) instead of walking the PK.
     //  • page: ORDER BY + LIMIT over the *materialized* keys → cheap Top-N, the base
     //    index is no longer reachable so the bad plan can't recur.
-    //  • outer: project the heavy columns for the LIMIT rows only.
+    //  • outer: project the heavy columns for the LIMIT rows only. It reaches the layer through
+    //    dataset_layers' PK, not target_layers: matched already confined obs to target_layers,
+    //    and a CTE has no index.
     const pageOrderClause = `ORDER BY ${sortExpr ? `__sort_val ${pageDir}, ` : ''}id ${pageDir}`;
     sql = `
     ${ctePrefix},
@@ -1938,19 +1929,16 @@ const buildRawSoilQuery = (
     SELECT ${selectColumns}
     FROM page
     INNER JOIN ${schema}.observations obs ON obs.id = page.id
-    INNER JOIN target_layers dl ON dl.id = obs.dataset_layer_id
-    INNER JOIN ${schema}.datasets ds ON ds.id = dl.dataset_id
+    INNER JOIN ${schema}.dataset_layers dl ON dl.id = obs.dataset_layer_id
+    ${datasetJoin}
     ${leftJoinBlock}
+    ${licenseFallbackJoin}
     ${featureGeomJoin}
     ${orderClause}
   `;
   }
 
   return { sql, params };
-};
-
-const selectGeometry = (): string => {
-  return "SELECT ST_CollectionExtract(ST_MakeValid(ST_GeomFromGeoJSON(:inputGeom), 'method=structure'), 3) AS geom";
 };
 
 /**

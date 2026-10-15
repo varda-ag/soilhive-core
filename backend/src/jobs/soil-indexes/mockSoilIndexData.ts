@@ -172,6 +172,14 @@ export async function readMockSoilIndexData(url: string, limits: MockSoilIndexLi
   }
 
   const rows: MockSoilIndexRow[] = [];
+  // A refusal raised inside the pipeline. With a stream between the fetch body and the consumer,
+  // pipeline() rejects with the AbortError from tearing the body down instead,
+  // so it is kept here rather than read back from the rejection.
+  let refusal: JobError | undefined;
+  const refuse = <T>(error: T): T => {
+    if (JobError.isJobError(error)) refusal ??= error;
+    return error;
+  };
   try {
     const response = await fetch(source, { signal: AbortSignal.timeout(limits.timeoutMs) });
     if (!response.ok) {
@@ -187,7 +195,7 @@ export async function readMockSoilIndexData(url: string, limits: MockSoilIndexLi
       transform(chunk: Buffer, _encoding, callback) {
         bytes += chunk.length;
         if (bytes > limits.maxBytes) {
-          callback(unavailable(`larger than ${limits.maxBytes} bytes`));
+          callback(refuse(unavailable(`larger than ${limits.maxBytes} bytes`)));
         } else {
           callback(null, chunk);
         }
@@ -201,13 +209,17 @@ export async function readMockSoilIndexData(url: string, limits: MockSoilIndexLi
       capped,
       parse({ bom: true, trim: true, skip_empty_lines: true, relax_column_count: true, info: true }),
       async function (records: AsyncIterable<{ record: string[]; info: { lines: number } }>) {
-        for await (const { record, info } of records) {
-          if (header) {
-            rows.push(toRow(record, info.lines, lines));
-          } else {
-            checkHeader(record);
-            header = true;
+        try {
+          for await (const { record, info } of records) {
+            if (header) {
+              rows.push(toRow(record, info.lines, lines));
+            } else {
+              checkHeader(record);
+              header = true;
+            }
           }
+        } catch (error) {
+          throw refuse(error);
         }
       },
     );
@@ -215,7 +227,7 @@ export async function readMockSoilIndexData(url: string, limits: MockSoilIndexLi
       throw unavailable('empty file');
     }
   } catch (error) {
-    const failure = JobError.isJobError(error) ? error : unavailable(explain(error, limits));
+    const failure = refusal ?? (JobError.isJobError(error) ? error : unavailable(explain(error, limits)));
     log.warn('Mock soil index data unavailable', { url: redact(source), detail: failure.detail, error: getErrorMessage(error) });
     throw failure;
   }

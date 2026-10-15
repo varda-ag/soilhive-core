@@ -13,8 +13,7 @@ import LicenseEntity from '../entities/License';
 import UnitConversionEntity from '../entities/UnitConversion';
 import { getPolygonFromBbox } from './geometry';
 import { getDataSource, getEntityManager } from './data-source';
-import SlugHistoryEntity from '../entities/SlugHistory';
-import { EntityType, GISDataType, IngestionStatus, UnitConversionType, VocabularyType } from '../types/data';
+import { GISDataType, IngestionStatus, UnitConversionType, VocabularyType } from '../types/data';
 import { PropertyMapping } from '../interfaces/PropertyMapping';
 import assert from 'assert';
 import path from 'path';
@@ -107,13 +106,6 @@ export const syntheticIngestionDataOptions = {
   showProgress: false,
 };
 
-export const addSlug = async (slug: string, entity_id: string, entity_type: EntityType) => {
-  const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(SlugHistoryEntity);
-  const slugEntity = repo.create({ slug, entity_id, entity_type });
-  return await repo.save(slugEntity);
-};
-
 export const addDataset = async (
   name: string,
   spatial_extent: number[],
@@ -191,17 +183,6 @@ export const addDatasetFileMapping = async (datasetId: string, dataMappingId: st
     data_mapping_id: dataMappingId,
   });
   return await repo.save(datasetFileMapping);
-};
-
-export const addFeature = async (lng: number, lat: number) => {
-  assert(!isNaN(lng), 'Longitude must be a number');
-  assert(!isNaN(lat), 'Latitude must be a number');
-  const dataSource = await getDataSource();
-  const repo = dataSource.getRepository(FeatureEntity);
-  const feature = repo.create({
-    geom: { type: 'Point', coordinates: [lng, lat] },
-  });
-  return await repo.save(feature);
 };
 
 export const addFeatures = async (type: GISDataType, coordinatesArray) => {
@@ -610,10 +591,6 @@ export const getLoadedDataCount = async (datasetId?: string): Promise<DataCount>
   return result;
 };
 
-export interface SyntheticRasterDataset {
-  dataset: DatasetEntity;
-}
-
 /**
  * Ingests one band of a raster fixture.
  *
@@ -719,18 +696,6 @@ export const addRasterData = async (
     where: { id: rasterLayerId },
     relations: { file: true, dataset: true, soil_property: true },
   });
-};
-
-export const addRasterDataset = async (id: string, tifPath?: string): Promise<SyntheticRasterDataset> => {
-  const input = tifPath ?? path.join(rasterAssetsDir(), DEFAULT_RASTER_FIXTURE);
-  const spatial_extent = [-180, -90, 180, 90];
-  const license = await addLicense(`test_raster_license_${id}`);
-  const dataset = await addDataset(`test_raster_dataset_${id}`, spatial_extent, GISDataType.RASTER, [license.slug]);
-  await addRasterData(input, {
-    dataset: dataset.slug,
-    soilProperty: 'test_soil_property',
-  });
-  return { dataset };
 };
 
 export const addSyntheticIngestionDataManyCols = async (): Promise<{ datasetId: string; fileId: string; dataMappingId: string }> => {

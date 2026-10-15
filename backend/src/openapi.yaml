@@ -107,6 +107,25 @@ paths:
                     type: string
                   expires_in:
                     type: integer
+
+  /.well-known/jwks.json:
+    get:
+      x-eov-operation-handler: controllers/auth
+      x-eov-operation-id: getJwks
+      summary: Public key that verifies Password-grant tokens
+      description: Only available in password authentication mode.
+      tags:
+        - auth
+      responses:
+        '200':
+          description: JSON Web Key Set with the ES256 key that signs Password-grant tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jwks'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /configs/{configId}:
     parameters:
       - name: configId
@@ -2573,6 +2592,44 @@ components:
           type: string
         scope:
           type: string
+
+    Jwks:
+      type: object
+      required:
+        - keys
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            required:
+              - kty
+              - crv
+              - x
+              - y
+              - kid
+              - use
+              - alg
+            properties:
+              kty:
+                type: string
+                enum: [EC]
+              crv:
+                type: string
+                enum: [P-256]
+              x:
+                type: string
+              y:
+                type: string
+              kid:
+                type: string
+                description: RFC 7638 thumbprint of the key
+              use:
+                type: string
+                enum: [sig]
+              alg:
+                type: string
+                enum: [ES256]
 
     ConfigItem:
       type: object

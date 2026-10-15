@@ -76,12 +76,3 @@ export const startCacheEpochWatcher = async (): Promise<void> => {
   pollTimer.unref();
   log.info('Cache epoch watcher started', { version: knownVersion, pollIntervalMs: POLL_INTERVAL_MS });
 };
-
-/** Test hook. */
-export const stopCacheEpochWatcher = (): void => {
-  if (pollTimer) {
-    clearInterval(pollTimer);
-    pollTimer = undefined;
-  }
-  knownVersion = undefined;
-};

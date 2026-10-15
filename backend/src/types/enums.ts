@@ -19,12 +19,6 @@ export enum StorageModes {
   GCP = 'gcp',
 }
 
-export enum OverlapType {
-  NONE = 'none',
-  PARTIAL = 'partial',
-  FULL = 'full',
-}
-
 export enum JobQueues {
   // Not using const to be able to iterate over values
   BULK_LOAD = 'bulk-load',

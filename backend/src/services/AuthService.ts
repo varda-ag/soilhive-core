@@ -3,7 +3,7 @@ import { AuthConfig } from '../interfaces/AuthConfig';
 import { AuthModes, TOKEN_ISSUER, TokenScopes } from '../types/enums';
 import ConfigService from './ConfigService';
 import { ErrorResponse } from '../utils/error';
-import { signToken } from '../utils/utils';
+import { PublicJwk, getPasswordGrantKey, signPasswordGrantToken } from '../utils/password-grant-key';
 import { StatusCodes } from 'http-status-codes';
 import { TokenResponse } from '../interfaces/Token';
 import assert from 'assert';
@@ -15,11 +15,7 @@ let authConfig: AuthConfig | undefined = undefined;
 
 export default class AuthService {
   getToken = (password: string): any => {
-    if (!authConfig) {
-      authConfig = ConfigService.getAuthConfig();
-    }
-
-    if (authConfig.authMode !== AuthModes.PASSWORD) {
+    if (!this.isPasswordMode()) {
       throw new ErrorResponse('Platform is not configured for password authentication', StatusCodes.BAD_REQUEST);
     }
 
@@ -33,7 +29,14 @@ export default class AuthService {
       throw new ErrorResponse('Invalid password', StatusCodes.UNAUTHORIZED);
     }
 
-    return signToken(this.getTokenPayload(scopes), TOKEN_EXPIRATION_SECONDS, { alg: 'HS256', kid: 'kid' });
+    return signPasswordGrantToken(this.getTokenPayload(scopes), TOKEN_EXPIRATION_SECONDS);
+  };
+
+  getJwks = (): { keys: PublicJwk[] } => {
+    if (!this.isPasswordMode()) {
+      throw new ErrorResponse('JWKS is only available in password authentication mode', StatusCodes.NOT_FOUND);
+    }
+    return { keys: [getPasswordGrantKey().jwk] };
   };
 
   getTokenResponse = (token: string): TokenResponse => {
@@ -47,6 +50,13 @@ export default class AuthService {
   resetAuthConfig = () => {
     // Used in tests
     authConfig = undefined;
+  };
+
+  private isPasswordMode = (): boolean => {
+    if (!authConfig) {
+      authConfig = ConfigService.getAuthConfig();
+    }
+    return authConfig.authMode === AuthModes.PASSWORD;
   };
 
   private getTokenPayload = (scopes: TokenScopes[]) => {

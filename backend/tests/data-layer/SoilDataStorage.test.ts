@@ -4,15 +4,7 @@ import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import {
-  addAssetToRasterLayer,
-  addDataset,
-  addFile,
-  addRasterData,
-  addRasterDataset,
-  addSyntheticData,
-  syntheticDataOptions,
-} from '../../src/utils/mock';
+import { addAssetToRasterLayer, addFile, addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage, {
   buildDatasetFilterClauses,
   hasRasterFilters,
@@ -21,13 +13,13 @@ import SoilDataStorage, {
 import DatasetEntity from '../../src/entities/Dataset';
 import { Token } from '../../src/interfaces/Token';
 import { decodeCursor } from '../../src/utils/cursor';
-import { addRasterFilterData, addRasterFilterMappings } from '../helper';
+import { addRasterFilterData, addRasterFilterMappings, makeFilter } from '../helper';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
 import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
-import { DataFilter, FilterCriteria } from '../../src/interfaces/DatasetFilter';
+import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
 import { GdalCLI } from '../../src/utils/GdalCLI';
 import path from 'path';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
@@ -39,34 +31,6 @@ import { writableAsset } from '../assets';
 
 const bbox = [0, 0, 1, 1];
 const bboxPolygon: Polygon = getPolygonFromBbox(bbox);
-
-export const makeFilter = async (
-  entityManager: any,
-  geometry?: Polygon | MultiPolygon,
-  parameters: FilterCriteria = {},
-): Promise<DataFilter> => {
-  if (!geometry) return { geometryIds: [], parameters, area: 0 };
-  // Mirrors FilterService.insertUserGeometry: canonicalise with ST_MakeValid once,
-  // never rewrite a stored row on a dedup hit (ST_MakeValid is not byte-idempotent).
-  const [{ id, area }] = await entityManager.query(
-    `WITH input AS (
-       SELECT ST_MakeValid(ST_GeomFromGeoJSON($1), 'method=structure') AS geom
-     ), inserted AS (
-       INSERT INTO user_geometries (geom)
-       SELECT geom FROM input
-       ON CONFLICT (geom_hash) DO NOTHING
-       RETURNING id, area
-     )
-     SELECT id, area FROM inserted
-     UNION ALL
-     SELECT ug.id, ug.area
-     FROM user_geometries ug, input
-     WHERE ug.geom_hash = encode(sha256(input.geom::TEXT::BYTEA), 'hex')
-     LIMIT 1`,
-    [JSON.stringify(geometry)],
-  );
-  return { geometryIds: [id], parameters, area: Number(area) };
-};
 
 const entitlements = {};
 const filteringMaskCoordinates = [
@@ -89,23 +53,6 @@ describe('hasRasterFilters', () => {
 });
 
 describe('SoilDataStorage class', () => {
-  it.each([
-    [[0, 0, 10, 10], [0, 0, 11, 11], 'full'],
-    [[0, 0, 10, 10], [5, 5, 15, 15], 'partial'],
-    [[0, 0, 10, 10], [20, 20, 30, 30], 'none'],
-  ])('Dataset overlap type', async (datasetBbox, queryBbox, expectedType) => {
-    const dataset = await addDataset(`dataset_overlap_test_${expectedType}`, datasetBbox);
-    const query: Polygon = getPolygonFromBbox(queryBbox);
-
-    const sds = new SoilDataStorage();
-    const entityManager = await getEntityManager();
-    const overlapMap = await sds.getOverlapType(entityManager, query);
-    expect(overlapMap.size).toBe(1);
-    const overlapType = overlapMap.get(dataset.id);
-    expect(overlapType).toBeDefined();
-    expect(overlapType).toEqual(expectedType);
-  });
-
   it.each([GISDataType.POINT, GISDataType.POLYGONAL])('Filtering should return some results', async (featureGeometryType: string) => {
     const layers = 5;
     const { dataset } = await addSyntheticData({
@@ -1396,31 +1343,4 @@ describe('SoilDataStorage class', () => {
       fs.unlinkSync(filePath!);
     });
   });
-});
-
-describe('Local testing', () => {
-  it.skip(
-    'Local DB loading',
-    async () => {
-      const dir = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
-      for (const file of fs.readdirSync(dir)) {
-        if (file.startsWith('test_raster')) {
-          fs.unlinkSync(path.join(dir, file));
-        }
-      }
-      for (const input of [
-        `${dir}/clsoilmaps_ksat_100-200cm.tif`,
-        `${dir}/cog_isda_sol_db_od_m_30m_0__20cm_2001__2017_v0_13_wgs84.tif`,
-        `${dir}/holisoils_nitrogen_topsoil_0-30cm_mean_forest.tif`,
-        `${dir}/olm_sol_coarsefrag.vfraction_usda.3b1_m_250m_b0..0cm_1950..2017_v0.2.tif`,
-        `${dir}/olm_sol_texture_class_usda_tt_m_250m_b0_0cm_1950_2017_v0_2.tif`,
-        `${dir}/soilgrids250_bdod_5-15cm_mean.tif`,
-        `${dir}/gSSURGO_AK_rootznemc.tiff`,
-      ]) {
-        const id = input.split('/').pop()!.split('.')[0];
-        await addRasterDataset(id, input);
-      }
-    },
-    2000 * 60 * 60,
-  );
 });

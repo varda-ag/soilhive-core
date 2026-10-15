@@ -1,8 +1,3 @@
-export interface RawRecord {
-  [key: string]: string | number | null;
-  geometry: any;
-}
-
 export interface SoilRecord {
   record_id: number;
   sampling_date: string | null;

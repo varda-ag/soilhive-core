@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals
 import jwt from 'jsonwebtoken';
 import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
 import { TokenScopes } from '../../src/types/enums';
+import { getPasswordGrantKey, signPasswordGrantToken } from '../../src/utils/password-grant-key';
 
 // Helper: build a minimal mock Express Request
 function makeRequest(authHeader?: string): any {
@@ -11,8 +12,8 @@ function makeRequest(authHeader?: string): any {
   };
 }
 
-// Helper: sign a token with SELF_SIGNING_SECRET and a kid in the JWT header.
-// This matches what AuthService produces in PASSWORD mode.
+// Helper: sign an HS256 token with SELF_SIGNING_SECRET and a kid in the JWT header — an internal-request
+// token, or an IdP token where jwks-rsa is mocked to return the secret.
 function signTestToken(payload: any, opts: { expiresIn?: number; kid?: string } = {}): string {
   const secret = process.env.SELF_SIGNING_SECRET!;
   const signOptions: jwt.SignOptions = {
@@ -96,15 +97,42 @@ describe('tokenValidator — PASSWORD mode', () => {
     });
   });
 
-  it('returns true for an internal-request token (string payload signed with SELF_SIGNING_SECRET)', async () => {
-    // BulkLoader creates tokens this way; payload must be the literal string 'internal-request'
-    const internalToken = signTestToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+  it('returns true for an internal-request token (signed with SELF_SIGNING_SECRET)', async () => {
+    const internalToken = signTestToken(INTERNAL_REQUEST_TOKEN_PAYLOAD, { kid: TokenScopes.INTERNAL_REQUEST });
     expect(await tokenValidator(makeRequest(`Bearer ${internalToken}`), [])).toBe(true);
+  });
+
+  it('rejects an HS256 token under any kid other than internal-request', async () => {
+    // The pre-ES256 Password-grant token shape
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
+      message: 'Invalid token: unknown kid',
+      status: 401,
+    });
+  });
+
+  it('rejects an HS256 token carrying the Password-grant kid', async () => {
+    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { kid: getPasswordGrantKey().kid, expiresIn: 3600 });
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
+      message: 'Invalid token: invalid algorithm',
+      status: 401,
+    });
+  });
+
+  it('rejects a Password-grant token signed before the secret rotated', async () => {
+    const currentSecret = process.env.SELF_SIGNING_SECRET;
+    process.env.SELF_SIGNING_SECRET = 'previous-secret';
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin' }, 3600);
+    process.env.SELF_SIGNING_SECRET = currentSecret;
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
+      message: 'Invalid token: unknown kid',
+      status: 401,
+    });
   });
 
   it('validates a regular token with no scope requirements and attaches it to req.customData', async () => {
     const payload = { sub: 'u1', scope: 'super-admin', email: 'u1@test.com' };
-    const token = signTestToken(payload, { expiresIn: 3600 });
+    const token = signPasswordGrantToken(payload, 3600);
     const req = makeRequest(`Bearer ${token}`);
 
     expect(await tokenValidator(req, [])).toBe(true);
@@ -113,19 +141,19 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('validates successfully when the token scope satisfies a required scope', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     expect(await tokenValidator(makeRequest(`Bearer ${token}`), ['super-admin'])).toBe(true);
   });
 
   it('throws 403 when the token scope does not satisfy any required scope', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), ['super-admin'])).rejects.toMatchObject({
       status: 403,
     });
   });
 
   it('throws 401 when the decoded token has no sub claim', async () => {
-    const token = signTestToken({ scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ scope: 'super-admin', email: 'u1@test.com' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
       message: 'Invalid token: no sub',
       status: 401,
@@ -133,23 +161,23 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('validates successfully when the decoded token has no email claim', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).resolves.toBe(true);
   });
 
   it('throws "Token has expired" for an already-expired token', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: -1 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, -1);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Token has expired');
   });
 
   it('throws "Invalid token: ..." for a token with a tampered signature', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     const tampered = token.slice(0, -5) + 'XXXXX';
     await expect(tokenValidator(makeRequest(`Bearer ${tampered}`), [])).rejects.toThrow(/^Invalid token: /);
   });
 
   it('isSuperAdmin === true and isDataAdmin === false when scope is super-admin', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
     expect(req.customData.token.isSuperAdmin).toBe(true);
@@ -157,26 +185,24 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('isDataAdmin === true and isSuperAdmin === false when scope is data-admin', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, 3600);
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
     expect(req.customData.token.isDataAdmin).toBe(true);
     expect(req.customData.token.isSuperAdmin).toBe(false);
   });
 
-  it('throws "Invalid token: decode failure" when jwt.verify resolves with a falsy value', async () => {
+  it('wraps a jwt.verify error as "Invalid token: ..."', async () => {
     // After resetModules(), the tokenValidator and this import() share the same fresh
     // jsonwebtoken instance. Spying on its .default.verify patches the function used internally.
-    // First call: the synchronous internal-request check — throw to fall through.
-    // Second call: the callback-based verifyAsync — deliver null to trigger the !decoded branch.
     const { default: jwtDefault } = await import('jsonwebtoken');
-    jest.spyOn(jwtDefault as any, 'verify').mockImplementation((_token, _secret, callback: any) => {
-      callback(new Error('not an internal token'));
+    jest.spyOn(jwtDefault as any, 'verify').mockImplementation((_token, _key, _options, callback: any) => {
+      callback(new Error('verify failed'));
     });
 
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
-      message: 'Invalid token: not an internal token',
+      message: 'Invalid token: verify failed',
       status: 401,
     });
   });
@@ -210,6 +236,11 @@ describe('tokenValidator — OIDC mode, successful JWKS lookup', () => {
   it('validates a token by fetching the signing key from JWKS', async () => {
     const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     expect(await tokenValidator(makeRequest(`Bearer ${token}`), [])).toBe(true);
+  });
+
+  it('rejects a Password-grant token, whose key is trusted in PASSWORD mode only', async () => {
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin' }, 3600);
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({ status: 401 });
   });
 
   it('reuses the same JWKS client instance across multiple calls', async () => {

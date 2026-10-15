@@ -3,7 +3,7 @@ import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage from '../../src/data-layer/SoilDataStorage';
 import { getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
-import { makeFilter } from './SoilDataStorage.test';
+import { makeFilter } from '../helper';
 
 const entitlements = {};
 
