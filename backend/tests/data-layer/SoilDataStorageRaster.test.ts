@@ -41,11 +41,13 @@ const isInvalid = (row: number, col: number) => row === 1 && (col === 1 || col =
 // Pixel (3, 4) holds a value Float32 cannot represent exactly
 const INEXACT_VALUE = 6.2869;
 
-const writeFixture = (name: string, offset = 0): string => {
+// Columns from `nodataFromCol` on hold nodata too: the layer's bbox covers them, its footprint does not
+const writeFixture = (name: string, offset = 0, nodataFromCol = WIDTH): string => {
   const data = new Float32Array(WIDTH * HEIGHT);
   for (let row = 0; row < HEIGHT; row++) {
     for (let col = 0; col < WIDTH; col++) {
-      data[row * WIDTH + col] = row === 1 && col === 1 ? NODATA : row === 1 && col === 2 ? Number.NaN : pixelValue(row, col, offset);
+      const isNodata = col >= nodataFromCol || (row === 1 && col === 1);
+      data[row * WIDTH + col] = isNodata ? NODATA : row === 1 && col === 2 ? Number.NaN : pixelValue(row, col, offset);
     }
   }
   data[3 * WIDTH + 4] = INEXACT_VALUE;
@@ -103,9 +105,10 @@ const addFixtureLayer = async (
     status?: IngestionStatus;
     laboratoryMethod?: string;
     referencePeriod?: [string, string];
+    nodataFromCol?: number;
   } = {},
 ) =>
-  addRasterData(writeFixture(name, options.offset), {
+  addRasterData(writeFixture(name, options.offset, options.nodataFromCol), {
     dataset: options.dataset ?? 'raster-rows-ds',
     soilProperty: options.soilProperty ?? 'Raster Rows Property',
     layerFields: {
@@ -525,5 +528,153 @@ describe('SoilDataStorage.getSoilData raster rows', () => {
         expect(rows).toEqual([]);
       }
     });
+  });
+});
+
+/** The Raster Layers of Dataset `slug` that coverage counts, the export writes, and the export's count reports. */
+const exportView = async (filter: DataFilter, slug: string) => {
+  const entityManager = await getEntityManager();
+  const requestData = { entityManager, entitlements };
+  const summaries = await sds.filterRaster(entityManager, filter);
+  const { layers } = await sds.getRasterLayers(requestData, filter, [slug]);
+  return {
+    coverage: summaries.find(summary => summary.id === slug)?.raster_layer_count ?? 0,
+    exported: layers.map(layer => layer.id),
+    counted: await sds.getRasterLayerCount(requestData, filter, [slug]),
+  };
+};
+
+describe('SoilDataStorage raster export layers', () => {
+  let mockSelectOverview: any;
+  beforeAll(() => {
+    mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => table);
+  });
+  afterAll(() => {
+    mockSelectOverview.mockRestore();
+  });
+
+  // Rows 3..5, columns 1..3: valid pixels on every fixture
+  const validBox = lonLatBox(10.011, 49.941, 10.039, 49.969);
+  // Rows 1..5, columns 8..10: inside the bbox, but nodata on a fixture with nodataFromCol 6
+  const nodataBox = lonLatBox(10.081, 49.941, 10.109, 49.989);
+
+  it.each<[string, Polygon, FilterCriteria, boolean]>([
+    ['an AOI over valid pixels', validBox, {}, true],
+    ['an AOI within the bbox but over nodata only', nodataBox, {}, false],
+    ['an AOI outside the bbox', lonLatBox(11, 49, 11.5, 49.5), {}, false],
+    ['an overlapping depth range', validBox, { min_depth: 10, max_depth: 20 }, true],
+    ['a depth range below the layer', validBox, { min_depth: 50 }, false],
+    ['a soil property the layer does not measure', validBox, { soil_properties: ['some-other-property'] }, false],
+    ['a licence the Dataset does not carry', validBox, { licenses: ['some-other-licence'] }, false],
+    ["the Dataset's visibility", validBox, { visibility: 'public' }, true],
+    ['data types listing raster', validBox, { data_types: [GISDataType.RASTER] }, true],
+    ['data types without raster', validBox, { data_types: [GISDataType.POINT] }, false],
+  ])('exports and counts the Raster Layer exactly when coverage counts it: %s', async (_, aoi, parameters, matches) => {
+    const layer = await addFixtureLayer('export-parity.tif', { nodataFromCol: 6 });
+    const filter = await makeFilter(aoi, parameters);
+
+    expect(await exportView(filter, layer.dataset.slug)).toEqual(
+      matches ? { coverage: 1, exported: [layer.id], counted: 1 } : { coverage: 0, exported: [], counted: 0 },
+    );
+  });
+
+  it('exports, in id order, only the Raster Layers whose footprint meets the AOI, as /soil-data reads them', async () => {
+    const full = await addFixtureLayer('export-full.tif', { offset: 1000, soilProperty: 'Raster Rows Property B' });
+    const half = await addFixtureLayer('export-half.tif', { nodataFromCol: 6 });
+    const slug = full.dataset.slug;
+    const layersOfRows = async (filter: DataFilter) => [
+      ...new Set((await getSoilData(filter, [slug], 200)).map(row => row.id.split(':')[0])),
+    ];
+
+    const overBoth = await makeFilter(validBox);
+    const both = [full.id, half.id].sort();
+    expect(await exportView(overBoth, slug)).toEqual({ coverage: 2, exported: both, counted: 2 });
+    expect(await layersOfRows(overBoth)).toEqual(both);
+
+    const overFullOnly = await makeFilter(nodataBox);
+    expect(await exportView(overFullOnly, slug)).toEqual({ coverage: 1, exported: [full.id], counted: 1 });
+    expect(await layersOfRows(overFullOnly)).toEqual([full.id]);
+  });
+
+  it.each<[string, FilterCriteria]>([
+    ['a visibility criterion the Dataset does not match', { visibility: 'private' }],
+    ['an empty data types list', { data_types: [] }],
+  ])('reads %s as coverage does, while /soil-data reads it as its vector rows do', async (_, parameters) => {
+    const layer = await addFixtureLayer('export-rules.tif');
+    const filter = await makeFilter(validBox, parameters);
+
+    expect(await exportView(filter, layer.dataset.slug)).toEqual({ coverage: 0, exported: [], counted: 0 });
+    expect((await getSoilData(filter, [layer.dataset.slug], 100)).length).toBeGreaterThan(0);
+  });
+
+  it('exports nothing for a Filter without geometries', async () => {
+    const layer = await addFixtureLayer('export-no-aoi.tif');
+    const filter = await makeFilter();
+
+    expect(await exportView(filter, layer.dataset.slug)).toEqual({ coverage: 0, exported: [], counted: 0 });
+    expect(
+      (await sds.getRasterLayers({ entityManager: await getEntityManager(), entitlements }, filter, [layer.dataset.slug])).aoi,
+    ).toBeNull();
+  });
+
+  it('describes an exported Raster Layer by its File, Band, soil property and procedure, with the AOI to clip it to', async () => {
+    const layer = await addFixtureLayer('export-fields.tif', { laboratoryMethod: 'Export Lab Method', referencePeriod: ['2010', '2020'] });
+    const filter = await makeFilter(validBox);
+
+    const { layers, aoi } = await sds.getRasterLayers({ entityManager: await getEntityManager(), entitlements }, filter, [
+      layer.dataset.slug,
+    ]);
+
+    expect(layers).toEqual([
+      expect.objectContaining({
+        id: layer.id,
+        dataset_name: layer.dataset.name,
+        path: layer.file.file_path,
+        band: 1,
+        is_categorical: false,
+        min_depth: 0,
+        max_depth: 30,
+        reference_period_start: '2010',
+        reference_period_stop: '2020',
+        soil_property_name: layer.soil_property.property_name,
+        standard_unit: layer.soil_property.standard_unit,
+        laboratory_method: 'Export Lab Method',
+        classes: null,
+      }),
+    ]);
+    expect(turf.bbox(aoi!).map(v => v.toFixed(6))).toEqual(turf.bbox(validBox).map(v => v.toFixed(6)));
+  });
+
+  describe('with raster filters', () => {
+    // The island of the raster rows' raster filter test: land_cover 30 occurs on it, 40 does not
+    const island = getPolygonFromBbox([-80.79, -33.8, -80.72, -33.7]);
+
+    it.each([
+      [[30], true],
+      [[40], false],
+    ])(
+      'exports the Raster Layer exactly when coverage counts it under land_cover %j (%s), clipped to the masked AOI',
+      async (values, matches) => {
+        const layer = await addRasterData(undefined, {
+          dataset: 'raster-export-filtered',
+          dataset_status: IngestionStatus.PUBLISHED,
+          visibility: 'public',
+        });
+        await addRasterFilterData();
+        await addRasterFilterMappings();
+        const filter = await makeFilter(island, { raster_filters: { land_cover: values } });
+
+        expect(await exportView(filter, layer.dataset.slug)).toEqual(
+          matches ? { coverage: 1, exported: [layer.id], counted: 1 } : { coverage: 0, exported: [], counted: 0 },
+        );
+        const { aoi } = await sds.getRasterLayers({ entityManager: await getEntityManager(), entitlements }, filter, [layer.dataset.slug]);
+        if (matches) {
+          expect(turf.area(aoi!)).toBeGreaterThan(0);
+          expect(turf.area(aoi!)).toBeLessThan(turf.area(island));
+        } else {
+          expect(aoi).toBeNull();
+        }
+      },
+    );
   });
 });

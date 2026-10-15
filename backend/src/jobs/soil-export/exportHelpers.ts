@@ -157,8 +157,7 @@ export async function fetchRasterLayers(
 ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> {
   if (!payload.dataset_ids?.length) return { layers: [], aoi: null };
   const filter = await filterService.getFilterById(requestData, payload.filter_id);
-  // Set includeProcedureInfo to true (required for output layer naming)
-  const { layers, aoi } = await soilDataStorage.getRasterLayers(requestData, filter, payload.dataset_ids, true);
+  const { layers, aoi } = await soilDataStorage.getRasterLayers(requestData, filter, payload.dataset_ids);
   return { layers, aoi };
 }
 

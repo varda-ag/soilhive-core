@@ -1,7 +1,7 @@
 import { Polygon, MultiPolygon } from 'geojson';
 import { StatusCodes } from 'http-status-codes';
 import { validate as isUuid } from 'uuid';
-import { EntityManager, SelectQueryBuilder } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { Cursor, RasterCursor } from '../interfaces/Cursor';
 import { ErrorResponse } from '../utils/error';
@@ -15,11 +15,10 @@ import RasterFilterService from '../services/RasterFilterService';
 import { getDataSource } from '../utils/data-source';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
-import RasterLayerEntity from '../entities/RasterLayer';
 import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
 import { RasterLayerAssetFile } from '../interfaces/RasterLayer';
 import { GISDataType } from '../types/data';
-import { getVectorMaskCtes, type CteDef } from './FilteringMasks';
+import { getVectorMaskCtes, renderCtes, type CteDef } from './FilteringMasks';
 import { readRasterPixels, type LocatedPixel } from './RasterPixels';
 import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
 import { timed } from '../utils/logger';
@@ -357,12 +356,8 @@ export default class SoilDataStorage {
       ...buildRasterLayerCriteria(filters, p),
     ];
 
-    const aoiCteStrings = aoiCtes.map(
-      cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, geometryIdsParam)})`,
-    );
-
     const sql = `
-      WITH ${aoiCteStrings.join(',\n      ')}
+      WITH ${renderCtes(aoiCtes, geometryIdsParam)}
       -- One bbox for the cheap layer/dataset prefilter, without unioning the pieces.
       , aoi_extent AS MATERIALIZED (
         SELECT ST_Extent(geom)::geometry AS geom FROM aoi
@@ -376,13 +371,8 @@ export default class SoilDataStorage {
         CROSS JOIN aoi_extent
         WHERE ${candidateWhere.join('\n          AND ')}
       )
-      -- IN rather than joins: with the planner's rows=1 estimates on the CTEs, joins became a
-      -- nested loop probing every (candidate layer, group) pair; IN gets two hash semi-joins.
       , surviving_layers AS MATERIALIZED (
-        SELECT DISTINCT m.raster_layer_id AS id
-        FROM ${schema}.raster_layer_group_members m
-        WHERE m.layer_group_id IN (SELECT layer_group_id FROM aoi_groups)
-          AND m.raster_layer_id IN (SELECT id FROM candidate_layers)
+        ${layersInAoiGroupsSql(schema!, 'SELECT id FROM candidate_layers')}
       )
       SELECT
         ds.slug AS id,
@@ -423,153 +413,33 @@ export default class SoilDataStorage {
     }));
   };
 
+  /**
+   * The Raster Layers an export writes, and the AOI it clips them to: those coverage lists
+   * (matchRasterLayers under coverage's rules), among the requested Datasets the caller may download.
+   */
   getRasterLayers = async (
     requestData: RequestData,
     filter: DataFilter,
     requestedSlugs: string[],
-    includeProcedureInfo: boolean = false,
   ): Promise<{ layers: FilteredRasterLayer[]; aoi: Polygon | MultiPolygon | null }> => {
-    const { geometryIds, parameters: filters } = filter;
+    const { layers, aoi } = await this.matchExportRasterLayers(requestData, filter, requestedSlugs);
+    return { layers: layers.map(exportRasterLayer), aoi };
+  };
+
+  // Count-only sibling of getRasterLayers, for the export's limit and progress estimate. Same
+  // queries, so it counts exactly the layers the export then writes.
+  getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> =>
+    (await this.matchExportRasterLayers(requestData, filter, requestedSlugs)).layers.length;
+
+  private matchExportRasterLayers = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]) => {
     const datasetSlugs = await entitlementService.enforceDatasetEntitlements(requestData, requestedSlugs, Capability.DOWNLOAD);
     if (datasetSlugs.length === 0) {
       return { layers: [], aoi: null };
     }
-
-    const schema = process.env.POSTGRES_SCHEMA;
-    // Unlike the filtering paths, this aoi is returned to the caller as a GeoJSON
-    // output geometry, so it must stay a single unioned row — subdivision pieces
-    // would leak internal edges into the API response.
-    const aoiCtes: CteDef[] = hasRasterFilters(filters)
-      ? await getVectorMaskCtes(requestData.entityManager, filter)
-      : [
-          {
-            name: 'aoi',
-            sql: `SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-              FROM ${schema}.user_geometries ug WHERE ug.id = ANY(:geometryIds::uuid[])`,
-            materialized: true,
-          },
-        ];
-
     return await requestData.entityManager.transaction(async transactionalEntityManager => {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
-
-      const cteStrings = aoiCtes.map(
-        cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, '$1')})`,
-      );
-      const [aoiRow] = await transactionalEntityManager.query(
-        `WITH ${cteStrings.join(', ')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`,
-        [geometryIds],
-      );
-      if (hasRasterFilters(filters) && (!aoiRow?.geom || aoiRow.geom.coordinates?.length === 0)) {
-        return { layers: [], aoi: null };
-      }
-      const filteredGeom: Polygon | MultiPolygon | null = aoiRow?.geom ?? null;
-
-      const candidateQuery = transactionalEntityManager.getRepository(RasterLayerEntity).createQueryBuilder('rl');
-      for (const cte of aoiCtes) {
-        candidateQuery.addCommonTableExpression(cte.sql, cte.name, cte.materialized ? { materialized: true } : undefined);
-      }
-      candidateQuery
-        .setParameter('geometryIds', geometryIds)
-        // Status is settled by enforceDatasetEntitlements; an archived Dataset may share a live one's slug
-        .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL')
-        .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
-        .innerJoin('rl.soil_property', 'sp')
-        .select('rl.id', 'id')
-        .addSelect('ds.name', 'dataset_name')
-        .addSelect('f.file_path', 'path')
-        .addSelect("f.metadata->>'epsg'", 'epsg')
-        .addSelect("f.metadata->>'wkt'", 'wkt')
-        .addSelect('rl.band', 'band')
-        .addSelect('rl.is_categorical', 'is_categorical')
-        .addSelect('rl.min_depth', 'min_depth')
-        .addSelect('rl.max_depth', 'max_depth')
-        .addSelect('rl.reference_period_start', 'reference_period_start')
-        .addSelect('rl.reference_period_stop', 'reference_period_stop')
-        .addSelect('sp.property_name', 'soil_property_name')
-        .addSelect('sp.standard_unit', 'standard_unit')
-        .addSelect('sp.classes', 'classes');
-
-      if (includeProcedureInfo) {
-        candidateQuery
-          .leftJoin('rl.procedure', 'p', 'p.deleted_at IS NULL')
-          .leftJoin('p.laboratory_method', 'lm')
-          .addSelect('lm.name', 'laboratory_method');
-      }
-
-      candidateQuery.andWhere('ds.slug IN (:...dataset_slugs)', { dataset_slugs: datasetSlugs });
-      candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');
-      candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
-      applyRasterLayerFilters(candidateQuery, filters);
-
-      const layers = (await candidateQuery.getRawMany()).map(row => ({
-        id: row.id,
-        dataset_name: row.dataset_name,
-        path: row.path,
-        ...(row.epsg ? { epsg: Number(row.epsg) } : {}),
-        ...(row.wkt ? { wkt: row.wkt } : {}),
-        band: Number(row.band),
-        is_categorical: row.is_categorical,
-        min_depth: row.min_depth,
-        max_depth: row.max_depth,
-        reference_period_start: row.reference_period_start,
-        reference_period_stop: row.reference_period_stop,
-        soil_property_name: row.soil_property_name,
-        standard_unit: row.standard_unit,
-        laboratory_method: row.laboratory_method ?? null,
-        classes: row.classes ?? null,
-      }));
-      return { layers, aoi: filteredGeom };
-    });
-  };
-
-  // Count-only sibling of getRasterLayers: skips the GeoJSON AOI projection and the
-  // per-layer column fetch — the export progress estimate only needs how many raster
-  // layers match. An empty AOI (e.g. raster filters matching no pixels) naturally
-  // yields 0 via the `rl.bbox && (SELECT geom FROM aoi)` predicate.
-  getRasterLayerCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> => {
-    const { geometryIds, parameters: filters } = filter;
-    const datasetSlugs = await entitlementService.enforceDatasetEntitlements(requestData, requestedSlugs, Capability.DOWNLOAD);
-    if (datasetSlugs.length === 0) {
-      return 0;
-    }
-
-    const schema = process.env.POSTGRES_SCHEMA;
-    const aoiCtes: CteDef[] = hasRasterFilters(filters)
-      ? await getVectorMaskCtes(requestData.entityManager, filter)
-      : [
-          {
-            name: 'aoi',
-            sql: `SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-              FROM ${schema}.user_geometries ug WHERE ug.id = ANY(:geometryIds::uuid[])`,
-            materialized: true,
-          },
-        ];
-
-    return await requestData.entityManager.transaction(async transactionalEntityManager => {
-      await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
-      await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
-
-      const candidateQuery = transactionalEntityManager.getRepository(RasterLayerEntity).createQueryBuilder('rl');
-      for (const cte of aoiCtes) {
-        candidateQuery.addCommonTableExpression(cte.sql, cte.name, cte.materialized ? { materialized: true } : undefined);
-      }
-      candidateQuery
-        .setParameter('geometryIds', geometryIds)
-        // As in getRasterLayers
-        .innerJoin('rl.dataset', 'ds', 'ds.deleted_at IS NULL')
-        .innerJoin('rl.file', 'f', 'f.deleted_at IS NULL')
-        .innerJoin('rl.soil_property', 'sp')
-        .select('COUNT(rl.id)', 'count');
-
-      candidateQuery.andWhere('ds.slug IN (:...dataset_slugs)', { dataset_slugs: datasetSlugs });
-      candidateQuery.andWhere('rl.bbox && (SELECT geom FROM aoi)');
-      candidateQuery.andWhere('ds.gis_datatype=:gis_datatype', { gis_datatype: GISDataType.RASTER });
-      applyRasterLayerFilters(candidateQuery, filters);
-
-      const result = await candidateQuery.cache(CACHE_TTL_SPATIAL_MS).getRawOne<{ count: string }>();
-      return parseInt(result?.count ?? '0', 10);
+      return this.matchRasterLayers(transactionalEntityManager, filter, datasetSlugs, 'coverage');
     });
   };
 
@@ -658,14 +528,9 @@ export default class SoilDataStorage {
    * Raster rows of GET /soil-data (docs/adr/0045): one per pixel of each matching Raster Layer that
    * touches the Filter's AOI and is not nodata, ordered by Raster Layer, then pixel row, then column.
    *
-   * Dataset-level rules are those of this endpoint's vector rows: a raster Dataset among the requested
-   * ones, which getSoilData has already narrowed to those that exist for the caller (docs/adr/0057)
-   * and checked for preview, with the Filter's `visibility` criterion not applied.
-   * Within such a Dataset, Raster Layers match as they do for coverage (filterRaster): a bbox and
-   * valid-data footprint meeting the AOI, and the Filter's criteria as they apply to a Raster Layer.
-   * Pixel sampling needs an AOI, as a raster export does, so a Filter without geometries yields no
-   * raster rows. With raster filters the AOI is the geometries intersected with the selected
-   * classes, as the export builds it (getVectorMaskCtes).
+   * Raster Layers match as matchRasterLayers resolves them, among the requested Datasets that
+   * getSoilData has already narrowed to those that exist for the caller (docs/adr/0057) and checked
+   * for preview. Dataset-level criteria are read as this endpoint's vector rows read them.
    *
    * `signal` stops the pixel reads when the client disconnects: they run outside Postgres, where the
    * request's backend cancellation can't reach them.
@@ -679,140 +544,11 @@ export default class SoilDataStorage {
     sort: string | undefined,
     signal: AbortSignal | undefined,
   ): Promise<SoilDataSample[]> => {
-    const { geometryIds, parameters: filters } = filter;
-    // `data_types` as the vector rows read it (buildObservationCriteria): an empty list constrains
-    // nothing, unlike in filterRaster
-    const rasterTypeAdmitted = !filters.data_types?.length || filters.data_types.includes(GISDataType.RASTER);
-    if (geometryIds.length === 0 || datasetSlugs.length === 0 || !rasterTypeAdmitted) {
-      return [];
-    }
-    const schema = process.env.POSTGRES_SCHEMA;
-
-    // Non-spatial candidates first: they are cheap, and an empty result (no raster Dataset among the
-    // requested ones, as for the export's vector batches) skips the AOI work below entirely.
-    const params: any[] = [];
-    const p = (val: any) => {
-      params.push(val);
-      return `$${params.length}`;
-    };
-    const where = [
-      'rl.deleted_at IS NULL',
-      'ds.deleted_at IS NULL',
-      `ds.gis_datatype = ${p(GISDataType.RASTER)}`,
-      `ds.slug IN (${datasetSlugs.map(s => p(s)).join(', ')})`,
-      ...buildRasterLayerCriteria(filters, p, { includeVisibility: false }),
-    ];
-    // Ordered by id, which is also the order the raster cursor walks Raster Layers in
-    const candidatesSql = `
-      SELECT
-        rl.id,
-        rl.band,
-        rl.resolution_m,
-        rl.nodata_value,
-        rl.min_depth,
-        rl.max_depth,
-        rl.reference_period_start,
-        rl.reference_period_stop,
-        f.file_path,
-        f.metadata->>'wkt' AS wkt,
-        ds.slug AS dataset_slug,
-        ds.name AS dataset_name,
-        ds.gis_datatype,
-        sp.slug AS soil_property,
-        sp.property_acronym,
-        sp.property_name,
-        sp.standard_unit,
-        sp.classes,
-        license_fallback.name AS license_name,
-        ${PROCEDURE_COLUMNS}
-      FROM ${schema}.raster_layers rl
-      INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
-      INNER JOIN ${schema}.files f ON f.id = rl.file_id AND f.deleted_at IS NULL
-      INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
-      -- A Raster Layer has no Layer of its own to carry a licence, so it takes the one a vector row
-      -- falls back to: the Dataset's first.
-      LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]
-      ${procedureJoins(schema!, 'rl.procedure_id')}
-      WHERE ${where.join('\n        AND ')}
-      ORDER BY rl.id
-    `;
-    // Cached like coverage's raster queries: none of the three depends on the cursor, so every page
-    // of one pagination repeats them exactly.
-    const candidates = await timed('getSoilData.rasterCandidates', () =>
-      cachedQuery<any[]>(entityManager, candidatesSql, params, CACHE_TTL_SPATIAL_MS),
-    );
-    if (candidates.length === 0) {
-      return [];
-    }
-
-    // Unlike the filtering paths, this aoi leaves the database as GeoJSON, so it is one unioned
-    // geometry rather than subdivision pieces (see getRasterLayers).
-    const aoiCtes: CteDef[] = hasRasterFilters(filters)
-      ? await getVectorMaskCtes(entityManager, filter)
-      : [
-          {
-            name: 'aoi',
-            sql: `SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
-              FROM ${schema}.user_geometries ug WHERE ug.id = ANY(:geometryIds::uuid[])`,
-            materialized: true,
-          },
-        ];
-    const aoiCteStrings = aoiCtes.map(
-      cte => `${cte.name}${cte.materialized ? ' AS MATERIALIZED' : ''} (${cte.sql.replace(/:geometryIds/g, '$1')})`,
-    );
-    const [aoiRow] = await timed('getSoilData.rasterAoi', () =>
-      cachedQuery<{ geom: Polygon | MultiPolygon | null }[]>(
-        entityManager,
-        `WITH ${aoiCteStrings.join(', ')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`,
-        [geometryIds],
-        CACHE_TTL_SPATIAL_MS,
-      ),
-    );
-    const aoi = aoiRow?.geom;
-    if (!aoi || aoi.coordinates.length === 0) {
-      return [];
-    }
-
-    // The bbox and footprint fences of filterRaster, through the same layer groups (ADR-0046).
-    // Without raster filters the AOI is the geometries' subdivision pieces, as there; with them,
-    // the masked AOI just computed, subdivided.
-    const spatialSql = `
-      WITH aoi AS MATERIALIZED (
-        ${
-          hasRasterFilters(filters)
-            ? 'SELECT ST_Subdivide(ST_SetSRID(ST_GeomFromGeoJSON($1::text), 4326)) AS geom'
-            : selectGeometryPiecesByIds().replace(/:geometryIds/g, '$1')
-        }
-      )
-      , aoi_extent AS MATERIALIZED (
-        SELECT ST_Extent(geom)::geometry AS geom FROM aoi
-      )
-      , ${aoiLayerGroupCtes(schema!, filters, '$1')}
-      -- IN rather than joins, as in filterRaster
-      SELECT DISTINCT m.raster_layer_id AS id
-      FROM ${schema}.raster_layer_group_members m
-      WHERE m.layer_group_id IN (SELECT layer_group_id FROM aoi_groups)
-        AND m.raster_layer_id IN (
-          SELECT rl.id
-          FROM ${schema}.raster_layers rl
-          CROSS JOIN aoi_extent
-          WHERE rl.id = ANY($2::uuid[])
-            AND rl.bbox && aoi_extent.geom
-        )
-    `;
-    const spatialRows = await timed('getSoilData.rasterSpatial', () =>
-      cachedQuery<{ id: string }[]>(
-        entityManager,
-        spatialSql,
-        [hasRasterFilters(filters) ? JSON.stringify(aoi) : geometryIds, candidates.map(row => row.id)],
-        CACHE_TTL_SPATIAL_MS,
-      ),
-    );
-    const spatialIds = new Set(spatialRows.map(row => row.id));
+    const { layers: matched, aoi } = await this.matchRasterLayers(entityManager, filter, datasetSlugs, 'vector-rows');
     // Raster Layers before the cursor's were read on earlier pages. Comparing uuid text agrees with
     // ORDER BY rl.id: Postgres orders uuids bytewise, which is the order of their lower-case hex.
-    const layers = candidates.filter(row => spatialIds.has(row.id) && (!after || row.id >= after.layer));
-    if (layers.length === 0) {
+    const layers = after ? matched.filter(row => row.id >= after.layer) : matched;
+    if (layers.length === 0 || !aoi) {
       return [];
     }
 
@@ -836,6 +572,152 @@ export default class SoilDataStorage {
     );
     const layersById = new Map(layers.map(row => [row.id as string, row]));
     return pixels.map(pixel => rasterRowTranslation(layersById.get(pixel.layerId), pixel, sort));
+  };
+
+  /**
+   * The Raster Layers of `datasetSlugs` that a Filter selects, in id order, and the AOI they were
+   * matched against. Shared by the raster export and the raster rows of /soil-data, so both take
+   * the Raster Layers coverage (filterRaster) does: a bbox and valid-data footprint meeting the AOI,
+   * through the same layer groups (ADR-0046), and the Filter's criteria as they apply to a Raster
+   * Layer. `rules` says how the Dataset-level criteria read (RasterDatasetRules).
+   *
+   * Needs an AOI, so a Filter without geometries matches nothing. With raster filters the AOI is
+   * the geometries intersected with the selected classes (getVectorMaskCtes). `datasetSlugs` are
+   * taken as given: Ingestion Status and Entitlements are the caller's.
+   */
+  private matchRasterLayers = async (
+    entityManager: EntityManager,
+    filter: DataFilter,
+    datasetSlugs: string[],
+    rules: RasterDatasetRules,
+  ): Promise<{ layers: any[]; aoi: Polygon | MultiPolygon | null }> => {
+    const { geometryIds, parameters: filters } = filter;
+    const rasterTypeAdmitted =
+      rules === 'coverage'
+        ? isRasterTypeRequested(filters)
+        : !filters.data_types?.length || filters.data_types.includes(GISDataType.RASTER);
+    if (geometryIds.length === 0 || datasetSlugs.length === 0 || !rasterTypeAdmitted) {
+      return { layers: [], aoi: null };
+    }
+    const schema = process.env.POSTGRES_SCHEMA;
+
+    // Non-spatial candidates first: they are cheap, and an empty result (no raster Dataset among the
+    // requested ones, as for the export's vector batches) skips the AOI work below entirely.
+    const params: any[] = [];
+    const p = (val: any) => {
+      params.push(val);
+      return `$${params.length}`;
+    };
+    const where = [
+      'rl.deleted_at IS NULL',
+      'ds.deleted_at IS NULL',
+      `ds.gis_datatype = ${p(GISDataType.RASTER)}`,
+      `ds.slug IN (${datasetSlugs.map(s => p(s)).join(', ')})`,
+      ...buildRasterLayerCriteria(filters, p, { includeVisibility: rules === 'coverage' }),
+    ];
+    // Ordered by id, which is also the order the raster cursor walks Raster Layers in
+    const candidatesSql = `
+      SELECT
+        rl.id,
+        rl.band,
+        rl.resolution_m,
+        rl.nodata_value,
+        rl.is_categorical,
+        rl.min_depth,
+        rl.max_depth,
+        rl.reference_period_start,
+        rl.reference_period_stop,
+        f.file_path,
+        f.metadata->>'epsg' AS epsg,
+        f.metadata->>'wkt' AS wkt,
+        ds.slug AS dataset_slug,
+        ds.name AS dataset_name,
+        ds.gis_datatype,
+        sp.slug AS soil_property,
+        sp.property_acronym,
+        sp.property_name,
+        sp.standard_unit,
+        sp.classes,
+        license_fallback.name AS license_name,
+        ${PROCEDURE_COLUMNS}
+      FROM ${schema}.raster_layers rl
+      INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
+      INNER JOIN ${schema}.files f ON f.id = rl.file_id AND f.deleted_at IS NULL
+      INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
+      -- A Raster Layer has no Layer of its own to carry a licence, so it takes the one a vector row
+      -- falls back to: the Dataset's first.
+      LEFT JOIN ${schema}.licenses license_fallback ON license_fallback.slug = ds.licenses[1]
+      ${procedureJoins(schema!, 'rl.procedure_id')}
+      WHERE ${where.join('\n        AND ')}
+      ORDER BY rl.id
+    `;
+    // Cached like coverage's raster queries: none of the three depends on the cursor, so every page
+    // of a /soil-data pagination repeats them exactly, as an export's count and fetch do.
+    const candidates = await timed('matchRasterLayers.candidates', () =>
+      cachedQuery<any[]>(entityManager, candidatesSql, params, CACHE_TTL_SPATIAL_MS),
+    );
+    if (candidates.length === 0) {
+      return { layers: [], aoi: null };
+    }
+
+    // Unlike the filtering paths, this aoi leaves the database as GeoJSON (pixel reads, export
+    // clipping), so it is one unioned geometry rather than subdivision pieces.
+    const aoiCtes: CteDef[] = hasRasterFilters(filters)
+      ? await getVectorMaskCtes(entityManager, filter)
+      : [
+          {
+            name: 'aoi',
+            sql: `SELECT ST_CollectionExtract(ST_Union(ug.geom), 3) AS geom
+              FROM ${schema}.user_geometries ug WHERE ug.id = ANY(:geometryIds::uuid[])`,
+            materialized: true,
+          },
+        ];
+    const [aoiRow] = await timed('matchRasterLayers.aoi', () =>
+      cachedQuery<{ geom: Polygon | MultiPolygon | null }[]>(
+        entityManager,
+        `WITH ${renderCtes(aoiCtes, '$1')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`,
+        [geometryIds],
+        CACHE_TTL_SPATIAL_MS,
+      ),
+    );
+    const aoi = aoiRow?.geom;
+    if (!aoi || aoi.coordinates.length === 0) {
+      return { layers: [], aoi: null };
+    }
+
+    // The bbox and footprint fences of filterRaster. Without raster filters the AOI is the
+    // geometries' subdivision pieces, as there; with them, the masked AOI just computed, subdivided.
+    const spatialSql = `
+      WITH aoi AS MATERIALIZED (
+        ${
+          hasRasterFilters(filters)
+            ? 'SELECT ST_Subdivide(ST_SetSRID(ST_GeomFromGeoJSON($1::text), 4326)) AS geom'
+            : selectGeometryPiecesByIds().replace(/:geometryIds/g, '$1')
+        }
+      )
+      , aoi_extent AS MATERIALIZED (
+        SELECT ST_Extent(geom)::geometry AS geom FROM aoi
+      )
+      , ${aoiLayerGroupCtes(schema!, filters, '$1')}
+      ${layersInAoiGroupsSql(
+        schema!,
+        `SELECT rl.id
+          FROM ${schema}.raster_layers rl
+          CROSS JOIN aoi_extent
+          WHERE rl.id = ANY($2::uuid[])
+            AND rl.bbox && aoi_extent.geom`,
+      )}
+    `;
+    const spatialRows = await timed('matchRasterLayers.spatial', () =>
+      cachedQuery<{ id: string }[]>(
+        entityManager,
+        spatialSql,
+        [hasRasterFilters(filters) ? JSON.stringify(aoi) : geometryIds, candidates.map(row => row.id)],
+        CACHE_TTL_SPATIAL_MS,
+      ),
+    );
+    const spatialIds = new Set(spatialRows.map(row => row.id));
+    return { layers: candidates.filter(row => spatialIds.has(row.id)), aoi };
   };
 
   getSoilDataCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> => {
@@ -1189,6 +1071,25 @@ const rasterRowTranslation = (layer: any, pixel: LocatedPixel, sort?: string): S
   return { ...output, cursor };
 };
 
+/** A Raster Layer matched by matchRasterLayers, as the export writes it. */
+const exportRasterLayer = (row: any): FilteredRasterLayer => ({
+  id: row.id,
+  dataset_name: row.dataset_name,
+  path: row.file_path,
+  ...(row.epsg ? { epsg: Number(row.epsg) } : {}),
+  ...(row.wkt ? { wkt: row.wkt } : {}),
+  band: Number(row.band),
+  is_categorical: row.is_categorical,
+  min_depth: row.min_depth,
+  max_depth: row.max_depth,
+  reference_period_start: row.reference_period_start,
+  reference_period_stop: row.reference_period_stop,
+  soil_property_name: row.property_name,
+  standard_unit: row.standard_unit,
+  laboratory_method: row.laboratory_method ?? null,
+  classes: row.classes ?? null,
+});
+
 /** The pixel a raster row's cursor points at, or undefined for a vector row's cursor. */
 const decodeRasterCursor = (cursor: Cursor, sort?: string): RasterCursor | undefined => {
   if (typeof cursor !== 'object' || cursor === null || cursor.raster === undefined) return undefined;
@@ -1268,14 +1169,22 @@ export const isRasterTypeRequested = (filters: FilterCriteria): boolean =>
   Boolean((filters.data_types?.length && filters.data_types.includes(GISDataType.RASTER)) || !filters.data_types);
 
 /**
+ * How matchRasterLayers reads the Filter's Dataset-level criteria. 'coverage', which the export
+ * follows, applies `visibility` and reads `data_types` as isRasterTypeRequested does. 'vector-rows'
+ * reads them as /soil-data's vector rows do (ADR 0045): no `visibility`, and an empty `data_types`
+ * constrains nothing.
+ */
+type RasterDatasetRules = 'coverage' | 'vector-rows';
+
+/**
  * The Filter's non-spatial criteria as they apply to a Raster Layer: its depth range and reference
  * period must overlap the Filter's, and its soil property, Dataset licences and Dataset visibility
  * must match. Expects the aliases `rl` (raster_layers), `ds` (datasets) and `sp` (soil_properties).
- * Horizons have no raster counterpart and are not applied. Shared by coverage (filterRaster) and the
- * raster rows of /soil-data, so both select the same Raster Layers.
+ * Horizons have no raster counterpart and are not applied. Shared by coverage (filterRaster) and
+ * matchRasterLayers, so all raster paths select the same Raster Layers.
  *
  * `visibility` is applied unless `includeVisibility` is false: /soil-data never applies it, to raster
- * rows no more than to vector rows (see buildObservationCriteria), while coverage does.
+ * rows no more than to vector rows (see buildObservationCriteria), while coverage and the export do.
  */
 export const buildRasterLayerCriteria = (
   filters: FilterCriteria,
@@ -1973,7 +1882,7 @@ const selectGeometry = (): string => {
  * CTEs `fp_candidates` and `aoi_groups`: the layer groups (ADR-0046) with a footprint that meets an
  * `aoi` CTE of geometry pieces. Each footprint carries the group of layers referencing it, so the
  * spatial side yields ~1K group ids instead of millions of raster_layer_footprints rows. Shared by
- * coverage (filterRaster) and the raster rows of /soil-data, so both resolve the same Raster Layers.
+ * coverage (filterRaster) and matchRasterLayers, so all raster paths resolve the same Raster Layers.
  * Shaped after EXPLAIN ANALYZE on a 990-piece country AOI:
  *  - fp_candidates: one bbox-only bitmap pass over raster_footprints for all AOI pieces at
  *    once (`&& ANY(ARRAY(...))` is only usable through a bitmap scan, which prefetches and
@@ -2020,40 +1929,18 @@ const aoiLayerGroupCtes = (schema: string, filters: FilterCriteria, geometryIdsP
       )`;
 };
 
+/**
+ * Ids of the Raster Layers among `candidateIdsSql` that a group in aoiLayerGroupCtes' `aoi_groups`
+ * reaches. IN rather than joins: with the planner's rows=1 estimates on the CTEs, joins became a
+ * nested loop probing every (candidate layer, group) pair; IN gets two hash semi-joins.
+ */
+const layersInAoiGroupsSql = (schema: string, candidateIdsSql: string): string => `SELECT DISTINCT m.raster_layer_id AS id
+        FROM ${schema}.raster_layer_group_members m
+        WHERE m.layer_group_id IN (SELECT layer_group_id FROM aoi_groups)
+          AND m.raster_layer_id IN (${candidateIdsSql})`;
+
 const selectGeometryPiecesByIds = (): string => {
   const schema = process.env.POSTGRES_SCHEMA;
   return `SELECT ugs.geom
           FROM ${schema}.user_geometry_subdivisions ugs WHERE ugs.user_geometry_id = ANY(:geometryIds::uuid[])`;
-};
-
-const applyRasterLayerFilters = (query: SelectQueryBuilder<RasterLayerEntity>, filters: FilterCriteria): void => {
-  if (filters.min_depth === null) {
-    query.andWhere('rl.min_depth IS NULL');
-  } else if (filters.min_depth !== undefined) {
-    query.andWhere(`${EFFECTIVE_RASTER_LAYER.maxDepth} >= :min_depth`, { min_depth: filters.min_depth });
-  }
-  if (filters.max_depth === null) {
-    query.andWhere('rl.max_depth IS NULL');
-  } else if (filters.max_depth !== undefined) {
-    query.andWhere(`${EFFECTIVE_RASTER_LAYER.minDepth} <= :max_depth`, { max_depth: filters.max_depth });
-  }
-  if (filters.min_sampling_date === null) {
-    query.andWhere('rl.reference_period_start IS NULL');
-  } else if (filters.min_sampling_date) {
-    query.andWhere(endsOnOrAfter(EFFECTIVE_RASTER_LAYER.stop, ':min_sampling_date'), { min_sampling_date: filters.min_sampling_date });
-  }
-  if (filters.max_sampling_date === null) {
-    query.andWhere('rl.reference_period_stop IS NULL');
-  } else if (filters.max_sampling_date) {
-    query.andWhere(startsOnOrBefore(EFFECTIVE_RASTER_LAYER.start, ':max_sampling_date'), { max_sampling_date: filters.max_sampling_date });
-  }
-  if (filters.soil_properties?.length) {
-    query.andWhere('sp.slug IN (:...soil_properties)', { soil_properties: filters.soil_properties });
-  }
-  if (filters.licenses?.length) {
-    query.andWhere('ds.licenses && ARRAY[:...licenses]', { licenses: filters.licenses });
-  }
-  if (filters.visibility) {
-    query.andWhere('ds.visibility = :visibility', { visibility: filters.visibility });
-  }
 };
