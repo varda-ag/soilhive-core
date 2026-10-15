@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import extractZip from 'extract-zip';
+import { extractZip } from '../utils/zip';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { FileStorage } from '@flystorage/file-storage';
@@ -236,7 +236,7 @@ export default class FileService {
     const tempZipExtractPath = fs.mkdtempSync(path.join(os.tmpdir(), 'gdal-zip-tmp'));
 
     try {
-      // Extract ZIP to temporary directory using extract-zip
+      // Extract ZIP to temporary directory
       await extractZip(zipPath, { dir: tempZipExtractPath });
 
       const files = fs.readdirSync(tempZipExtractPath);
