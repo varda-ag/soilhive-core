@@ -28,7 +28,6 @@
 | dotenv | BSD-2-Clause | 17.4.2 |
 | express | MIT | 5.2.1 |
 | express-openapi-validator | MIT | 5.6.2 |
-| extract-zip | BSD-2-Clause | 2.0.1 |
 | fast-xml-validator | MIT | 1.4.2 |
 | geojson-validation | LGPL-3 | 1.0.2 |
 | geotiff | MIT | 3.0.5 |
@@ -50,6 +49,7 @@
 | typeorm | MIT | 0.3.29 |
 | uuid | MIT | 11.1.1 |
 | wellknown | BSD | 0.5.0 |
+| yauzl | MIT | 3.4.0 |
 
 ### Development
 
@@ -61,6 +61,7 @@
 | @types/node | MIT | 24.12.3 |
 | @types/pdfkit | MIT | 0.17.6 |
 | @types/supertest | MIT | 6.0.3 |
+| @types/yauzl | MIT | 3.4.0 |
 | copyfiles | MIT | 2.4.1 |
 | jest | MIT | 30.4.2 |
 | nodemon | MIT | 3.1.14 |
