@@ -28,6 +28,7 @@ describe('useConfig', () => {
     useApiQueryMock.mockReturnValue({ data: { some: 'value' }, isLoading: false, isError: false });
     useApiMutationMock.mockReturnValue({ mutateAsync });
     mutateAsync.mockResolvedValue({ stored: true });
+    invalidateQueries.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -84,6 +85,31 @@ describe('useConfig', () => {
     // The caller just self-granted WRITE on the backend — the cached CONFIGS entitlements
     // (fetched once and reused by can()) don't know about it yet without a refetch.
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
+  });
+
+  // The new grant only matters to later can() checks, so the save must not wait a round trip for it.
+  it('saveConfig resolves after a first save on a plugin: id while the entitlements refresh is still pending', async () => {
+    useEntitlementsMock.mockReturnValue({ can: jest.fn().mockReturnValue(false) });
+    invalidateQueries.mockReturnValue(new Promise(() => {}));
+
+    const { result } = renderHook(() => useConfig(configId));
+    await result.current.saveConfig({ updated: true });
+
+    expect(invalidateQueries).toHaveBeenCalledTimes(1);
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
+  });
+
+  it('saveConfig still resolves when the background entitlements refresh rejects', async () => {
+    useEntitlementsMock.mockReturnValue({ can: jest.fn().mockReturnValue(false) });
+    const refresh = Promise.reject(new Error('HTTP 500'));
+    const refreshCatch = jest.spyOn(refresh, 'catch');
+    invalidateQueries.mockReturnValue(refresh);
+
+    const { result } = renderHook(() => useConfig(configId));
+
+    await expect(result.current.saveConfig({ updated: true })).resolves.toBeUndefined();
+    // Caught, so the rejection is not unhandled.
+    expect(refreshCatch).toHaveBeenCalled();
   });
 
   it('saveConfig is a no-op for a non-plugin (system) id when the caller lacks WRITE — the backend has no bootstrap for it', async () => {

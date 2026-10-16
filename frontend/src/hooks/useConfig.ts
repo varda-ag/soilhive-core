@@ -46,8 +46,9 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     queryClient.setQueryData([endpoint], savedConfig);
     if (!hasWrite) {
       // First-access bootstrap just succeeded — refresh the cached CONFIGS entitlements so `can`
-      // reflects the new grant.
-      await queryClient.invalidateQueries({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
+      // reflects the new grant. Not awaited: only later can() checks need it, and a failed refresh
+      // must not fail a save that already succeeded.
+      void queryClient.invalidateQueries({ queryKey: ['entitlements', EntitlementScope.CONFIGS] }).catch(() => {});
     }
   };
 
