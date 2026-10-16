@@ -44,6 +44,9 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
 
     // The PUT returns the stored config (the same body as GET), so it goes straight into the cache.
     const savedConfig = await saveMutation.mutateAsync(newConfig);
+    // A GET still running may have read the server before the PUT: cancel it, or it overwrites the
+    // saved config with the old one when it finishes.
+    await queryClient.cancelQueries({ queryKey });
     queryClient.setQueryData(queryKey, savedConfig);
     if (!hasWrite) {
       // First-access bootstrap just succeeded — refresh the cached CONFIGS entitlements so `can`

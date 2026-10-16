@@ -11,7 +11,7 @@ jest.mock('../../src/configuration/api', () => ({
   BACKEND_BASE_URL: 'https://api.example.com',
 }));
 
-const CONFIG_URL = 'https://api.example.com/configs/plugin:acme:widget';
+const CONFIG_URL = 'https://api.example.com/configs/plugin:acme:';
 
 // The backend's answers: PUT returns the stored config, the same body a GET returns.
 let stored: unknown = { title: 'before' };
@@ -42,5 +42,25 @@ describe('useConfig with two observers of the same config', () => {
     await waitFor(() => expect(result.current.viewer.config).toEqual({ title: 'after' }));
     // The one GET at mount only.
     expect(request.mock.calls.filter(([{ method }]) => method === 'GET')).toHaveLength(1);
+  });
+
+  it('keeps the saved config when a GET that started before the PUT finishes after it', async () => {
+    stored = { title: 'before' };
+    // The GET reads the server before the PUT, but its response arrives after the save.
+    let releaseGet: () => void = () => {};
+    request.mockImplementationOnce(async () => {
+      const readBeforePut = stored;
+      await new Promise<void>(resolve => (releaseGet = resolve));
+      return readBeforePut;
+    });
+    const { result } = renderHook(() => useConfig<{ title: string }>('plugin:acme:slow'), { wrapper: queryClientWrapper });
+    await waitFor(() => expect(request).toHaveBeenCalledWith(expect.objectContaining({ method: 'GET' })));
+
+    await act(() => result.current.saveConfig({ title: 'after' }));
+    await act(async () => releaseGet());
+    // React Query notifies observers on the next tick.
+    await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+
+    expect(result.current.config).toEqual({ title: 'after' });
   });
 });

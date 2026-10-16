@@ -11,8 +11,9 @@ jest.mock('hooks/useEntitlementsHook', () => ({ useEntitlements: jest.fn() }));
 
 const invalidateQueries = jest.fn();
 const setQueryData = jest.fn();
+const cancelQueries = jest.fn().mockResolvedValue(undefined);
 jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: jest.fn(() => ({ invalidateQueries, setQueryData })),
+  useQueryClient: jest.fn(() => ({ invalidateQueries, setQueryData, cancelQueries })),
 }));
 
 const useApiQueryMock = useApiQuery as jest.Mock;
@@ -52,6 +53,7 @@ describe('useConfig', () => {
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, configId);
     expect(mutateAsync).toHaveBeenCalledWith({ updated: true });
+    expect(cancelQueries).toHaveBeenCalledWith({ queryKey: [`/configs/${configId}`] });
     expect(setQueryData).toHaveBeenCalledWith([`/configs/${configId}`], { stored: true });
     // Already had the grant, nothing changed on the entitlements side — no need to refetch it either.
     expect(invalidateQueries).not.toHaveBeenCalled();
