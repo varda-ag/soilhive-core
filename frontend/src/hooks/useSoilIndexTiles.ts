@@ -52,6 +52,18 @@ const MAX_SCORE_ID = 2 ** 31 - 1;
 
 const isScoreId = (id: number | undefined): id is number => id !== undefined && Number.isInteger(id) && id >= 1 && id <= MAX_SCORE_ID;
 
+// React Query's default retry count.
+const MAX_RETRIES = 3;
+
+// A score never changes, so a 4xx (a 404 for an id the Run has not) answers the same however often
+// it is asked: only a server or network error is read again. Retrying held a hover tooltip on its
+// loading line for the whole backoff, about 7 s. 408 and 429 are about the request, not the score.
+export const retrySoilIndexScore = (failureCount: number, error: unknown): boolean => {
+  const { status } = (error ?? {}) as { status?: number };
+  const isFinal = status !== undefined && status >= 400 && status < 500 && status !== 408 && status !== 429;
+  return !isFinal && failureCount < MAX_RETRIES;
+};
+
 export function useSoilIndexScore(runId: string | undefined, hoveredId: number | undefined): PluginQueryResult<PluginSoilIndexScore> {
   // A hovered cell reads as nothing hovered.
   const scoreId = isScoreId(hoveredId) ? hoveredId : undefined;
@@ -63,6 +75,7 @@ export function useSoilIndexScore(runId: string | undefined, hoveredId: number |
     enabled: !!runId && debouncedScoreId !== undefined && debouncedScoreId === scoreId,
     // A score never changes.
     staleTime: Infinity,
+    retry: retrySoilIndexScore,
     authenticate: false,
     showErrorNotification: false,
   });
