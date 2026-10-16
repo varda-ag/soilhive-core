@@ -100,6 +100,44 @@ async function hasNonNodataPixel(tifPath: string, nodataValue: number): Promise<
   }
   return false;
 }
+// About 31 km²
+const aoi = {
+  type: 'Polygon' as const,
+  coordinates: [
+    [
+      [0.1, 0.1],
+      [0.15, 0.1],
+      [0.15, 0.15],
+      [0.1, 0.15],
+      [0.1, 0.1],
+    ],
+  ],
+};
+
+const authorized = (req: request.Test, token?: string) => (token ? req.set('Authorization', `Bearer ${token}`) : req);
+
+// Returns the job once it has completed or failed
+async function runExport(datasetIds: string[], formats: string[], token?: string): Promise<any> {
+  const filterResponse = await request(app)
+    .post('/data-filters')
+    .send({ geometries: [aoi], parameters: {} });
+  expect(filterResponse.statusCode).toBe(StatusCodes.CREATED);
+
+  const exportJobResponse = await authorized(request(app).post('/jobs'), token).send({
+    type: 'export',
+    filter_id: filterResponse.body.id,
+    dataset_ids: datasetIds,
+    formats,
+  });
+  expect(exportJobResponse.statusCode).toBe(StatusCodes.CREATED);
+
+  for (let attempts = 0; attempts < 120; attempts++) {
+    await sleep(500);
+    const { body } = await authorized(request(app).get(`/jobs/${exportJobResponse.body.id}`), token);
+    if (body.status === 'completed' || body.status === 'failed') return body;
+  }
+  throw new Error('Export job did not finish');
+}
 
 describe('Soil Export Job Integration Test', () => {
   beforeAll(async () => {
@@ -1351,49 +1389,11 @@ describe('Soil Export Job Integration Test', () => {
   });
 
   describe('Export Limits', () => {
-    // About 31 km²
-    const aoi = {
-      type: 'Polygon' as const,
-      coordinates: [
-        [
-          [0.1, 0.1],
-          [0.15, 0.1],
-          [0.15, 0.15],
-          [0.1, 0.15],
-          [0.1, 0.1],
-        ],
-      ],
-    };
 
     const setExportLimits = async (exportLimits: object) => {
       const dataSource = await getDataSource();
       await dataSource.getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits } });
     };
-
-    const authorized = (req: request.Test, token?: string) => (token ? req.set('Authorization', `Bearer ${token}`) : req);
-
-    // Returns the job once it has completed or failed
-    async function runExport(datasetIds: string[], formats: string[], token?: string): Promise<any> {
-      const filterResponse = await request(app)
-        .post('/data-filters')
-        .send({ geometries: [aoi], parameters: {} });
-      expect(filterResponse.statusCode).toBe(StatusCodes.CREATED);
-
-      const exportJobResponse = await authorized(request(app).post('/jobs'), token).send({
-        type: 'export',
-        filter_id: filterResponse.body.id,
-        dataset_ids: datasetIds,
-        formats,
-      });
-      expect(exportJobResponse.statusCode).toBe(StatusCodes.CREATED);
-
-      for (let attempts = 0; attempts < 120; attempts++) {
-        await sleep(500);
-        const { body } = await authorized(request(app).get(`/jobs/${exportJobResponse.body.id}`), token);
-        if (body.status === 'completed' || body.status === 'failed') return body;
-      }
-      throw new Error('Export job did not finish');
-    }
 
     afterEach(() => {
       jest.restoreAllMocks();
@@ -1436,11 +1436,19 @@ describe('Soil Export Job Integration Test', () => {
     });
 
     it('exempts an administrator when exemptAdmins is set', async () => {
-      await addDataset('limits-vector', [0, 0, 1, 1]);
+      // Add some data to avoid getting EX_NO_DATA error
+      const { dataset } = await addSyntheticData({
+        ...syntheticDataOptions,
+        id: 200,
+        depthLayers: 1,
+        featureCount: 2,
+        observationsPerLayer: 2,
+        soilPropertyNames: ['C/N ratio'],
+        spatial_extent: [0.1, 0.1, 0.15, 0.15],
+      });
       await setExportLimits({ maxAreaM2: 1, exemptAdmins: true });
 
-      const job = await runExport(['limits-vector'], [VectorFileFormat.CSV], await getDataAdminToken());
-
+      const job = await runExport([dataset.slug], [VectorFileFormat.CSV], await getDataAdminToken());
       expect(job.status).toBe('completed');
     });
 
@@ -1452,8 +1460,39 @@ describe('Soil Export Job Integration Test', () => {
 
       const dataSource = await getDataSource();
       const [{ km2 }] = await dataSource.query('SELECT ST_Area(ST_GeomFromGeoJSON($1)::geography) / 1e6 AS km2', [JSON.stringify(aoi)]);
-      expect(job.status).toBe('completed');
       expect(job.data.aoi_area_km2).toBeCloseTo(km2);
+    });
+  });
+
+  describe('Empty Export', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('fails with EX_NO_DATA before writing the README when both estimates are 0', async () => {
+      await addDataset('empty-vector', [0, 0, 1, 1]);
+      const createReadmeFileSpy = jest.spyOn(exportHelpers, 'createReadmeFile');
+
+      const job = await runExport(['empty-vector'], [VectorFileFormat.CSV]);
+
+      expect(job.status).toBe('failed');
+      expect(job.data.errors[0].code).toBe('EX_NO_DATA');
+      expect(job.message).toContain('There is no data to export for your selection.');
+      expect(job.data.download_path).toBeUndefined();
+      expect(createReadmeFileSpy).not.toHaveBeenCalled();
+    });
+
+    it('fails with EX_NO_DATA instead of shipping a README-only ZIP when nothing was written', async () => {
+      await addDataset('empty-vector', [0, 0, 1, 1]);
+      jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(5);
+      const fetchBatchSpy = jest.spyOn(exportHelpers, 'fetchBatch').mockResolvedValue([]);
+
+      const job = await runExport(['empty-vector'], [VectorFileFormat.CSV]);
+
+      expect(fetchBatchSpy).toHaveBeenCalled();
+      expect(job.status).toBe('failed');
+      expect(job.data.errors[0].code).toBe('EX_NO_DATA');
+      expect(job.data.download_path).toBeUndefined();
     });
   });
 });

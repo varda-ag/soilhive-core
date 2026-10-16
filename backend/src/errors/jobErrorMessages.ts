@@ -261,6 +261,10 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'Your selection contains {record_count} records, more than the {max_records} allowed per export.',
     actions: ['Narrow the area of interest or the selected datasets.'],
   },
+  EX_NO_DATA: {
+    message: 'There is no data to export for your selection.',
+    actions: ['Check that the selected datasets have data in your area of interest.'],
+  },
   BD_TIMEOUT: {
     message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
     actions: ['Try deleting again; if it keeps timing out, contact support'],
