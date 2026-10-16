@@ -120,6 +120,10 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       aoi_area_km2,
     });
 
+    if (total_records_estimate === 0 && total_layers_estimate === 0) {
+      throwNoData(jobId, data, 'estimate', 0, 0);
+    }
+
     await createReadmeFile(requestData, tempDir, data);
 
     const downloadPromises: Promise<Partial<ExportOutputs>>[] = [];
@@ -138,6 +142,12 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
     if (await isJobCancelled(jobId)) {
       return;
+    }
+
+    // A non-zero estimate can still write nothing (e.g. a raster layer whose extent misses the mask, or
+    // an area of interest too small or thin to cover a pixel), which would otherwise ship a README-only ZIP.
+    if (totalRecordsProcessed === 0 && totalLayersProcessed === 0) {
+      throwNoData(jobId, data, 'processed', total_records_estimate, total_layers_estimate);
     }
 
     const needsFileMerge =
@@ -408,6 +418,29 @@ async function writeRasterLayerAssets(
       });
     }
   }
+}
+
+/**
+ * An Export with nothing to write: the data changed after coverage was checked, the caller never
+ * checked coverage, or a raster area of interest covers no pixel. Logged as a warning so each
+ * occurrence is visible.
+ */
+function throwNoData(
+  jobId: string,
+  data: ExportJob,
+  stage: 'estimate' | 'processed',
+  recordsEstimate: number,
+  layersEstimate: number,
+): never {
+  log.warn('Export has nothing to write', {
+    jobId,
+    stage,
+    filterId: data.filter_id,
+    datasetIds: data.dataset_ids,
+    recordsEstimate,
+    layersEstimate,
+  });
+  throw new JobError('EX_NO_DATA');
 }
 
 async function isJobCancelled(jobId: string): Promise<boolean> {
