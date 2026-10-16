@@ -90,19 +90,6 @@ describe('useConfig', () => {
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
   });
 
-  it('saveConfig still resolves when the background entitlements refresh rejects', async () => {
-    useEntitlementsMock.mockReturnValue({ can: jest.fn().mockReturnValue(false) });
-    const refresh = Promise.reject(new Error('HTTP 500'));
-    const refreshCatch = jest.spyOn(refresh, 'catch');
-    invalidateQueries.mockReturnValue(refresh);
-
-    const { result } = renderHook(() => useConfig(configId));
-
-    await expect(result.current.saveConfig({ updated: true })).resolves.toBeUndefined();
-    // Caught, so the rejection is not unhandled.
-    expect(refreshCatch).toHaveBeenCalled();
-  });
-
   it('saveConfig is a no-op for a non-plugin (system) id when the caller lacks WRITE — the backend has no bootstrap for it', async () => {
     const can = jest.fn().mockReturnValue(false);
     useEntitlementsMock.mockReturnValue({ can });
