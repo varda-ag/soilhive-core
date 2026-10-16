@@ -11,7 +11,8 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
   const { can } = useEntitlements(EntitlementScope.CONFIGS);
   const queryClient = useQueryClient();
   const endpoint = getConfigEndpoint(id);
-  const saveMutation = useApiMutation<{ id: string }, unknown>({
+  const queryKey = [endpoint];
+  const saveMutation = useApiMutation<T, unknown>({
     endpoint,
     method: 'PUT',
   });
@@ -21,7 +22,7 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
   const { data, isLoading, isError } = useApiQuery<T>({
     endpoint,
     method: 'GET',
-    queryKey: [endpoint],
+    queryKey,
     enabled: !!id,
     showErrorNotification: false,
     notFoundAsNull: true,
@@ -41,12 +42,17 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
       return;
     }
 
-    await saveMutation.mutateAsync(newConfig);
-    await queryClient.invalidateQueries({ queryKey: [endpoint] });
+    // The PUT returns the stored config (the same body as GET), so it goes straight into the cache.
+    const savedConfig = await saveMutation.mutateAsync(newConfig);
+    // A GET still running may have read the server before the PUT: cancel it, or it overwrites the
+    // saved config with the old one when it finishes.
+    await queryClient.cancelQueries({ queryKey });
+    queryClient.setQueryData(queryKey, savedConfig);
     if (!hasWrite) {
       // First-access bootstrap just succeeded — refresh the cached CONFIGS entitlements so `can`
-      // reflects the new grant.
-      await queryClient.invalidateQueries({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
+      // reflects the new grant. Not awaited: only later can() checks need it. It never rejects:
+      // React Query swallows refetch errors unless throwOnError is set.
+      void queryClient.invalidateQueries({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
     }
   };
 
