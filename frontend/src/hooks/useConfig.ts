@@ -11,7 +11,7 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
   const { can } = useEntitlements(EntitlementScope.CONFIGS);
   const queryClient = useQueryClient();
   const endpoint = getConfigEndpoint(id);
-  const saveMutation = useApiMutation<{ id: string }, unknown>({
+  const saveMutation = useApiMutation<T, unknown>({
     endpoint,
     method: 'PUT',
   });
@@ -41,8 +41,9 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
       return;
     }
 
-    await saveMutation.mutateAsync(newConfig);
-    await queryClient.invalidateQueries({ queryKey: [endpoint] });
+    // The PUT returns the stored config (the same body as GET), so it goes straight into the cache.
+    const savedConfig = await saveMutation.mutateAsync(newConfig);
+    queryClient.setQueryData([endpoint], savedConfig);
     if (!hasWrite) {
       // First-access bootstrap just succeeded — refresh the cached CONFIGS entitlements so `can`
       // reflects the new grant.

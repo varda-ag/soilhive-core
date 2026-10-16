@@ -10,8 +10,9 @@ jest.mock('hooks/useApiMutation', () => ({ useApiMutation: jest.fn() }));
 jest.mock('hooks/useEntitlementsHook', () => ({ useEntitlements: jest.fn() }));
 
 const invalidateQueries = jest.fn();
+const setQueryData = jest.fn();
 jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: jest.fn(() => ({ invalidateQueries })),
+  useQueryClient: jest.fn(() => ({ invalidateQueries, setQueryData })),
 }));
 
 const useApiQueryMock = useApiQuery as jest.Mock;
@@ -26,6 +27,7 @@ describe('useConfig', () => {
   beforeEach(() => {
     useApiQueryMock.mockReturnValue({ data: { some: 'value' }, isLoading: false, isError: false });
     useApiMutationMock.mockReturnValue({ mutateAsync });
+    mutateAsync.mockResolvedValue({ stored: true });
   });
 
   afterEach(() => {
@@ -40,7 +42,7 @@ describe('useConfig', () => {
     expect(useEntitlements).toHaveBeenCalledWith(EntitlementScope.CONFIGS);
   });
 
-  it('saveConfig calls the mutation and invalidates only the config query when the caller already holds WRITE', async () => {
+  it('saveConfig stores the PUT response in the config cache, with no refetch, when the caller already holds WRITE', async () => {
     const can = jest.fn().mockReturnValue(true);
     useEntitlementsMock.mockReturnValue({ can });
 
@@ -49,9 +51,20 @@ describe('useConfig', () => {
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, configId);
     expect(mutateAsync).toHaveBeenCalledWith({ updated: true });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: [`/configs/${configId}`] });
-    // Already had the grant, nothing changed on the entitlements side — no need to refetch it.
-    expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
+    // The PUT returns the stored config (same body as GET), so a refetch would only repeat it.
+    expect(setQueryData).toHaveBeenCalledWith([`/configs/${configId}`], { stored: true });
+    // Already had the grant, nothing changed on the entitlements side — no need to refetch it either.
+    expect(invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it('saveConfig rejects and leaves the config cache alone when the PUT fails', async () => {
+    useEntitlementsMock.mockReturnValue({ can: jest.fn().mockReturnValue(true) });
+    mutateAsync.mockRejectedValue(new Error('HTTP 500'));
+
+    const { result } = renderHook(() => useConfig(configId));
+
+    await expect(result.current.saveConfig({ updated: true })).rejects.toThrow('HTTP 500');
+    expect(setQueryData).not.toHaveBeenCalled();
   });
 
   // ADR 0037: a plugin's first PUT is how it claims WRITE on a fresh plugin: id (the backend's
@@ -67,7 +80,7 @@ describe('useConfig', () => {
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, configId);
     expect(mutateAsync).toHaveBeenCalledWith({ updated: true });
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: [`/configs/${configId}`] });
+    expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: [`/configs/${configId}`] });
     // The caller just self-granted WRITE on the backend — the cached CONFIGS entitlements
     // (fetched once and reused by can()) don't know about it yet without a refetch.
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
@@ -82,6 +95,7 @@ describe('useConfig', () => {
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, systemConfigId);
     expect(mutateAsync).not.toHaveBeenCalled();
+    expect(setQueryData).not.toHaveBeenCalled();
     expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
