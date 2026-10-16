@@ -61,6 +61,10 @@ export const setupTestEnv = () => {
     S3_STORAGE_ENDPOINT: 'http://localhost:9000',
     ENTITLEMENTS_ENDPOINT: undefined,
     EXPORT_BATCH_SIZE: 100,
+    // No Plugin Backends unless a test registers its own
+    PLUGIN_BACKENDS: undefined,
+    PLUGIN_BACKEND_SECRETS: undefined,
+    PLUGIN_BACKEND_TIMEOUT_MS: undefined,
   };
   for (const [key, value] of Object.entries(env)) {
     if (value) {

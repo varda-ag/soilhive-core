@@ -5,6 +5,7 @@ import { In, Repository } from 'typeorm';
 import { AuthConfig, OIDCConfig } from '../interfaces/AuthConfig';
 import { StatusCodes } from 'http-status-codes';
 import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig';
+import { PluginBackend } from '../interfaces/PluginBackend';
 import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
@@ -14,6 +15,8 @@ import { EntitlementScope } from '../types/Entitlements';
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
 const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
 const DEFAULT_S3_STORAGE_QUEUE_SIZE = 4;
+const DEFAULT_PLUGIN_BACKEND_TIMEOUT_MS = 60_000;
+const MIN_PLUGIN_BACKEND_SECRET_LENGTH = 32;
 
 const entitlementService = new EntitlementService();
 
@@ -226,4 +229,79 @@ export default class ConfigService {
       maxUploadSizeMB: ConfigService.getMaxUploadSizeBytes() / (1024 * 1024),
     };
   };
+
+  /**
+   * The Plugin Backends this deployment forwards /plugins/{pluginId}/ to, by pluginId. Only the
+   * deployment's environment names them, never a request: a URL taken from a request would let
+   * any caller point the core backend at any address it can reach (docs/adr/0062). Parsed once
+   * per value of the two variables, which in a running deployment means once, and a malformed
+   * value throws the same error on every call.
+   */
+  static getPluginBackends = (): Map<string, PluginBackend> => {
+    const raw = `${process.env.PLUGIN_BACKENDS ?? ''}\n${process.env.PLUGIN_BACKEND_SECRETS ?? ''}`;
+    if (pluginBackends?.raw !== raw) {
+      try {
+        pluginBackends = { raw, backends: parsePluginBackends() };
+      } catch (error) {
+        pluginBackends = { raw, error: error as Error };
+      }
+    }
+    if ('error' in pluginBackends) throw pluginBackends.error;
+    return pluginBackends.backends;
+  };
+
+  static getPluginBackendTimeoutMs = (): number => {
+    const parsed = Number(process.env.PLUGIN_BACKEND_TIMEOUT_MS);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PLUGIN_BACKEND_TIMEOUT_MS;
+  };
 }
+
+let pluginBackends: ({ raw: string } & ({ backends: Map<string, PluginBackend> } | { error: Error })) | undefined;
+
+const parsePluginBackends = (): Map<string, PluginBackend> => {
+  const urls = parsePluginIdMap('PLUGIN_BACKENDS');
+  const secrets = parsePluginIdMap('PLUGIN_BACKEND_SECRETS');
+  for (const pluginId of secrets.keys()) {
+    if (!urls.has(pluginId)) {
+      throw new Error(`PLUGIN_BACKEND_SECRETS has a secret for "${pluginId}", which PLUGIN_BACKENDS does not list`);
+    }
+  }
+
+  const backends = new Map<string, PluginBackend>();
+  for (const [pluginId, value] of urls) {
+    const url = URL.canParse(value) ? new URL(value) : undefined;
+    if (!url || !['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
+      throw new Error(`PLUGIN_BACKENDS: "${pluginId}" must be an http(s) URL with no credentials, query or fragment`);
+    }
+    const secret = secrets.get(pluginId) ?? '';
+    if (secret.length < MIN_PLUGIN_BACKEND_SECRET_LENGTH) {
+      throw new Error(`PLUGIN_BACKEND_SECRETS: "${pluginId}" needs a secret of at least ${MIN_PLUGIN_BACKEND_SECRET_LENGTH} characters`);
+    }
+    // So a call's path is appended to the base path rather than replacing its last segment.
+    if (!url.pathname.endsWith('/')) url.pathname += '/';
+    backends.set(pluginId, { url, secret });
+  }
+  return backends;
+};
+
+// A JSON object from pluginId to string. JSON.parse's own message is not passed on: it quotes the
+// input, which for PLUGIN_BACKEND_SECRETS is a secret.
+const parsePluginIdMap = (name: 'PLUGIN_BACKENDS' | 'PLUGIN_BACKEND_SECRETS'): Map<string, string> => {
+  const raw = process.env[name]?.trim();
+  if (!raw) return new Map();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`${name} is not valid JSON`);
+  }
+  if (
+    typeof parsed !== 'object' ||
+    parsed === null ||
+    Array.isArray(parsed) ||
+    Object.values(parsed).some(value => typeof value !== 'string')
+  ) {
+    throw new Error(`${name} must be a JSON object from pluginId to string`);
+  }
+  return new Map(Object.entries(parsed as Record<string, string>));
+};

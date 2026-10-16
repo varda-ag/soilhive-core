@@ -5,13 +5,16 @@ import swaggerUi from 'swagger-ui-express';
 import { errorMiddleware } from './middlewares/error';
 import { loggingMiddleware } from './middlewares/logging';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
+import { pluginProxy } from './middlewares/pluginProxy';
 import { transactionMiddleware } from './middlewares/transaction';
 import { uploadSizeLimit } from './middlewares/uploadSizeLimit';
+import ConfigService from './services/ConfigService';
 import { initPgBoss } from './services/PgBoss';
 import { setupCLI } from './utils/cli';
 import { cacheBypassMiddleware, isCacheBypassEnabled } from './utils/cache-bypass';
 import { startCacheEpochWatcher } from './utils/cache-epoch';
 import { getEntityManager, initializeSchema } from './utils/data-source';
+import { getErrorMessage } from './utils/error';
 import { log } from './utils/logger';
 import { isQueryDebugEnabled, queryDebugMiddleware } from './utils/query-debug';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
@@ -31,8 +34,18 @@ if (isJest()) {
   app.use((_req, _res, next) => ready.then(next));
 }
 
+const PLUGIN_ROUTES = ['/api/v1/plugins/:pluginId', '/plugins/:pluginId'];
+
 export const initApp = async (app: Application) => {
   await setupCLI();
+  // A malformed PLUGIN_BACKENDS or PLUGIN_BACKEND_SECRETS shows in the log at start, rather than on
+  // the first plugin call. It does not stop the start: only the plugin route answers 503, and the
+  // rest of the core backend keeps serving (docs/adr/0062).
+  try {
+    ConfigService.getPluginBackends();
+  } catch (error) {
+    log.error('Plugin Backends are misconfigured: every /plugins/ call will answer 503', { error: getErrorMessage(error) });
+  }
 
   const origin = (process.env.CORS_ORIGINS || 'http://localhost,http://localhost:3000').split(',').map(o => o.trim());
 
@@ -45,15 +58,20 @@ export const initApp = async (app: Application) => {
     app.use(cacheBypassMiddleware);
   }
   app.use(loggingMiddleware);
-  app.use(
-    cors({
-      origin,
-      credentials: true, // Allow cookies/auth headers
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      maxAge: 86400, // 24 hours
-    }),
-  );
+  const corsOptions = {
+    origin,
+    credentials: true, // Allow cookies/auth headers
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    maxAge: 86400, // 24 hours
+  };
+  // A plugin may send its own headers to its Plugin Backend (usePluginApi's headers option), so its
+  // route allows whichever headers a page from an allowed origin asks for. The proxy still drops
+  // the ones that are not the plugin's to set.
+  app.use(PLUGIN_ROUTES, cors(corsOptions));
+  app.use(cors({ ...corsOptions, allowedHeaders: ['Content-Type', 'Authorization'] }));
+
+  // Ahead of the body parsers, so that a plugin's request body streams through to its Plugin Backend untouched.
+  app.use(PLUGIN_ROUTES, pluginProxy);
 
   app.use(uploadSizeLimit);
   app.use(express.urlencoded({ extended: true }));

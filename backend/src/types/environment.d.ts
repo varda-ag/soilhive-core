@@ -48,5 +48,9 @@ declare namespace NodeJS {
     readonly AWS_SECRET_ACCESS_KEY?: string;
     readonly AWS_VIRTUAL_HOSTING?: string;
     readonly AWS_HTTPS?: string;
+    // Plugin Backends (docs/adr/0062)
+    readonly PLUGIN_BACKENDS?: string;
+    readonly PLUGIN_BACKEND_SECRETS?: string;
+    readonly PLUGIN_BACKEND_TIMEOUT_MS?: string;
   }
 }

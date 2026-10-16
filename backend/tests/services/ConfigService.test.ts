@@ -54,6 +54,99 @@ describe('ConfigService.getMaxUploadSizeBytes', () => {
   });
 });
 
+describe('ConfigService.getPluginBackends', () => {
+  const secret = 'a'.repeat(32);
+  const register = (urls: unknown, secrets: unknown) => {
+    process.env.PLUGIN_BACKENDS = typeof urls === 'string' ? urls : JSON.stringify(urls);
+    process.env.PLUGIN_BACKEND_SECRETS = typeof secrets === 'string' ? secrets : JSON.stringify(secrets);
+  };
+
+  afterEach(() => {
+    delete process.env.PLUGIN_BACKENDS;
+    delete process.env.PLUGIN_BACKEND_SECRETS;
+  });
+
+  it('registers none when PLUGIN_BACKENDS is unset', () => {
+    expect(ConfigService.getPluginBackends().size).toBe(0);
+  });
+
+  it("reads each plugin's URL and secret, ending the base path in a slash", () => {
+    register({ zones: 'http://zones-backend:8080/api', maps: 'https://maps.example' }, { zones: secret, maps: `${secret}b` });
+
+    const backends = ConfigService.getPluginBackends();
+
+    expect(backends.get('zones')).toEqual({ url: new URL('http://zones-backend:8080/api/'), secret });
+    expect(backends.get('maps')).toEqual({ url: new URL('https://maps.example/'), secret: `${secret}b` });
+  });
+
+  it.each([
+    ['not JSON', '{zones:', {}, 'PLUGIN_BACKENDS is not valid JSON'],
+    ['an array', ['http://zones-backend'], {}, 'PLUGIN_BACKENDS must be a JSON object'],
+    ['a value that is not a string', { zones: 1 }, {}, 'PLUGIN_BACKENDS must be a JSON object'],
+    ['a value that is not a URL', { zones: 'zones-backend' }, { zones: secret }, '"zones" must be an http(s) URL'],
+    ['a URL that is not http(s)', { zones: 'file:///etc/passwd' }, { zones: secret }, '"zones" must be an http(s) URL'],
+    ['a URL with credentials', { zones: 'http://user:pass@zones-backend' }, { zones: secret }, '"zones" must be an http(s) URL'],
+    ['a URL with a query', { zones: 'http://zones-backend/?token=x' }, { zones: secret }, '"zones" must be an http(s) URL'],
+    ['a plugin with no secret', { zones: 'http://zones-backend' }, {}, '"zones" needs a secret of at least 32 characters'],
+    [
+      'a secret under 32 characters',
+      { zones: 'http://zones-backend' },
+      { zones: 'short' },
+      '"zones" needs a secret of at least 32 characters',
+    ],
+    ['a secret for a plugin with no URL', {}, { zones: secret }, 'has a secret for "zones", which PLUGIN_BACKENDS does not list'],
+  ])('refuses %s', (_case, urls, secrets, message) => {
+    register(urls, secrets);
+    expect(() => ConfigService.getPluginBackends()).toThrow(message);
+  });
+
+  it('parses the variables once, and again only when they change', () => {
+    register({ zones: 'http://zones-backend' }, { zones: secret });
+    const first = ConfigService.getPluginBackends();
+
+    expect(ConfigService.getPluginBackends()).toBe(first);
+
+    register({ zones: 'http://zones-backend-2' }, { zones: secret });
+    const changed = ConfigService.getPluginBackends();
+
+    expect(changed).not.toBe(first);
+    expect(changed.get('zones')!.url.href).toBe('http://zones-backend-2/');
+  });
+
+  it('remembers a malformed value, and throws the same error on every call', () => {
+    register('{zones:', {});
+    const error = (() => {
+      try {
+        ConfigService.getPluginBackends();
+      } catch (caught) {
+        return caught;
+      }
+    })();
+
+    expect(error).toBeInstanceOf(Error);
+    expect(() => ConfigService.getPluginBackends()).toThrow(error as Error);
+  });
+
+  it('does not quote a malformed PLUGIN_BACKEND_SECRETS in its error', () => {
+    register({ zones: 'http://zones-backend' }, '{"zones": "the-secret-itself');
+    expect(() => ConfigService.getPluginBackends()).toThrow(new Error('PLUGIN_BACKEND_SECRETS is not valid JSON'));
+  });
+});
+
+describe('ConfigService.getPluginBackendTimeoutMs', () => {
+  afterEach(() => {
+    delete process.env.PLUGIN_BACKEND_TIMEOUT_MS;
+  });
+
+  it('reads PLUGIN_BACKEND_TIMEOUT_MS, and defaults to a minute when it is unset or invalid', () => {
+    expect(ConfigService.getPluginBackendTimeoutMs()).toBe(60_000);
+    process.env.PLUGIN_BACKEND_TIMEOUT_MS = 'soon';
+    expect(ConfigService.getPluginBackendTimeoutMs()).toBe(60_000);
+    process.env.PLUGIN_BACKEND_TIMEOUT_MS = '2500';
+    expect(ConfigService.getPluginBackendTimeoutMs()).toBe(2500);
+  });
+});
+
 describe('ConfigService.getPublicStorageConfig', () => {
   const originalStorageMode = process.env.STORAGE_MODE;
   const originalAccessKey = process.env.AWS_ACCESS_KEY_ID;

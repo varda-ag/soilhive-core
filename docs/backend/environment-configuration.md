@@ -36,6 +36,21 @@ Per-upload memory use is bounded by `queueSize × partSize`; size these together
 
 - `REQUEST_TIMEOUT_MS` (default `43200000`, 12 hours): how long the server keeps a request open before terminating it (`server.requestTimeout`). Node's own default is 5 minutes, which a large or slow-network file upload can exceed well before the client finishes sending data, failing the request with a 408 rather than a storage or application error.
 
+## Plugin Backends
+
+The core backend forwards `/plugins/{pluginId}/...` to a Plugin's own backend (`docs/adr/0061`). Only these variables say where each one is, never the call itself (`docs/adr/0062`). A plugin with no entry gets a `404`.
+
+- `PLUGIN_BACKENDS`: a JSON object from `pluginId` to the Plugin Backend's base URL, `http` or `https`, with no credentials, query or fragment. A call to `/plugins/{pluginId}/zones` goes to `{base URL}/zones`.
+- `PLUGIN_BACKEND_SECRETS`: a JSON object from `pluginId` to a secret of at least 32 characters, one for every plugin in `PLUGIN_BACKENDS`. The core backend sends it to that Plugin Backend as `Authorization: Bearer <secret>`, and the Plugin Backend refuses any call without it. Generate one with `openssl rand -hex 32`, and keep this variable in a secret store, apart from `PLUGIN_BACKENDS`.
+- `PLUGIN_BACKEND_TIMEOUT_MS` (default `60000`): how long the core backend waits for a Plugin Backend to start answering, once it has sent it the whole request. Past it the call fails with a `504`. Neither a slow upload nor a long download counts against it.
+
+```
+PLUGIN_BACKENDS={"my-plugin":"http://my-plugin-backend:8080/api"}
+PLUGIN_BACKEND_SECRETS={"my-plugin":"<output of openssl rand -hex 32>"}
+```
+
+If either variable is malformed, a plugin has no secret or one under 32 characters, or a secret names a plugin with no URL, the backend still starts and serves everything else. It logs `Plugin Backends are misconfigured` at start, with what is wrong, and answers every `/plugins/...` call with a `503` until the variables are fixed and it restarts. The secret travels with every call, so use `https` for a Plugin Backend outside the cluster's private network. A request body is capped at `MAX_UPLOAD_SIZE_MB`, as for uploads.
+
 ## Asynchronous jobs
 
 [pg-boss](https://github.com/timgit/pg-boss) is used to manage long running jobs. Following environment variables are used to manage concurrency:
