@@ -52,7 +52,6 @@ describe('useConfig', () => {
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, configId);
     expect(mutateAsync).toHaveBeenCalledWith({ updated: true });
-    // The PUT returns the stored config (same body as GET), so a refetch would only repeat it.
     expect(setQueryData).toHaveBeenCalledWith([`/configs/${configId}`], { stored: true });
     // Already had the grant, nothing changed on the entitlements side — no need to refetch it either.
     expect(invalidateQueries).not.toHaveBeenCalled();
@@ -72,29 +71,19 @@ describe('useConfig', () => {
   // atomic first-access bootstrap in ConfigService.putConfig). Gating on can() here — a pure
   // client-side read of grants that, by definition, can't exist yet for an unclaimed id — would
   // make that bootstrap unreachable from the UI: exactly the outcome the ADR rejects.
-  it('saveConfig attempts the PUT for a plugin: id even without an existing WRITE grant, then refreshes the CONFIGS entitlements cache', async () => {
+  it('saveConfig attempts the PUT for a plugin: id even without an existing WRITE grant, then refreshes the CONFIGS entitlements cache in the background', async () => {
     const can = jest.fn().mockReturnValue(false);
     useEntitlementsMock.mockReturnValue({ can });
+    // Never settles: the new grant only matters to later can() checks, so the save must not wait for it.
+    invalidateQueries.mockReturnValue(new Promise(() => {}));
 
     const { result } = renderHook(() => useConfig(configId));
     await result.current.saveConfig({ updated: true });
 
     expect(can).toHaveBeenCalledWith(Capability.WRITE, configId);
     expect(mutateAsync).toHaveBeenCalledWith({ updated: true });
-    expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: [`/configs/${configId}`] });
     // The caller just self-granted WRITE on the backend — the cached CONFIGS entitlements
     // (fetched once and reused by can()) don't know about it yet without a refetch.
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
-  });
-
-  // The new grant only matters to later can() checks, so the save must not wait a round trip for it.
-  it('saveConfig resolves after a first save on a plugin: id while the entitlements refresh is still pending', async () => {
-    useEntitlementsMock.mockReturnValue({ can: jest.fn().mockReturnValue(false) });
-    invalidateQueries.mockReturnValue(new Promise(() => {}));
-
-    const { result } = renderHook(() => useConfig(configId));
-    await result.current.saveConfig({ updated: true });
-
     expect(invalidateQueries).toHaveBeenCalledTimes(1);
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements', EntitlementScope.CONFIGS] });
   });
