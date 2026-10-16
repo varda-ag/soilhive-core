@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.0 (2026-10-16)
+
+## What's Changed
+* fix(be): add EX_NO_DATA error for export by @d-rom in https://github.com/varda-ag/soilhive-core/pull/907
+* feat: sp-5804 saveconfig stops waiting for refetches after a save by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/906
+* fix: sp-5795 a soil index score the server refuses is not read again by @cristbello in https://github.com/varda-ag/soilhive-core/pull/904
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.6.0...v1.7.0
+
 ## 1.6.0 (2026-10-15)
 
 ## What's Changed
