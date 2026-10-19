@@ -18,6 +18,22 @@ import { JsonStorage } from '../entities/JsonStorage';
 const emptyEntitlements = (): Entitlements => ({ datasets: Object.create(null), configs: Object.create(null) });
 
 /**
+ * A copy of `entitlements` that is safe to mutate: each scope and each capability list is new.
+ * Not `structuredClone` or a spread into `{}`: both drop the null prototype (see emptyEntitlements).
+ */
+const copyEntitlements = (entitlements: Entitlements): Entitlements => {
+  const copy: Entitlements = {};
+  for (const [scope, grants = {}] of Object.entries(entitlements)) {
+    const scoped: CapabilityGrants = Object.create(null);
+    for (const [key, capabilities] of Object.entries(grants)) {
+      scoped[key] = [...capabilities];
+    }
+    copy[scope as EntitlementScope] = scoped;
+  }
+  return copy;
+};
+
+/**
  * Scopes whose keys are entity slugs, and so carry an identity that survives a rename.
  *
  * `CONFIGS` keys are freeform ids chosen by the caller of `PUT /configs/{configId}`, with no entity
@@ -256,7 +272,7 @@ export default class EntitlementService {
         }
       }
       return acc;
-    }, externalEntitlements); // Using external entitlements as the accumulator base — itself built null-prototype, see emptyEntitlements/parseExternalEntitlements
+    }, copyEntitlements(externalEntitlements)); // A copy, not the external result itself: that may be shared through the per-token cache
 
     // Only ENTITY_BACKED_SCOPES need slug-history expansion (today: datasets). `configs` keys are
     // freeform, with no entity behind them, so they pass through untouched — this is the seam a

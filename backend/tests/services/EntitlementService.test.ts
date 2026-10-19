@@ -167,6 +167,45 @@ describe('EntitlementService', () => {
     });
   });
 
+  describe('when the external endpoint grants entitlements', () => {
+    // The external result may come from the per-token cache, so merging local grants must not write into it.
+    let callSpy: jest.SpiedFunction<typeof service.callEntitlementsEndpoint>;
+
+    beforeEach(async () => {
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES ('user8@example.com', '{"datasets": {"local-b": ["download"], "shared-key": ["download"]}}')
+      `);
+    });
+
+    afterEach(() => {
+      callSpy.mockRestore();
+    });
+
+    const stubExternal = (datasets: CapabilityGrants) => {
+      const external = { datasets: Object.assign(Object.create(null), datasets), configs: Object.create(null) };
+      callSpy = jest.spyOn(service, 'callEntitlementsEndpoint').mockResolvedValue(external);
+      return external;
+    };
+
+    it('does not write local grants into the external result', async () => {
+      const external = stubExternal({ 'external-a': [Capability.PREVIEW] });
+
+      await service.getUserEntitlements(requestData, 'user8@example.com');
+
+      expect(external).toEqual({ datasets: { 'external-a': [Capability.PREVIEW] }, configs: {} });
+    });
+
+    it('unions a key granted both externally and locally, leaving the external capability list unchanged', async () => {
+      const externalCapabilities = [Capability.PREVIEW];
+      stubExternal({ 'shared-key': externalCapabilities });
+
+      const entitlements = await service.getUserEntitlements(requestData, 'user8@example.com');
+
+      expect(entitlements.datasets?.['shared-key']).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
+      expect(externalCapabilities).toEqual([Capability.PREVIEW]);
+    });
+  });
+
   it('expands a grant on a renamed entity of a type other than Dataset (e.g. License)', async () => {
     const license = await addLicense('license-a');
     await entityManager.query(
