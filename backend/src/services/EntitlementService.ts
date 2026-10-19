@@ -1,5 +1,7 @@
 import { assert } from 'console';
+import { createHash } from 'node:crypto';
 import { StatusCodes } from 'http-status-codes';
+import { LRUCache } from 'lru-cache';
 import { In } from 'typeorm';
 import { EVERYONE, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { EntitlementsEntity } from '../entities/Entitlements';
@@ -31,6 +33,26 @@ const copyEntitlements = (entitlements: Entitlements): Entitlements => {
     copy[scope as EntitlementScope] = scoped;
   }
   return copy;
+};
+
+/**
+ * The external endpoint's reply per token, keyed by the token's sha256 (see ADR-0062). Per process
+ * and module-level, so every `EntitlementService` instance shares it. A valid reply stays for the
+ * whole TTL: a change made by the external provider shows only after the entry expires. Values are
+ * never handed out directly, only through `copyEntitlements`.
+ */
+const entitlementsCache = new LRUCache<string, Entitlements>({
+  max: 1000,
+  ttl: Number(process.env.ENTITLEMENTS_CACHE_TTL_MS) || 30 * 60_000,
+});
+
+/** Fetches still running, per token hash, so parallel requests with one token share a single call. */
+const inFlightEntitlements = new Map<string, Promise<Entitlements | undefined>>();
+
+/** Test hook: drop all cached replies and forget the calls still running. */
+export const resetEntitlementsCache = (): void => {
+  entitlementsCache.clear();
+  inFlightEntitlements.clear();
 };
 
 /**
@@ -73,15 +95,16 @@ const isEntitlementsEntry = (entry: unknown): entry is CapabilityGrants =>
  * `{ "dataset-1": ["preview", "download"], "dataset-2": ["preview"] }`). Anything that doesn't
  * match it is untrusted: log it and discard the whole reply, the same "degrade to local-only"
  * behavior already used for a failed fetch, rather than guessing at a shape nobody has agreed to.
+ * Returns `undefined` for a discarded reply, so it is not cached as if it were a valid empty one.
  *
  * Merges into `Object.create(null)`, not `{}` — same "__proto__" key risk as `getUserEntitlements`,
  * except `Object.assign` would actually pull it off (unlike `JSON.parse`), since it writes each
  * key through a normal assignment rather than defining it.
  */
-const parseExternalEntitlements = (body: unknown): CapabilityGrants => {
+const parseExternalEntitlements = (body: unknown): CapabilityGrants | undefined => {
   if (!Array.isArray(body) || !body.every(isEntitlementsEntry)) {
     log.error('External entitlements endpoint replied in an unexpected shape, discarding its response', { body: JSON.stringify(body) });
-    return Object.create(null);
+    return undefined;
   }
   return Object.assign(Object.create(null), ...body);
 };
@@ -356,15 +379,44 @@ export default class EntitlementService {
     return expanded;
   };
 
+  /**
+   * The external grants for the caller's token, from the per-token cache when it holds them (see
+   * ADR-0062). Parallel calls with one token share a single fetch. Only a valid reply is cached: an
+   * error or a discarded reply degrades to no external grants and is fetched again next time.
+   */
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
-    if (!process.env.ENTITLEMENTS_ENDPOINT || !requestData.token?.raw) {
+    const raw = requestData.token?.raw;
+    if (!process.env.ENTITLEMENTS_ENDPOINT || !raw) {
       return emptyEntitlements();
     }
+    const key = createHash('sha256').update(raw).digest('hex');
+    const cached = entitlementsCache.get(key);
+    if (cached) {
+      return copyEntitlements(cached);
+    }
+    let pending = inFlightEntitlements.get(key);
+    if (!pending) {
+      pending = this.fetchExternalEntitlements(raw)
+        .then(entitlements => {
+          if (entitlements) {
+            entitlementsCache.set(key, entitlements);
+          }
+          return entitlements;
+        })
+        .finally(() => inFlightEntitlements.delete(key));
+      inFlightEntitlements.set(key, pending);
+    }
+    const entitlements = await pending;
+    return entitlements ? copyEntitlements(entitlements) : emptyEntitlements();
+  }
+
+  /** One call to the external endpoint. `undefined` when it fails or its reply is discarded. */
+  private fetchExternalEntitlements = async (raw: string): Promise<Entitlements | undefined> => {
     try {
       const response = await fetch(process.env.ENTITLEMENTS_ENDPOINT!, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${requestData.token?.raw}`,
+          Authorization: `Bearer ${raw}`,
         },
       });
       if (!response.ok) {
@@ -373,14 +425,15 @@ export default class EntitlementService {
       }
       // The external contract stays a flat map, unaffected by this app's own scoping — wrap it
       // under "datasets", the only scope it's ever spoken for (see ADR-0032).
-      return { datasets: parseExternalEntitlements(await response.json()), configs: {} };
+      const datasets = parseExternalEntitlements(await response.json());
+      return datasets && { datasets, configs: {} };
     } catch (error) {
       log.error('Failed to fetch entitlements from external endpoint, degrading to local entitlements only', {
         error: getErrorMessage(error),
       });
-      return emptyEntitlements();
+      return undefined;
     }
-  }
+  };
 
   /** Boolean core of the read gate (see ADR 0037). Synchronous, no DB access — lets `ConfigService.getConfigs` filter with a plain `.filter()`. */
   canReadConfig = (requestData: RequestData, key: string): boolean => {
