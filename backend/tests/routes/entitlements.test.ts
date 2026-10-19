@@ -1,8 +1,8 @@
-import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { StatusCodes } from 'http-status-codes';
 import request from 'supertest';
 import { app } from '../../src/app';
-import EntitlementService from '../../src/services/EntitlementService';
+import EntitlementService, { resetEntitlementsCache } from '../../src/services/EntitlementService';
 import { Capability } from '../../src/types/enums';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
@@ -316,6 +316,54 @@ describe('Testing entitlements routes', () => {
       // Clean up
       delete process.env.ENTITLEMENTS_ENDPOINT;
       callEntitlementsEndpointSpy.mockRestore();
+    });
+  });
+
+  describe('Caching the external provider reply per token', () => {
+    const endpoint = 'http://mock-entitlements';
+    const subjectEmail = 'cached-subject@example.com';
+    let subjectToken: string;
+    let fetchSpy: jest.SpiedFunction<typeof fetch>;
+
+    beforeEach(() => {
+      // Before setting the endpoint: getUserToken resets the test env, which unsets ENTITLEMENTS_ENDPOINT.
+      subjectToken = getUserToken('cached-subject-id', subjectEmail);
+      process.env.ENTITLEMENTS_ENDPOINT = endpoint;
+      resetEntitlementsCache();
+      fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue({ ok: true, json: async () => [{ [slug]: [Capability.PREVIEW] }] } as Response);
+    });
+
+    afterEach(() => {
+      delete process.env.ENTITLEMENTS_ENDPOINT;
+      fetchSpy.mockRestore();
+    });
+
+    const externalCalls = () => fetchSpy.mock.calls.filter(([url]) => url === endpoint).length;
+    const getCapabilities = async () => {
+      const res = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${subjectToken}`);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      return res.body.capabilities;
+    };
+
+    it('calls the external endpoint once for two requests with the same token', async () => {
+      expect(await getCapabilities()).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]);
+      expect(await getCapabilities()).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]);
+
+      expect(externalCalls()).toBe(1);
+    });
+
+    it('shows a revoked local grant at once, while the external grant still comes from the cache', async () => {
+      const grant = { everyone: [Capability.DOWNLOAD], [subjectEmail]: [Capability.OBFUSCATE_AS_POINTS] };
+      await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(grant).expect(StatusCodes.OK);
+      expect(await getCapabilities()).toEqual([Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW]);
+
+      const revoked = { everyone: [Capability.DOWNLOAD] };
+      await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(revoked).expect(StatusCodes.OK);
+
+      expect(await getCapabilities()).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]);
+      expect(externalCalls()).toBe(1);
     });
   });
 
