@@ -346,6 +346,9 @@ describe('Testing entitlements routes', () => {
       expect(res.statusCode).toBe(StatusCodes.OK);
       return res.body.capabilities;
     };
+    const putGrants = async (grants: Record<string, Capability[]>) => {
+      await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(grants).expect(StatusCodes.OK);
+    };
 
     it('calls the external endpoint once for two requests with the same token', async () => {
       expect(await getCapabilities()).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]);
@@ -355,12 +358,10 @@ describe('Testing entitlements routes', () => {
     });
 
     it('shows a revoked local grant at once, while the external grant still comes from the cache', async () => {
-      const grant = { everyone: [Capability.DOWNLOAD], [subjectEmail]: [Capability.OBFUSCATE_AS_POINTS] };
-      await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(grant).expect(StatusCodes.OK);
+      await putGrants({ everyone: [Capability.DOWNLOAD], [subjectEmail]: [Capability.OBFUSCATE_AS_POINTS] });
       expect(await getCapabilities()).toEqual([Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS, Capability.PREVIEW]);
 
-      const revoked = { everyone: [Capability.DOWNLOAD] };
-      await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(revoked).expect(StatusCodes.OK);
+      await putGrants({ everyone: [Capability.DOWNLOAD] });
 
       expect(await getCapabilities()).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]);
       expect(externalCalls()).toBe(1);

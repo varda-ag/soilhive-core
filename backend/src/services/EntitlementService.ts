@@ -13,6 +13,7 @@ import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { existingDatasetSlugs, getEntitySlugs } from '../utils/slugs';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
+import { getEntitlementsCacheTtlMs } from '../utils/utils';
 import DatasetEntity from '../entities/Dataset';
 import { JsonStorage } from '../entities/JsonStorage';
 
@@ -42,10 +43,7 @@ const copyEntitlements = (entitlements: Entitlements): Entitlements => {
  * whole TTL: a change made by the external provider shows only after the entry expires. Values are
  * never handed out directly, only through `copyEntitlements`.
  */
-const entitlementsCache = new LRUCache<string, Entitlements>({
-  max: 1000,
-  ttl: Number(process.env.ENTITLEMENTS_CACHE_TTL_MS) || 30 * 60_000,
-});
+const entitlementsCache = new LRUCache<string, Entitlements>({ max: 1000 });
 
 /** Fetches still running, per token hash, so parallel requests with one token share a single call. */
 const inFlightEntitlements = new Map<string, Promise<Entitlements | undefined>>();
@@ -274,7 +272,8 @@ export default class EntitlementService {
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
     const rows = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
-    const merged = rows.reduce((acc, { data }) => {
+    // Seeded fresh, not with the external result: the merge never writes into an object it was given.
+    const merged = [externalEntitlements, ...rows.map(row => row.data)].reduce((acc, data) => {
       for (const scope of Object.values(EntitlementScope)) {
         // Object.create(null), not {}: a stored key can legitimately be "__proto__". On a plain
         // {}, target["__proto__"] reads back Object.prototype (truthy, not iterable) instead of
@@ -296,7 +295,7 @@ export default class EntitlementService {
         }
       }
       return acc;
-    }, copyEntitlements(externalEntitlements)); // A copy, not the external result itself: that may be shared through the per-token cache
+    }, emptyEntitlements());
 
     // Only ENTITY_BACKED_SCOPES need slug-history expansion (today: datasets). `configs` keys are
     // freeform, with no entity behind them, so they pass through untouched — this is the seam a
@@ -404,7 +403,7 @@ export default class EntitlementService {
       pending = this.fetchExternalEntitlements(raw)
         .then(entitlements => {
           if (entitlements) {
-            entitlementsCache.set(key, entitlements);
+            entitlementsCache.set(key, entitlements, { ttl: getEntitlementsCacheTtlMs() });
           }
           return entitlements;
         })

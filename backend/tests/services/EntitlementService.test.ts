@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
-import { Request, Response } from 'express';
 import { EntityManager } from 'typeorm';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { getEntityManager } from '../../src/utils/data-source';
@@ -15,7 +14,8 @@ import { IngestionStatus } from '../../src/types/data';
 import DatasetEntity from '../../src/entities/Dataset';
 import LicenseEntity from '../../src/entities/License';
 import { log } from '../../src/utils/logger';
-import { CACHE_BYPASS_HEADER, cacheBypassMiddleware } from '../../src/utils/cache-bypass';
+import { getEntitlementsCacheTtlMs } from '../../src/utils/utils';
+import { inBypassedRequest } from '../cache-bypass';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -488,6 +488,12 @@ describe('EntitlementService', () => {
       fetchSpy.mockRestore();
     });
 
+    const ok = (reply: unknown) => ({ ok: true, json: async () => reply }) as Response;
+    const downloadGrants = { 'dataset-1': [Capability.DOWNLOAD] };
+    const previewGrants = { 'dataset-2': [Capability.PREVIEW] };
+    const downloadReply = [downloadGrants];
+    const previewReply = [previewGrants];
+
     // Agreed contract: an array of {slug: capabilities} entries, one per grant — not one flat
     // object. This is what the real external provider replies with. The external contract is
     // scope-agnostic, so the adapted map is wrapped under "datasets" (see ADR-0032).
@@ -533,11 +539,10 @@ describe('EntitlementService', () => {
     });
 
     describe('per-token cache', () => {
-      const ok = (reply: unknown) => ({ ok: true, json: async () => reply }) as Response;
       const withToken = (raw: string): RequestData => ({ ...requestData, token: { ...mockToken, raw } });
 
       it('fetches once for sequential calls with the same token, and returns the same grants', async () => {
-        fetchSpy.mockResolvedValue(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]));
+        fetchSpy.mockResolvedValue(ok(downloadReply));
 
         const first = await service.callEntitlementsEndpoint(requestData);
         const second = await service.callEntitlementsEndpoint(requestData);
@@ -547,40 +552,35 @@ describe('EntitlementService', () => {
       });
 
       it('fetches once for parallel calls with the same token', async () => {
-        fetchSpy.mockResolvedValue(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]));
+        fetchSpy.mockResolvedValue(ok(downloadReply));
 
         const results = await Promise.all([1, 2, 3].map(() => service.callEntitlementsEndpoint(requestData)));
 
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         for (const result of results) {
-          expect(result).toEqual({ datasets: { 'dataset-1': [Capability.DOWNLOAD] }, configs: {} });
+          expect(result.datasets).toEqual(downloadGrants);
         }
       });
 
       it('fetches separately for different tokens, and keeps their grants apart', async () => {
-        fetchSpy
-          .mockResolvedValueOnce(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]))
-          .mockResolvedValueOnce(ok([{ 'dataset-2': [Capability.PREVIEW] }]));
+        fetchSpy.mockResolvedValueOnce(ok(downloadReply)).mockResolvedValueOnce(ok(previewReply));
 
         const first = await service.callEntitlementsEndpoint(withToken('token-a'));
         const second = await service.callEntitlementsEndpoint(withToken('token-b'));
 
         expect(fetchSpy).toHaveBeenCalledTimes(2);
-        expect(first.datasets).toEqual({ 'dataset-1': [Capability.DOWNLOAD] });
-        expect(second.datasets).toEqual({ 'dataset-2': [Capability.PREVIEW] });
+        expect(first.datasets).toEqual(downloadGrants);
+        expect(second.datasets).toEqual(previewGrants);
       });
 
-      it('does not cache an error status', async () => {
-        fetchSpy.mockResolvedValue({ ok: false, status: 503, text: async () => 'service unavailable' } as Response);
-
-        await service.callEntitlementsEndpoint(requestData);
-        await service.callEntitlementsEndpoint(requestData);
-
-        expect(fetchSpy).toHaveBeenCalledTimes(2);
-      });
-
-      it('does not cache a failed fetch', async () => {
-        fetchSpy.mockRejectedValue(new Error('network error'));
+      it.each([
+        [
+          'an error status',
+          () => fetchSpy.mockResolvedValue({ ok: false, status: 503, text: async () => 'service unavailable' } as Response),
+        ],
+        ['a failed fetch', () => fetchSpy.mockRejectedValue(new Error('network error'))],
+      ])('does not cache %s', async (_description, mockFailure) => {
+        mockFailure();
 
         await service.callEntitlementsEndpoint(requestData);
         await service.callEntitlementsEndpoint(requestData);
@@ -599,7 +599,7 @@ describe('EntitlementService', () => {
       });
 
       it('returns a copy, so changing a result does not change the next hit', async () => {
-        fetchSpy.mockResolvedValue(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]));
+        fetchSpy.mockResolvedValue(ok(downloadReply));
 
         const first = await service.callEntitlementsEndpoint(requestData);
         first.datasets!['dataset-2'] = [Capability.PREVIEW];
@@ -607,17 +607,17 @@ describe('EntitlementService', () => {
         const second = await service.callEntitlementsEndpoint(requestData);
 
         expect(fetchSpy).toHaveBeenCalledTimes(1);
-        expect(second).toEqual({ datasets: { 'dataset-1': [Capability.DOWNLOAD] }, configs: {} });
+        expect(second.datasets).toEqual(downloadGrants);
       });
 
       it('fetches again after the TTL has passed', async () => {
-        fetchSpy.mockResolvedValue(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]));
+        fetchSpy.mockResolvedValue(ok(downloadReply));
         // lru-cache measures TTL with performance.now(), not Date.now().
         const start = performance.now();
         const nowSpy = jest.spyOn(performance, 'now').mockReturnValue(start);
         try {
           await service.callEntitlementsEndpoint(requestData);
-          nowSpy.mockReturnValue(start + 30 * 60_000 + 1);
+          nowSpy.mockReturnValue(start + getEntitlementsCacheTtlMs() + 1);
           await service.callEntitlementsEndpoint(requestData);
         } finally {
           nowSpy.mockRestore();
@@ -638,58 +638,26 @@ describe('EntitlementService', () => {
       });
 
       describe('with the cache-bypass header', () => {
-        const SECRET = 'cache-bypass-secret';
         const originalSecret = process.env.CACHE_BYPASS_SECRET;
-
-        beforeEach(() => {
-          process.env.CACHE_BYPASS_SECRET = SECRET;
-        });
 
         afterEach(() => {
           process.env.CACHE_BYPASS_SECRET = originalSecret;
         });
 
-        // Through the real middleware, as in query-cache.test.ts: the bypass only means what it establishes.
-        const inBypassedRequest = <T>(fn: () => Promise<T>): Promise<T> => {
-          let result: Promise<T> | undefined;
-          cacheBypassMiddleware(
-            { headers: { [CACHE_BYPASS_HEADER]: SECRET } } as unknown as Request,
-            { setHeader: () => {} } as unknown as Response,
-            () => {
-              result = fn();
-            },
-          );
-          if (result === undefined) throw new Error('middleware did not call next');
-          return result;
-        };
-
-        it('fetches again although the cache holds the token', async () => {
-          fetchSpy
-            .mockResolvedValueOnce(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]))
-            .mockResolvedValueOnce(ok([{ 'dataset-2': [Capability.PREVIEW] }]));
+        it('fetches again although the cache holds the token, and does not overwrite the cached reply', async () => {
+          fetchSpy.mockResolvedValueOnce(ok(downloadReply)).mockResolvedValueOnce(ok(previewReply));
           await service.callEntitlementsEndpoint(requestData);
 
           const bypassed = await inBypassedRequest(() => service.callEntitlementsEndpoint(requestData));
-
-          expect(fetchSpy).toHaveBeenCalledTimes(2);
-          expect(bypassed.datasets).toEqual({ 'dataset-2': [Capability.PREVIEW] });
-        });
-
-        it('does not overwrite the cached reply', async () => {
-          fetchSpy
-            .mockResolvedValueOnce(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]))
-            .mockResolvedValueOnce(ok([{ 'dataset-2': [Capability.PREVIEW] }]));
-          await service.callEntitlementsEndpoint(requestData);
-          await inBypassedRequest(() => service.callEntitlementsEndpoint(requestData));
-
           const hit = await service.callEntitlementsEndpoint(requestData);
 
           expect(fetchSpy).toHaveBeenCalledTimes(2);
-          expect(hit.datasets).toEqual({ 'dataset-1': [Capability.DOWNLOAD] });
+          expect(bypassed.datasets).toEqual(previewGrants);
+          expect(hit.datasets).toEqual(downloadGrants);
         });
 
         it('does not join a fetch still running for the token', async () => {
-          fetchSpy.mockResolvedValue(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]));
+          fetchSpy.mockResolvedValue(ok(downloadReply));
 
           await Promise.all([
             service.callEntitlementsEndpoint(requestData),
@@ -731,7 +699,7 @@ describe('EntitlementService', () => {
       });
 
       it('does not cache the discarded reply', async () => {
-        fetchSpy.mockResolvedValue({ ok: true, json: async () => ({ 'dataset-1': [Capability.DOWNLOAD] }) } as Response);
+        fetchSpy.mockResolvedValue(ok(downloadGrants));
 
         await service.callEntitlementsEndpoint(requestData);
         await service.callEntitlementsEndpoint(requestData);

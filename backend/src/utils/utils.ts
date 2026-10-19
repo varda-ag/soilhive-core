@@ -309,6 +309,11 @@ export const getDataRequestsStatementTimeoutMs = (): number => {
   return Number(process.env['DATA_REQUESTS_STATEMENT_TIMEOUT_MS']) || 30 * 60 * 1000;
 };
 
+/** How long a reply of ENTITLEMENTS_ENDPOINT is cached per token (see docs/adr/0062). */
+export const getEntitlementsCacheTtlMs = (): number => {
+  return Number(process.env['ENTITLEMENTS_CACHE_TTL_MS']) || 30 * 60_000;
+};
+
 export const getLoopbackUrl = (): string => {
   return process.env.LOOPBACK_URL || `http://localhost:${getServerPort()}`;
 };

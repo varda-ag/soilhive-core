@@ -1,8 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { Request, Response } from 'express';
 import { EntityManager } from 'typeorm';
 import { QueryResultCacheOptions } from 'typeorm/cache/QueryResultCacheOptions';
-import { CACHE_BYPASS_HEADER, cacheBypassMiddleware } from '../../src/utils/cache-bypass';
 import {
   CACHE_TTL_REFERENCE_MS,
   CACHE_TTL_SPATIAL_MS,
@@ -12,8 +10,7 @@ import {
   isQueryCacheEnabled,
   resetQueryCache,
 } from '../../src/utils/query-cache';
-
-const SECRET = 'cache-bypass-secret';
+import { inBypassedRequest } from '../cache-bypass';
 
 /**
  * isQueryCacheEnabled() is forced off under jest, so every cache path in this
@@ -29,25 +26,6 @@ const enableCache = (): void => {
 };
 
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
-
-/**
- * Runs fn inside a request that presented the correct bypass secret, going
- * through the real middleware rather than reaching into its AsyncLocalStorage —
- * the bypass is only meaningful as the middleware actually establishes it.
- */
-const inBypassedRequest = <T>(fn: () => Promise<T>): Promise<T> => {
-  process.env['CACHE_BYPASS_SECRET'] = SECRET;
-  let result: Promise<T> | undefined;
-  cacheBypassMiddleware(
-    { headers: { [CACHE_BYPASS_HEADER]: SECRET } } as unknown as Request,
-    { setHeader: () => {} } as unknown as Response,
-    () => {
-      result = fn();
-    },
-  );
-  if (result === undefined) throw new Error('middleware did not call next');
-  return result;
-};
 
 /** Minimal EntityManager: cachedQuery only ever calls .query(sql, params). */
 const fakeEntityManager = () => {
