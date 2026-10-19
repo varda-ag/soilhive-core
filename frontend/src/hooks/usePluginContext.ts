@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import type {
   PluginDataFilterInput,
+  PluginDataset,
   PluginFilterCriteria,
   PluginFilteredData,
   PluginGeometry,
@@ -25,6 +26,7 @@ import useHostNotifications from './useNotifications';
 import { usePropertiesCategories as useHostPropertiesCategories } from './usePropertiesCategories';
 import { useRaster as useHostRaster } from './useRaster';
 import { useSoilData as useHostSoilData } from './useSoilData';
+import { useDatasets as useHostDatasets } from './useDatasets';
 import { useSoilProperties as useHostSoilProperties } from './useSoilProperties';
 import useHostTheme from './useTheme';
 import usePluginConfig from './usePluginConfig';
@@ -85,6 +87,11 @@ function usePluginFilter(filterId: string | undefined): PluginQueryResult<Plugin
   return { data, isLoading, isError };
 }
 
+function usePluginDatasets(options?: { singleCall?: boolean }): PluginQueryResult<PluginDataset[]> {
+  const { datasets, isLoading, isError } = useHostDatasets(options);
+  return { data: datasets, isLoading, isError };
+}
+
 function usePluginSoilProperties(): PluginQueryResult<PluginSoilProperty[]> {
   const { data, isLoading, isError } = useHostSoilProperties();
   return { data, isLoading, isError };
@@ -137,6 +144,7 @@ export function usePluginContext(): PluginContext {
       useDataFilterQuery: usePluginDataFilterQuery,
       useFilteredCoverageQuery: usePluginFilteredCoverageQuery,
       useFilter: usePluginFilter,
+      useDatasets: usePluginDatasets,
       useSoilProperties: usePluginSoilProperties,
       usePropertiesCategories: usePluginPropertiesCategories,
       useRasterCategories: usePluginRasterCategories,
