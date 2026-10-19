@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
+import { Request, Response } from 'express';
 import { EntityManager } from 'typeorm';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { getEntityManager } from '../../src/utils/data-source';
@@ -14,6 +15,7 @@ import { IngestionStatus } from '../../src/types/data';
 import DatasetEntity from '../../src/entities/Dataset';
 import LicenseEntity from '../../src/entities/License';
 import { log } from '../../src/utils/logger';
+import { CACHE_BYPASS_HEADER, cacheBypassMiddleware } from '../../src/utils/cache-bypass';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -633,6 +635,69 @@ describe('EntitlementService', () => {
         expect(fetchSpy).toHaveBeenCalledTimes(1);
         expect(hit.datasets).toEqual({ ['__proto__']: [Capability.READ] });
         expect(Object.getPrototypeOf(hit.datasets)).toBeNull();
+      });
+
+      describe('with the cache-bypass header', () => {
+        const SECRET = 'cache-bypass-secret';
+        const originalSecret = process.env.CACHE_BYPASS_SECRET;
+
+        beforeEach(() => {
+          process.env.CACHE_BYPASS_SECRET = SECRET;
+        });
+
+        afterEach(() => {
+          process.env.CACHE_BYPASS_SECRET = originalSecret;
+        });
+
+        // Through the real middleware, as in query-cache.test.ts: the bypass only means what it establishes.
+        const inBypassedRequest = <T>(fn: () => Promise<T>): Promise<T> => {
+          let result: Promise<T> | undefined;
+          cacheBypassMiddleware(
+            { headers: { [CACHE_BYPASS_HEADER]: SECRET } } as unknown as Request,
+            { setHeader: () => {} } as unknown as Response,
+            () => {
+              result = fn();
+            },
+          );
+          if (result === undefined) throw new Error('middleware did not call next');
+          return result;
+        };
+
+        it('fetches again although the cache holds the token', async () => {
+          fetchSpy
+            .mockResolvedValueOnce(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]))
+            .mockResolvedValueOnce(ok([{ 'dataset-2': [Capability.PREVIEW] }]));
+          await service.callEntitlementsEndpoint(requestData);
+
+          const bypassed = await inBypassedRequest(() => service.callEntitlementsEndpoint(requestData));
+
+          expect(fetchSpy).toHaveBeenCalledTimes(2);
+          expect(bypassed.datasets).toEqual({ 'dataset-2': [Capability.PREVIEW] });
+        });
+
+        it('does not overwrite the cached reply', async () => {
+          fetchSpy
+            .mockResolvedValueOnce(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]))
+            .mockResolvedValueOnce(ok([{ 'dataset-2': [Capability.PREVIEW] }]));
+          await service.callEntitlementsEndpoint(requestData);
+          await inBypassedRequest(() => service.callEntitlementsEndpoint(requestData));
+
+          const hit = await service.callEntitlementsEndpoint(requestData);
+
+          expect(fetchSpy).toHaveBeenCalledTimes(2);
+          expect(hit.datasets).toEqual({ 'dataset-1': [Capability.DOWNLOAD] });
+        });
+
+        it('does not join a fetch still running for the token', async () => {
+          fetchSpy.mockResolvedValue(ok([{ 'dataset-1': [Capability.DOWNLOAD] }]));
+
+          await Promise.all([
+            service.callEntitlementsEndpoint(requestData),
+            inBypassedRequest(() => service.callEntitlementsEndpoint(requestData)),
+          ]);
+
+          expect(fetchSpy).toHaveBeenCalledTimes(2);
+        });
       });
     });
 

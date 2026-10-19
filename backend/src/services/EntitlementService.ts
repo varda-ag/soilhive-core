@@ -8,6 +8,7 @@ import { EntitlementsEntity } from '../entities/Entitlements';
 import { RequestData } from '../interfaces/RequestData';
 import { ConfigKind, EntitlementScope, type Entitlements, type CapabilityGrants, type RequestScope } from '../types/Entitlements';
 import { Capability } from '../types/enums';
+import { isCacheBypassed } from '../utils/cache-bypass';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { existingDatasetSlugs, getEntitySlugs } from '../utils/slugs';
@@ -383,11 +384,15 @@ export default class EntitlementService {
    * The external grants for the caller's token, from the per-token cache when it holds them (see
    * ADR-0062). Parallel calls with one token share a single fetch. Only a valid reply is cached: an
    * error or a discarded reply degrades to no external grants and is fetched again next time.
+   * A request with the cache-bypass header (ADR-0028) always fetches and leaves the cache untouched.
    */
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     const raw = requestData.token?.raw;
     if (!process.env.ENTITLEMENTS_ENDPOINT || !raw) {
       return emptyEntitlements();
+    }
+    if (isCacheBypassed()) {
+      return (await this.fetchExternalEntitlements(raw)) ?? emptyEntitlements();
     }
     const key = createHash('sha256').update(raw).digest('hex');
     const cached = entitlementsCache.get(key);
