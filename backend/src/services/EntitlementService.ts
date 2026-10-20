@@ -384,11 +384,13 @@ export default class EntitlementService {
    * ADR-0062). Parallel calls with one token share a single fetch. Only a valid reply is cached: an
    * error or a discarded reply degrades to no external grants and is fetched again next time.
    * A request with the cache-bypass header (ADR-0028), or any request while ENTITLEMENTS_CACHE_TTL_MS
-   * is 0 or less, always fetches and leaves the cache untouched.
+   * is 0 or less, always fetches and leaves the cache untouched. A Plugin token gets no external
+   * grants: its user's local grants only.
    */
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     const raw = requestData.token?.raw;
-    if (!process.env.ENTITLEMENTS_ENDPOINT || !raw) {
+    // A Plugin token is signed by the core: it never leaves for a third party (docs/adr/0063)
+    if (!process.env.ENTITLEMENTS_ENDPOINT || !raw || requestData.token?.pluginId) {
       return emptyEntitlements();
     }
     const ttl = getEntitlementsCacheTtlMs();

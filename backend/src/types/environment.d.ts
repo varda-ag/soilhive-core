@@ -26,6 +26,10 @@ declare namespace NodeJS {
     readonly SELF_SIGNING_SECRET?: string;
     readonly ENTITLEMENTS_ENDPOINT?: string;
     readonly ENTITLEMENTS_CACHE_TTL_MS?: string;
+    // Plugin tokens (docs/adr/0063)
+    readonly PLUGIN_TOKEN_SECRET?: string;
+    readonly CORE_PUBLIC_URL?: string;
+    readonly PLUGIN_TOKEN_ADMIN_PLUGINS?: string;
     // OIDC settings
     readonly OIDC_JWKS_URL?: string;
     readonly OIDC_AUTHORITY?: string;

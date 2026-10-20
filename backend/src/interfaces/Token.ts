@@ -10,6 +10,7 @@ export interface Token extends JwtPayload {
   isSuperAdmin: boolean;
   isDataAdmin: boolean;
   isInternalRequest: boolean;
+  pluginId?: string; // Set by the token validator on a Plugin token only, never read from the claims
 }
 
 export interface TokenResponse {
