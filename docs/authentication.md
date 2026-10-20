@@ -49,10 +49,23 @@ Set the following backend environment variables to enable OIDC authentication (s
 - `OIDC_POST_LOGOUT_REDIRECT_URI`: URL to redirect after logout (typically the app main page)
 - `OIDC_SILENT_REDIRECT_URI`: URL to redirect after token refresh (typically the app main page)
 - `OIDC_SCOPE`: Set to `openid`
+- `OIDC_ISSUER` (optional): the `iss` the identity provider's access tokens carry, when it differs from `OIDC_AUTHORITY`. A comma-separated list when the provider is reached under several hostnames, for example an in-cluster address that Machine callers get their tokens from. Every token's `iss` must be one of these, with or without a trailing slash
+- `OIDC_AUDIENCE` (optional, recommended): the `aud` values an access token for this API may carry, comma-separated. Without it, a token the identity provider issued to any client of the realm is accepted, and the backend logs a warning at startup. In Keycloak, add an *Audience* mapper to the client (see [Keycloak setup](keycloak-setup.md)), and make sure the clients of Machine callers carry the same audience
 
 Users must belong to the realm `OIDC_AUTHORITY` points to, and need the `super-admin` (or `data-admin`) role to access the application as admin.
 
 - [Keycloak setup](keycloak-setup.md): Example setup for Keycloak IDP and OIDC authentication
+
+### Issuer and audience
+
+Every token is checked for its issuer, `iss` (`docs/adr/0064`):
+
+| Token | `iss` must be | `aud` |
+| --- | --- | --- |
+| Password-grant and internal-request tokens | `soilhive-core` | Not checked: their keys sign nothing else |
+| Identity provider tokens | One of `OIDC_ISSUER`, else `OIDC_AUTHORITY` | One of `OIDC_AUDIENCE`, once it is set |
+
+If neither `OIDC_ISSUER` nor `OIDC_AUTHORITY` is set, every identity provider token is refused rather than accepted unchecked. Before turning the audience check on, decode a real access token from each kind of caller (browser sign-in and each Machine caller) and check its `iss` and `aud`.
 
 ### Authentication Priority
 - If both password and OIDC variables are set, **OIDC takes precedence**
