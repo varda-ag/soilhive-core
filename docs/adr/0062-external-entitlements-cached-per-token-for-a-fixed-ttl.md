@@ -10,7 +10,7 @@ Every request on a route with `x-entitlements-required` calls `ENTITLEMENTS_ENDP
 
 - Only the external reply is cached. Local grants (`entitlements` table, `EVERYONE`) and the slug-history expansion still run on every request, so a local grant or revoke takes effect at once.
 - Only a valid 2xx reply with the agreed shape is cached. Errors, network failures and malformed replies are not, so an outage of the external service does not remove external grants for the full TTL; the next request retries.
-- A cache hit returns a copy. `getUserEntitlements` merges local grants into the external result; if it merged into the cached object, local grants would be cached too and a local revoke would last the full TTL.
+- A cache hit returns a copy, so no caller can change the cached entry. If a caller wrote local grants into the cached object, they would be cached too and a local revoke would last the full TTL. As a second layer, `getUserEntitlements` merges into a new object and never writes into the external result it receives.
 - No fetch timeout is added. The existing fallback (local grants only) still covers a failed call.
 - The cache-bypass header (ADR-0028) also skips this cache, so a cold measurement includes the external call.
 - `ENTITLEMENTS_CACHE_TTL_MS=0` (or any value <= 0) turns the cache off: every request calls the endpoint and nothing is stored. This is the switch for an incident, e.g. a grant revoked in sh-api-services that must stop working at once. An unset, empty or non-numeric value gives the 30-min default.
