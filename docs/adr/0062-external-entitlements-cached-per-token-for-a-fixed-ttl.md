@@ -13,6 +13,7 @@ Every request on a route with `x-entitlements-required` calls `ENTITLEMENTS_ENDP
 - A cache hit returns a copy. `getUserEntitlements` merges local grants into the external result; if it merged into the cached object, local grants would be cached too and a local revoke would last the full TTL.
 - No fetch timeout is added. The existing fallback (local grants only) still covers a failed call.
 - The cache-bypass header (ADR-0028) also skips this cache, so a cold measurement includes the external call.
+- `ENTITLEMENTS_CACHE_TTL_MS=0` (or any value <= 0) turns the cache off: every request calls the endpoint and nothing is stored. This is the switch for an incident, e.g. a grant revoked in sh-api-services that must stop working at once. An unset, empty or non-numeric value gives the 30-min default.
 - The TTL is not capped at the token's `exp`: `tokenValidator` rejects an expired token (`jwt.verify`) before entitlements load, so an entry for an expired token is never read. The LRU entry limit bounds memory.
 - No effect in production today: `ENTITLEMENTS_ENDPOINT` is not set there. If it is enabled later, the same window applies; check that realm's access-token lifespan too.
 

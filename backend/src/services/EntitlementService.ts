@@ -383,14 +383,16 @@ export default class EntitlementService {
    * The external grants for the caller's token, from the per-token cache when it holds them (see
    * ADR-0062). Parallel calls with one token share a single fetch. Only a valid reply is cached: an
    * error or a discarded reply degrades to no external grants and is fetched again next time.
-   * A request with the cache-bypass header (ADR-0028) always fetches and leaves the cache untouched.
+   * A request with the cache-bypass header (ADR-0028), or any request while ENTITLEMENTS_CACHE_TTL_MS
+   * is 0 or less, always fetches and leaves the cache untouched.
    */
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     const raw = requestData.token?.raw;
     if (!process.env.ENTITLEMENTS_ENDPOINT || !raw) {
       return emptyEntitlements();
     }
-    if (isCacheBypassed()) {
+    const ttl = getEntitlementsCacheTtlMs();
+    if (isCacheBypassed() || ttl <= 0) {
       return (await this.fetchExternalEntitlements(raw)) ?? emptyEntitlements();
     }
     const key = createHash('sha256').update(raw).digest('hex');
@@ -403,7 +405,7 @@ export default class EntitlementService {
       pending = this.fetchExternalEntitlements(raw)
         .then(entitlements => {
           if (entitlements) {
-            entitlementsCache.set(key, entitlements, { ttl: getEntitlementsCacheTtlMs() });
+            entitlementsCache.set(key, entitlements, { ttl });
           }
           return entitlements;
         })

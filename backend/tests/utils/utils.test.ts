@@ -1,5 +1,5 @@
-import { describe, it, expect } from '@jest/globals';
-import { buildDatedFileKey, mergeMax, replaceExtension } from '../../src/utils/utils';
+import { describe, it, expect, afterEach } from '@jest/globals';
+import { buildDatedFileKey, getEntitlementsCacheTtlMs, mergeMax, replaceExtension } from '../../src/utils/utils';
 
 describe('utils tests', () => {
   it.each([
@@ -46,6 +46,30 @@ describe('utils tests', () => {
       [null, null, null],
     ])('mergeMax(%p, %p) is %p', (a, b, expected) => {
       expect(mergeMax(a, b)).toBe(expected);
+    });
+  });
+
+  describe('getEntitlementsCacheTtlMs', () => {
+    const original = process.env.ENTITLEMENTS_CACHE_TTL_MS;
+
+    afterEach(() => {
+      process.env.ENTITLEMENTS_CACHE_TTL_MS = original;
+    });
+
+    it.each([
+      ['unset', undefined, 30 * 60_000],
+      ['empty', '', 30 * 60_000],
+      ['not a number', 'abc', 30 * 60_000],
+      ['a positive value', '600000', 600_000],
+      // 0 turns the cache off: it must not fall back to the default like an unset value.
+      ['zero', '0', 0],
+    ])('is %s → %p', (_description, value, expected) => {
+      if (value === undefined) {
+        delete process.env.ENTITLEMENTS_CACHE_TTL_MS;
+      } else {
+        process.env.ENTITLEMENTS_CACHE_TTL_MS = value;
+      }
+      expect(getEntitlementsCacheTtlMs()).toBe(expected);
     });
   });
 });

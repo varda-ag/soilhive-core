@@ -309,9 +309,13 @@ export const getDataRequestsStatementTimeoutMs = (): number => {
   return Number(process.env['DATA_REQUESTS_STATEMENT_TIMEOUT_MS']) || 30 * 60 * 1000;
 };
 
-/** How long a reply of ENTITLEMENTS_ENDPOINT is cached per token (see docs/adr/0062). */
+/**
+ * How long a reply of ENTITLEMENTS_ENDPOINT is cached per token (see docs/adr/0062). 0 or less turns
+ * the cache off, so it is kept rather than replaced by the default as `|| default` would do.
+ */
 export const getEntitlementsCacheTtlMs = (): number => {
-  return Number(process.env['ENTITLEMENTS_CACHE_TTL_MS']) || 30 * 60_000;
+  const ttl = Number(process.env['ENTITLEMENTS_CACHE_TTL_MS'] || NaN);
+  return Number.isFinite(ttl) ? ttl : 30 * 60_000;
 };
 
 export const getLoopbackUrl = (): string => {

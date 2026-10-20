@@ -626,6 +626,20 @@ describe('EntitlementService', () => {
         expect(fetchSpy).toHaveBeenCalledTimes(2);
       });
 
+      it.each(['0', '-1'])('does not cache when ENTITLEMENTS_CACHE_TTL_MS is %s', async ttl => {
+        const originalTtl = process.env.ENTITLEMENTS_CACHE_TTL_MS;
+        process.env.ENTITLEMENTS_CACHE_TTL_MS = ttl;
+        fetchSpy.mockResolvedValue(ok(downloadReply));
+        try {
+          await service.callEntitlementsEndpoint(requestData);
+          await Promise.all([service.callEntitlementsEndpoint(requestData), service.callEntitlementsEndpoint(requestData)]);
+        } finally {
+          process.env.ENTITLEMENTS_CACHE_TTL_MS = originalTtl;
+        }
+
+        expect(fetchSpy).toHaveBeenCalledTimes(3);
+      });
+
       it('keeps a "__proto__" key as an own property of a null-prototype map on a hit', async () => {
         fetchSpy.mockResolvedValue(ok(JSON.parse('[{"__proto__": ["read"]}]')));
 
