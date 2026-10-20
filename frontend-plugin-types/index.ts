@@ -6,6 +6,7 @@ import type {
   PluginQueryResult,
   PluginUser,
 } from './common';
+import type { PluginDataset } from './dataset';
 import type { PluginDataRequest, PluginDataRequestResult, PluginDataRequestSubmission } from './dataRequest';
 import type { PluginDataFilterInput, PluginFilteredData, PluginStoredDataFilter } from './filter';
 import type { PluginNotificationsResult } from './notification';
@@ -30,6 +31,7 @@ export * from './map';
 export * from './theme';
 export * from './filter';
 export * from './soil';
+export * from './dataset';
 export * from './dataRequest';
 export * from './notification';
 export * from './soilIndex';
@@ -40,6 +42,7 @@ export interface PluginContext {
   useDataFilterQuery: (filters: PluginDataFilterInput, enabled?: boolean, debounceTime?: number) => PluginQueryResult<string>;
   useFilteredCoverageQuery: (filterId: string | undefined, geometryOnly?: boolean) => PluginQueryResult<PluginFilteredData>;
   useFilter: (filterId: string | undefined) => PluginQueryResult<PluginStoredDataFilter>;
+  useDatasets: (options?: { singleCall?: boolean }) => PluginQueryResult<PluginDataset[]>;
   useSoilProperties: () => PluginQueryResult<PluginSoilProperty[]>;
   usePropertiesCategories: () => PluginQueryResult<PluginSoilPropertyCategory[]>;
   useRasterCategories: () => PluginQueryResult<PluginRasterFilterCategory[]>;

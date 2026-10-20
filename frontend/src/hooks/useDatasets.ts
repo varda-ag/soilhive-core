@@ -1,7 +1,7 @@
 import type { Dataset } from 'types/backend';
 import { useApiQuery } from './useApiQuery';
 
-export function useDatasets() {
+export function useDatasets({ singleCall = false }: { singleCall?: boolean } = {}) {
   const {
     data: datasets,
     isLoading,
@@ -11,7 +11,7 @@ export function useDatasets() {
     method: 'GET',
     queryKey: ['datasets'],
     enabled: true,
-    refetchInterval: 2000,
+    refetchInterval: singleCall ? undefined : 2000,
   });
 
   return {
