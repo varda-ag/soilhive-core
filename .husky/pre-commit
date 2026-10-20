@@ -7,3 +7,5 @@ npm run lint:fix
 cd backend && npm i && npm test && cd ..
 
 cd frontend && pnpm test && cd ..
+
+cd plugin-backend-example && pnpm install --frozen-lockfile --silent && pnpm test && cd ..
