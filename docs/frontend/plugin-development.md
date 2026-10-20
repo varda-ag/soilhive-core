@@ -205,7 +205,7 @@ For an "upload via a button" flow instead of drag-and-drop, use the `onUploadCli
 
 ## Using host data and hooks (`PluginContext`)
 
-Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, stored filters by id, the logged-in user, your plugin's own persisted config, and dataset metadata URLs.
+Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, stored filters by id, the logged-in user, your plugin's own persisted config, dataset metadata URLs, and a client for your plugin's own backend.
 
 See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`, plus an optional `requiresAuth`.
 
@@ -472,11 +472,94 @@ const SoilIndexLayer: React.FC<{ context: PluginContext; runId: string }> = ({ c
 
 This draws scored points and cells, which are points at every zoom. If the Run scores polygons, add a `fill` layer filtered on `['==', ['geometry-type'], 'Polygon']` for them, and filter this one on `['==', ['geometry-type'], 'Point']`.
 
+### Calling your plugin's own backend
+
+If your plugin's deployment also serves an API, its **Plugin Backend**, call it with `context.usePluginApi(pluginId)`. It returns a client with `get`, `post`, `put`, `patch` and `delete`.
+
+The client calls your backend straight from the browser. By default it calls the folder that holds your `mf-manifest.json`: with a remote at `https://zones.example/mf-manifest.json`, `api.get('/api/zones')` calls `https://zones.example/api/zones`. With a remote at `https://plugins.example/zones/mf-manifest.json`, it calls `https://plugins.example/zones/api/zones`. The default is the folder, not the origin, because several plugins can share one origin under their own paths, and each plugin's token must reach only its own backend. If your API lives elsewhere, pass its address: `context.usePluginApi('my-plugin', { baseUrl: 'https://api.zones.example/v1' })`. It must be `https`, or `http` on `localhost`. An empty `baseUrl` counts as unset, so `baseUrl: process.env.ZONES_API ?? ''` is safe.
+
+For a signed-in user, every call carries a **Plugin token**: a token the core mints for your `pluginId` and that user, valid for a few minutes, sent as `Authorization: Bearer …`. The user's own token never reaches your backend. An anonymous visitor's calls carry no token. The host gets the token, reuses it until shortly before it expires, and when your backend answers `401`, gets a new one and retries the call once. See `soilhive-core` ADR 0063, and [Your backend's side](#your-backends-side) for what your backend must do with it.
+
+```tsx
+import { useEffect, useState } from 'react';
+import type { PluginApiError, PluginContext } from 'frontend-plugin-types';
+
+type Zone = { id: string; name: string };
+
+const Zones: React.FC<{ context: PluginContext; bbox: string }> = ({ context, bbox }) => {
+  const api = context.usePluginApi('my-plugin');
+  const [zones, setZones] = useState<Zone[]>();
+  const [error, setError] = useState<PluginApiError>();
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api
+      .get<Zone[]>('/zones', { params: { bbox }, signal: controller.signal })
+      .then(setZones)
+      .catch(caught => {
+        // An abort is this effect cleaning up, not a failure.
+        if (caught.name !== 'AbortError') setError(caught);
+      });
+    return () => controller.abort();
+  }, [api, bbox]);
+
+  if (error?.status === 404) return <p>No zones here.</p>;
+  if (error) return <p>{error.message}</p>;
+  return (
+    <ul>
+      {zones?.map(zone => (
+        <li key={zone.id}>{zone.name}</li>
+      ))}
+    </ul>
+  );
+};
+```
+
+`usePluginApi` returns the same client on every render for the same `pluginId` and `baseUrl`, an inline `{ baseUrl }` object included, so it is safe in effect dependencies. The client only sends requests. It does not cache results. If your plugin bundles its own `@tanstack/react-query`, call the client from `queryFn`: `queryFn: ({ signal }) => api.get<Zone[]>('/zones', { params: { bbox }, signal })`.
+
+Every method takes an optional last `options` argument:
+
+| Option | Meaning |
+|---|---|
+| `params` | Query string parameters. An array repeats its key once per item: `{ type: ['a', 'b'] }` sends `?type=a&type=b`. `null` and `undefined` values leave the key out |
+| `headers` | Extra request headers, sent as given, except `Authorization`, which is always the Plugin token. A header other than `Content-Type` makes the browser ask your backend first (a CORS preflight), which must allow it |
+| `signal` | An `AbortSignal`. Aborting rejects the call with the `AbortError` itself |
+| `responseType` | `'json'` (default) or `'blob'`. With `'blob'`, the call reads a response of any type as a `Blob`, for example a file download. Without it, the response must be JSON, or the call rejects |
+
+`post`, `put` and `patch` take a body before `options`. They send it as JSON, or as it is when it is a `FormData`, a `Blob` or binary data. A `204` or an empty response resolves to `undefined`.
+
+The client never shows a toast. A failed call rejects with a `PluginApiError`. This is an `Error` with the response's `status` (`0` when there was no response) and its JSON `body`, if it had one. For an HTTP error, `message` is the body's `detail` or `message` field. A few failures come from the host or the core rather than from your backend:
+
+| `status` | Meaning |
+|---|---|
+| `0` | No response: your backend is unreachable, or the browser refused the response because it lacked CORS headers. Also when the plugin has no address: it is not loaded under this `pluginId` and passed no `baseUrl`, or the `baseUrl` is not allowed |
+| `401`, `403`, `429`, `503` with a message starting `Could not get a plugin token` | The core refused to mint one: the user's session ended, the core limits how often one user gets tokens for one plugin, or the deployment has no Plugin tokens configured |
+
+Paths are relative to the client's address and may not leave it: a path that resolves outside it, for example `'../other-plugin/zones'`, rejects before anything is sent. Encode any value you put in a path yourself: ``api.get(`/zones/${encodeURIComponent(zoneId)}`)``.
+
+In local preview there is no host to get a Plugin token from, so the mock context's client rejects every call. Try your backend's signed-in calls in the host, or pass your own client to the mock: `createMockContext({ usePluginApi: () => myApi })`.
+
+#### Your backend's side
+
+Start from [`plugin-backend-example/`](../../plugin-backend-example/README.md) in `soilhive-core`: a small Express server that does all of the below, with tests. In short, your backend must:
+
+- **Check the Plugin token** of every call that sends one. ES256 only, header `typ: plugin+jwt`, verified with the core's key set at `{CORE_PUBLIC_URL}/.well-known/plugin-jwks.json` (cache it, and fetch it again when a token names a key you don't hold). `iss` must equal the core's `CORE_PUBLIC_URL`, `aud` must equal `plugin:{your pluginId}`, and `exp` and `sub` must be present, with up to 60 seconds of clock skew.
+- **Read the user from `sub`**: their Subject, the identity the core grants Entitlements to, usually their email. `scope` is present only if the core's deployment lists your plugin in `PLUGIN_TOKEN_ADMIN_PLUGINS`, and holds `super-admin` and/or `data-admin` only.
+- **Answer `401`** to a missing token where one is needed, and to an invalid one anywhere, even on a route anonymous visitors may call: the host then gets a new token and retries once. **Answer `403`** to a user you turn away.
+- **Send CORS headers on every response**, a `401`, a `404` and an error page included: `Access-Control-Allow-Origin: *`, and on a preflight `Access-Control-Allow-Headers` naming `Authorization` (`*` does not cover it) and any header your plugin sends. Answer `OPTIONS` before any token check. Never set `Access-Control-Allow-Credentials`. A reverse proxy in front of your backend must add the same headers to its own error pages. Without them, the browser hides the status and the plugin sees `0` instead of the `401` that renews the token.
+- **Never log** `Authorization` or `Cookie`.
+
+To read core data as the user, send the token you received to the core API, as `Authorization: Bearer …`. The core reads with it exactly what the user could read, and refuses everything but a `GET` (`403`), a few reads that list other users' grants or files included. It never acts with admin rights unless your plugin is listed in `PLUGIN_TOKEN_ADMIN_PLUGINS`. Grants held by an external entitlements service (`ENTITLEMENTS_ENDPOINT`) do not apply to it.
+
+Host your backend over HTTPS, and not under the host's `COOKIE_DOMAIN`: the host keeps the user's own token in a cookie for that domain, and the browser would send it with every file your remote loads from there. A backend that serves several plugins checks `aud` per plugin.
+
 ## Registering your plugin with the host
 
 Scaffolding and syncing a plugin does not make it appear in the host. That is a separate step, and it currently has no UI. You must add an entry directly to the host's `ThemeConfig.plugins` — for example through `PUT /configs/theme`, or directly in the database — with `url` pointing at your remote's `mf-manifest.json`.
 
 See [Module Federation § Configuring remotes](./module-federation.md#configuring-remotes) for the full field list: `enabled`, `mustBeLoggedIn`, `enableACL`, `acl`.
+
+A plugin's backend needs no registration: calls go to the folder of the `url` above, or to the `baseUrl` the plugin passes. The core only needs Plugin tokens turned on, with `PLUGIN_TOKEN_SECRET` and `CORE_PUBLIC_URL`: see [environment configuration](../backend/environment-configuration.md#plugin-tokens).
 
 ## Troubleshooting
 

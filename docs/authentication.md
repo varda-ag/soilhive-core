@@ -23,6 +23,17 @@ Tokens are signed with ES256, and `GET /.well-known/jwks.json` publishes the pub
 An external identity provider (IDP) will be used to generate tokens and define users and roles.
 Frontend will receive the login configuration from this backend.
 
+## Plugin tokens
+
+In every mode with sign-in, the core also issues **Plugin tokens**: short-lived ES256 tokens for one plugin and one signed-in user, which the host sends to that plugin's own backend instead of the user's token (`docs/adr/0063`).
+
+- The host gets one with `POST /plugins/{pluginId}/token`, sending the user's token. It carries `iss` = `CORE_PUBLIC_URL`, `aud` = `plugin:{pluginId}`, `sub` = the user's Subject, a `jti`, and expires within 5 minutes and never after the user's token.
+- `GET /.well-known/plugin-jwks.json` publishes the key that verifies them, in every auth mode. It never lists a key that verifies user tokens, so a Plugin Backend that trusts it can never accept a user's token.
+- The key is derived from `PLUGIN_TOKEN_SECRET`, not `SELF_SIGNING_SECRET`. Leave it or `CORE_PUBLIC_URL` unset and no Plugin token is minted. See [environment configuration](backend/environment-configuration.md#plugin-tokens).
+- The core accepts a Plugin token too, from any plugin, but only for `GET` and never with admin rights unless the plugin is listed in `PLUGIN_TOKEN_ADMIN_PLUGINS`. A few reads refuse it (`x-plugin-token-denied` in the API spec), and external entitlements (`ENTITLEMENTS_ENDPOINT`) never see it.
+
+**Gateway.** A gateway that verifies tokens in front of the core (an Envoy Gateway `SecurityPolicy`, for example) refuses Plugin tokens unless it trusts them too. Add a JWT provider with `issuer` set to `CORE_PUBLIC_URL` and `remoteJWKS` pointed at `/.well-known/plugin-jwks.json`, scoped to the core's route only and without `claimToHeaders`: otherwise every service behind the gateway would take a Plugin token as an identity. Until then, Plugin Backends can reach the core at an address behind the gateway (their `SOILHIVE_CORE_INTERNAL_URL`).
+
 ## Token scopes
 Platform supports two built-in scopes:
 

@@ -32,6 +32,16 @@ Per-upload memory use is bounded by `queueSize × partSize`; size these together
 
 - `MAX_UPLOAD_SIZE_MB` (default `500`): maximum size of an uploaded file, in MB. Shared by `POST /files` and `POST /frontend/logo` rather than a per-route limit — see `docs/adr/0029`.
 
+## Plugin tokens
+
+A plugin's frontend calls its own **Plugin Backend** straight from the browser. For a signed-in user, the host first asks the core for a **Plugin token** (`POST /plugins/{pluginId}/token`), which that backend checks against `GET /.well-known/plugin-jwks.json` and may send back to the core to read data as the user (`docs/adr/0063`). Leave both of the first two variables unset and no Plugin token is minted: every plugin call is anonymous.
+
+- `PLUGIN_TOKEN_SECRET`: the secret the Plugin token key is derived from, at least 32 characters (`openssl rand -hex 32`). Keep it in a secret store. It is deliberately not `SELF_SIGNING_SECRET`: anyone who knows it can mint a Plugin token for any user. Rotating it rotates the key, so Plugin Backends refuse the tokens in use, and the host gets new ones on the 401.
+- `CORE_PUBLIC_URL`: this API's public base URL, the same value as the frontend's `BACKEND_BASE_URL` (e.g. `https://api.soilhive.example/api/v1`). It is every Plugin token's `iss`, and Plugin Backends find the key set under it, so they set their `SOILHIVE_CORE_URL` to the same value. Must be an `http(s)` URL with no credentials, query or fragment.
+- `PLUGIN_TOKEN_ADMIN_PLUGINS` (optional): a comma-separated list of pluginIds whose Plugin tokens keep the user's `super-admin` and `data-admin` scopes. The tokens stay read-only. Checked on every call, so removing a plugin takes effect at the next restart, tokens already minted included.
+
+Minting is limited to 30 tokens a minute per Subject and plugin, per process.
+
 ## HTTP server
 
 - `REQUEST_TIMEOUT_MS` (default `43200000`, 12 hours): how long the server keeps a request open before terminating it (`server.requestTimeout`). Node's own default is 5 minutes, which a large or slow-network file upload can exceed well before the client finishes sending data, failing the request with a 408 rather than a storage or application error.

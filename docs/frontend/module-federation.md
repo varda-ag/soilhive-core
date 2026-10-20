@@ -37,7 +37,7 @@ Remotes are **not** hardcoded in the frontend source. Each one is an entry in th
 
 | Field | Meaning |
 |---|---|
-| `url` | The remote's manifest URL (`mf-manifest.json`) — also used as the remote's registration name |
+| `url` | The remote's manifest URL (`mf-manifest.json`) — also used as the remote's registration name, and its folder is where the plugin's `usePluginApi` calls go unless the plugin passes a `baseUrl` |
 | `enabled` | Whether the host should load this remote at all |
 | `mustBeLoggedIn` | Restricts the plugin to signed-in users, on top of the plugin's own `requiresAuth` |
 | `enableACL` / `acl` | Restricts the plugin to users in the listed ACL groups. Not enforced yet |

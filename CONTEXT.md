@@ -89,11 +89,15 @@ A person using the frontend with a live session. A deployment with no identity s
 _Avoid_: Authenticated (also names the deployment's auth mode), logged in, auth
 
 **Password-grant token**:
-The access token the platform issues itself to a person who signs in with a password, on a deployment in password auth mode — the only platform-issued token other systems are meant to verify, and the only one whose verification key the platform publishes.
+The access token the platform issues itself to a person who signs in with a password, on a deployment in password auth mode — the only platform-issued token other systems verify as a person's own, its key published apart from the **Plugin token**'s.
 _Avoid_: Self-signed token (also covers the platform's internal and download tokens, which are never published), login token (an OIDC sign-in yields a token too, issued by the identity provider), internal token
 
+**Plugin token**:
+A short-lived token the platform issues, in every mode with sign-in, for one **Plugin** and one **Signed-in user**: the host sends it to that Plugin's **Plugin Backend** instead of the user's own token. It names the Plugin as its audience and the user's **Subject** as its `sub`, and expires within minutes. The core accepts it only to read, as that Subject, and never as a **Privileged caller** unless the deployment lists the Plugin; its key is published apart from the **Password-grant token**'s, so no Plugin Backend can accept a user's own token.
+_Avoid_: Plugin JWT, core token, exchange token, plugin key (the key that signs it)
+
 **Entitlement**:
-A **Capability** (`preview`, `download`, `obfuscate_as_points`, `obfuscate_as_polygons`, `read`, `write`) granted to one **Subject** or to `everyone`, over one of two scopes: a Dataset, or a config item (`PUT /configs/{configId}`, keyed by its freeform id rather than a slug). Consulted only for private Datasets — a public Dataset needs none; a config item has no Visibility and is always consulted. Datasets draw from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's raw token exists — config items are local-only, the external endpoint has no notion of them. Entitlements are the access axis; **Visibility** is the attribute axis (Datasets only), and neither substitutes for the other. A non-admin caller may self-claim `write` on a plugin-owned (`plugin:{pluginId}:{id}`) config item's own Entitlements the first time it is accessed — never on a Dataset's (see ADR 0035). A Dataset Entitlement's lifetime is bound to the Dataset's *data*, not its record: it survives an **Archive** and is destroyed by a **Purge**, and only the locally held rows are, since the external endpoint's answers are outside the system's reach.
+A **Capability** (`preview`, `download`, `obfuscate_as_points`, `obfuscate_as_polygons`, `read`, `write`) granted to one **Subject** or to `everyone`, over one of two scopes: a Dataset, or a config item (`PUT /configs/{configId}`, keyed by its freeform id rather than a slug). Consulted only for private Datasets — a public Dataset needs none; a config item has no Visibility and is always consulted. Datasets draw from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's own raw token exists, never with a **Plugin token** — config items are local-only, the external endpoint has no notion of them. Entitlements are the access axis; **Visibility** is the attribute axis (Datasets only), and neither substitutes for the other. A non-admin caller may self-claim `write` on a plugin-owned (`plugin:{pluginId}:{id}`) config item's own Entitlements the first time it is accessed — never on a Dataset's (see ADR 0035). A Dataset Entitlement's lifetime is bound to the Dataset's *data*, not its record: it survives an **Archive** and is destroyed by a **Purge**, and only the locally held rows are, since the external endpoint's answers are outside the system's reach.
 _Avoid_: Permission, access right, grant, role
 
 **Data Availability Index (DAI)**:
@@ -245,7 +249,7 @@ A Dataset with a Bulk Load, Raster Load or **Purge** submitted but not yet start
 _Avoid_: QUEUED status, pending (an Ingestion Status), waiting
 
 **Privileged caller**:
-A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. It does not bypass **Export Limits** unless administrators are exempted from them. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject.
+A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. It does not bypass **Export Limits** unless administrators are exempted from them. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject. A **Plugin token** is never one, whatever its user's scopes, unless the deployment lists its Plugin, and never with internal-request.
 _Avoid_: Admin (ambiguous across the three scopes, and "data admin" also names the human role that curates Datasets), role, superuser, owner
 
 **Archive**:
@@ -269,8 +273,12 @@ An externally hosted module-federation remote that the frontend loads at runtime
 _Avoid_: Module, remote, extension (all name one aspect — the file, the transport mechanism, the capability — not the concept as a whole)
 
 **Plugin Context** (`PluginContext`):
-The data and host-injected query hooks a Plugin receives as its one prop: the signed-in user's profile, theme, and hooks for filters, coverage, soil properties, soil data, **Data Requests**, and showing notifications in the host's toast stack. Defined in `frontend-plugin-types`, decoupled from the host's own domain types. The host-to-Plugin half of the contract.
+The data and host-injected query hooks a Plugin receives as its one prop: the signed-in user's profile, theme, and hooks for filters, coverage, soil properties, soil data, **Data Requests**, showing notifications in the host's toast stack, and calling the Plugin's own **Plugin Backend**. Defined in `frontend-plugin-types`, decoupled from the host's own domain types. The host-to-Plugin half of the contract.
 _Avoid_: Plugin props, context (too generic — always say "Plugin Context")
+
+**Plugin Backend**:
+The HTTP API that a **Plugin**'s own deployment may serve next to its remote. The Plugin's frontend calls it straight from the browser, at the folder of the Plugin's manifest unless the Plugin names another address, and a **Signed-in user**'s calls carry a **Plugin token**, never the user's own token (docs/adr/0063). It reads core data as the user by sending that token back to the core.
+_Avoid_: Plugin API (the client for it that the **Plugin Context** hands out, `usePluginApi`), plugin server
 
 **Remote Plugin** (`RemotePlugin`):
 The metadata a Plugin exposes describing how the host should mount it: its `PluginType` (`single-page`, `new-tab`, or `map-info-card`), whether it gets a menu item, its route, and its `Page` component. Defined in the host's `src/types/plugins.ts`, not in `frontend-plugin-types`. The Plugin-to-host half of the contract — the mirror image of Plugin Context, not an overlapping concept.
@@ -317,6 +325,8 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
+- A **Plugin** has at most one **Plugin Backend**, and names the address of its own calls to it; a **Plugin token** for it is accepted only by that Plugin's backend and, for reads, by the core
+- A **Plugin token** reads as its **Signed-in user**'s **Subject** and never writes — what a **Plugin Backend** may read is what the user may read, minus whatever only the external endpoint knows and the few reads that refuse Plugin tokens
 - A **Plugin** requires a **Signed-in user** if it says so itself (`requiresAuth`) or if the deployment's config for it says so (`mustBeLoggedIn`); neither can lift the other's requirement
 - A **Plugin** that requires a **Signed-in user** keeps its menu entry for an anonymous visitor, and opening it asks them to sign in rather than showing the Plugin or sending them elsewhere; on a deployment with no identity system it is not available at all, menu entry and address included
 - A new-tab **Plugin** is never gated on a **Signed-in user**, whatever its flags say: its page is outside the host, so it is listed and opens for everyone, on every deployment
@@ -386,7 +396,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 - **"sub" was used to mean both the token claim and the Subject** — and the two are different strings whenever a token carries an email. Resolved: the **Subject** is what Entitlements and `created_by` are keyed by; `sub` is one claim that only *sometimes* supplies it. The confusion was load-bearing, not cosmetic: the request path resolved Entitlements by email while the job path resolved them by `sub`, so a job saw only `everyone`'s Entitlements and silently skipped private Datasets its submitter was entitled to. Say **Subject** in domain discussions and reserve `sub` for the JWT claim.
 
-- **"Self-signed token" named three different tokens** — the password-mode sign-in token, the job-to-API internal token and the presigned download token all came from one platform secret. Resolved: only the first is a domain concept, the **Password-grant token**, and it is the only one whose key is published.
+- **"Self-signed token" named three different tokens** — the password-mode sign-in token, the job-to-API internal token and the presigned download token all came from one platform secret. Resolved: only the first is a domain concept, the **Password-grant token**, and of the three it is the only one whose key is published. The **Plugin token** is a fourth, signed with a key of its own and published apart.
 
 - **"Coverage" names two unrelated things.** The **Coverage map** is the DAI heat layer. But `GET /data-filters/{filterId}/coverage` returns neither a map nor a DAI: it answers "which **Datasets** have data matching this **Filter**, and which raster values occur in its AOI". When someone says "the same filtering as coverage" they mean that endpoint's criteria handling, not the DAI's. In domain discussions say **Coverage map** for the picture, **DAI** for the score, and **data availability** for what the coverage endpoint reports.
 

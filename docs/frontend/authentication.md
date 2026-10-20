@@ -63,6 +63,8 @@ clearToken(): void
 
 `httpClient` calls `getToken()` before every request to attach the `Authorization: Bearer` header. `handleError` in the API client calls `clearToken()` on any `401` response, which forces the user to re-authenticate.
 
+Plugin tokens (`src/auth/pluginTokens.ts`) are kept apart, in memory only: one per plugin, minted through `httpClient` with the user's token and used by `usePluginApi` for calls to a plugin's own backend (`docs/adr/0063`). They belong to the user token they were minted with, so a renewed user token, a sign-out or another user starts over. A `401` from a plugin's backend renews the Plugin token, never the user's.
+
 During SSR, `getToken()` safely returns `null` because `localStorage` is not available on the server. The Express server passes the token explicitly via the `context.authToken` argument to the `render()` function instead.
 
 ---
