@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
-import { TokenScopes } from '../../src/types/enums';
+import { TOKEN_ISSUER, TokenScopes } from '../../src/types/enums';
+
+const IDP = 'https://idp.example/realms/soilhive';
 import { getPasswordGrantKey, signPasswordGrantToken } from '../../src/utils/password-grant-key';
 
 // Helper: build a minimal mock Express Request
@@ -122,7 +124,7 @@ describe('tokenValidator — PASSWORD mode', () => {
   it('rejects a Password-grant token signed before the secret rotated', async () => {
     const currentSecret = process.env.SELF_SIGNING_SECRET;
     process.env.SELF_SIGNING_SECRET = 'previous-secret';
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin' }, 3600);
     process.env.SELF_SIGNING_SECRET = currentSecret;
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
       message: 'Invalid token: unknown kid',
@@ -131,7 +133,7 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('validates a regular token with no scope requirements and attaches it to req.customData', async () => {
-    const payload = { sub: 'u1', scope: 'super-admin', email: 'u1@test.com' };
+    const payload = { iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' };
     const token = signPasswordGrantToken(payload, 3600);
     const req = makeRequest(`Bearer ${token}`);
 
@@ -141,19 +143,19 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('validates successfully when the token scope satisfies a required scope', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     expect(await tokenValidator(makeRequest(`Bearer ${token}`), ['super-admin'])).toBe(true);
   });
 
   it('throws 403 when the token scope does not satisfy any required scope', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), ['super-admin'])).rejects.toMatchObject({
       status: 403,
     });
   });
 
   it('throws 401 when the decoded token has no sub claim', async () => {
-    const token = signPasswordGrantToken({ scope: 'super-admin', email: 'u1@test.com' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, scope: 'super-admin', email: 'u1@test.com' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
       message: 'Invalid token: no sub',
       status: 401,
@@ -161,23 +163,23 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('validates successfully when the decoded token has no email claim', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).resolves.toBe(true);
   });
 
   it('throws "Token has expired" for an already-expired token', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, -1);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, -1);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Token has expired');
   });
 
   it('throws "Invalid token: ..." for a token with a tampered signature', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     const tampered = token.slice(0, -5) + 'XXXXX';
     await expect(tokenValidator(makeRequest(`Bearer ${tampered}`), [])).rejects.toThrow(/^Invalid token: /);
   });
 
   it('isSuperAdmin === true and isDataAdmin === false when scope is super-admin', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
     expect(req.customData.token.isSuperAdmin).toBe(true);
@@ -185,7 +187,7 @@ describe('tokenValidator — PASSWORD mode', () => {
   });
 
   it('isDataAdmin === true and isSuperAdmin === false when scope is data-admin', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'data-admin', email: 'u1@test.com' }, 3600);
     const req = makeRequest(`Bearer ${token}`);
     await tokenValidator(req, []);
     expect(req.customData.token.isDataAdmin).toBe(true);
@@ -200,7 +202,7 @@ describe('tokenValidator — PASSWORD mode', () => {
       callback(new Error('verify failed'));
     });
 
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
       message: 'Invalid token: verify failed',
       status: 401,
@@ -218,6 +220,7 @@ describe('tokenValidator — OIDC mode, successful JWKS lookup', () => {
   beforeEach(async () => {
     jest.resetModules();
     process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    process.env.OIDC_AUTHORITY = IDP;
     jest.doMock('../../src/services/ConfigService', () => ({
       __esModule: true,
       default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
@@ -234,12 +237,12 @@ describe('tokenValidator — OIDC mode, successful JWKS lookup', () => {
   });
 
   it('validates a token by fetching the signing key from JWKS', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signTestToken({ iss: IDP, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     expect(await tokenValidator(makeRequest(`Bearer ${token}`), [])).toBe(true);
   });
 
   it('rejects a Password-grant token, whose key is trusted in PASSWORD mode only', async () => {
-    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin' }, 3600);
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin' }, 3600);
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({ status: 401 });
   });
 
@@ -247,7 +250,7 @@ describe('tokenValidator — OIDC mode, successful JWKS lookup', () => {
     // The jwks-rsa module was loaded (and cached) by tokenValidator's import above.
     // Re-importing it here fetches the same cached instance from the module registry.
     const { default: jwksRsa } = await import('jwks-rsa');
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signTestToken({ iss: IDP, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await tokenValidator(makeRequest(`Bearer ${token}`), []);
     await tokenValidator(makeRequest(`Bearer ${token}`), []);
     // The constructor should only be called once; the module-level client is reused.
@@ -265,6 +268,7 @@ describe('tokenValidator — OIDC mode, JWKS key retrieval failure', () => {
   beforeEach(async () => {
     jest.resetModules();
     process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    process.env.OIDC_AUTHORITY = IDP;
     jest.doMock('../../src/services/ConfigService', () => ({
       __esModule: true,
       default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
@@ -279,7 +283,7 @@ describe('tokenValidator — OIDC mode, JWKS key retrieval failure', () => {
   });
 
   it('throws when JWKS returns an error for the kid lookup', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signTestToken({ iss: IDP, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Invalid token: JWKS fetch failed');
   });
 });
@@ -294,6 +298,7 @@ describe('tokenValidator — OIDC mode, getPublicKey throws', () => {
   beforeEach(async () => {
     jest.resetModules();
     process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    process.env.OIDC_AUTHORITY = IDP;
     jest.doMock('../../src/services/ConfigService', () => ({
       __esModule: true,
       default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
@@ -313,7 +318,7 @@ describe('tokenValidator — OIDC mode, getPublicKey throws', () => {
   });
 
   it('throws when getPublicKey throws during signing key extraction', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
+    const token = signTestToken({ iss: IDP, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow('Invalid token: key format unsupported');
   });
 });
@@ -329,6 +334,7 @@ describe('tokenValidator — OIDC mode, internal-request kid skips JWKS lookup',
   beforeEach(async () => {
     jest.resetModules();
     process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    process.env.OIDC_AUTHORITY = IDP;
     jest.doMock('../../src/services/ConfigService', () => ({
       __esModule: true,
       default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
@@ -341,7 +347,7 @@ describe('tokenValidator — OIDC mode, internal-request kid skips JWKS lookup',
 
   it('does not call getSigningKey when token kid equals TokenScopes.INTERNAL_REQUEST', async () => {
     const token = signTestToken(
-      { sub: 'u1', scope: 'super-admin', email: 'u1@test.com' },
+      { iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin', email: 'u1@test.com' },
       { kid: TokenScopes.INTERNAL_REQUEST, expiresIn: 3600 },
     );
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).resolves.toBe(true);
@@ -359,6 +365,7 @@ describe('tokenValidator — OIDC mode, OIDC_JWKS_URL not set', () => {
   beforeEach(async () => {
     jest.resetModules();
     delete process.env.OIDC_JWKS_URL;
+    process.env.OIDC_AUTHORITY = IDP;
     jest.doMock('../../src/services/ConfigService', () => ({
       __esModule: true,
       default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
@@ -368,9 +375,125 @@ describe('tokenValidator — OIDC mode, OIDC_JWKS_URL not set', () => {
   });
 
   it('throws an assertion error when OIDC_JWKS_URL is missing', async () => {
-    const token = signTestToken({ sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
+    const token = signTestToken({ iss: IDP, sub: 'u1', scope: 'super-admin' }, { expiresIn: 3600 });
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toThrow(
       'Invalid token: Missing environment variable: OIDC_JWKS_URL',
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Issuer and audience (docs/adr/0064)
+// ---------------------------------------------------------------------------
+
+describe('tokenValidator — the issuer of platform-issued tokens', () => {
+  let tokenValidator: (req: any, scopes: string[]) => Promise<boolean>;
+
+  beforeEach(async () => {
+    jest.resetModules();
+    jest.doMock('../../src/services/ConfigService', () => ({
+      __esModule: true,
+      default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'password' }) },
+    }));
+    ({ tokenValidator } = await import('../../src/middlewares/tokenValidator'));
+  });
+
+  it.each([
+    ['another issuer', { iss: 'https://elsewhere.example' }],
+    ['no issuer', {}],
+  ])('rejects a Password-grant token with %s, though the key signed it', async (_, claims) => {
+    const token = signPasswordGrantToken({ sub: 'u1', scope: 'super-admin', ...claims }, 3600);
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
+      message: expect.stringMatching(/^Invalid token: jwt issuer invalid/),
+      status: 401,
+    });
+  });
+
+  it('rejects an internal-request token with another issuer', async () => {
+    const token = signTestToken({ ...INTERNAL_REQUEST_TOKEN_PAYLOAD, iss: 'someone-else' }, { kid: TokenScopes.INTERNAL_REQUEST });
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({ status: 401 });
+  });
+});
+
+describe('tokenValidator — the issuer and audience of IdP tokens', () => {
+  let tokenValidator: (req: any, scopes: string[]) => Promise<boolean>;
+  const idpToken = (claims: object) => signTestToken({ sub: 'u1', scope: 'user', ...claims }, { expiresIn: 3600 });
+
+  beforeEach(async () => {
+    jest.resetModules();
+    process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    process.env.OIDC_AUTHORITY = IDP;
+    jest.doMock('../../src/services/ConfigService', () => ({
+      __esModule: true,
+      default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'oidc' }) },
+    }));
+    jest.doMock('jwks-rsa', () =>
+      jest.fn(() => ({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+        getSigningKey: (_kid: string, cb: Function) => cb(null, { getPublicKey: () => process.env.SELF_SIGNING_SECRET }),
+      })),
+    );
+    ({ tokenValidator } = await import('../../src/middlewares/tokenValidator'));
+  });
+
+  it.each([IDP, `${IDP}/`])('accepts the issuer %s, with or without a trailing slash', async iss => {
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss })}`), [])).resolves.toBe(true);
+  });
+
+  it('accepts an OIDC_AUTHORITY set with a trailing slash', async () => {
+    process.env.OIDC_AUTHORITY = `${IDP}/`;
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP })}`), [])).resolves.toBe(true);
+  });
+
+  it('rejects a token from another realm or provider', async () => {
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: 'https://idp.example/realms/other' })}`), [])).rejects.toMatchObject({
+      message: expect.stringMatching(/^Invalid token: jwt issuer invalid/),
+      status: 401,
+    });
+  });
+
+  it('accepts every issuer OIDC_ISSUER lists, instead of OIDC_AUTHORITY', async () => {
+    process.env.OIDC_ISSUER = 'https://login.example/realms/soilhive, http://keycloak.internal/realms/soilhive';
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: 'http://keycloak.internal/realms/soilhive' })}`), [])).resolves.toBe(
+      true,
+    );
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP })}`), [])).rejects.toMatchObject({ status: 401 });
+  });
+
+  it('rejects every IdP token when no issuer is configured, rather than skipping the check', async () => {
+    delete process.env.OIDC_AUTHORITY;
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP })}`), [])).rejects.toMatchObject({
+      message: 'Invalid token: no issuer is configured to check it against',
+      status: 401,
+    });
+  });
+
+  it('does not check the audience while OIDC_AUDIENCE is unset', async () => {
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP, aud: 'account' })}`), [])).resolves.toBe(true);
+  });
+
+  describe('with OIDC_AUDIENCE', () => {
+    beforeEach(() => {
+      process.env.OIDC_AUDIENCE = 'soilhive-api, soilhive';
+    });
+
+    it.each([['soilhive-api'], [['account', 'soilhive']]])('accepts the audience %j', async aud => {
+      await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP, aud })}`), [])).resolves.toBe(true);
+    });
+
+    it.each([
+      ['an audience for another client', { aud: 'account' }],
+      ['no audience', {}],
+    ])('rejects a token with %s', async (_, claims) => {
+      await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP, ...claims })}`), [])).rejects.toMatchObject({
+        message: expect.stringMatching(/^Invalid token: jwt audience invalid/),
+        status: 401,
+      });
+    });
+
+    it('never asks it of an internal-request token', async () => {
+      const token = signTestToken(INTERNAL_REQUEST_TOKEN_PAYLOAD, { kid: TokenScopes.INTERNAL_REQUEST });
+      await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).resolves.toBe(true);
+    });
   });
 });
