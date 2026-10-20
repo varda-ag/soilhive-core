@@ -18,19 +18,19 @@ export interface PublicJwk {
   alg: 'ES256';
 }
 
-export interface PasswordGrantKey {
+export interface Es256Key {
   kid: string;
   privateKey: KeyObject;
   publicKey: KeyObject;
   jwk: PublicJwk;
 }
 
-let cached: { secret: string; key: PasswordGrantKey } | undefined = undefined;
+let cached: { secret: string; key: Es256Key } | undefined = undefined;
 
-const deriveScalar = (secret: string): Buffer => {
+const deriveScalar = (secret: string, info: string): Buffer => {
   // A scalar outside [1, n-1] is retried with the next counter; odds are about 2^-32
   for (let counter = 0; ; counter++) {
-    const scalar = Buffer.from(hkdfSync('sha256', secret, SALT, `${INFO}:${counter}`, 32));
+    const scalar = Buffer.from(hkdfSync('sha256', secret, SALT, `${info}:${counter}`, 32));
     const value = BigInt(`0x${scalar.toString('hex')}`);
     if (value > 0n && value < P256_ORDER) {
       return scalar;
@@ -38,8 +38,12 @@ const deriveScalar = (secret: string): Buffer => {
   }
 };
 
-const deriveKey = (secret: string): PasswordGrantKey => {
-  const scalar = deriveScalar(secret);
+/**
+ * Derives a P-256 key pair from a secret. Each `info` gives an unrelated key, so one secret can
+ * back several token kinds without any of them verifying another's tokens.
+ */
+export const deriveEs256Key = (secret: string, info: string): Es256Key => {
+  const scalar = deriveScalar(secret, info);
   const ecdh = createECDH('prime256v1');
   ecdh.setPrivateKey(scalar);
   const point = ecdh.getPublicKey(); // 0x04 || x || y
@@ -60,11 +64,11 @@ const deriveKey = (secret: string): PasswordGrantKey => {
   };
 };
 
-export const getPasswordGrantKey = (): PasswordGrantKey => {
+export const getPasswordGrantKey = (): Es256Key => {
   const secret = process.env.SELF_SIGNING_SECRET;
   assert(secret, 'Self-signing secret is not defined');
   if (cached?.secret !== secret) {
-    cached = { secret, key: deriveKey(secret) };
+    cached = { secret, key: deriveEs256Key(secret, INFO) };
   }
   return cached.key;
 };
