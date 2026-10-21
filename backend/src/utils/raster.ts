@@ -220,13 +220,3 @@ export const selectOverviewTable = (table: string, aoiAreaM2: number): string =>
 
   return table;
 };
-
-export const getOverviewPixelSizeM = (aoiAreaM2: number, targetPixels: number): number => {
-  const BASE_PIXEL_SIZE_M = 100;
-  const OVERVIEWS = [32, 16, 8, 4, 2] as const;
-  for (const factor of OVERVIEWS) {
-    const pixelSizeM = BASE_PIXEL_SIZE_M * factor;
-    if (aoiAreaM2 / pixelSizeM ** 2 >= targetPixels) return pixelSizeM;
-  }
-  return BASE_PIXEL_SIZE_M;
-};

@@ -516,6 +516,54 @@ describe('RasterFileWriter', () => {
 
       expect(outputFiles().some(f => f.endsWith('.tif'))).toBe(true);
     });
+
+    it('still ships the file when it cannot be checked for valid pixels', async () => {
+      jest.spyOn(GdalCLI, 'gdalinfo').mockRejectedValueOnce(new Error('gdalinfo failed'));
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      await expect(writer.writeLayer(makeLayer(), bboxAoi)).resolves.toBe(true);
+
+      expect(outputFiles().some(f => f.endsWith('.tif'))).toBe(true);
+    });
+
+    // bdod's own GDAL_NODATA is -32768
+    it('keeps the native crop when raster_layers.nodata_value is the File marker', async () => {
+      const translate = jest.spyOn(GdalCLI, 'translate');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      await expect(writer.writeLayer(makeLayer({ nodata_value: -32768 }), bboxAoi)).resolves.toBe(true);
+
+      expect(translate.mock.calls.some(([, , args]) => args.includes('-srcwin'))).toBe(true);
+    });
+
+    // As GET /soil-data does (ADR 0045): a pixel holding the declared marker is nodata, even where
+    // the File's own marker differs. 104 is a valid bdod value inside bboxAoi.
+    it('writes pixels holding a raster_layers.nodata_value the File marker does not cover as nodata', async () => {
+      const translate = jest.spyOn(GdalCLI, 'translate');
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      await expect(writer.writeLayer(makeLayer({ nodata_value: 104 }), bboxAoi)).resolves.toBe(true);
+
+      expect(translate.mock.calls.some(([src]) => src.endsWith('.vrt'))).toBe(true);
+      const tif = outputFiles().find(f => f.endsWith('.tif'));
+      if (!tif) throw new Error('No .tif output file produced');
+      const data = (await (await (await fromFile(path.join(TEST_OUTPUT_DIR, tif))).getImage(0)).readRasters({ samples: [0] }))[0] as ArrayLike<number>;
+      expect(Array.from(data)).not.toContain(104);
+    });
+  });
+
+  describe('CRS text', () => {
+    // The tile path writes the layer's CRS into a VRT, so CRS text that is not XML-safe must be escaped
+    it('writes a layer whose recorded WKT holds XML special characters', async () => {
+      const wkt =
+        'GEOGCS["WGS 84 & <local>",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]]';
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+      // Unescaped, buildVrt's well-formedness check throws on the & and <
+      await expect(writer.writeLayer(makeLayer({ wkt }), TRIANGLE_AOI)).resolves.toBe(true);
+
+      expect(outputFiles().some(f => f.endsWith('.tif'))).toBe(true);
+    });
   });
 
   describe('all-nodata source', () => {

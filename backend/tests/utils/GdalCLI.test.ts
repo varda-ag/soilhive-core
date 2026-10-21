@@ -257,7 +257,7 @@ describe('GdalCLI.transformPoints', () => {
   });
 
   it('transforms to a custom destination SRS rather than always landing on EPSG:4326', async () => {
-    // The reverse of the default-direction case above — needed by RasterFileWriter.cropToAoiBbox,
+    // The reverse of the default-direction case above — needed by RasterFileWriter.cropToWindow,
     // which reprojects an EPSG:4326 AOI into a layer's native CRS rather than the other way round.
     const [[x, y]] = await GdalCLI.transformPoints('EPSG:4326', [[0, 0]], 'EPSG:3857');
     expect(x).toBeCloseTo(0, 6);
@@ -310,61 +310,6 @@ describe('GdalCLI.transformPoints', () => {
   });
 });
 
-describe('GdalCLI.extractWgs84Envelope', () => {
-  // Both captured from gdalinfo -json, for an Interrupted Goode Homolosine raster
-  const ALL_CORNERS = {
-    type: 'Polygon',
-    coordinates: [
-      [
-        [-52.0933024, 59.5825578],
-        [-59.0118798, 49.6501684],
-        [-20.2490162, 49.6501684],
-        [-28.7307838, 59.5825578],
-        [-52.0933024, 59.5825578],
-      ],
-    ],
-  };
-  // Both top corners are off the globe, so gdalinfo leaves them out of the ring
-  const BOTTOM_CORNERS_ONLY = {
-    type: 'Polygon',
-    coordinates: [
-      [
-        [-136.5284921, 17.9663057],
-        [-1.537846, 17.9663057],
-      ],
-    ],
-  };
-
-  it('returns the envelope of a ring holding all four corners', () => {
-    expect(GdalCLI.extractWgs84Envelope(ALL_CORNERS)).toEqual([-59.0118798, 49.6501684, -20.2490162, 59.5825578]);
-  });
-
-  it('returns undefined for a ring missing corners, rather than the envelope of the ones left', () => {
-    expect(GdalCLI.extractWgs84Envelope(BOTTOM_CORNERS_ONLY)).toBeUndefined();
-  });
-
-  it('returns undefined when gdalinfo reports no wgs84Extent at all', () => {
-    expect(GdalCLI.extractWgs84Envelope(undefined)).toBeUndefined();
-  });
-
-  it('returns west > east for a ring crossing the antimeridian, rather than the envelope of every other longitude', () => {
-    // Captured from gdalinfo -json, for an Alaska Albers (EPSG:3338) raster
-    const alaska = {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [157.3677834, 63.9124222],
-          [175.499108, 49.0545982],
-          [-132.2705925, 51.4310518],
-          [-117.2863728, 67.6023365],
-          [157.3677834, 63.9124222],
-        ],
-      ],
-    };
-    expect(GdalCLI.extractWgs84Envelope(alaska)).toEqual([157.3677834, 49.0545982, -117.2863728, 67.6023365]);
-  });
-});
-
 describe('GdalCLI.lonLatEnvelope', () => {
   it('is the min/max envelope for points that stay clear of the antimeridian', () => {
     expect(
@@ -384,6 +329,27 @@ describe('GdalCLI.lonLatEnvelope', () => {
         [179.5, -17],
       ]),
     ).toEqual([178, -18, -179, -16]);
+  });
+
+  // ±180 is one meridian: an edge on it doesn't make the area cross it
+  it('reads an east edge on the antimeridian, spelled -180, as 180', () => {
+    expect(
+      GdalCLI.lonLatEnvelope([
+        [170, 10],
+        [175, 12],
+        [-180, 11],
+      ]),
+    ).toEqual([170, 10, 180, 12]);
+  });
+
+  it('reads a west edge on the antimeridian, spelled 180, as -180', () => {
+    expect(
+      GdalCLI.lonLatEnvelope([
+        [180, 10],
+        [-175, 12],
+        [-170, 11],
+      ]),
+    ).toEqual([-180, 10, -170, 12]);
   });
 });
 

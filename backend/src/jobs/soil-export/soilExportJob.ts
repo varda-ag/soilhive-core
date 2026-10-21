@@ -140,7 +140,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       return;
     }
 
-    // A non-zero estimate can still write nothing (e.g. a raster layer whose extent misses the mask, or
+    // A non-zero estimate can still write nothing (e.g. a raster layer whose extent misses the aoi, or
     // an area of interest too small or thin to cover a pixel), which would otherwise ship a README-only ZIP.
     if (totalRecordsProcessed === 0 && totalLayersProcessed === 0) {
       throwNoData(jobId, data, 'processed', total_records_estimate, total_layers_estimate);

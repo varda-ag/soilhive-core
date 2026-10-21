@@ -72,6 +72,22 @@ interface TileWriteContext {
   layerName: string;
 }
 
+/** How a layer's band is read and what marks nodata in it, worked out once per layer. */
+interface SourceBand {
+  sampleIndex: number; // 0-based: the layer's 1-based band
+  float32: boolean; // a Float32 band holds its markers rounded to single precision (nodataPredicate)
+  fileNodata: number; // the File's GDAL_NODATA; NaN when it has none
+}
+
+const sourceBand = (image: GeoTIFFImage, layer: FilteredRasterLayer): SourceBand => {
+  const sampleIndex = layer.band - 1;
+  return {
+    sampleIndex,
+    float32: image.getSampleFormat(sampleIndex) === 3 && image.getBitsPerSample(sampleIndex) === 32,
+    fileNodata: nodataFromImage(image),
+  };
+};
+
 interface TilePlacement {
   filePath: string;
   tileX: number;
@@ -98,8 +114,8 @@ export class RasterFileWriter {
    * doesn't touch, and nodata pixels, are nodata.
    *
    * An axis-aligned rectangle over an EPSG:4326 layer touches every pixel of its window, so that case
-   * is a plain crop natively in GDAL (cropToWindow). Any other AOI is written tile by tile
-   * (writeTouchedTiles).
+   * is a plain crop natively in GDAL (cropToWindow), unless the layer declares a nodata value the
+   * File's own marker doesn't cover. Any other AOI is written tile by tile (writeTouchedTiles).
    * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}_{target_crs}
    * Returns whether a file was written — `false` when the AOI touches no valid pixel.
    */
@@ -113,10 +129,18 @@ export class RasterFileWriter {
       const window = sweep.bounds ? pixelWindow(sweep.bounds, grid) : null;
       if (!window) return false;
 
-      if (isAxisAlignedBboxPolygon(aoi) && isWgs84(crs)) {
+      const band = sourceBand(sourceImage, layer);
+
+      // GDAL's crop knows only the File's GDAL_NODATA, so it is used only when that marker already
+      // covers raster_layers.nodata_value; otherwise pixels holding the declared marker would ship
+      // as data. The tile path honours both.
+      const fileMarkerCoversDeclared =
+        layer.nodata_value == null || nodataPredicate([band.fileNodata], band.float32)(layer.nodata_value);
+
+      if (isAxisAlignedBboxPolygon(aoi) && isWgs84(crs) && fileMarkerCoversDeclared) {
         return await this.cropToWindow(layer, window, targetCrs);
       }
-      return await this.writeTouchedTiles(layer, sourceImage, grid, sweep, window, targetCrs);
+      return await this.writeTouchedTiles(layer, sourceImage, band, grid, sweep, window, crs, targetCrs);
     } finally {
       try {
         await sourceTiff.close();
@@ -167,7 +191,7 @@ export class RasterFileWriter {
     }
 
     await this.embedBandStatistics(filePath, layer);
-    if (await this.isAllNodata(filePath)) {
+    if (await this.isAllNodata(filePath, layer)) {
       fs.rmSync(filePath, { force: true });
       return false;
     }
@@ -179,11 +203,21 @@ export class RasterFileWriter {
    * Whether the Band Statistics embedBandStatistics stored say no pixel is valid. GDAL records
    * STATISTICS_VALID_PERCENT=0 even when the stats pass fails on an all-nodata band, so no second
    * scan is needed. Statistics missing altogether mean the pass failed for another reason: the file
-   * is not known to be empty, and ships.
+   * is not known to be empty, and ships. Never fatal, like the statistics: a file that can't be
+   * checked ships too.
    */
-  private async isAllNodata(filePath: string): Promise<boolean> {
-    const bands = (await GdalCLI.gdalinfo(filePath)).bands ?? [];
-    return bands.length > 0 && bands.every(band => band.metadata?.['']?.['STATISTICS_VALID_PERCENT'] === '0');
+  private async isAllNodata(filePath: string, layer: FilteredRasterLayer): Promise<boolean> {
+    try {
+      const bands = (await GdalCLI.gdalinfo(filePath)).bands ?? [];
+      return bands.length > 0 && bands.every(band => band.metadata?.['']?.['STATISTICS_VALID_PERCENT'] === '0');
+    } catch (error) {
+      log.warn('Could not check exported raster for valid pixels; file ships', {
+        layerId: layer.id,
+        file: path.basename(filePath),
+        error: getErrorMessage(error),
+      });
+      return false;
+    }
   }
 
   /**
@@ -195,9 +229,11 @@ export class RasterFileWriter {
   private async writeTouchedTiles(
     layer: FilteredRasterLayer,
     sourceImage: GeoTIFFImage,
+    band: SourceBand,
     grid: PixelGrid,
     sweep: AllTouchedSweep,
     window: PixelWindow,
+    sourceCrs: string,
     targetCrs?: number,
   ): Promise<boolean> {
     const outW = window.colLast - window.colFirst + 1;
@@ -205,21 +241,18 @@ export class RasterFileWriter {
     const outMinX = grid.originX + window.colFirst * grid.resX;
     const outMaxY = grid.originY + window.rowFirst * grid.resY;
 
-    const nodata = nodataFromImage(sourceImage);
-    const nodataFill = Number.isNaN(nodata) ? Number.NaN : nodata;
-    const nodataStr = formatGdalNodata(nodata);
-    const sourceSampleIndex = layer.band - 1;
-    const float32 = sourceImage.getSampleFormat(sourceSampleIndex) === 3 && sourceImage.getBitsPerSample(sourceSampleIndex) === 32;
+    const nodataFill = Number.isNaN(band.fileNodata) ? Number.NaN : band.fileNodata;
+    const nodataStr = formatGdalNodata(band.fileNodata);
     const layerName = this.buildLayerName(layer, targetCrs);
 
     fs.mkdirSync(this.outputDir, { recursive: true });
 
     const ctx: TileWriteContext = {
       sourceImage,
-      sourceSampleIndex,
+      sourceSampleIndex: band.sampleIndex,
       // The same markers /soil-data honours: raster_layers.nodata_value (an int column, so null or
       // rounded for a Float32 sentinel) and the File's own GDAL_NODATA.
-      isNodata: nodataPredicate([layer.nodata_value, nodata], float32),
+      isNodata: nodataPredicate([layer.nodata_value, band.fileNodata], band.float32),
       grid,
       window,
       nodataFill,
@@ -250,8 +283,7 @@ export class RasterFileWriter {
 
       const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
       const vrtPath = path.join(this.outputDir, `${layerName}.tmp.vrt`);
-      const srs = layer.wkt ?? `EPSG:${layer.epsg ?? 4326}`;
-      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, outMinX, outMaxY, grid.resX, -grid.resY, nodataStr, srs));
+      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, outMinX, outMaxY, grid.resX, -grid.resY, nodataStr, sourceCrs));
 
       try {
         const dstTranslate = targetCrs ? path.join(this.outputDir, `${layerName}.tmp.${this.getFileExtension()}`) : filePath;
@@ -266,7 +298,7 @@ export class RasterFileWriter {
             '-ot',
             'Float32',
             '-a_srs',
-            srs,
+            sourceCrs,
           ]);
         } else {
           await GdalCLI.translate(vrtPath, dstTranslate, [
@@ -281,7 +313,7 @@ export class RasterFileWriter {
             '-ot',
             'Float32',
             '-a_srs',
-            srs,
+            sourceCrs,
           ]);
         }
         if (targetCrs) {
@@ -391,7 +423,7 @@ export class RasterFileWriter {
       )
       .join('\n');
     const xml = `<VRTDataset rasterXSize="${outW}" rasterYSize="${outH}">
-  <SRS dataAxisToSRSAxisMapping="2,1">${srs}</SRS>
+  <SRS dataAxisToSRSAxisMapping="2,1">${escapeXml(srs)}</SRS>
   <GeoTransform>${xMin}, ${pixW}, 0.0, ${yMax}, 0.0, ${-pixH}</GeoTransform>
   <VRTRasterBand dataType="Float32" band="1">
     <NoDataValue>${nodataStr}</NoDataValue>
@@ -461,7 +493,7 @@ ${sources}
    * A separate in-place pass, not `-stats` on the `gdal_translate` that produced the file, even
    * though that flag would compute the same numbers during a pass GDAL is already making. Three
    * reasons, all invisible at the translate call site:
-   *   - `-stats` caches its result in a PAM sidecar *next to the source*. In `cropToAoiBbox` that
+   *   - `-stats` caches its result in a PAM sidecar *next to the source*. In `cropToWindow` that
    *     source is the ingested COG in file storage, which an export must never write to; in
    *     `writeLayer` it is the temp VRT in the job's directory, so the sidecar outlives the VRT and
    *     `zipFiles` sweeps a stray `*.tmp.vrt.aux.xml` into the user's download.
@@ -480,7 +512,7 @@ ${sources}
     try {
       await GdalCLI.editInPlace(filePath, ['-stats']);
     } catch (error) {
-      log.warn('Could not embed band statistics in exported raster; file ships without them', {
+      log.warn('Could not embed band statistics in exported raster; it ships without them unless it holds no valid pixel', {
         layerId: layer.id,
         file: path.basename(filePath),
         error: getErrorMessage(error),

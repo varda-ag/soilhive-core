@@ -270,19 +270,6 @@ export class GdalCLI {
   }
 
   /**
-   * The envelope of gdalinfo's `wgs84Extent`, or undefined unless that ring holds all four of the
-   * raster's corners. gdalinfo silently leaves out every corner PROJ can't transform (one in a gap
-   * of an interrupted projection, or off the globe), so a partial ring's envelope can be any
-   * fraction of the raster — down to a zero-area line through the two corners that remain.
-   */
-  static extractWgs84Envelope(wgs84Extent?: GdalInfoOutput['wgs84Extent']): Envelope | undefined {
-    const ring = wgs84Extent?.coordinates?.[0];
-    // Four corners plus the closing repeat of the first
-    if (!ring || ring.length !== 5 || !ring.flat().every(Number.isFinite)) return undefined;
-    return GdalCLI.lonLatEnvelope(ring as [number, number][]);
-  }
-
-  /**
    * The envelope of points spread across one connected area, in EPSG:4326. Its longitude span is
    * the circle minus the widest stretch of longitude no point falls in, so an area straddling the
    * antimeridian (Alaska, Fiji) comes out with west > east, as RFC 7946 spells such a bbox, rather
@@ -304,6 +291,13 @@ export class GdalCLI {
         west = lons[i]!;
         east = lons[i - 1]!;
       }
+    }
+    // ±180 is one meridian, which PROJ may spell either way: an area whose east edge lies on it and
+    // comes back as -180 (or west edge as 180) would otherwise cross the antimeridian with nothing
+    // on the far side, as a zero-width half.
+    if (west !== east) {
+      if (east === -180) east = 180;
+      if (west === 180) west = -180;
     }
     return [west, south, east, north];
   }
