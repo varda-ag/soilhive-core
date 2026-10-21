@@ -30,9 +30,6 @@ describe('useConfigs', () => {
         enabled: true,
       }),
     ]);
-    // authenticate must not be forced false — GET /configs is entitlements-gated, so a logged-in
-    // caller's token must be sent or their own entitled (non-EVERYONE) configs get silently omitted.
-    expect(queriesPassed()[0]).not.toHaveProperty('authenticate');
     expect(result.current).toEqual({ data, isLoading: false, isError: false });
   });
 

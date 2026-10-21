@@ -9,10 +9,10 @@ const toBatches = (ids: string[]) =>
   );
 
 const useConfigs = <T>(ids: string[], polling?: number) => {
-  // GET /configs is entitlements-gated (READ/WRITE, or EVERYONE's grant), and the backend
-  // validates an Authorization header whenever one is sent — so this must NOT force
-  // authenticate: false. Omitting it sends the caller's token when they're logged in (needed to
-  // read their own entitled configs), while still sending none when they're not.
+  // GET /configs is entitlements-gated (READ/WRITE, or EVERYONE's grant): useApiQueries sends the
+  // caller's token when they're logged in, which is needed to read their own entitled configs.
+  // If useApiQueries ever gains an authenticate option, these queries must not set it to false,
+  // or a logged-in caller's non-EVERYONE configs are silently left out.
   const results = useApiQueries<Record<string, T>>(
     toBatches(ids).map(batch => ({
       endpoint: '/configs',
