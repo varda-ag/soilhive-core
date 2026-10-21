@@ -117,10 +117,21 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
   assertTokenScope(decodedToken, scopes);
   req.customData.token = decodedToken;
   req.customData.token.raw = tokenString; // Putting original token string here
-  req.customData.token.isSuperAdmin = decodedToken.scope?.includes(TokenScopes.SUPER_ADMIN);
-  req.customData.token.isDataAdmin = decodedToken.scope?.includes(TokenScopes.DATA_ADMIN);
-  req.customData.token.isInternalRequest = decodedToken.scope?.includes(TokenScopes.INTERNAL_REQUEST); // True on bulk load jobs
+  req.customData.token.isSuperAdmin = hasScope(decodedToken, TokenScopes.SUPER_ADMIN);
+  req.customData.token.isDataAdmin = hasScope(decodedToken, TokenScopes.DATA_ADMIN);
+  req.customData.token.isInternalRequest = hasScope(decodedToken, TokenScopes.INTERNAL_REQUEST); // True on bulk load jobs
   return true;
+};
+
+/**
+ * Whether the token holds `scope`, matched as a whole entry of its space-separated list: a scope
+ * named `metadata-admin` must not count as `data-admin` (docs/adr/0064). An array, which some
+ * identity providers send, is read as the list it is.
+ */
+const hasScope = (token: Token, scope: string): boolean => {
+  const scopes: unknown = token.scope;
+  const list = Array.isArray(scopes) ? scopes : typeof scopes === 'string' ? scopes.split(/\s+/) : [];
+  return list.includes(scope);
 };
 
 const assertTokenScope = (token: Token, scopes: string[]) => {
@@ -128,7 +139,7 @@ const assertTokenScope = (token: Token, scopes: string[]) => {
     return;
   }
   for (const s of scopes) {
-    if (token.scope.includes(s)) {
+    if (hasScope(token, s)) {
       return;
     }
   }

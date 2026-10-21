@@ -17,15 +17,23 @@ Every token is now checked for its issuer, chosen by the key that verifies it (A
 - **The issuer check fails closed.** With neither `OIDC_ISSUER` nor `OIDC_AUTHORITY` set, every IdP token is refused (401). jsonwebtoken skips the check when the issuer is `undefined`, so an unset value must never reach it.
 - **The audience check waits for `OIDC_AUDIENCE`.** Keycloak access tokens carry `aud: account` unless an _Audience_ mapper adds the client, and each Machine caller's client needs the same mapper. Requiring it on deploy would sign everyone out until each realm is changed. Until it is set, the backend logs a warning at startup.
 
+## Scopes are matched as whole entries
+
+`scope` is a space-separated list, but the validator used to test it as one string: `scope.includes('data-admin')` was true for a scope named `metadata-admin`, and likewise for any name that contains `super-admin` or `internal-request`. Such a token became a **Privileged caller**: past Entitlements, onto unpublished Datasets and admin routes. Every token's scopes are now split on whitespace and compared whole, for the privilege flags and for the scopes a route requires, as the frontend and Plugin tokens already did. An array, which some identity providers send, is read as a list. A token without a scope on a scoped route now gets a `403` instead of a `401` from a failed string call.
+
+Until `OIDC_AUDIENCE` is set, the core accepts tokens issued to any client of the realm, so the scope names that matter are those of every application in it, not only SoilHive's.
+
 ## Considered options
 
 - **Require `OIDC_AUDIENCE` at once.** It closes the gap on deploy, but signs everyone out on every realm whose tokens lack the audience, with no way back but a config change. Rejected for the rollout; it can become required once every environment sets it.
 - **Default the audience to `OIDC_CLIENT_ID`.** That is the client the browser signs in with, not necessarily an audience its tokens carry, and never the one of a Machine caller's tokens. Rejected.
 - **Check `azp` instead of `aud`.** `azp` names the client the token was issued to, which differs per Machine caller, so the check would need the same list of clients. `aud` is the standard claim for "meant for this API". Rejected.
+- **Keep the substring match and rename scopes.** It depends on no realm ever naming a scope that contains one of the three, across every application sharing the realm. Rejected.
 - **An `aud` on platform-issued tokens.** Each of their keys signs one kind of token, so it would separate nothing. Not done.
 
 ## Consequences
 
+- A caller who held admin rights only through a scope that merely contains `super-admin`, `data-admin` or `internal-request` loses them. The pre-deploy token check below shows whether any does.
 - A deployment whose `OIDC_AUTHORITY` differs from the `iss` its tokens carry (another hostname, a trailing path) refuses every IdP token until `OIDC_ISSUER` lists the right value. Before deploying, decode a real access token from the browser and from each Machine caller.
 - Until `OIDC_AUDIENCE` is set, a token issued to any client of the realm is still accepted. The startup warning says so.
 - The quickstart realm's `soilhive` client gains an Audience mapper, so a freshly imported realm's tokens carry `aud: soilhive`. A realm imported before keeps working, since the quickstart does not set `OIDC_AUDIENCE`.

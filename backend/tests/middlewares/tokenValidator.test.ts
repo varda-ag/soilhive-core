@@ -497,3 +497,58 @@ describe('tokenValidator — the issuer and audience of IdP tokens', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Scopes are matched whole (docs/adr/0064)
+// ---------------------------------------------------------------------------
+
+describe('tokenValidator — scopes are matched as whole entries', () => {
+  let tokenValidator: (req: any, scopes: string[]) => Promise<boolean>;
+  const flags = (req: any) => ({
+    isSuperAdmin: req.customData.token.isSuperAdmin,
+    isDataAdmin: req.customData.token.isDataAdmin,
+    isInternalRequest: req.customData.token.isInternalRequest,
+  });
+
+  beforeEach(async () => {
+    jest.resetModules();
+    jest.doMock('../../src/services/ConfigService', () => ({
+      __esModule: true,
+      default: { getAuthConfig: jest.fn().mockReturnValue({ authMode: 'password' }) },
+    }));
+    ({ tokenValidator } = await import('../../src/middlewares/tokenValidator'));
+  });
+
+  it.each(['metadata-admin', 'soilhive-super-admin-viewer', 'no-internal-request'])(
+    'grants no privilege to a scope that only contains one: %s',
+    async scope => {
+      const req = makeRequest(`Bearer ${signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: `openid ${scope}` }, 3600)}`);
+      expect(await tokenValidator(req, [])).toBe(true);
+      expect(flags(req)).toEqual({ isSuperAdmin: false, isDataAdmin: false, isInternalRequest: false });
+    },
+  );
+
+  it('refuses a scoped route to a scope that only contains the one required', async () => {
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'metadata-admin' }, 3600);
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), ['data-admin'])).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('still grants every scope the list holds', async () => {
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'openid  super-admin data-admin' }, 3600);
+    const req = makeRequest(`Bearer ${token}`);
+    expect(await tokenValidator(req, ['data-admin'])).toBe(true);
+    expect(flags(req)).toEqual({ isSuperAdmin: true, isDataAdmin: true, isInternalRequest: false });
+  });
+
+  it('reads a scope sent as an array', async () => {
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: ['openid', 'data-admin'] }, 3600);
+    const req = makeRequest(`Bearer ${token}`);
+    expect(await tokenValidator(req, ['data-admin'])).toBe(true);
+    expect(flags(req).isDataAdmin).toBe(true);
+  });
+
+  it('answers 403, not a crash, to a token without a scope on a scoped route', async () => {
+    const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1' }, 3600);
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), ['data-admin'])).rejects.toMatchObject({ status: 403 });
+  });
+});
