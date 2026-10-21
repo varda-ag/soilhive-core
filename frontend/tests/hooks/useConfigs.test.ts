@@ -1,10 +1,14 @@
 import { renderHook } from '@testing-library/react';
-import { useApiQuery } from 'hooks/useApiQuery';
+import { useApiQueries } from 'hooks/useApiQueries';
 import useConfigs from 'hooks/useConfigs';
 
-jest.mock('hooks/useApiQuery', () => ({ useApiQuery: jest.fn() }));
+jest.mock('hooks/useApiQueries', () => ({ useApiQueries: jest.fn() }));
 
-const useApiQueryMock = useApiQuery as jest.Mock;
+const useApiQueriesMock = useApiQueries as jest.Mock;
+
+const ids = (count: number) => Array.from({ length: count }, (_, i) => `id-${i}`);
+const configsFor = (chunk: string[]) => Object.fromEntries(chunk.map(id => [id, { id }]));
+const queriesPassed = () => useApiQueriesMock.mock.calls[0][0];
 
 describe('useConfigs', () => {
   afterEach(() => {
@@ -13,11 +17,11 @@ describe('useConfigs', () => {
 
   it('fetches /configs with comma-separated ids and returns the resolved data', () => {
     const data = { a: { foo: 1 }, b: { foo: 2 } };
-    useApiQueryMock.mockReturnValue({ data, isLoading: false, isError: false });
+    useApiQueriesMock.mockReturnValue([{ data, isLoading: false, isError: false }]);
 
     const { result } = renderHook(() => useConfigs(['a', 'b']));
 
-    expect(useApiQuery).toHaveBeenCalledWith(
+    expect(queriesPassed()).toEqual([
       expect.objectContaining({
         endpoint: '/configs',
         method: 'GET',
@@ -25,35 +29,75 @@ describe('useConfigs', () => {
         queryKey: ['/configs', ['a', 'b']],
         enabled: true,
       }),
-    );
+    ]);
     // authenticate must not be forced false — GET /configs is entitlements-gated, so a logged-in
     // caller's token must be sent or their own entitled (non-EVERYONE) configs get silently omitted.
-    expect(useApiQuery).not.toHaveBeenCalledWith(expect.objectContaining({ authenticate: false }));
-    expect(result.current.data).toBe(data);
+    expect(queriesPassed()[0]).not.toHaveProperty('authenticate');
+    expect(result.current).toEqual({ data, isLoading: false, isError: false });
   });
 
   it('passes polling as refetchInterval when provided', () => {
-    useApiQueryMock.mockReturnValue({ data: {}, isLoading: false, isError: false });
+    useApiQueriesMock.mockReturnValue([{ data: {}, isLoading: false, isError: false }]);
 
     renderHook(() => useConfigs(['a'], 5000));
 
-    expect(useApiQuery).toHaveBeenCalledWith(expect.objectContaining({ refetchInterval: 5000 }));
+    expect(queriesPassed()[0]).toEqual(expect.objectContaining({ refetchInterval: 5000 }));
   });
 
   it('disables refetchInterval when polling is not provided', () => {
-    useApiQueryMock.mockReturnValue({ data: {}, isLoading: false, isError: false });
+    useApiQueriesMock.mockReturnValue([{ data: {}, isLoading: false, isError: false }]);
 
     renderHook(() => useConfigs(['a']));
 
-    expect(useApiQuery).toHaveBeenCalledWith(expect.objectContaining({ refetchInterval: false }));
+    expect(queriesPassed()[0]).toEqual(expect.objectContaining({ refetchInterval: false }));
   });
 
-  it('disables the query and defaults data to {} when ids is empty', () => {
-    useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false, isError: false });
+  it('runs no query and returns empty, settled data when ids is empty', () => {
+    useApiQueriesMock.mockReturnValue([]);
 
     const { result } = renderHook(() => useConfigs([]));
 
-    expect(useApiQuery).toHaveBeenCalledWith(expect.objectContaining({ enabled: false }));
-    expect(result.current.data).toEqual({});
+    expect(queriesPassed()).toEqual([]);
+    expect(result.current).toEqual({ data: {}, isLoading: false, isError: false });
+  });
+
+  it('splits ids into batches of 100, the backend maxItems, and merges every batch', () => {
+    const allIds = ids(250);
+    const chunks = [allIds.slice(0, 100), allIds.slice(100, 200), allIds.slice(200)];
+    useApiQueriesMock.mockReturnValue(chunks.map(chunk => ({ data: configsFor(chunk), isLoading: false, isError: false })));
+
+    const { result } = renderHook(() => useConfigs(allIds));
+
+    expect(queriesPassed()).toEqual(
+      chunks.map(chunk =>
+        expect.objectContaining({ parameters: [['ids', chunk.join(',')]], queryKey: ['/configs', chunk], enabled: true }),
+      ),
+    );
+    expect(Object.keys(result.current.data).sort()).toEqual([...allIds].sort());
+  });
+
+  it('reports isError when one batch fails and still returns the other batches', () => {
+    const allIds = ids(150);
+    useApiQueriesMock.mockReturnValue([
+      { data: configsFor(allIds.slice(0, 100)), isLoading: false, isError: false },
+      { data: undefined, isLoading: false, isError: true },
+    ]);
+
+    const { result } = renderHook(() => useConfigs(allIds));
+
+    expect(result.current.isError).toBe(true);
+    expect(Object.keys(result.current.data)).toHaveLength(100);
+  });
+
+  it('reports isLoading until every batch has resolved', () => {
+    const allIds = ids(150);
+    useApiQueriesMock.mockReturnValue([
+      { data: configsFor(allIds.slice(0, 100)), isLoading: false, isError: false },
+      { data: undefined, isLoading: true, isError: false },
+    ]);
+
+    const { result } = renderHook(() => useConfigs(allIds));
+
+    expect(result.current.isLoading).toBe(true);
   });
 });
