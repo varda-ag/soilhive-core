@@ -1,11 +1,14 @@
+import { jwtDecode } from 'jwt-decode';
 import { BACKEND_BASE_URL, REST_END_POINTS } from 'configuration/api';
 import { httpClient } from '../api-client/httpClient';
 import { getToken } from './tokenStore';
+import { isTokenExpired } from './tokenClaims';
+import { refreshAccessToken } from './tokenRefresher';
 
 // Plugin tokens (docs/adr/0063): a short-lived token the core mints for one plugin and the signed-in
 // user. usePluginApi sends it to that plugin's own backend instead of the user's token, which never
-// leaves for a Plugin Backend. Kept in memory only, per pluginId, for the user token they were
-// minted with: a renewed user token, a sign-out or another user starts over.
+// leaves for a Plugin Backend. Kept in memory only, per pluginId, for the user they were minted for:
+// a silent renew of the user's token keeps them, a sign-out or another user starts over.
 
 // Renewed this long before it expires, or at half its life when that is shorter
 const RENEW_MARGIN_MS = 30_000;
@@ -31,15 +34,42 @@ const mints = new Map<string, Promise<MintedToken>>();
 // An error whose status a PluginApiError keeps
 const userChangedError = () => Object.assign(new Error('The signed-in user changed during the call'), { status: 401 });
 
-/** Starts over when the user token is not the one the cache was filled for. */
-const currentOwner = (): string | null => {
+/**
+ * Who the signed-in user is, as far as Plugin tokens go: the user token's issuer and `sub`, so a
+ * renewed token of the same user keeps the cache. The raw token when it can't be decoded. null for
+ * an anonymous visitor. Unverified, as tokenClaims.ts explains: the core checks the token it mints with.
+ */
+export const getPluginTokenOwner = (): string | null => {
   const userToken = getToken();
-  if (userToken !== owner) {
+  if (!userToken) {
+    return null;
+  }
+  try {
+    const { iss, sub } = jwtDecode<{ iss?: string; sub?: string }>(userToken);
+    return sub ? `${iss ?? ''}\n${sub}` : userToken;
+  } catch {
+    return userToken;
+  }
+};
+
+/** Starts over when the signed-in user is not the one the cache was filled for. */
+const currentOwner = (): string | null => {
+  const userOwner = getPluginTokenOwner();
+  if (userOwner !== owner) {
     tokens.clear();
     mints.clear();
-    owner = userToken;
+    owner = userOwner;
   }
-  return userToken;
+  return userOwner;
+};
+
+// The core never mints past the user token's expiry, so a nearly expired one would give a token
+// that lives seconds and is minted again on every call. Renew it first: a no-op without OIDC.
+const renewUserTokenIfExpiring = async (): Promise<void> => {
+  const userToken = getToken();
+  if (userToken && isTokenExpired(userToken)) {
+    await refreshAccessToken().catch(() => undefined);
+  }
 };
 
 // One mint per plugin at a time, shared by every caller and never aborted by one of them
@@ -48,10 +78,13 @@ const mint = (pluginId: string, mintOwner: string): Promise<MintedToken> => {
   if (running) {
     return running;
   }
-  const pending: Promise<MintedToken> = httpClient<MintResponse>({
-    url: `${BACKEND_BASE_URL}/${REST_END_POINTS.PLUGINS}/${encodeURIComponent(pluginId)}/token`,
-    method: 'POST',
-  })
+  const pending: Promise<MintedToken> = renewUserTokenIfExpiring()
+    .then(() =>
+      httpClient<MintResponse>({
+        url: `${BACKEND_BASE_URL}/${REST_END_POINTS.PLUGINS}/${encodeURIComponent(pluginId)}/token`,
+        method: 'POST',
+      }),
+    )
     .then(({ access_token, expires_in }) => {
       const mintedAt = Date.now();
       const lifetime = expires_in * 1000;
@@ -87,7 +120,7 @@ const untilAborted = <T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> 
 
 const mintFor = async (pluginId: string, mintOwner: string, signal?: AbortSignal): Promise<string> => {
   const minted = await untilAborted(mint(pluginId, mintOwner), signal);
-  if (getToken() !== mintOwner) {
+  if (getPluginTokenOwner() !== mintOwner) {
     throw userChangedError();
   }
   return minted.token;
@@ -101,15 +134,15 @@ export const getPluginToken = async (pluginId: string, signal?: AbortSignal): Pr
   if (typeof window === 'undefined') {
     return null; // a module-level cache on the server would be shared between users
   }
-  const userToken = currentOwner();
-  if (!userToken) {
+  const userOwner = currentOwner();
+  if (!userOwner) {
     return null;
   }
   const cached = tokens.get(pluginId);
   if (cached && Date.now() < cached.renewAt) {
     return cached.token;
   }
-  return mintFor(pluginId, userToken, signal);
+  return mintFor(pluginId, userOwner, signal);
 };
 
 /**
@@ -120,8 +153,8 @@ export const renewPluginToken = async (pluginId: string, rejected: string, signa
   if (typeof window === 'undefined') {
     return null;
   }
-  const userToken = currentOwner();
-  if (!userToken) {
+  const userOwner = currentOwner();
+  if (!userOwner) {
     return null;
   }
   const cached = tokens.get(pluginId);
@@ -132,7 +165,7 @@ export const renewPluginToken = async (pluginId: string, rejected: string, signa
     return null;
   }
   tokens.delete(pluginId);
-  return mintFor(pluginId, userToken, signal);
+  return mintFor(pluginId, userOwner, signal);
 };
 
 /** Test hook: forget every Plugin token and every mint in progress. */

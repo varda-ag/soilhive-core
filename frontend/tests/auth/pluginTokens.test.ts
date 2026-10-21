@@ -1,5 +1,6 @@
-import { getPluginToken, renewPluginToken, resetPluginTokens } from '../../src/auth/pluginTokens';
+import { getPluginToken, getPluginTokenOwner, renewPluginToken, resetPluginTokens } from '../../src/auth/pluginTokens';
 import { getToken } from '../../src/auth/tokenStore';
+import { refreshAccessToken } from '../../src/auth/tokenRefresher';
 import { httpClient } from '../../src/api-client/httpClient';
 
 jest.mock('configuration/api', () => ({
@@ -8,9 +9,16 @@ jest.mock('configuration/api', () => ({
 }));
 jest.mock('../../src/auth/tokenStore', () => ({ getToken: jest.fn() }));
 jest.mock('../../src/api-client/httpClient', () => ({ httpClient: jest.fn() }));
+jest.mock('../../src/auth/tokenRefresher', () => ({ refreshAccessToken: jest.fn() }));
 
 const getTokenMock = getToken as jest.Mock;
 const httpClientMock = httpClient as jest.Mock;
+const refreshMock = refreshAccessToken as jest.Mock;
+
+// An unsigned JWT: the cache only decodes the user token, it never verifies it
+const userToken = (claims: { iss?: string; sub?: string; exp?: number }) =>
+  ['{"alg":"none"}', JSON.stringify(claims), ''].map(part => btoa(part).replace(/=+$/, '')).join('.');
+const inAnHour = () => Math.floor(Date.now() / 1000) + 3600;
 
 const MINT_URL = 'https://api.example/api/v1/plugins/zones/token';
 
@@ -34,6 +42,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   resetPluginTokens();
   getTokenMock.mockReturnValue('user-a');
+  refreshMock.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -189,5 +198,72 @@ describe('renewPluginToken', () => {
   it('gives an anonymous visitor nothing', async () => {
     getTokenMock.mockReturnValue(null);
     expect(await renewPluginToken('zones', 'pt-1')).toBeNull();
+  });
+});
+
+describe('the user the tokens belong to', () => {
+  const IDP = 'https://idp.example/realms/soilhive';
+
+  it('is the issuer and sub of the user token, so a silent renew keeps the Plugin tokens', async () => {
+    getTokenMock.mockReturnValue(userToken({ iss: IDP, sub: 'alice', exp: inAnHour() }));
+    minted('pt-1');
+    await getPluginToken('zones');
+
+    getTokenMock.mockReturnValue(userToken({ iss: IDP, sub: 'alice', exp: inAnHour() + 300 }));
+    expect(await getPluginToken('zones')).toBe('pt-1');
+    expect(httpClientMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts over for another user', async () => {
+    getTokenMock.mockReturnValue(userToken({ iss: IDP, sub: 'alice', exp: inAnHour() }));
+    minted('pt-alice');
+    await getPluginToken('zones');
+
+    getTokenMock.mockReturnValue(userToken({ iss: IDP, sub: 'bob', exp: inAnHour() }));
+    minted('pt-bob');
+    expect(await getPluginToken('zones')).toBe('pt-bob');
+  });
+
+  it('lets a renew of the same user finish a mint it started', async () => {
+    getTokenMock.mockReturnValue(userToken({ iss: IDP, sub: 'alice', exp: inAnHour() }));
+    const mint = deferredMint();
+    const call = getPluginToken('zones');
+    getTokenMock.mockReturnValue(userToken({ iss: IDP, sub: 'alice', exp: inAnHour() + 300 }));
+    mint.resolve({ access_token: 'pt-1', expires_in: 300 });
+
+    expect(await call).toBe('pt-1');
+  });
+
+  it('falls back to the raw token when it is not a JWT', () => {
+    getTokenMock.mockReturnValue('opaque');
+    expect(getPluginTokenOwner()).toBe('opaque');
+    getTokenMock.mockReturnValue(null);
+    expect(getPluginTokenOwner()).toBeNull();
+  });
+});
+
+describe('a user token about to expire', () => {
+  it('is renewed before the mint, so the Plugin token is not cut short', async () => {
+    getTokenMock.mockReturnValue(userToken({ sub: 'alice', exp: Math.floor(Date.now() / 1000) + 10 }));
+    minted('pt-1');
+
+    await getPluginToken('zones');
+
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+    expect(refreshMock.mock.invocationCallOrder[0]).toBeLessThan(httpClientMock.mock.invocationCallOrder[0]);
+  });
+
+  it('is not renewed when it has time left', async () => {
+    getTokenMock.mockReturnValue(userToken({ sub: 'alice', exp: inAnHour() }));
+    minted('pt-1');
+    await getPluginToken('zones');
+    expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it('still gets a mint when the renew fails', async () => {
+    getTokenMock.mockReturnValue(userToken({ sub: 'alice', exp: Math.floor(Date.now() / 1000) + 10 }));
+    refreshMock.mockRejectedValueOnce(new Error('signinSilent failed'));
+    minted('pt-1');
+    expect(await getPluginToken('zones')).toBe('pt-1');
   });
 });

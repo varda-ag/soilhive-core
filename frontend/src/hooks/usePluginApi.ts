@@ -1,8 +1,7 @@
 import { useContext, useMemo } from 'react';
 import type { PluginApi, PluginApiClientOptions, PluginApiParams, PluginApiRequestOptions } from 'frontend-plugin-types';
 import { RemotesContext } from '../contexts/RemotesContext';
-import { getToken } from '../auth/tokenStore';
-import { getPluginToken, renewPluginToken } from '../auth/pluginTokens';
+import { getPluginToken, getPluginTokenOwner, renewPluginToken } from '../auth/pluginTokens';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
@@ -143,7 +142,7 @@ const createPluginApi = (pluginId: string, baseUrl: string | undefined): PluginA
       throw pluginApiError((error as Error).message, 0);
     }
 
-    const owner = getToken();
+    const owner = getPluginTokenOwner();
     let token: string | null;
     try {
       token = await getPluginToken(pluginId, options.signal);
@@ -153,7 +152,7 @@ const createPluginApi = (pluginId: string, baseUrl: string | undefined): PluginA
     let response = await send(url, method, body, options, token);
 
     // Renew and retry once, as the same user: the Plugin token expired or its key rotated
-    if (response.status === 401 && token && canResend(body) && !options.signal?.aborted && getToken() === owner) {
+    if (response.status === 401 && token && canResend(body) && !options.signal?.aborted && getPluginTokenOwner() === owner) {
       let renewed: string | null;
       try {
         renewed = await renewPluginToken(pluginId, token, options.signal);

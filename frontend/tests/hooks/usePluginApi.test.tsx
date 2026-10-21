@@ -3,17 +3,22 @@ import { renderHook } from '@testing-library/react';
 import type { PluginApiClientOptions } from 'frontend-plugin-types';
 import { buildPluginApiUrl, defaultPluginApiBase, resolvePluginApiBase, usePluginApi } from 'hooks/usePluginApi';
 import { RemotesContext } from '../../src/contexts/RemotesContext';
-import { getPluginToken, renewPluginToken } from '../../src/auth/pluginTokens';
+import { getPluginToken, getPluginTokenOwner, renewPluginToken } from '../../src/auth/pluginTokens';
 import { clearToken, getToken } from '../../src/auth/tokenStore';
 import { refreshAccessToken } from '../../src/auth/tokenRefresher';
 import { PluginType, type RemotePlugin } from '../../src/types/plugins';
 
-jest.mock('../../src/auth/pluginTokens', () => ({ getPluginToken: jest.fn(), renewPluginToken: jest.fn() }));
+jest.mock('../../src/auth/pluginTokens', () => ({
+  getPluginToken: jest.fn(),
+  getPluginTokenOwner: jest.fn(),
+  renewPluginToken: jest.fn(),
+}));
 jest.mock('../../src/auth/tokenStore', () => ({ getToken: jest.fn(), clearToken: jest.fn() }));
 jest.mock('../../src/auth/tokenRefresher', () => ({ refreshAccessToken: jest.fn() }));
 
 const getPluginTokenMock = getPluginToken as jest.Mock;
 const renewPluginTokenMock = renewPluginToken as jest.Mock;
+const ownerMock = getPluginTokenOwner as jest.Mock;
 const getTokenMock = getToken as jest.Mock;
 const fetchMock = jest.fn();
 
@@ -57,6 +62,7 @@ const renderApi = (options?: PluginApiClientOptions, plugins = [remote('zones', 
 beforeEach(() => {
   jest.clearAllMocks();
   getTokenMock.mockReturnValue('user-token');
+  ownerMock.mockReturnValue('idp\nalice');
   getPluginTokenMock.mockResolvedValue('pt-1');
   global.fetch = fetchMock as unknown as typeof fetch;
 });
@@ -252,11 +258,24 @@ describe('usePluginApi', () => {
 
     it('is not retried once the user changed', async () => {
       fetchMock.mockImplementationOnce(async () => {
-        getTokenMock.mockReturnValue('another-user-token');
+        ownerMock.mockReturnValue('idp\nbob');
         return mockResponse({ status: 401 });
       });
       await expect(renderApi().post('/zones', {})).rejects.toMatchObject({ status: 401 });
       expect(renewPluginTokenMock).not.toHaveBeenCalled();
+    });
+
+    it('is still retried after a silent renew of the same user', async () => {
+      fetchMock
+        .mockImplementationOnce(async () => {
+          getTokenMock.mockReturnValue('renewed-user-token'); // the owner stays the same user
+          return mockResponse({ status: 401 });
+        })
+        .mockResolvedValueOnce(mockResponse({ body: {} }));
+      renewPluginTokenMock.mockResolvedValueOnce('pt-2');
+
+      await expect(renderApi().get('/zones')).resolves.toEqual({});
+      expect(fetchCall(1).authorization).toBe('Bearer pt-2');
     });
 
     it('is not retried after an abort', async () => {
