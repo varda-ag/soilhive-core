@@ -145,6 +145,41 @@ describe('useFileUpload', () => {
     });
   });
 
+  describe('handleFiles — georeference', () => {
+    const corners = [
+      [9, 46],
+      [10, 46],
+      [10, 45],
+      [9, 45],
+    ];
+
+    const upload = async (metadata: object) => {
+      xhrMock.responseText = JSON.stringify({ id: 'file-123', metadata });
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+      await act(async () => {
+        await result.current.handleFiles([new File(['data'], 'a.tif', { type: 'image/tiff' })]);
+      });
+      return onFileUploaded;
+    };
+
+    it('passes the WGS84 corners to onFileUploaded', async () => {
+      const onFileUploaded = await upload({ is_raster: true, georeference: corners, georeference_wgs84: corners });
+      expect(onFileUploaded).toHaveBeenCalledWith(expect.objectContaining({ georeferenceWgs84: corners, isUngeoreferencedRaster: false }));
+    });
+
+    it('passes the raster bands, for their NODATA, to onFileUploaded', async () => {
+      const raster_bands = [{ band_number: 1, data_type: 'Byte', no_data_value: 0 }];
+      const onFileUploaded = await upload({ is_raster: true, raster_bands });
+      expect(onFileUploaded).toHaveBeenCalledWith(expect.objectContaining({ rasterBands: raster_bands }));
+    });
+
+    it('flags a raster whose georeference was looked for and not found', async () => {
+      const onFileUploaded = await upload({ is_raster: true, georeference: null });
+      expect(onFileUploaded).toHaveBeenCalledWith(expect.objectContaining({ isUngeoreferencedRaster: true }));
+    });
+  });
+
   describe('handleFiles — is_raster field', () => {
     it('passes isRaster: true to onFileUploaded when metadata.is_raster is true', async () => {
       xhrMock.responseText = JSON.stringify({ id: 'file-123', metadata: { is_raster: true } });

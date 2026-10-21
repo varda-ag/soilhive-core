@@ -22,7 +22,7 @@ jest.mock('react-use', () => ({
   useClickAway: jest.fn(),
 }));
 
-function renderWithState(downloads = [{ id: '1', progress: 10 }]) {
+function renderWithState(downloads: { id: string; progress: number; status?: string }[] = [{ id: '1', progress: 10 }]) {
   function Wrapper() {
     const [isOpened, setIsOpened] = useState(false);
     (useDownloads as jest.Mock).mockReturnValue({ downloads, isOpened, setIsOpened });
@@ -58,6 +58,27 @@ describe('DownloadsStatus', () => {
     expect(screen.getByTestId('sh-downloads-status-button')).toBeInTheDocument();
     expect(screen.queryByTestId('mock-downloads-menu')).not.toBeInTheDocument();
     expect(container).toMatchSnapshot();
+  });
+
+  it('counts only running Exports', () => {
+    renderWithState([
+      { id: '1', progress: 10, status: 'active' },
+      { id: '2', progress: 100, status: 'completed' },
+      { id: '3', progress: 80, status: 'failed' },
+    ]);
+
+    expect(screen.getByTestId('sh-downloads-status-button')).toHaveTextContent('1');
+  });
+
+  it('shows the button without counter or pulse when every Export has finished', () => {
+    const { container } = renderWithState([
+      { id: '1', progress: 100, status: 'completed' },
+      { id: '2', progress: 80, status: 'failed' },
+    ]);
+
+    expect(screen.getByTestId('sh-downloads-status-button')).toBeInTheDocument();
+    expect(container.querySelector('.Counter')).not.toBeInTheDocument();
+    expect(container.querySelector('.Pulse')).not.toBeInTheDocument();
   });
 
   it('toggles menu open/close on button click', () => {

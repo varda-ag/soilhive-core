@@ -1389,7 +1389,6 @@ describe('Soil Export Job Integration Test', () => {
   });
 
   describe('Export Limits', () => {
-
     const setExportLimits = async (exportLimits: object) => {
       const dataSource = await getDataSource();
       await dataSource.getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits } });

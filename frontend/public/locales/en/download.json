@@ -39,7 +39,7 @@
             "depth_max": "Depth (max)",
             "value": "Value",
             "standard_unit": "Standard unit",
-            "technique": "Technique",            
+            "technique": "Technique",
             "sample_pretreatment": "Sample pretreatment",
             "laboratory_method": "Laboratory method",
             "extractant_concentration": "Extractant concentration",
@@ -70,10 +70,18 @@
     },
     "downloads_status": {
         "downloads": "Downloads",
-        "downloads_in_progress": "downloads in progress",
         "extraction_message": "After extraction, data will be saved to your downloads folder.",
-        "extracting_data": "Extracting data",
+        "datasets_count_one": "{{count}} dataset",
+        "datasets_count_other": "{{count}} datasets",
+        "export_failed": "Export failed",
         "cancel": "Cancel",
-        "cancel_download_confirm": "Do you want to cancel the download?"
+        "cancel_download_confirm": "Do you want to cancel the download?",
+        "download": "Download",
+        "remove": "Remove",
+        "clear_finished": "Clear finished",
+        "download_failed_title": "Download failed",
+        "download_failed_message": "Please try again later",
+        "unavailable_title": "Export no longer available",
+        "unavailable_message": "This export has expired. Please export the data again."
     }
 }

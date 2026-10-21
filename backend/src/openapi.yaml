@@ -2699,13 +2699,12 @@ components:
           type: string
         epsg:
           type: integer
-        extent:
-          type: array
-          description: '[minx, miny, maxx, maxy]. If empty the raster is not georeferenced'
-          items:
-            type: number
-          minItems: 4
-          maxItems: 4
+        crs_source:
+          $ref: '#/components/schemas/CrsSource'
+        georeference:
+          $ref: '#/components/schemas/Georeference'
+        georeference_wgs84:
+          $ref: '#/components/schemas/GeoreferenceWgs84'
         size:
           type: array
           description: '[width, height] in pixels'
@@ -2748,6 +2747,42 @@ components:
           type: string
         epsg:
           type: integer
+        crs_source:
+          $ref: '#/components/schemas/CrsSource'
+        georeference:
+          $ref: '#/components/schemas/Georeference'
+        georeference_wgs84:
+          $ref: '#/components/schemas/GeoreferenceWgs84'
+
+    CrsSource:
+      type: string
+      enum: [inferred, supplied]
+      description: Whether epsg came from the file or from the data admin. Absent on older files, which read as inferred.
+
+    Georeference:
+      type: array
+      nullable: true
+      description: Four [x, y] corners in the file's own CRS, upper-left first, clockwise. Null when the file has none; absent on files extracted before it existed.
+      items:
+        type: array
+        items:
+          type: number
+        minItems: 2
+        maxItems: 2
+      minItems: 4
+      maxItems: 4
+
+    GeoreferenceWgs84:
+      type: array
+      description: The georeference as [lon, lat] in EPSG:4326. Absent while the CRS is unknown or when a corner does not reproject.
+      items:
+        type: array
+        items:
+          type: number
+        minItems: 2
+        maxItems: 2
+      minItems: 4
+      maxItems: 4
 
     FilterGeometry:
       type: object

@@ -1,4 +1,4 @@
-import { getStoredJobIds, addStoredJobId, removeStoredJobId } from '../../src/utilities/downloadJobStorage';
+import { getStoredJobIds, addStoredJobId, removeStoredJobId, subscribeToStoredJobIds } from '../../src/utilities/downloadJobStorage';
 
 const STORAGE_KEY = 'download_job_ids';
 
@@ -135,6 +135,37 @@ describe('downloadJobStorage', () => {
     it('does not throw when storage contains invalid JSON', () => {
       localStorage.setItem(STORAGE_KEY, 'not-json');
       expect(() => removeStoredJobId('job-1', 'user-1')).not.toThrow();
+    });
+  });
+
+  describe('subscribeToStoredJobIds', () => {
+    it('calls back when another tab changes the stored ids or clears storage', () => {
+      const callback = jest.fn();
+      const unsubscribe = subscribeToStoredJobIds(callback);
+
+      window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }));
+      window.dispatchEvent(new StorageEvent('storage', { key: null }));
+      expect(callback).toHaveBeenCalledTimes(2);
+
+      unsubscribe();
+    });
+
+    it('ignores changes to other keys', () => {
+      const callback = jest.fn();
+      const unsubscribe = subscribeToStoredJobIds(callback);
+
+      window.dispatchEvent(new StorageEvent('storage', { key: 'something_else' }));
+      expect(callback).not.toHaveBeenCalled();
+
+      unsubscribe();
+    });
+
+    it('stops calling back once unsubscribed', () => {
+      const callback = jest.fn();
+      subscribeToStoredJobIds(callback)();
+
+      window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }));
+      expect(callback).not.toHaveBeenCalled();
     });
   });
 });

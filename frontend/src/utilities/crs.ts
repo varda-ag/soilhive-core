@@ -5,3 +5,9 @@
 export function hasCustomCrs(metadata: { epsg?: number | null; wkt?: string | null } | null | undefined): boolean {
   return !!metadata?.wkt && !metadata.epsg;
 }
+
+/** The EPSG code of an "EPSG:<code>" or "EPSG:<code> - <name>" value. */
+export function epsgCode(crs: string | null | undefined): number | undefined {
+  const code = crs?.match(/^EPSG:(\d+)/)?.[1];
+  return code === undefined ? undefined : Number(code);
+}
