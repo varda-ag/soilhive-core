@@ -276,7 +276,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   },
   QUEUE_JOB_TIMED_OUT: {
     message: 'The job ran for longer than allowed and was stopped.',
-    actions: ['Try again with a smaller selection.'],
+    actions: ['Try again; if it keeps timing out, contact support'],
   },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use - GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
