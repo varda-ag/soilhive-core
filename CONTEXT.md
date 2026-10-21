@@ -121,8 +121,16 @@ The spatial reference system of a soil data file, expressed as an EPSG code in t
 _Avoid_: Projection (a CRS component, not the whole), SRID (database-level identifier)
 
 **Inferred CRS**:
-The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a user-supplied CRS, which is required only when inference fails. Only Spatial Files have an Inferred CRS — for a Non-spatial File no inference is attempted, which is not the same as inference failing.
+The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a **Supplied CRS**, which is required only when inference fails. Only Spatial Files have an Inferred CRS — for a Non-spatial File no inference is attempted, which is not the same as inference failing.
 _Avoid_: Default CRS, detected projection
+
+**Supplied CRS**:
+The CRS a data admin chooses for a Spatial File whose CRS could not be inferred. Unlike an Inferred CRS it stays the data admin's to change: saving it does not make it authoritative.
+_Avoid_: Manual CRS, custom CRS (a raster's CRS that has no EPSG code)
+
+**Georeference**:
+The four corner points that place a Spatial File on the ground, in the File's own CRS: a raster's four pixel-grid corners, or the corners of a vector file's extent. A File either has one or does not; a raster with no geotransform has none, whatever its pixel dimensions. A File is **georeferenced** only when it has both a Georeference and a CRS.
+_Avoid_: Extent (a Dataset's `spatial_extent`), bbox (two points, not four), footprint (a Raster Layer's valid-data outline)
 
 **Bulk Load**:
 The Dataset-scoped operation that turns a Dataset's staged files into Features, Layers, DatasetLayers and Observations. Operates on point and polygonal Datasets. Scoped to exactly one Dataset; the files it consumes are whichever staged files that Dataset has.
@@ -299,6 +307,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Layer** carries the `sampling_date`, `min_depth`, and `max_depth` for its associated **Observations** — there is no date on **Observation** itself
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
 - A **Raster Load** is scoped to one **Dataset** and performs one **Raster Ingest** per **Band** named by each raster File's **Band Mapping**; a **Bulk Load** is the equivalent for point and polygonal **Datasets**
+- A Spatial **File** has at most one **Georeference** and at most one **CRS**; it is georeferenced only with both, and a Georeference without a CRS cannot be placed on a map
 - A **File** has one or more **Dataset File Mappings** per **Dataset** it belongs to, of which exactly one is **Current**; both loads consult only the Current one
 - A **Raster Layer** belongs to one **Dataset** and names exactly one **Band** of exactly one **File**; a **File** has as many **Raster Layers** as it has mapped **Bands**
 - A **Raster Layer** has zero or more **Raster Layer Assets**, each pointing at one **File**; the same **File** may be an asset of several **Raster Layers** (one per **Band** whose **Band Mapping** declares it)
@@ -407,3 +416,5 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - `docs/frontend/module-federation.md` describes Plugin loading as a hardcoded, top-level-await `loadRemotesConfig()` and registration by `path`. The actual code (`src/utilities/moduleFederation.ts`, `src/contexts/RemotesContext.tsx`) loads Plugins on demand via `loadRemotes(configs)`, sourced from the backend-driven `themeConfig.plugins`, and registers by `route` — the doc is stale. `frontend/remotes.json` is dead leftover configuration from before this change (unreferenced by any code, and its port doesn't match the example Plugin's actual dev port) — do not treat it as a source of truth for anything.
 
 - "active" is used in two unrelated senses in the raster filtering code: the persisted `active` column on `raster_filters` (admin-controlled catalog availability — see **Raster Filter**), and query-time variables/comments like `hasActiveFilters` in `FilteringMasks.ts` (whether the current Filter's `raster_filters` criterion has non-empty selected values for a given raster table). Toggling a Raster Filter's `active` flag has no effect on the query-time check, and vice versa. In domain discussions, say "active Raster Filter" for the catalog flag and "selected raster filter values" for the query-time notion.
+
+- "georef" was used both for a File's four corner points and for the File being placeable on a map. Resolved: the points are its **Georeference**; the File is *georeferenced* only when it also has a CRS. A raster with a CRS but no geotransform is not georeferenced, and supplying a CRS cannot make it so.

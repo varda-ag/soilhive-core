@@ -1,0 +1,17 @@
+.MapPreviewDialog {
+  width: 50rem;
+  min-height: auto;
+}
+
+.Content {
+  padding: 0;
+}
+
+// A definite height: the map fills it with height: 100%, which a min-height alone leaves at 0
+.Map {
+  height: min(30rem, 70vh);
+}
+
+.BeyondMap {
+  padding: 1.5rem 1rem;
+}

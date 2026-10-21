@@ -20,6 +20,8 @@ export interface Props {
   isDisabled?: boolean;
   onClick?: MouseEventHandler<HTMLButtonElement>;
   dataTestId?: string;
+  ariaLabel?: string;
+  title?: string;
 }
 
 export function Button({
@@ -34,6 +36,8 @@ export function Button({
   isDanger,
   isDisabled,
   dataTestId,
+  ariaLabel,
+  title,
   onClick,
 }: Props) {
   const typeClass = useMemo(
@@ -68,7 +72,13 @@ export function Button({
 
   if (to) {
     return (
-      <Link data-testid={dataTestId ?? 'sh-ui-button-internal-link'} to={to} className={composedClassNames}>
+      <Link
+        data-testid={dataTestId ?? 'sh-ui-button-internal-link'}
+        to={to}
+        className={composedClassNames}
+        aria-label={ariaLabel}
+        title={title}
+      >
         {children}
       </Link>
     );
@@ -76,7 +86,15 @@ export function Button({
 
   if (href) {
     return (
-      <a data-testid={dataTestId ?? 'sh-ui-button-link'} href={href} className={composedClassNames} target="_blank" rel="noreferrer">
+      <a
+        data-testid={dataTestId ?? 'sh-ui-button-link'}
+        href={href}
+        className={composedClassNames}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={ariaLabel}
+        title={title}
+      >
         {children}
       </a>
     );
@@ -96,6 +114,8 @@ export function Button({
         className,
       )}
       disabled={isDisabled}
+      aria-label={ariaLabel}
+      title={title}
       onClick={onClick}
     >
       {children}

@@ -305,6 +305,15 @@
             "invalid_file_type": "Invalid file type",
             "file_too_large": "File exceeds the maximum size of {{size}}",
             "mixed_format_error": "{{count}} file(s) were discarded. All files must be the same data type — either all vector or all raster.",
+            "nodata": "NODATA: {{value}}",
+            "nodata_type_min": "{{type}} min",
+            "nodata_type_max": "{{type}} max",
+            "no_georeference_error": "This raster has no georeferencing: remove it and upload a georeferenced version.",
+            "map_preview": {
+                "button": "Map preview",
+                "header": "Map preview - {{name}}",
+                "beyond_map": "This file lies beyond 85° of latitude, where the map cannot show it. If it should not be there, check its CRS."
+            },
             "diff_dialog": {
                 "header": "Field structure mismatch",
                 "missing_fields": "Fields missing from this file",

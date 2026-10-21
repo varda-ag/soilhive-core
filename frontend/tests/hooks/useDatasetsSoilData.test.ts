@@ -207,6 +207,43 @@ describe('useDatasetsSoilData', () => {
       expect(result.current.isContinueEnabled).toBe(false);
     });
 
+    // A CRS chosen earlier loads back as the user's, not as a detected one, so it can still be changed
+    it('is true when a file carries a CRS the user supplied earlier, and leaves it editable', async () => {
+      buildDefaultMocks({
+        existingFiles: [{ id: '1', name: 'a.csv', metadata: { epsg: 32632, crs_source: 'supplied' } }],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0]).toMatchObject({ crs: null, suppliedCrs: 'EPSG:32632', inferredCrs: undefined });
+        expect(result.current.isContinueEnabled).toBe(true);
+      });
+    });
+
+    it('is false for a raster with no georeferencing, whatever its CRS', async () => {
+      buildDefaultMocks({
+        existingFiles: [{ id: '1', name: 'a.tif', metadata: { is_raster: true, epsg: 4326, georeference: null } }],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0].error).toBeTruthy();
+      });
+      expect(result.current.isContinueEnabled).toBe(false);
+    });
+
+    it('does not flag a raster uploaded before georeferences were recorded', async () => {
+      buildDefaultMocks({
+        existingFiles: [{ id: '1', name: 'a.tif', metadata: { is_raster: true, epsg: 4326 } }],
+      });
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await waitFor(() => {
+        expect(result.current.soilDataFiles[0]).toMatchObject({ isUngeoreferencedRaster: false, error: null });
+        expect(result.current.isContinueEnabled).toBe(true);
+      });
+    });
+
     it('is false when files have mismatched fieldNames even if all have a crs', async () => {
       buildDefaultMocks({
         existingFiles: [
@@ -362,6 +399,7 @@ describe('useDatasetsSoilData', () => {
             inferredCrs: 'EPSG:4326',
             hasCustomCrs: false,
             fieldNames: ['lat', 'lon'],
+            isUngeoreferencedRaster: false,
             progress: 100,
             error: null,
           },
@@ -373,6 +411,7 @@ describe('useDatasetsSoilData', () => {
             inferredCrs: undefined,
             hasCustomCrs: false,
             fieldNames: undefined,
+            isUngeoreferencedRaster: false,
             progress: 100,
             error: null,
           },
@@ -664,6 +703,97 @@ describe('useDatasetsSoilData', () => {
           body: { epsg: 3857 },
         }),
       );
+    });
+  });
+
+  describe('handleCrsSelect', () => {
+    const corners = [
+      [9, 46],
+      [10, 46],
+      [10, 45],
+      [9, 45],
+    ];
+
+    async function setUp(mockRequest: jest.Mock) {
+      buildDefaultMocks({
+        existingFiles: [{ id: '1', name: 'a.csv', metadata: { georeference: corners, georeference_wgs84: corners } }],
+      });
+      (useRequest as jest.Mock).mockReturnValue({ request: mockRequest });
+      const hook = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(hook.result.current.soilDataFiles).toHaveLength(1));
+      return hook;
+    }
+
+    it('saves the selected CRS at once and shows where it places the file', async () => {
+      const placed = [
+        [1, 2],
+        [3, 2],
+        [3, 1],
+        [1, 1],
+      ];
+      const mockRequest = jest.fn().mockResolvedValue({ id: '1', metadata: { epsg: 32632, georeference_wgs84: placed } });
+      const { result } = await setUp(mockRequest);
+
+      await act(async () => {
+        await result.current.handleCrsSelect('1', 'EPSG:32632 - WGS 84 / UTM zone 32N');
+      });
+
+      expect(mockRequest).toHaveBeenCalledWith(
+        expect.objectContaining({ url: expect.stringContaining('/files/1'), method: 'PATCH', body: { epsg: 32632 } }),
+      );
+      expect(result.current.soilDataFiles[0]).toMatchObject({
+        crs: 'EPSG:32632 - WGS 84 / UTM zone 32N',
+        suppliedCrs: 'EPSG:32632',
+        georeferenceWgs84: placed,
+      });
+    });
+
+    it('hides the preview while the save is in flight', async () => {
+      const mockRequest = jest.fn(() => new Promise(() => {}));
+      const { result } = await setUp(mockRequest);
+
+      act(() => {
+        result.current.handleCrsSelect('1', 'EPSG:32632');
+      });
+
+      expect(result.current.soilDataFiles[0].georeferenceWgs84).toBeUndefined();
+    });
+
+    it('keeps the latest selection when an earlier save resolves after it', async () => {
+      let resolveFirst!: (file: unknown) => void;
+      const mockRequest = jest
+        .fn()
+        .mockImplementationOnce(() => new Promise(resolve => (resolveFirst = resolve)))
+        .mockResolvedValueOnce({ id: '1', metadata: { georeference_wgs84: corners } });
+      const { result } = await setUp(mockRequest);
+
+      let first!: Promise<void>;
+      act(() => {
+        first = result.current.handleCrsSelect('1', 'EPSG:3857');
+      });
+      await act(async () => {
+        await result.current.handleCrsSelect('1', 'EPSG:32632');
+      });
+      await act(async () => {
+        resolveFirst({ id: '1', metadata: { georeference_wgs84: [] } });
+        await first;
+      });
+
+      expect(result.current.soilDataFiles[0]).toMatchObject({ suppliedCrs: 'EPSG:32632', georeferenceWgs84: corners });
+    });
+
+    it('does not save the CRS again on save once its selection is saved', async () => {
+      const mockRequest = jest.fn().mockResolvedValue({ id: '1', metadata: { georeference_wgs84: corners } });
+      const { result } = await setUp(mockRequest);
+
+      await act(async () => {
+        await result.current.handleCrsSelect('1', 'EPSG:32632 - WGS 84 / UTM zone 32N');
+      });
+      await act(async () => {
+        await result.current.handleSaveAndContinueLater();
+      });
+
+      expect(mockRequest.mock.calls.filter(([config]) => config.method === 'PATCH')).toHaveLength(1);
     });
   });
 
