@@ -73,6 +73,17 @@ describe('useConfigs', () => {
     expect(Object.keys(result.current.data).sort()).toEqual([...allIds].sort());
   });
 
+  it.each([
+    [100, [100]],
+    [101, [100, 1]],
+  ])('sends %i ids as batches of %p', (count, batchSizes) => {
+    useApiQueriesMock.mockReturnValue(batchSizes.map(() => ({ data: {}, isLoading: false, isError: false })));
+
+    renderHook(() => useConfigs(ids(count)));
+
+    expect(queriesPassed().map(({ queryKey }: { queryKey: [string, string[]] }) => queryKey[1].length)).toEqual(batchSizes);
+  });
+
   it('reports isError when one batch fails and still returns the other batches', () => {
     const allIds = ids(150);
     useApiQueriesMock.mockReturnValue([
