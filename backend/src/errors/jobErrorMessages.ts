@@ -269,6 +269,15 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
     actions: ['Try deleting again; if it keeps timing out, contact support'],
   },
+  // Not thrown as a JobError: see QUEUE_REAP_CODES
+  QUEUE_HEARTBEAT_TIMEOUT: {
+    message: 'The job was interrupted before it could finish.',
+    actions: ['Please try again.'],
+  },
+  QUEUE_JOB_TIMED_OUT: {
+    message: 'The job ran for longer than allowed and was stopped.',
+    actions: ['Try again with a smaller selection.'],
+  },
   // FTD_GDAL_NOT_INSTALLED: reserved for future use - GdalCLI already emits a
   // 'GDAL_NOT_INSTALLED:' prefix on ENOENT so the code is detectable, but by
   // the time fileToDB runs GDAL has already been used (ogrinfo during metadata
@@ -289,14 +298,17 @@ export const UNEXPECTED_JOB_ERROR_CODE = 'UNEXPECTED_ERROR';
 
 // pg-boss kills jobs that stopped checking in (heartbeatSeconds) or that outlived its expiry (expireInSeconds)
 // from a maintenance query, so nothing lands in data.errors.
-// These raw strings are the only explanation: here we translate them to something readable.
-const QUEUE_REAP_MESSAGES: Record<string, string> = {
-  'job heartbeat timeout': 'The job was interrupted before it could finish. Please try again.',
-  'job timed out': 'The job ran for longer than allowed and was stopped. Try again with a smaller selection.',
+// These raw strings in the job's output are the only explanation: here we map them to a code in JOB_ERROR_MESSAGES.
+const QUEUE_REAP_CODES: Record<string, string> = {
+  'job heartbeat timeout': 'QUEUE_HEARTBEAT_TIMEOUT',
+  'job timed out': 'QUEUE_JOB_TIMED_OUT',
 };
 
-// Returns user-facing copy for a pg-boss reap, or the message unchanged when it is not one.
-export const translateQueueMessage = (message: string): string => QUEUE_REAP_MESSAGES[message] ?? message;
+// The raw output messages pg-boss writes when it reaps a job
+export const QUEUE_REAP_MESSAGES = Object.keys(QUEUE_REAP_CODES);
+
+// The error code for a pg-boss reap, or undefined when the message is not one
+export const queueReapCode = (message: string): string | undefined => QUEUE_REAP_CODES[message];
 
 const interpolate = (template: string, params: Record<string, unknown>): string =>
   template.replace(/\{(\w+)\}/g, (_, key) => (params[key] !== undefined ? String(params[key]) : `{${key}}`));
@@ -307,4 +319,12 @@ export const translateJobError = (code: string, params: Record<string, unknown> 
     message: interpolate(message, params),
     actions: actions.map(a => interpolate(a, params)),
   };
+};
+
+// Returns user-facing copy for a pg-boss reap, or the message unchanged when it is not one.
+export const translateQueueMessage = (message: string): string => {
+  const code = queueReapCode(message);
+  if (!code) return message;
+  const translated = translateJobError(code);
+  return [translated.message, ...translated.actions].join(' ');
 };

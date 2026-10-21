@@ -88,6 +88,38 @@ describe('ErrorService.getDatasetErrors', () => {
     );
   });
 
+  it.each([
+    ['job heartbeat timeout', 'QUEUE_HEARTBEAT_TIMEOUT'],
+    ['job timed out', 'QUEUE_JOB_TIMED_OUT'],
+  ])('surfaces a pg-boss reap (%s) that left nothing in data.errors', async (raw, code) => {
+    const service = new ErrorService();
+    const rows = [{ dataset_id: 'ds-4', errors: null, output_message: raw }];
+    const result = await service.getDatasetErrors({ entityManager: makeEntityManager(rows), entitlements: {} });
+    expect(result[0]!.errors).toEqual([{ code, params: {}, message: expect.any(String), actions: [expect.any(String)] }]);
+    expect(result[0]!.errors[0]!.message).not.toBe(raw);
+  });
+
+  it('passes the reap messages to the query', async () => {
+    const service = new ErrorService();
+    const entityManager = makeEntityManager([]);
+    await service.getDatasetErrors({ entityManager, entitlements: {} });
+    expect(entityManager.query.mock.calls[0]![1]).toEqual([['job heartbeat timeout', 'job timed out']]);
+  });
+
+  it('prefers data.errors over the output message', async () => {
+    const service = new ErrorService();
+    const rows = [{ dataset_id: 'ds-1', errors: [{ code: 'FTD_FILE_NOT_FOUND', params: {} }], output_message: 'job timed out' }];
+    const result = await service.getDatasetErrors({ entityManager: makeEntityManager(rows), entitlements: {} });
+    expect(result[0]!.errors.map(e => e.code)).toEqual(['FTD_FILE_NOT_FOUND']);
+  });
+
+  it('clears by emptying errors, so a cleared reap is not read back as one', async () => {
+    const service = new ErrorService();
+    const entityManager = makeEntityManager([]);
+    await service.clearDatasetErrors('ds-1', entityManager);
+    expect(entityManager.query.mock.calls[0]![0]).toContain("jsonb_set(data, '{errors}', '[]'::jsonb)");
+  });
+
   it('handles multiple datasets each with their own error', async () => {
     const service = new ErrorService();
     const rows = [
