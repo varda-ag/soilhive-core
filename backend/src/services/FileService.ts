@@ -13,6 +13,7 @@ import { GdalCLI, OgrInfoLayer, GdalInfoOutput } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath } from '../interfaces/File';
+import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
@@ -219,6 +220,14 @@ export default class FileService {
     const saved = await repo.save(file);
     const reloaded = await repo.findOneBy({ id: saved.id });
     return reloaded!;
+  };
+
+  /** The metadata with `epsg` as a Supplied CRS, and the Georeference placed again under it. */
+  static withSuppliedCrs = async (metadata: FileMetadata | undefined, epsg: number): Promise<FileMetadata> => {
+    const updated = { ...metadata, epsg, crs_source: 'supplied' } as FileMetadata;
+    delete updated.georeference_wgs84;
+    const georeference_wgs84 = updated.georeference ? await georeferenceToWgs84(updated.georeference, `EPSG:${epsg}`) : undefined;
+    return { ...updated, ...(georeference_wgs84 && { georeference_wgs84 }) };
   };
 
   deleteFile = async (requestData: RequestData, slug: string): Promise<void> => {
@@ -555,6 +564,9 @@ export default class FileService {
       const mappings: DataMappingObject[] = (await dataMappingService.getDataMappings(requestData)).map(dm => dm.data_mapping);
       const detected_mapping: DataMappingObject = this.getDetectedMapping(fieldNames, mappings);
 
+      const georeference = vectorGeoreference(layer);
+      const georeference_wgs84 = georeference && layer.epsg ? await georeferenceToWgs84(georeference, `EPSG:${layer.epsg}`) : undefined;
+
       const metadata: FileMetadata = {
         is_raster: false,
         field_names: fieldNames,
@@ -574,7 +586,9 @@ export default class FileService {
         driver,
         layer_name: layer.name,
         ...(layer.geomColumn && { geom_column: layer.geomColumn }),
-        ...(layer.epsg && { epsg: layer.epsg }),
+        ...(layer.epsg && { epsg: layer.epsg, crs_source: 'inferred' as const }),
+        georeference,
+        ...(georeference_wgs84 && { georeference_wgs84 }),
       };
 
       return metadata;
@@ -609,8 +623,10 @@ export default class FileService {
         ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => ov.size) }),
       }));
 
-      const epsg = GdalCLI.extractEpsgFromWkt(gdalInfo.coordinateSystem?.wkt);
-      const extent = GdalCLI.extractWgs84Envelope(gdalInfo.wgs84Extent);
+      const wkt = gdalInfo.coordinateSystem?.wkt;
+      const epsg = GdalCLI.extractEpsgFromWkt(wkt);
+      const georeference = rasterGeoreference(gdalInfo);
+      const georeference_wgs84 = georeference && wkt ? await georeferenceToWgs84(georeference, wkt) : undefined;
       const size: [number, number] = gdalInfo.size ?? [0, 0];
 
       const metadata: FileMetadata = {
@@ -620,8 +636,9 @@ export default class FileService {
         raster_bands,
         ...(gdalInfo.driverShortName && { driver: gdalInfo.driverShortName }),
         ...(epsg !== undefined && { epsg }),
-        ...(gdalInfo.coordinateSystem?.wkt && { wkt: gdalInfo.coordinateSystem.wkt }),
-        ...(extent && { extent }),
+        ...(wkt && { wkt, crs_source: 'inferred' as const }),
+        georeference,
+        ...(georeference_wgs84 && { georeference_wgs84 }),
       };
 
       return metadata;

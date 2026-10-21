@@ -11,8 +11,13 @@ jest.mock('assets/icons/cross-icon.svg?react', () => {
   return CloseIconMock;
 });
 
+// Records each render's onHide; PrimeReact calls the latest one on Esc, and after a close the parent made
+const mockRenderedOnHide = jest.fn();
+const callLatestOnHide = () => mockRenderedOnHide.mock.lastCall?.[0]?.();
+
 jest.mock('primereact/confirmdialog', () => {
   const ConfirmDialogMock = ({ content, visible, className, onMaskClick, ...rest }: any) => {
+    mockRenderedOnHide(rest.onHide);
     if (!visible) return null;
     const refs = { contentRef: { current: null }, headerRef: { current: null }, footerRef: { current: null } };
     return (
@@ -203,5 +208,48 @@ describe('Dialog', () => {
     );
     fireEvent.click(screen.getByTestId('dialog-mask'));
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  describe('Esc', () => {
+    it('calls onClose when PrimeReact hides the dialog on Esc', () => {
+      const onClose = jest.fn();
+      render(
+        <Dialog {...defaultProps} onClose={onClose}>
+          <p>content</p>
+        </Dialog>,
+      );
+
+      callLatestOnHide();
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to onSecondary, as the close button does', () => {
+      const onSecondary = jest.fn();
+      render(
+        <Dialog {...defaultProps} onSecondary={onSecondary}>
+          <p>content</p>
+        </Dialog>,
+      );
+
+      callLatestOnHide();
+      expect(onSecondary).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not call onClose for a close the parent already made', () => {
+      const onClose = jest.fn();
+      const { rerender } = render(
+        <Dialog {...defaultProps} onClose={onClose}>
+          <p>content</p>
+        </Dialog>,
+      );
+      rerender(
+        <Dialog {...defaultProps} visible={false} onClose={onClose}>
+          <p>content</p>
+        </Dialog>,
+      );
+
+      callLatestOnHide();
+      expect(onClose).not.toHaveBeenCalled();
+    });
   });
 });

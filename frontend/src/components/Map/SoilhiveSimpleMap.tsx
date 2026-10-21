@@ -35,6 +35,8 @@ interface SoilhiveSimpleMapProps {
   showGeocoder?: boolean;
   minZoom?: number;
   maxZoom?: number;
+  // Caps the zoom that fitting geometryFeature reaches, e.g. for a zero-area geometry
+  fitBoundsMaxZoom?: number;
   onBboxChange?: (bbox: number[]) => void;
   // Once the map has loaded its style.
   onLoad?: (map: MapLibreMap) => void;
@@ -141,6 +143,7 @@ function SoilhiveSimpleMap({
   showGeocoder = false,
   minZoom = 0,
   maxZoom = 24,
+  fitBoundsMaxZoom = undefined,
   onBboxChange = undefined,
   onLoad = undefined,
   preserveDrawingBuffer = false,
@@ -175,8 +178,9 @@ function SoilhiveSimpleMap({
   const fitBoundsToGeometryFeature = useCallback(() => {
     const bbox = calculateBoundingBox(geometryFeature);
     if (!bbox) return;
-    mapRef.current?.fitBounds(bbox, { padding: 40, animate: false });
-  }, [geometryFeature]);
+    // Only when set: maplibre's own default would be overwritten by undefined
+    mapRef.current?.fitBounds(bbox, { padding: 40, animate: false, ...(fitBoundsMaxZoom !== undefined && { maxZoom: fitBoundsMaxZoom }) });
+  }, [geometryFeature, fitBoundsMaxZoom]);
 
   useEffect(() => {
     if (selectedFeature) {
