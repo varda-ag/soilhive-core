@@ -8,7 +8,7 @@ A **Plugin** may have a **Plugin Backend**: an API its own deployment serves nex
 2. **It publishes their key** at `GET /.well-known/plugin-jwks.json`, in every auth mode. That set holds the plugin key only, so a Plugin Backend that trusts it can never accept a user's token.
 3. **It answers reads made with them.** A Plugin Backend sends the token it received back to the core to read data as the user.
 
-The host (`usePluginApi`, `src/auth/pluginTokens.ts`) keeps one Plugin token per plugin in memory, for the user token it was minted with. It reuses the token until 30 seconds before it expires, timed on the local clock from `expires_in`. When the Plugin Backend answers `401`, it mints a new one and retries the call once. It never renews, clears or sends the user's token to a Plugin Backend: a Plugin Backend cannot sign anyone out. An anonymous visitor gets no token, and its calls go out with no `Authorization`.
+The host (`usePluginApi`, `src/auth/pluginTokens.ts`) keeps one Plugin token per plugin in memory, for the signed-in user (the user token's `iss` and `sub`), so a silent renew keeps it. It reuses the token until 30 seconds before it expires, timed on the local clock from `expires_in`, and renews a user token about to expire before minting, since the core never mints past it. When the Plugin Backend answers `401`, it mints a new one and retries the call once. It never renews, clears or sends the user's token to a Plugin Backend: a Plugin Backend cannot sign anyone out. An anonymous visitor gets no token, and its calls go out with no `Authorization`.
 
 ## Who accepts which token
 
@@ -59,7 +59,7 @@ By default the client calls the folder that holds the plugin's `mf-manifest.json
 ## Consequences
 
 - Each Plugin Backend verifies tokens and sets CORS. `plugin-backend-example/` is the one reviewed implementation to copy.
-- Rate limiting, logging and audit of plugin traffic move into each Plugin Backend. The core limits minting to 30 tokens a minute per Subject and plugin, per process.
-- The core answers one mint per user and plugin about every 5 minutes, and one more each time the user's token is renewed.
+- Rate limiting, logging and audit of plugin traffic move into each Plugin Backend. The core limits minting, per process, to 30 tokens a minute per Subject and plugin and 120 per Subject overall, since any well-formed pluginId is accepted.
+- The core answers one mint per user and plugin about every 5 minutes, or sooner when the user's token expires first.
 - A gateway that verifies tokens in front of the core must trust the plugin key set for the core's route, or Plugin Backends must reach the core behind it (`docs/authentication.md`).
 - Not done here: refusing to mint for a plugin that is disabled or whose ACL the user fails (theme entries carry no pluginId yet), and access while the user is away, such as nightly jobs.

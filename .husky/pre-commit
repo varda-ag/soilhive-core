@@ -8,4 +8,7 @@ cd backend && npm i && npm test && cd ..
 
 cd frontend && pnpm test && cd ..
 
-cd plugin-backend-example && pnpm install --frozen-lockfile --silent && pnpm test && cd ..
+# The Plugin Backend example is a package of its own: tested only by a commit that touches it
+if git diff --cached --name-only | grep -q '^plugin-backend-example/'; then
+  cd plugin-backend-example && pnpm install --frozen-lockfile --silent && pnpm test && cd ..
+fi

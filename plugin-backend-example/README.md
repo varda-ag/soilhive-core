@@ -57,4 +57,5 @@ A reverse proxy in front of this server must add the same headers to its own err
 - Serve it over HTTPS. The host refuses an `http` address except on `localhost`.
 - Do not host it under the host's `COOKIE_DOMAIN`. The host keeps the user's own token in a cookie for that domain, and the browser would send it with every script your remote loads from here.
 - Never log `Authorization` or `Cookie`.
+- Never redirect an API call. The host refuses redirects, so a `301` or `302` (nginx adding a trailing slash to a directory, say) reaches the plugin as status `0`, the same as no response.
 - A backend that serves several plugins checks `aud` per plugin, never "any plugin".
