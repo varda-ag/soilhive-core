@@ -43,6 +43,11 @@
   color: var(--color-text-secondary);
 }
 
+.NoData::before {
+  content: '·';
+  margin: 0 0.375rem;
+}
+
 .CrsSection {
   display: flex;
   align-items: center;
@@ -75,7 +80,8 @@
   }
 }
 
-.RemoveButtonIcon {
+.RemoveButtonIcon,
+.MapPreviewIcon {
   color: var(--color-neutral-dark-400);
 }
 

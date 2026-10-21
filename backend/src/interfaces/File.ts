@@ -23,12 +23,23 @@ export interface RasterBandMetadata {
   overviews?: Array<[number, number]>; // [width, height] in pixels
 }
 
-export interface RasterFileMetadata {
+/** Four [x, y] corners: upper-left, upper-right, lower-right, lower-left. */
+export type Georeference = [[number, number], [number, number], [number, number], [number, number]];
+
+/** Where `epsg` came from: the file itself, or the data admin. */
+export type CrsSource = 'inferred' | 'supplied';
+
+interface GeoreferenceMetadata {
+  crs_source?: CrsSource; // Absent on files that predate it: read as 'inferred'
+  georeference?: Georeference | null; // In the file's own CRS. null: none found; absent: never extracted
+  georeference_wgs84?: Georeference; // Absent while the CRS is unknown, or when a corner does not reproject
+}
+
+export interface RasterFileMetadata extends GeoreferenceMetadata {
   is_raster: true;
   driver?: string;
   epsg?: number;
   wkt?: string;
-  extent?: [number, number, number, number]; // If empty the raster is not georeferenced
   size: [number, number]; // [width, height] in pixels
   band_count: number;
   raster_bands: RasterBandMetadata[];
@@ -49,7 +60,7 @@ export interface LoadedRasterBand {
   isCategorical: boolean;
 }
 
-export interface VectorFileMetadata {
+export interface VectorFileMetadata extends GeoreferenceMetadata {
   is_raster: false;
   field_names: string[];
   detected_fields: Record<DetectableFields, string | null>;

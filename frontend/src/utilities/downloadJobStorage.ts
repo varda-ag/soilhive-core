@@ -50,3 +50,13 @@ export function removeStoredJobId(id: string, userId: string | null): void {
     return;
   }
 }
+
+// Calls back when another tab changes the stored ids. Returns the unsubscribe.
+export function subscribeToStoredJobIds(callback: () => void): () => void {
+  const listener = (event: StorageEvent) => {
+    // A null key means the whole storage was cleared.
+    if (event.key === STORAGE_KEY || event.key === null) callback();
+  };
+  window.addEventListener('storage', listener);
+  return () => window.removeEventListener('storage', listener);
+}

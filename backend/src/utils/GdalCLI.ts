@@ -28,6 +28,7 @@ export interface OgrInfoLayer {
   fields: OgrInfoField[];
   featureCount: number | null;
   epsg: number | undefined;
+  extent: [minX: number, minY: number, maxX: number, maxY: number] | null; // In the layer's own CRS
 }
 
 export interface OgrInfoResult {
@@ -57,6 +58,8 @@ export interface GdalInfoOutput {
     [key: string]: Record<string, string> | undefined;
   };
   coordinateSystem?: { wkt?: string };
+  // In the raster's own CRS; pixel coordinates when it has no geoTransform
+  cornerCoordinates?: Partial<Record<'upperLeft' | 'upperRight' | 'lowerRight' | 'lowerLeft', [number, number]>>;
   wgs84Extent?: { type: string; coordinates: number[][][] };
 }
 
@@ -253,6 +256,8 @@ export class GdalCLI {
       })),
       featureCount: (l.featureCount as number | null) ?? null,
       epsg: GdalCLI.extractEpsg((l.geometryFields as any[])?.[0]?.coordinateSystem?.projjson),
+      // Same field extractGeomType picks: the first one with an extent
+      extent: ((l.geometryFields as any[]) ?? []).find(g => g.extent)?.extent ?? null,
     }));
     return { driver, layers };
   }

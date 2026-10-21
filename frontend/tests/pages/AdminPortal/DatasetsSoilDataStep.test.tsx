@@ -20,6 +20,11 @@ jest.mock('hooks/useStorageConfig', () => ({
   useStorageConfig: jest.fn(),
 }));
 
+// Keeps the map library out of this test
+jest.mock('../../../src/pages/AdminPortal/DatasetsSoilDataStep/MapPreviewDialog/MapPreviewDialog', () => ({
+  MapPreviewDialog: () => null,
+}));
+
 function buildHookMock(overrides: Record<string, unknown> = {}) {
   (useDatasetsSoilData as jest.Mock).mockReturnValue({
     fileInputRef: { current: null },

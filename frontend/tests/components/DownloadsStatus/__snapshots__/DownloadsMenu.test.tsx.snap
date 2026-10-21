@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
-exports[`DownloadsMenu renders compenent with downloads count and downloads items 1`] = `
+exports[`DownloadsMenu renders compenent with title and downloads items 1`] = `
 <div>
   <div
     class="DownloadsMenu"
@@ -15,8 +15,7 @@ exports[`DownloadsMenu renders compenent with downloads count and downloads item
         mock-svg
       </svg>
        
-      2
-       downloads in progress
+      Downloads
     </div>
     <div
       class="Body"
@@ -37,6 +36,16 @@ exports[`DownloadsMenu renders compenent with downloads count and downloads item
           >
             cancel
           </button>
+          <button
+            data-testid="downloads-menu-item-download"
+          >
+            download
+          </button>
+          <button
+            data-testid="downloads-menu-item-remove"
+          >
+            remove
+          </button>
         </div>
         <div
           data-testid="downloads-menu-item"
@@ -50,6 +59,16 @@ exports[`DownloadsMenu renders compenent with downloads count and downloads item
             data-testid="downloads-menu-item-cancel"
           >
             cancel
+          </button>
+          <button
+            data-testid="downloads-menu-item-download"
+          >
+            download
+          </button>
+          <button
+            data-testid="downloads-menu-item-remove"
+          >
+            remove
           </button>
         </div>
       </div>

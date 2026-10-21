@@ -339,22 +339,30 @@ export interface FileRasterBandDescriptor {
   data_type: string;
   min_value?: number;
   max_value?: number;
-  no_data_value?: number;
+  no_data_value?: number | 'NaN' | 'Infinity' | '-Infinity'; // gdalinfo writes non-finite values as strings
   overviews?: Array<[number, number]>; // [width, height] in pixels
 }
 
-export interface RasterFileDescriptorMetadata {
+/** Four [x, y] corners: upper-left, upper-right, lower-right, lower-left. */
+export type Georeference = [[number, number], [number, number], [number, number], [number, number]];
+
+interface FileGeoreferenceDescriptorMetadata {
+  crs_source?: 'inferred' | 'supplied'; // Absent on files that predate it: read as 'inferred'
+  georeference?: Georeference | null; // In the file's own CRS. null: none found; absent: never extracted
+  georeference_wgs84?: Georeference; // [lon, lat]; absent while the CRS is unknown or when a corner does not reproject
+}
+
+export interface RasterFileDescriptorMetadata extends FileGeoreferenceDescriptorMetadata {
   is_raster: true;
   driver?: string;
   epsg?: number;
   wkt?: string; // Coordinate system as GDAL reports it as WKT string
-  extent?: [number, number, number, number]; // If empty the raster is not georeferenced
   size: [number, number]; // [width, height] in pixels
   band_count: number;
   raster_bands: FileRasterBandDescriptor[];
 }
 
-export interface VectorFileDescriptorMetadata {
+export interface VectorFileDescriptorMetadata extends FileGeoreferenceDescriptorMetadata {
   is_raster?: false;
   detected_fields?: {
     geometry?: string | null;

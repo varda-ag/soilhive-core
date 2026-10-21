@@ -73,6 +73,28 @@ describe('GdalCLI.parseOgrInfo', () => {
     it('sets geomColumn to empty string for GeoJSON (unnamed geometry field)', () => {
       expect(parseOgrInfo(GEOJSON_OGRINFO).layers[0].geomColumn).toBe(null);
     });
+
+    it('extracts the extent', () => {
+      expect(parseOgrInfo(GEOJSON_OGRINFO).layers[0].extent).toEqual([37.6871, -3.79168, 39.7114, -0.637193]);
+    });
+  });
+
+  it('takes the extent of the first geometry field that has one', () => {
+    // A WKT CSV opened with GEOM_POSSIBLE_NAMES=*: every column is a candidate, only the parsed one has an extent
+    const json = JSON.stringify({
+      driverShortName: 'CSV',
+      layers: [
+        {
+          name: 't',
+          geometryFields: [
+            { name: 'id', type: 'Geometry' },
+            { name: '', type: 'Geometry', extent: [9.2, 45.1, 10.5, 46.0] },
+          ],
+          fields: [],
+        },
+      ],
+    });
+    expect(parseOgrInfo(json).layers[0].extent).toEqual([9.2, 45.1, 10.5, 46.0]);
   });
 
   describe('layer with no geometry', () => {
@@ -90,6 +112,14 @@ describe('GdalCLI.parseOgrInfo', () => {
         layers: [{ name: 'table', featureCount: 3, fields: [] }],
       });
       expect(parseOgrInfo(json).layers[0].epsg).toBeUndefined();
+    });
+
+    it('defaults extent to null when geometryFields is absent', () => {
+      const json = JSON.stringify({
+        driverShortName: 'CSV',
+        layers: [{ name: 'table', featureCount: 3, fields: [] }],
+      });
+      expect(parseOgrInfo(json).layers[0].extent).toBeNull();
     });
   });
 });

@@ -242,6 +242,13 @@ describe('Testing /files routes (local storage)', () => {
       expect(patchRes.statusCode).toBe(StatusCodes.OK);
       expect(patchRes.body.metadata).toBeDefined();
       expect(patchRes.body.metadata.epsg).toEqual(epsg);
+      expect(patchRes.body.metadata.crs_source).toEqual('supplied');
+      // The same corners, now read as metres: a few metres from 0,0
+      expect(patchRes.body.metadata.georeference).toEqual(res.body.metadata.georeference);
+      for (const [lon, lat] of patchRes.body.metadata.georeference_wgs84) {
+        expect(Math.abs(lon)).toBeLessThan(0.001);
+        expect(Math.abs(lat)).toBeLessThan(0.001);
+      }
     });
   });
 

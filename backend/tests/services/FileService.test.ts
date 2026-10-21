@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import FileService from '../../src/services/FileService';
-import { VectorFileMetadata } from '../../src/interfaces/File';
+import { Georeference, VectorFileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
 import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
@@ -20,6 +20,14 @@ import { writableAssets } from '../assets';
 const vectorFilesPassPath = writableAssets('vector_files/pass');
 const vectorFilesFailPath = writableAssets('vector_files/fail');
 const rasterFilesPath = writableAssets('raster');
+
+const expectCornersCloseTo = (actual: number[][], expected: number[][], digits = 5) => {
+  expect(actual).toHaveLength(expected.length);
+  expected.forEach(([x, y], i) => {
+    expect(actual[i]![0]).toBeCloseTo(x!, digits);
+    expect(actual[i]![1]).toBeCloseTo(y!, digits);
+  });
+};
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -107,6 +115,19 @@ describe('FileService', () => {
       expect(metadata.detected_fields).toBeDefined();
       expect(metadata.epsg).toBe(4326);
       expect(metadata.geometry_detected).toBeTruthy();
+    });
+
+    it('should store the corners of the extent as its georeference', () => {
+      const metadata = fileEntity.metadata as VectorFileMetadata;
+      const corners = [
+        [37.6871, -0.637193],
+        [39.7114, -0.637193],
+        [39.7114, -3.79168],
+        [37.6871, -3.79168],
+      ];
+      expect(metadata.crs_source).toBe('inferred');
+      expectCornersCloseTo(metadata.georeference!, corners, 4);
+      expectCornersCloseTo(metadata.georeference_wgs84!, corners, 4);
     });
 
     it('should load to DB sample_point GeoJSON file', async () => {
@@ -328,6 +349,11 @@ describe('FileService', () => {
         expect(metadata.detected_fields.longitude).toBeNull();
       });
 
+      it('should store a null georeference, telling it apart from a file extracted before georeferences existed', () => {
+        expect(metadata.georeference).toBeNull();
+        expect(metadata).not.toHaveProperty('georeference_wgs84');
+      });
+
       it('should throw error when trying to load to DB', async () => {
         const fileId = fileEntity.slug;
         await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
@@ -470,7 +496,7 @@ describe('FileService', () => {
       setLocalStorageRootFolder(rasterFilesPath);
     });
 
-    it('should detect a GeoTIFF as raster and populate driver/epsg/band_count/extent/size', async () => {
+    it('should detect a GeoTIFF as raster and populate driver/epsg/band_count/georeference/size', async () => {
       const metadata = await fileService.extractMetadata(requestData, 'bdod_5-15cm_mean.tif');
 
       expect(metadata.is_raster).toBe(true);
@@ -478,14 +504,58 @@ describe('FileService', () => {
 
       expect(metadata.driver).toBe('GTiff');
       expect(metadata.epsg).toBe(4326);
+      expect(metadata.crs_source).toBe('inferred');
       expect(metadata.band_count).toBe(1);
       expect(metadata.size).toEqual([292, 245]);
 
-      const [minX, minY, maxX, maxY] = metadata.extent!;
-      expect(minX).toBeCloseTo(-81.1441253, 5);
-      expect(minY).toBeCloseTo(-34.0033135, 5);
-      expect(maxX).toBeCloseTo(-80.4794715, 5);
-      expect(maxY).toBeCloseTo(-33.4456381, 5);
+      const corners = [
+        [-81.1441253, -33.4456381],
+        [-80.4794715, -33.4456381],
+        [-80.4794715, -34.0033135],
+        [-81.1441253, -34.0033135],
+      ];
+      expectCornersCloseTo(metadata.georeference!, corners);
+      expectCornersCloseTo(metadata.georeference_wgs84!, corners);
+    });
+
+    it('keeps the corners of a projected raster in its own CRS and reprojects them to WGS84', async () => {
+      const metadata = await fileService.extractMetadata(requestData, 'epsg3857_2b_250m.tif');
+      if (!metadata.is_raster) throw new Error('expected raster metadata');
+
+      expect(metadata.epsg).toBe(3857);
+      expectCornersCloseTo(
+        metadata.georeference!,
+        [
+          [-9034969.932, -3952516.771],
+          [-8957244.99, -3952516.771],
+          [-8957244.99, -4030746.421],
+          [-9034969.932, -4030746.421],
+        ],
+        2,
+      );
+      expectCornersCloseTo(metadata.georeference_wgs84!, [
+        [-81.1625158, -33.4299807],
+        [-80.4643008, -33.4299807],
+        [-80.4643008, -34.0144794],
+        [-81.1625158, -34.0144794],
+      ]);
+    });
+
+    it('stores no WGS84 corners when one of them falls in a gap of an interrupted projection', async () => {
+      const metadata = await fileService.extractMetadata(requestData, 'homolosine_partial_1b_100km.tif');
+      if (!metadata.is_raster) throw new Error('expected raster metadata');
+
+      expect(metadata.georeference).toHaveLength(4);
+      expect(metadata).not.toHaveProperty('georeference_wgs84');
+    });
+
+    it('records a null georeference for a raster with no geotransform, rather than its pixel corners', async () => {
+      const metadata = await fileService.extractMetadata(requestData, 'no_georef_1b.tif');
+      if (!metadata.is_raster) throw new Error('expected raster metadata');
+
+      expect(metadata.georeference).toBeNull();
+      expect(metadata).not.toHaveProperty('georeference_wgs84');
+      expect(metadata).not.toHaveProperty('crs_source');
     });
 
     it('should populate band min/max only when cached in a PAM sidecar (.aux.xml)', async () => {
@@ -545,7 +615,7 @@ describe('FileService', () => {
     it.each([
       { fileName: 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_250.tif', size: [335, 281] },
       { fileName: 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017_v0.2_500.tif', size: [160, 140] },
-    ])('should detect $fileName as raster with the expected driver/epsg/extent/size', async ({ fileName, size }) => {
+    ])('should detect $fileName as raster with the expected driver/epsg/georeference/size', async ({ fileName, size }) => {
       const metadata = await fileService.extractMetadata(requestData, fileName);
       if (!metadata.is_raster) throw new Error('expected raster metadata');
 
@@ -553,11 +623,12 @@ describe('FileService', () => {
       expect(metadata.epsg).toBe(4326);
       expect(metadata.size).toEqual(size);
 
-      const [minX, minY, maxX, maxY] = metadata.extent!;
-      expect(minX).toBeCloseTo(-81.1625158, 5);
-      expect(minY).toBeCloseTo(-34.0153972, 5);
-      expect(maxX).toBeCloseTo(-80.4645993, 5);
-      expect(maxY).toBeCloseTo(-33.4299807, 5);
+      expectCornersCloseTo(metadata.georeference_wgs84!, [
+        [-81.1625158, -33.4299807],
+        [-80.4645993, -33.4299807],
+        [-80.4645993, -34.0153972],
+        [-81.1625158, -34.0153972],
+      ]);
     });
   });
 
@@ -760,6 +831,10 @@ describe('FileService', () => {
       expect(metadata.detected_fields[DetectableFields.LONGITUDE]).toBeTruthy();
     });
 
+    it('should have no georeference: lat/lon columns are not scanned for one', () => {
+      expect((fileEntity.metadata as VectorFileMetadata).georeference).toBeNull();
+    });
+
     it('should load XLSX to DB using auto-detected lat/lon columns (VRT path)', async () => {
       const metadata = fileEntity.metadata as VectorFileMetadata;
       await linkMapping(fileEntity, Object.fromEntries(metadata.field_names.map(f => [f, {}])));
@@ -808,6 +883,43 @@ describe('FileService', () => {
       expect(rows.length).toBeGreaterThan(0);
       expect(parseFloat(rows[0].x)).toBeCloseTo(39.6464, 3);
       expect(parseFloat(rows[0].y)).toBeCloseTo(-3.7892, 3);
+    });
+  });
+
+  describe('withSuppliedCrs', () => {
+    const georeference: Georeference = [
+      [1000, 2000],
+      [3000, 2000],
+      [3000, 1000],
+      [1000, 1000],
+    ];
+
+    it('marks the CRS as supplied and places the georeference under it', async () => {
+      const metadata = await FileService.withSuppliedCrs(
+        { is_raster: false, georeference, crs_source: 'inferred' } as VectorFileMetadata,
+        3857,
+      );
+
+      expect(metadata.epsg).toBe(3857);
+      expect(metadata.crs_source).toBe('supplied');
+      expect(metadata.georeference).toEqual(georeference);
+      // A few kilometres east and north of 0,0
+      for (const [lon, lat] of metadata.georeference_wgs84!) {
+        expect(lon).toBeGreaterThan(0);
+        expect(lon).toBeLessThan(0.05);
+        expect(lat).toBeGreaterThan(0);
+        expect(lat).toBeLessThan(0.05);
+      }
+    });
+
+    it('drops WGS84 corners left over from the previous CRS when there is no georeference', async () => {
+      const metadata = await FileService.withSuppliedCrs(
+        { is_raster: false, georeference: null, georeference_wgs84: georeference } as VectorFileMetadata,
+        3857,
+      );
+
+      expect(metadata.georeference).toBeNull();
+      expect(metadata).not.toHaveProperty('georeference_wgs84');
     });
   });
 
