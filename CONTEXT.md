@@ -299,6 +299,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 ## Relationships
 
 - An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
+- An **Export Bundle** can be downloaded any number of times, but only while its **Export** is still known; once the Export is forgotten the Bundle is unreachable, though nothing deletes it
 - A **Preview table** shows the soil data that touches the **AOI**, not the contents of an **Export Bundle**: for a raster Dataset it can list pixels along the AOI's edge that the Bundle leaves out
 - A **Dataset** *references* one or more **Features** through its **DatasetLayers**; it does not contain them, and the same **Feature** may be referenced by several **Datasets**
 - A **Feature** has one or more **DatasetLayers**
@@ -385,6 +386,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 - **"ID" almost never means the primary key** — see **Public identifier**. "dataset ID" means the Dataset's `slug`: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. The same holds inside a Band Mapping: an additional resource's `file_id` is a **File slug**, resolved through slug history, so a File renamed after the mapping was written still resolves. In domain discussions, say **slug** when you mean the public identifier and reserve "primary key" for the internal UUID — never bare "ID" for either.
 - Export failure messages say **"records"** for **Observations**, the word a user sees as rows in their files. It is a UI label only; in domain discussions and on admin pages say Observations.
+- The UI's **"Downloads"** menu lists **Exports**, not Downloads: each entry is one Export this browser started, and "download again" retrieves its **Export Bundle** once more. "Clearing the download queue" means the browser forgetting its finished Exports; it never touches the `export` job queue, which every caller shares.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria. A null criterion sees what the Layer *recorded* and ignores the **Dataset fallback**, while a bounded one sees the fallback — so `min_sampling_date: null` finds exactly the data whose date match would otherwise rest on its Dataset's period.
