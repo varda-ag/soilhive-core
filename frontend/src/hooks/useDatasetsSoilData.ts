@@ -5,7 +5,8 @@ import { useApiQuery } from './useApiQuery';
 import { useCreateDatasetFileMapping, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
 import { useFileUpload } from './useFileUpload';
 import { arraysMatch } from '../utilities/validation';
-import { hasCustomCrs } from '../utilities/crs';
+import { epsgCode, hasCustomCrs } from '../utilities/crs';
+import { georeferenceOf } from '../utilities/georeference';
 import { useFileManagement } from './useFileManagement';
 import { useIngestionStatus } from './useIngestionStatus';
 import { ADMIN_PATHS } from '../configuration/admin';
@@ -65,6 +66,9 @@ export function useDatasetsSoilData() {
   const annotatedFiles = useMemo<SoilDataFile[]>(() => {
     const masterFieldNames = soilDataFiles[0]?.fieldNames;
     return soilDataFiles.map((f, i) => {
+      if (f.isUngeoreferencedRaster) {
+        return { ...f, error: t('datasets.soil_data.no_georeference_error'), missingFields: undefined, extraFields: undefined };
+      }
       if (i === 0 || !masterFieldNames || !f.fieldNames) return { ...f, error: null, missingFields: undefined, extraFields: undefined };
       if (arraysMatch(masterFieldNames, f.fieldNames)) return { ...f, error: null, missingFields: undefined, extraFields: undefined };
       const fileSet = new Set(f.fieldNames);
@@ -106,7 +110,7 @@ export function useDatasetsSoilData() {
   const isContinueEnabled =
     uploadingFiles.length === 0 &&
     annotatedFiles.length > 0 &&
-    annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.hasCustomCrs) && !f.error);
+    annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.suppliedCrs || !!f.hasCustomCrs) && !f.error);
 
   const handleFiles = useCallback(
     (files: FileList | File[] | null) => {
@@ -123,6 +127,32 @@ export function useDatasetsSoilData() {
     [updateSoilDataFile],
   );
 
+  const latestCrsSelection = useRef<Record<string, number>>({});
+
+  // Saved on selection rather than on Continue, so the map preview shows where the chosen CRS puts the file
+  const handleCrsSelect = useCallback(
+    async (id: string, crs: string) => {
+      const epsg = epsgCode(crs);
+      if (epsg === undefined) return;
+      const selection = (latestCrsSelection.current[id] ?? 0) + 1;
+      latestCrsSelection.current[id] = selection;
+      updateSoilDataFile(id, { crs, georeferenceWgs84: undefined });
+      try {
+        const updated: FileDescriptor | null = await request({
+          url: `${BACKEND_BASE_URL}/files/${id}`,
+          method: 'PATCH',
+          body: { epsg },
+          showErrorNotification: true,
+        });
+        if (latestCrsSelection.current[id] !== selection) return;
+        updateSoilDataFile(id, { suppliedCrs: `EPSG:${epsg}`, georeferenceWgs84: updated?.metadata?.georeference_wgs84 });
+      } catch {
+        // Already notified; handleSave retries it
+      }
+    },
+    [request, updateSoilDataFile],
+  );
+
   // Load all files that are already in the backend
   const { data: existingFiles, isLoading: isLoadingFiles } = useApiQuery<FileDescriptor[]>({
     endpoint: `/datasets/${datasetId}/files`,
@@ -136,17 +166,24 @@ export function useDatasetsSoilData() {
     existingFileIds.current = new Set(existingFiles.filter(f => f !== null).map(f => f.id)); // keep track of files that already exist in the backend
     const mapped = existingFiles
       .filter(f => f !== null)
-      .map(f => ({
-        id: f.id,
-        file: null,
-        name: f.name,
-        crs: null, // manually added by user
-        inferredCrs: f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined,
-        hasCustomCrs: hasCustomCrs(f.metadata),
-        fieldNames: f.metadata && !f.metadata.is_raster ? f.metadata.field_names : undefined,
-        isRaster: f.metadata?.is_raster,
-        progress: 100,
-      }));
+      .map(f => {
+        const savedCrs = f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined;
+        const isSupplied = f.metadata?.crs_source === 'supplied';
+        return {
+          id: f.id,
+          file: null,
+          name: f.name,
+          crs: null, // manually added by user
+          inferredCrs: isSupplied ? undefined : savedCrs,
+          suppliedCrs: isSupplied ? savedCrs : undefined,
+          hasCustomCrs: hasCustomCrs(f.metadata),
+          fieldNames: f.metadata && !f.metadata.is_raster ? f.metadata.field_names : undefined,
+          isRaster: f.metadata?.is_raster,
+          rasterBands: f.metadata?.is_raster ? f.metadata.raster_bands : undefined,
+          ...georeferenceOf(f.metadata),
+          progress: 100,
+        };
+      });
     establishedIsRasterRef.current = mapped[0]?.isRaster;
     setIsRaster(mapped[0]?.isRaster);
     setSoilDataFiles(mapped);
@@ -188,14 +225,17 @@ export function useDatasetsSoilData() {
 
     await Promise.allSettled(newFiles.map(f => createFileMapping({ datasetId, fileID: f.id })));
 
-    // Update crs for any file where the user set a crs that differs from the inferred one
-    const filesWithUpdatedCrs = soilDataFiles.filter(f => f.crs && f.crs !== f.inferredCrs);
+    // A selection is saved as soon as it is made: this catches one whose save failed
+    const filesWithUnsavedCrs = soilDataFiles.filter(f => {
+      const epsg = epsgCode(f.crs);
+      return epsg !== undefined && `EPSG:${epsg}` !== f.suppliedCrs && f.crs !== f.inferredCrs;
+    });
     await Promise.allSettled(
-      filesWithUpdatedCrs.map(f =>
+      filesWithUnsavedCrs.map(f =>
         request({
           url: `${BACKEND_BASE_URL}/files/${f.id}`,
           method: 'PATCH',
-          body: { epsg: Number(f.crs!.match(/^EPSG:(\d+)/)?.[1]) },
+          body: { epsg: epsgCode(f.crs) },
           showErrorNotification: true,
         }),
       ),
@@ -227,6 +267,7 @@ export function useDatasetsSoilData() {
     isLoadingFiles: isLoadingFiles,
     handleFiles,
     handleCrsChange,
+    handleCrsSelect,
     removeFile,
     clearAll,
     handlePrevious: () => navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`),

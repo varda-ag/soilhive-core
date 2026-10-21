@@ -7,8 +7,8 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('components/UI', () => ({
-  Button: ({ children, onClick, dataTestId }: any) => (
-    <button onClick={onClick} data-testid={dataTestId ?? 'sh-ui-button'}>
+  Button: ({ children, onClick, dataTestId, ariaLabel }: any) => (
+    <button onClick={onClick} data-testid={dataTestId ?? 'sh-ui-button'} aria-label={ariaLabel}>
       {children}
     </button>
   ),
@@ -24,6 +24,16 @@ jest.mock('components/Dialog/Dialog', () => ({
         <button onClick={onPrimary} data-testid="sh-dialog-close">
           Close
         </button>
+      </div>
+    ) : null,
+}));
+
+jest.mock('../../src/pages/AdminPortal/DatasetsSoilDataStep/MapPreviewDialog/MapPreviewDialog', () => ({
+  MapPreviewDialog: ({ visible, fileName, onClose }: any) =>
+    visible ? (
+      <div data-testid="sh-map-preview-dialog">
+        {fileName}
+        <button onClick={onClose} data-testid="sh-map-preview-close" />
       </div>
     ) : null,
 }));
@@ -51,6 +61,7 @@ const mockCrsOptions = [
 
 describe('SoilDataFileRow', () => {
   const onCrsChange = jest.fn();
+  const onCrsSelect = jest.fn();
   const onRemove = jest.fn();
 
   beforeEach(() => {
@@ -58,7 +69,15 @@ describe('SoilDataFileRow', () => {
   });
 
   it('renders file name and formatted file size correctly', () => {
-    render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={mockFile}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.getByText('test-soil-data.csv')).toBeInTheDocument();
     expect(screen.getByText('1.0 Mb')).toBeInTheDocument();
@@ -67,7 +86,15 @@ describe('SoilDataFileRow', () => {
   it('disables the CRS input when an inferredCrs exists (read-only mode)', () => {
     const readOnlyFile = { ...mockFile, inferredCrs: 'EPSG:4326' };
 
-    render(<SoilDataFileRow soilDataFile={readOnlyFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={readOnlyFile}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     const input = screen.getByRole('combobox');
     expect(input).toBeDisabled();
@@ -76,21 +103,45 @@ describe('SoilDataFileRow', () => {
   it('renders the read-only CRS label when an inferredCrs exists', () => {
     const readOnlyFile = { ...mockFile, inferredCrs: 'EPSG:4326' };
 
-    render(<SoilDataFileRow soilDataFile={readOnlyFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={readOnlyFile}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.getByLabelText('datasets.soil_data.crs_label_readonly')).toBe(screen.getByRole('combobox'));
     expect(screen.queryByText('datasets.soil_data.crs_label')).not.toBeInTheDocument();
   });
 
   it('renders the editable CRS label when no inferredCrs exists', () => {
-    render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={mockFile}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.getByLabelText('datasets.soil_data.crs_label')).toBe(screen.getByRole('combobox'));
     expect(screen.queryByText('datasets.soil_data.crs_label_readonly')).not.toBeInTheDocument();
   });
 
   it('calls onCrsChange when the user types in the autocomplete', () => {
-    render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={mockFile}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     const input = screen.getByRole('combobox');
     fireEvent.change(input, { target: { value: 'EPSG:3857' } });
@@ -101,7 +152,15 @@ describe('SoilDataFileRow', () => {
   it('renders a previously selected "EPSG:<code> - <name>" value in the input', () => {
     const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 - WGS 84 / Pseudo-Mercator' };
 
-    render(<SoilDataFileRow soilDataFile={fileWithNamedCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithNamedCrs}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.getByRole('combobox')).toHaveValue('EPSG:3857 - WGS 84 / Pseudo-Mercator');
   });
@@ -109,7 +168,15 @@ describe('SoilDataFileRow', () => {
   it('does not reset a valid "EPSG:<code> - <name>" crs value on blur', () => {
     const fileWithNamedCrs = { ...mockFile, crs: 'EPSG:3857 - WGS 84 / Pseudo-Mercator', inferredCrs: undefined };
 
-    render(<SoilDataFileRow soilDataFile={fileWithNamedCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithNamedCrs}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     fireEvent.blur(screen.getByRole('combobox'));
 
@@ -119,7 +186,15 @@ describe('SoilDataFileRow', () => {
   it('clears a half-typed crs on blur, leaving the detected one to show through', () => {
     const fileWithInferred = { ...mockFile, crs: 'INVALID', inferredCrs: 'EPSG:4326' };
 
-    render(<SoilDataFileRow soilDataFile={fileWithInferred} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithInferred}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     const input = screen.getByRole('combobox');
     fireEvent.blur(input);
@@ -136,7 +211,15 @@ describe('SoilDataFileRow', () => {
     const rasterWithNoCrs = { ...mockFile, name: 'a.tif', crs: null, isRaster: true, inferredCrs: undefined, hasCustomCrs: false };
 
     it('pre-selects the detected EPSG as its full list entry and locks the field', () => {
-      render(<SoilDataFileRow soilDataFile={rasterWithEpsg} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+      render(
+        <SoilDataFileRow
+          soilDataFile={rasterWithEpsg}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
 
       // The bare code is what detection yields; the row shows the entry it belongs to so the
       // field reads as a selection. Locked because the file already declares it — correcting a
@@ -148,14 +231,28 @@ describe('SoilDataFileRow', () => {
     it('falls back to the bare code when the detected EPSG is not in the list', () => {
       const unlisted = { ...rasterWithEpsg, inferredCrs: 'EPSG:99999' };
 
-      render(<SoilDataFileRow soilDataFile={unlisted} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+      render(
+        <SoilDataFileRow
+          soilDataFile={unlisted}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
 
       expect(screen.getByRole('combobox')).toHaveValue('EPSG:99999');
     });
 
     it('shows the custom-CRS message and disables the field for a raster with no EPSG code', () => {
       render(
-        <SoilDataFileRow soilDataFile={rasterWithCustomCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />,
+        <SoilDataFileRow
+          soilDataFile={rasterWithCustomCrs}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
       );
 
       expect(screen.getByRole('combobox')).toHaveValue('datasets.soil_data.crs_custom_detected');
@@ -163,7 +260,15 @@ describe('SoilDataFileRow', () => {
     });
 
     it('leaves the field empty and editable for a raster that declares no CRS', () => {
-      render(<SoilDataFileRow soilDataFile={rasterWithNoCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+      render(
+        <SoilDataFileRow
+          soilDataFile={rasterWithNoCrs}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
 
       expect(screen.getByRole('combobox')).toHaveValue('');
       expect(screen.getByRole('combobox')).not.toBeDisabled();
@@ -176,7 +281,13 @@ describe('SoilDataFileRow', () => {
       const vectorWithCustomCrs = { ...mockFile, crs: null, isRaster: false, inferredCrs: undefined, hasCustomCrs: true };
 
       render(
-        <SoilDataFileRow soilDataFile={vectorWithCustomCrs} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />,
+        <SoilDataFileRow
+          soilDataFile={vectorWithCustomCrs}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
       );
 
       expect(screen.getByRole('combobox')).not.toBeDisabled();
@@ -184,8 +295,148 @@ describe('SoilDataFileRow', () => {
     });
   });
 
+  // Chosen earlier and saved: shown as its list entry, but still the user's to change
+  it('shows a supplied CRS as its full list entry and keeps the field editable', () => {
+    const fileWithSuppliedCrs = { ...mockFile, crs: null, suppliedCrs: 'EPSG:25832' };
+
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithSuppliedCrs}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
+
+    expect(screen.getByRole('combobox')).toHaveValue('EPSG:25832 - ETRS89 / UTM zone 32N');
+    expect(screen.getByRole('combobox')).not.toBeDisabled();
+  });
+
+  describe('map preview', () => {
+    const corners: [[number, number], [number, number], [number, number], [number, number]] = [
+      [9, 46],
+      [10, 46],
+      [10, 45],
+      [9, 45],
+    ];
+
+    it('shows no map preview button for a file that cannot be placed on a map', () => {
+      render(
+        <SoilDataFileRow
+          soilDataFile={mockFile}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
+
+      expect(screen.queryByTestId('sh-map-preview-button')).not.toBeInTheDocument();
+    });
+
+    it('opens the map preview from its button and closes it again', () => {
+      render(
+        <SoilDataFileRow
+          soilDataFile={{ ...mockFile, georeferenceWgs84: corners }}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
+
+      expect(screen.getByLabelText('datasets.soil_data.map_preview.button')).toBe(screen.getByTestId('sh-map-preview-button'));
+      fireEvent.click(screen.getByTestId('sh-map-preview-button'));
+      expect(screen.getByTestId('sh-map-preview-dialog')).toHaveTextContent('test-soil-data.csv');
+
+      fireEvent.click(screen.getByTestId('sh-map-preview-close'));
+      expect(screen.queryByTestId('sh-map-preview-dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('NODATA', () => {
+    it('shows it after the file size for a raster', () => {
+      const raster = { ...mockFile, name: 'a.tif', isRaster: true, rasterBands: [{ band_number: 1, data_type: 'Byte', no_data_value: 0 }] };
+
+      render(
+        <SoilDataFileRow
+          soilDataFile={raster}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
+
+      expect(screen.getByText('1.0 Mb')).toContainElement(screen.getByText('datasets.soil_data.nodata'));
+    });
+
+    it('is not shown for a vector file', () => {
+      render(
+        <SoilDataFileRow
+          soilDataFile={mockFile}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
+
+      expect(screen.queryByText('datasets.soil_data.nodata')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('raster with no georeferencing', () => {
+    const ungeoreferenced = {
+      ...mockFile,
+      name: 'a.tif',
+      crs: null,
+      isRaster: true,
+      isUngeoreferencedRaster: true,
+      error: 'datasets.soil_data.no_georeference_error',
+    };
+
+    it('shows the error and locks the CRS field', () => {
+      render(
+        <SoilDataFileRow
+          soilDataFile={ungeoreferenced}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
+
+      expect(screen.getByTestId('sh-form-message')).toHaveTextContent('datasets.soil_data.no_georeference_error');
+      expect(screen.getByRole('combobox')).toBeDisabled();
+    });
+
+    it('offers no field comparison, which only explains a structure mismatch', () => {
+      render(
+        <SoilDataFileRow
+          soilDataFile={ungeoreferenced}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
+
+      expect(screen.queryByTestId('sh-diff-button')).not.toBeInTheDocument();
+    });
+  });
+
   it('calls onRemove when the cross button is clicked', () => {
-    render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={mockFile}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     const removeBtn = screen.getByTestId('sh-ui-button');
     fireEvent.click(removeBtn);
@@ -196,7 +447,15 @@ describe('SoilDataFileRow', () => {
   it('renders FormMessage when soilDataFile.error is set', () => {
     const fileWithError = { ...mockFile, error: 'This file has an incompatible structure with the first uploaded file.' };
 
-    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithError}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.getByTestId('sh-form-message')).toBeInTheDocument();
     expect(screen.getByText(/incompatible structure/)).toBeInTheDocument();
@@ -205,7 +464,15 @@ describe('SoilDataFileRow', () => {
   it('does not render FormMessage when soilDataFile.error is null', () => {
     const fileWithoutError = { ...mockFile, error: null };
 
-    render(<SoilDataFileRow soilDataFile={fileWithoutError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithoutError}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.queryByTestId('sh-form-message')).not.toBeInTheDocument();
   });
@@ -213,13 +480,29 @@ describe('SoilDataFileRow', () => {
   it('renders the diff button when error is set', () => {
     const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: ['lat'], extraFields: [] };
 
-    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithError}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.getByTestId('sh-diff-button')).toBeInTheDocument();
   });
 
   it('does not render the diff button when error is null', () => {
-    render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={mockFile}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
 
     expect(screen.queryByTestId('sh-diff-button')).not.toBeInTheDocument();
   });
@@ -227,7 +510,15 @@ describe('SoilDataFileRow', () => {
   it('opens the diff dialog when the diff button is clicked', () => {
     const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: ['latitude'], extraFields: ['lat'] };
 
-    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithError}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
     fireEvent.click(screen.getByTestId('sh-diff-button'));
 
     expect(screen.getByTestId('sh-dialog')).toBeInTheDocument();
@@ -236,7 +527,15 @@ describe('SoilDataFileRow', () => {
   it('shows missing fields in the dialog', () => {
     const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: ['latitude', 'longitude'], extraFields: [] };
 
-    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithError}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
     fireEvent.click(screen.getByTestId('sh-diff-button'));
 
     expect(screen.getByText('latitude')).toBeInTheDocument();
@@ -246,7 +545,15 @@ describe('SoilDataFileRow', () => {
   it('shows extra fields in the dialog', () => {
     const fileWithError = { ...mockFile, error: 'Inconsistent', missingFields: [], extraFields: ['lat', 'lon'] };
 
-    render(<SoilDataFileRow soilDataFile={fileWithError} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+    render(
+      <SoilDataFileRow
+        soilDataFile={fileWithError}
+        onCrsChange={onCrsChange}
+        onCrsSelect={onCrsSelect}
+        onRemove={onRemove}
+        crsOptions={mockCrsOptions}
+      />,
+    );
     fireEvent.click(screen.getByTestId('sh-diff-button'));
 
     expect(screen.getByText('lat')).toBeInTheDocument();
@@ -259,7 +566,15 @@ describe('SoilDataFileRow', () => {
     });
 
     it('does not apply an explicit panel width when a 2D canvas context is unavailable (e.g. in jsdom)', () => {
-      render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+      render(
+        <SoilDataFileRow
+          soilDataFile={mockFile}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
 
       fireEvent.focus(screen.getByRole('combobox'));
 
@@ -272,7 +587,15 @@ describe('SoilDataFileRow', () => {
       const measureText = jest.fn((text: string) => ({ width: text.length * 10 }) as TextMetrics);
       jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ measureText, font: '' } as any);
 
-      render(<SoilDataFileRow soilDataFile={mockFile} onCrsChange={onCrsChange} onRemove={onRemove} crsOptions={mockCrsOptions} />);
+      render(
+        <SoilDataFileRow
+          soilDataFile={mockFile}
+          onCrsChange={onCrsChange}
+          onCrsSelect={onCrsSelect}
+          onRemove={onRemove}
+          crsOptions={mockCrsOptions}
+        />,
+      );
       fireEvent.focus(screen.getByRole('combobox'));
 
       const longestOption = 'EPSG:3857 - WGS 84 / Pseudo-Mercator';

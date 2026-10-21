@@ -6,7 +6,9 @@ import { ALLOWED_EXTENSIONS } from './useDatasetsSoilData';
 import { useStorageConfig } from './useStorageConfig';
 import { formatUploadSize } from 'utilities/formatUploadSize';
 import { hasCustomCrs } from 'utilities/crs';
+import { georeferenceOf } from 'utilities/georeference';
 import type { SoilDataFile } from '../types/soilDataFile';
+import type { FileRasterBandDescriptor } from 'types/backend';
 
 export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
   const { t } = useTranslation('admin');
@@ -18,7 +20,18 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
 
   const uploadFile = useCallback(
-    (file: File): Promise<{ id: string; crs?: string; hasCustomCrs: boolean; fieldNames?: string[]; isRaster?: boolean }> => {
+    (
+      file: File,
+    ): Promise<
+      {
+        id: string;
+        crs?: string;
+        hasCustomCrs: boolean;
+        fieldNames?: string[];
+        isRaster?: boolean;
+        rasterBands?: FileRasterBandDescriptor[];
+      } & ReturnType<typeof georeferenceOf>
+    > => {
       return new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -42,6 +55,8 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
                 hasCustomCrs: hasCustomCrs(response.metadata),
                 fieldNames: response.metadata?.field_names as string[] | undefined,
                 isRaster: response.metadata?.is_raster === true,
+                rasterBands: response.metadata?.raster_bands as FileRasterBandDescriptor[] | undefined,
+                ...georeferenceOf(response.metadata),
               });
             } else if (xhr.status === 0) {
               // Network failure
@@ -98,7 +113,16 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
       await Promise.allSettled(
         validFiles.map(async file => {
           try {
-            const { id, crs, hasCustomCrs: isCustomCrs, fieldNames, isRaster } = await uploadFile(file);
+            const {
+              id,
+              crs,
+              hasCustomCrs: isCustomCrs,
+              fieldNames,
+              isRaster,
+              rasterBands,
+              georeferenceWgs84,
+              isUngeoreferencedRaster,
+            } = await uploadFile(file);
             // `crs` stays null on upload: it means "the user chose this"
             onFileUploaded({
               id,
@@ -109,6 +133,9 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
               hasCustomCrs: isCustomCrs,
               fieldNames,
               isRaster,
+              rasterBands,
+              georeferenceWgs84,
+              isUngeoreferencedRaster,
               progress: 100,
             });
           } catch (err) {

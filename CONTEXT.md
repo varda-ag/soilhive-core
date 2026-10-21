@@ -125,8 +125,16 @@ The spatial reference system of a soil data file, expressed as an EPSG code in t
 _Avoid_: Projection (a CRS component, not the whole), SRID (database-level identifier)
 
 **Inferred CRS**:
-The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a user-supplied CRS, which is required only when inference fails. Only Spatial Files have an Inferred CRS — for a Non-spatial File no inference is attempted, which is not the same as inference failing.
+The CRS detected by the backend from an uploaded file's own metadata during upload. When present it is authoritative: the data admin cannot override it. Distinct from a **Supplied CRS**, which is required only when inference fails. Only Spatial Files have an Inferred CRS — for a Non-spatial File no inference is attempted, which is not the same as inference failing.
 _Avoid_: Default CRS, detected projection
+
+**Supplied CRS**:
+The CRS a data admin chooses for a Spatial File whose CRS could not be inferred. Unlike an Inferred CRS it stays the data admin's to change: saving it does not make it authoritative.
+_Avoid_: Manual CRS, custom CRS (a raster's CRS that has no EPSG code)
+
+**Georeference**:
+The four corner points that place a Spatial File on the ground, in the File's own CRS: a raster's four pixel-grid corners, or the corners of a vector file's extent. A File either has one or does not; a raster with no geotransform has none, whatever its pixel dimensions. A File is **georeferenced** only when it has both a Georeference and a CRS.
+_Avoid_: Extent (a Dataset's `spatial_extent`), bbox (two points, not four), footprint (a Raster Layer's valid-data outline)
 
 **Bulk Load**:
 The Dataset-scoped operation that turns a Dataset's staged files into Features, Layers, DatasetLayers and Observations. Operates on point and polygonal Datasets. Scoped to exactly one Dataset; the files it consumes are whichever staged files that Dataset has.
@@ -299,6 +307,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 ## Relationships
 
 - An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
+- An **Export Bundle** can be downloaded any number of times, but only while its **Export** is still known; once the Export is forgotten the Bundle is unreachable, though nothing deletes it
 - A **Preview table** shows the soil data that touches the **AOI**, not the contents of an **Export Bundle**: for a raster Dataset it can list pixels along the AOI's edge that the Bundle leaves out
 - A **Dataset** *references* one or more **Features** through its **DatasetLayers**; it does not contain them, and the same **Feature** may be referenced by several **Datasets**
 - A **Feature** has one or more **DatasetLayers**
@@ -307,6 +316,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Layer** carries the `sampling_date`, `min_depth`, and `max_depth` for its associated **Observations** — there is no date on **Observation** itself
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
 - A **Raster Load** is scoped to one **Dataset** and performs one **Raster Ingest** per **Band** named by each raster File's **Band Mapping**; a **Bulk Load** is the equivalent for point and polygonal **Datasets**
+- A Spatial **File** has at most one **Georeference** and at most one **CRS**; it is georeferenced only with both, and a Georeference without a CRS cannot be placed on a map
 - A **File** has one or more **Dataset File Mappings** per **Dataset** it belongs to, of which exactly one is **Current**; both loads consult only the Current one
 - A **Raster Layer** belongs to one **Dataset** and names exactly one **Band** of exactly one **File**; a **File** has as many **Raster Layers** as it has mapped **Bands**
 - A **Raster Layer** has zero or more **Raster Layer Assets**, each pointing at one **File**; the same **File** may be an asset of several **Raster Layers** (one per **Band** whose **Band Mapping** declares it)
@@ -386,6 +396,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 - **"ID" almost never means the primary key** — see **Public identifier**. "dataset ID" means the Dataset's `slug`: `GET /data-filters/{filterId}/datasets` returns the slug in the `id` field, and the `datasets` query parameter of `GET /soil-data` matches against slugs. The same holds inside a Band Mapping: an additional resource's `file_id` is a **File slug**, resolved through slug history, so a File renamed after the mapping was written still resolves. In domain discussions, say **slug** when you mean the public identifier and reserve "primary key" for the internal UUID — never bare "ID" for either.
 - Export failure messages say **"records"** for **Observations**, the word a user sees as rows in their files. It is a UI label only; in domain discussions and on admin pages say Observations.
+- The UI's **"Downloads"** menu lists **Exports**, not Downloads: each entry is one Export this browser started, and "download again" retrieves its **Export Bundle** once more. "Clearing the download queue" means the browser forgetting its finished Exports; it never touches the `export` job queue, which every caller shares.
 - "layer" was used in the codebase to mean both the domain entity (depth/date slice) and Mapbox/map rendering layers — in domain discussions, **Layer** always refers to the soil data entity.
 - "observation" was initially used loosely to mean any data point or measurement; resolved: **Observation** is specifically a row in the `observations` table with a numeric `value`, linked to a **DatasetLayer**.
 - A **null** parameter criterion and an **absent** one mean different things and yield different Filters: `min_depth: null` means "match Layers with no recorded depth", while omitting `min_depth` means "no depth constraint" (same for `max_depth` and the sampling-date criteria). Never normalise null to absent (or vice versa) when comparing filter criteria. A null criterion sees what the Layer *recorded* and ignores the **Dataset fallback**, while a bounded one sees the fallback — so `min_sampling_date: null` finds exactly the data whose date match would otherwise rest on its Dataset's period.
@@ -417,3 +428,5 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - `docs/frontend/module-federation.md` describes Plugin loading as a hardcoded, top-level-await `loadRemotesConfig()` and registration by `path`. The actual code (`src/utilities/moduleFederation.ts`, `src/contexts/RemotesContext.tsx`) loads Plugins on demand via `loadRemotes(configs)`, sourced from the backend-driven `themeConfig.plugins`, and registers by `route` — the doc is stale. `frontend/remotes.json` is dead leftover configuration from before this change (unreferenced by any code, and its port doesn't match the example Plugin's actual dev port) — do not treat it as a source of truth for anything.
 
 - "active" is used in two unrelated senses in the raster filtering code: the persisted `active` column on `raster_filters` (admin-controlled catalog availability — see **Raster Filter**), and query-time variables/comments like `hasActiveFilters` in `FilteringMasks.ts` (whether the current Filter's `raster_filters` criterion has non-empty selected values for a given raster table). Toggling a Raster Filter's `active` flag has no effect on the query-time check, and vice versa. In domain discussions, say "active Raster Filter" for the catalog flag and "selected raster filter values" for the query-time notion.
+
+- "georef" was used both for a File's four corner points and for the File being placeable on a map. Resolved: the points are its **Georeference**; the File is *georeferenced* only when it also has a CRS. A raster with a CRS but no geotransform is not georeferenced, and supplying a CRS cannot make it so.

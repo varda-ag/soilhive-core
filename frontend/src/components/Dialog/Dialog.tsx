@@ -68,12 +68,18 @@ export function Dialog({
     [onClose],
   );
 
+  // PrimeReact calls onHide on Esc but also after every close it is told about: only the first is still visible
+  const onHide = useCallback(() => {
+    if (visible) (onClose ?? onSecondary)?.();
+  }, [visible, onClose, onSecondary]);
+
   return (
     <ConfirmDialog
       group="headless"
       visible={visible}
       className={classnames(styles.Dialog, className)}
       {...conditionalProps}
+      onHide={onHide}
       onMaskClick={closeOnOverlay ? onMaskClick : undefined}
       content={({ contentRef, headerRef, footerRef }) => (
         <>

@@ -28,6 +28,7 @@ export function DatasetsSoilDataStep() {
     isSaving,
     handleFiles,
     handleCrsChange,
+    handleCrsSelect,
     removeFile,
     clearAll,
     handlePrevious,
@@ -84,6 +85,7 @@ export function DatasetsSoilDataStep() {
                   key={soilDataFile.id}
                   soilDataFile={soilDataFile}
                   onCrsChange={handleCrsChange}
+                  onCrsSelect={handleCrsSelect}
                   onRemove={() => removeFile(soilDataFile.id)}
                   crsOptions={crsOptions}
                 />

@@ -6,13 +6,17 @@ import { Button, FormMessage } from 'components/UI';
 import classnames from 'classnames';
 import styles from './SoilDataFileRow.module.scss';
 import { type SoilDataFile } from '../../../../types/soilDataFile';
+import { MapPreviewDialog } from '../MapPreviewDialog/MapPreviewDialog';
+import { formatRasterNoData } from 'utilities/noData';
 import CrossIcon from 'assets/icons/cross-icon.svg?react';
+import MapIcon from 'assets/icons/map-icon.svg?react';
 import QuestionIcon from 'assets/icons/question-round-icon.svg?react';
 import { useMemo, useRef, useState } from 'react';
 
 interface Props {
   soilDataFile: SoilDataFile;
   onCrsChange: (fileId: string, crs: string) => void;
+  onCrsSelect: (fileId: string, crs: string) => void;
   onRemove: (fileId: string) => void;
   crsOptions: { code: number; name: string }[];
 }
@@ -40,11 +44,27 @@ function formatFileSize(bytes: number | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mb`;
 }
 
-export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOptions }: Props) {
+export function SoilDataFileRow({ soilDataFile, onCrsChange, onCrsSelect, onRemove, crsOptions }: Props) {
   const { t } = useTranslation('admin');
-  const { id, name, file, crs, inferredCrs, hasCustomCrs, isRaster, error, missingFields, extraFields } = soilDataFile;
+  const {
+    id,
+    name,
+    file,
+    crs,
+    inferredCrs,
+    suppliedCrs,
+    hasCustomCrs,
+    isRaster,
+    rasterBands,
+    error,
+    missingFields,
+    extraFields,
+    georeferenceWgs84,
+    isUngeoreferencedRaster,
+  } = soilDataFile;
   const [filteredCrs, setFilteredCrs] = useState<string[]>([]);
   const [diffOpen, setDiffOpen] = useState(false);
+  const [mapPreviewOpen, setMapPreviewOpen] = useState(false);
   const autoCompleteRef = useRef<AutoComplete>(null);
   // PrimeReact refocuses the input after a selection; this flag keeps that programmatic focus from reopening the panel
   const skipNextFocusOpen = useRef(false);
@@ -54,9 +74,11 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
 
   const allCrsOptions = useMemo(() => crsOptions.map(o => `EPSG:${o.code} - ${o.name}`), [crsOptions]);
 
-  const inferredCrsOption = useMemo(
-    () => (inferredCrs ? (allCrsOptions.find(option => option.startsWith(`${inferredCrs} -`)) ?? inferredCrs) : ''),
-    [allCrsOptions, inferredCrs],
+  // What the backend already holds, shown when the user has not typed anything: detected, or chosen earlier
+  const savedCrs = inferredCrs || suppliedCrs;
+  const savedCrsOption = useMemo(
+    () => (savedCrs ? (allCrsOptions.find(option => option.startsWith(`${savedCrs} -`)) ?? savedCrs) : ''),
+    [allCrsOptions, savedCrs],
   );
 
   const crsPanelWidth = useMemo(() => {
@@ -90,23 +112,48 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
       <div className={classnames(styles.SoilDataFileRow)}>
         <div className={styles.FileInfo}>
           <div className={styles.FileName}>{name}</div>
-          <div className={styles.FileSize}>{formatFileSize(file?.size)}</div>
+          <div className={styles.FileSize}>
+            {formatFileSize(file?.size)}
+            {isRaster && (
+              <span className={styles.NoData}>
+                {t('datasets.soil_data.nodata', {
+                  value: formatRasterNoData(rasterBands, (limit, dataType) =>
+                    t(limit === 'min' ? 'datasets.soil_data.nodata_type_min' : 'datasets.soil_data.nodata_type_max', { type: dataType }),
+                  ),
+                })}
+              </span>
+            )}
+          </div>
         </div>
 
         <div className={styles.CrsSection}>
+          {georeferenceWgs84 && (
+            <Button
+              type="tertiary"
+              size="tiny"
+              isIconOnly
+              ariaLabel={t('datasets.soil_data.map_preview.button')}
+              title={t('datasets.soil_data.map_preview.button')}
+              dataTestId="sh-map-preview-button"
+              onClick={() => setMapPreviewOpen(true)}
+            >
+              <MapIcon className={styles.MapPreviewIcon} />
+            </Button>
+          )}
           <label className={styles.CrsLabel} htmlFor={`crs-${id}`}>
             {isReadOnly ? t('datasets.soil_data.crs_label_readonly') : t('datasets.soil_data.crs_label')}
           </label>
           <AutoComplete
             ref={autoCompleteRef}
             inputId={`crs-${id}`}
-            value={isCustomCrsRaster ? t('datasets.soil_data.crs_custom_detected') : crs || inferredCrsOption}
+            value={isCustomCrsRaster ? t('datasets.soil_data.crs_custom_detected') : crs || savedCrsOption}
             suggestions={filteredCrs}
             completeMethod={filterCrsOptions}
             virtualScrollerOptions={{ itemSize: 38 }}
             onChange={e => onCrsChange(id, e.value)}
-            onSelect={() => {
+            onSelect={e => {
               skipNextFocusOpen.current = true;
+              onCrsSelect(id, e.value);
             }}
             placeholder={t('datasets.soil_data.crs_placeholder')}
             className={styles.CrsDropdown}
@@ -114,7 +161,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
             panelClassName={styles.CrsPanel}
             panelStyle={crsPanelWidth === undefined ? undefined : { width: crsPanelWidth }}
             dropdown={false}
-            disabled={isReadOnly}
+            disabled={isReadOnly || isUngeoreferencedRaster}
             onFocus={handleFocus}
             onBlur={handleBlur}
           />
@@ -127,17 +174,27 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onRemove, crsOption
       {error && (
         <div className={styles.ErrorRow}>
           <FormMessage message={error} type="error" />
-          <Button
-            type="custom"
-            size="tiny"
-            isIconOnly
-            className={styles.DiffButton}
-            dataTestId="sh-diff-button"
-            onClick={() => setDiffOpen(true)}
-          >
-            <QuestionIcon />
-          </Button>
+          {!isUngeoreferencedRaster && (
+            <Button
+              type="custom"
+              size="tiny"
+              isIconOnly
+              className={styles.DiffButton}
+              dataTestId="sh-diff-button"
+              onClick={() => setDiffOpen(true)}
+            >
+              <QuestionIcon />
+            </Button>
+          )}
         </div>
+      )}
+      {georeferenceWgs84 && (
+        <MapPreviewDialog
+          visible={mapPreviewOpen}
+          fileName={name}
+          georeference={georeferenceWgs84}
+          onClose={() => setMapPreviewOpen(false)}
+        />
       )}
       <Dialog
         visible={diffOpen}

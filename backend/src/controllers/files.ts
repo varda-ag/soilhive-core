@@ -10,7 +10,7 @@ import { Readable } from 'stream';
 import mime from 'mime-types';
 import ConfigService from '../services/ConfigService';
 import { JsonStorage } from '../entities/JsonStorage';
-import { FileMetadata, PatchFileInput } from '../interfaces/File';
+import { PatchFileInput } from '../interfaces/File';
 
 const fileService = new FileService();
 const configService = new ConfigService();
@@ -100,7 +100,7 @@ export const updateFile = async (req: Request, res: Response) => {
   const input: PatchFileInput = req.body;
   const file = await fileService.getFile(req.customData, fileId! as string);
   if (input.epsg) {
-    file.metadata = { ...file.metadata, epsg: input.epsg } as FileMetadata;
+    file.metadata = await FileService.withSuppliedCrs(file.metadata, input.epsg);
   }
   const result = await fileService.updateFile(req.customData, fileId! as string, file);
   res.json(idToSlug(result));

@@ -52,8 +52,8 @@ export interface PluginContext {
   // pluginId is the plugin's own exported id (see plugin-development.md), passed
   // back in so the same config namespace is used no matter which plugin calls it.
   usePluginConfig: <T>(pluginId: string, id: string, defaultConfig?: T) => PluginConfigResult<T>;
-  // Read-only batch counterpart to usePluginConfig: fetches multiple ids in one
-  // request. Missing ids are simply absent from the returned map.
+  // Read-only batch counterpart to usePluginConfig: fetches any number of ids, in
+  // parallel requests of up to 100. Missing ids are simply absent from the returned map.
   usePluginConfigs: <T>(pluginId: string, ids: string[], polling?: number) => PluginQueryResult<Record<string, T>>;
   // Deletes a config item for everyone, with its entitlements, attached Data Requests and attached
   // Soil Index Runs (one still in progress is cancelled, see ADR 0044); final.

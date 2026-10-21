@@ -3,6 +3,7 @@ import { useClickAway } from 'react-use';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
 import { DownloadsMenu } from './DownloadsMenu/DownloadsMenu';
 import useDownloads from 'hooks/useDownloads';
+import { isJobFinished } from 'types/jobs';
 import { useTranslation } from 'react-i18next';
 
 import styles from './DownloadsStatus.module.scss';
@@ -12,6 +13,7 @@ export function DownloadsStatus() {
   const { t } = useTranslation('download');
 
   const { downloads, isOpened, setIsOpened } = useDownloads();
+  const runningCount = downloads.filter(item => !isJobFinished(item.status)).length;
 
   useClickAway(rootRef, () => {
     setIsOpened(false);
@@ -27,9 +29,9 @@ export function DownloadsStatus() {
         aria-label={t('downloads_status.downloads')}
         onClick={() => setIsOpened(!isOpened)}
       >
-        <span className={styles.Pulse} data-open={isOpened ? 'true' : 'false'} aria-hidden />
+        {runningCount > 0 && <span className={styles.Pulse} data-open={isOpened ? 'true' : 'false'} aria-hidden />}
         <DownloadIcon className={styles.DownloadIcon} />
-        <span className={styles.Counter}>{downloads.length}</span>
+        {runningCount > 0 && <span className={styles.Counter}>{runningCount}</span>}
       </button>
       {isOpened && <DownloadsMenu className={styles.DownloadsMenu} />}
     </div>
