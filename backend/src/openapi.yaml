@@ -166,7 +166,7 @@ paths:
         `aud` is `plugin:{pluginId}`, `sub` is the caller's Subject, and the token expires within 5
         minutes and never after the caller's token. On the core API it only reads, as its user,
         without admin rights unless the deployment lists the plugin in PLUGIN_TOKEN_ADMIN_PLUGINS.
-        Limited per Subject and plugin.
+        Limited per Subject and plugin, and per Subject overall.
       security:
         - bearerAuth: []
       tags:

@@ -40,7 +40,7 @@ A plugin's frontend calls its own **Plugin Backend** straight from the browser. 
 - `CORE_PUBLIC_URL`: this API's public base URL, the same value as the frontend's `BACKEND_BASE_URL` (e.g. `https://api.soilhive.example/api/v1`). It is every Plugin token's `iss`, and Plugin Backends find the key set under it, so they set their `SOILHIVE_CORE_URL` to the same value. Must be an `http(s)` URL with no credentials, query or fragment.
 - `PLUGIN_TOKEN_ADMIN_PLUGINS` (optional): a comma-separated list of pluginIds whose Plugin tokens keep the user's `super-admin` and `data-admin` scopes. The tokens stay read-only. Checked on every call, so removing a plugin takes effect at the next restart, tokens already minted included.
 
-Minting is limited to 30 tokens a minute per Subject and plugin, per process.
+Minting is limited, per process, to 30 tokens a minute per Subject and plugin, and 120 a minute per Subject across all plugins: any well-formed pluginId is accepted.
 
 ## HTTP server
 

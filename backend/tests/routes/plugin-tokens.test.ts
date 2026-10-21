@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { createPublicKey } from 'crypto';
 import { StatusCodes } from 'http-status-codes';
 import jwt, { JwtPayload } from 'jsonwebtoken';
@@ -8,8 +8,9 @@ import { app } from '../../src/app';
 import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
 import { getSwaggerDocument } from '../../src/middlewares/openapi';
 import DatasetService from '../../src/services/DatasetService';
-import { MINTS_PER_WINDOW, resetPluginTokenRateLimit } from '../../src/services/PluginTokenService';
+import { MINTS_PER_SUBJECT_PER_WINDOW, MINTS_PER_WINDOW, resetPluginTokenRateLimit } from '../../src/services/PluginTokenService';
 import { Capability, JobQueues, SoilIndexType, StatisticsType } from '../../src/types/enums';
+import * as dataSourceModule from '../../src/utils/data-source';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getPasswordGrantKey } from '../../src/utils/password-grant-key';
@@ -143,6 +144,22 @@ describe('Plugin tokens', () => {
       expect((await mint(otherUser)).statusCode).toBe(StatusCodes.OK);
     });
 
+    it(`allows ${MINTS_PER_SUBJECT_PER_WINDOW} mints a minute per Subject, whatever the pluginIds`, async () => {
+      // Any well-formed pluginId is accepted, so a per-plugin limit alone would not bound a caller
+      const perPlugin = MINTS_PER_WINDOW / 2;
+      for (let i = 0; i < MINTS_PER_SUBJECT_PER_WINDOW; i++) {
+        expect((await mint(userToken, `plugin-${Math.floor(i / perPlugin)}`)).statusCode).toBe(StatusCodes.OK);
+      }
+      const res = await mint(userToken, 'yet-another-plugin');
+      expect(res.statusCode).toBe(StatusCodes.TOO_MANY_REQUESTS);
+      expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+
+      // Another Subject keeps its own budget
+      const otherUser = getUserToken('other-user-id', 'other-user@example.com');
+      enablePluginTokens();
+      expect((await mint(otherUser, 'yet-another-plugin')).statusCode).toBe(StatusCodes.OK);
+    });
+
     describe('admin rights', () => {
       it('drops the admin scopes of an admin caller', async () => {
         const pluginToken = await mintToken(await getSuperAdminToken());
@@ -158,6 +175,14 @@ describe('Plugin tokens', () => {
         expect(decode(userPluginToken).payload).not.toHaveProperty('scope');
       });
     });
+  });
+
+  it('opens no database transaction to mint or to publish the key', async () => {
+    const dataSource = jest.spyOn(dataSourceModule, 'getDataSource');
+    expect((await mint(userToken)).statusCode).toBe(StatusCodes.OK);
+    expect((await request(app).get('/api/v1/.well-known/plugin-jwks.json')).statusCode).toBe(StatusCodes.OK);
+    expect(dataSource).not.toHaveBeenCalled();
+    dataSource.mockRestore();
   });
 
   describe('GET /.well-known/plugin-jwks.json', () => {

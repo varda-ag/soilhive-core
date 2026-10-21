@@ -17,19 +17,30 @@ import {
 } from '../utils/plugin-token-key';
 
 export const MINTS_PER_WINDOW = 30;
+export const MINTS_PER_SUBJECT_PER_WINDOW = 120;
 const WINDOW_MS = 60_000;
 
 /**
- * Mints so far in the current window, per Subject and pluginId. Per process: with several
- * replicas the limit applies to each. Keyed by pluginId too, because in password mode every user
- * of a role shares one Subject, and a Plugin Backend that keeps answering 401 should not stop the
- * user's other plugins from getting tokens.
+ * Mints so far in the current window, per process: with several replicas the limits apply to
+ * each. Per Subject and pluginId, so a Plugin Backend that keeps answering 401 does not stop the
+ * user's other plugins from getting tokens; and per Subject across every pluginId, because any
+ * well-formed pluginId is accepted and the first limit alone would not bound a caller.
  */
-const mintCounts = new LRUCache<string, number>({ max: 10_000, ttl: WINDOW_MS, noUpdateTTL: true });
+const pluginMintCounts = new LRUCache<string, number>({ max: 10_000, ttl: WINDOW_MS, noUpdateTTL: true });
+const subjectMintCounts = new LRUCache<string, number>({ max: 10_000, ttl: WINDOW_MS, noUpdateTTL: true });
 
 /** Test hook: forget every mint counted so far. */
 export const resetPluginTokenRateLimit = (): void => {
-  mintCounts.clear();
+  pluginMintCounts.clear();
+  subjectMintCounts.clear();
+};
+
+const countWithin = (counts: LRUCache<string, number>, key: string, limit: number): void => {
+  const count = (counts.get(key) ?? 0) + 1;
+  counts.set(key, count);
+  if (count > limit) {
+    throw new TooManyMintsError(Math.max(Math.ceil(counts.getRemainingTTL(key) / 1000), 1));
+  }
 };
 
 export class TooManyMintsError extends ErrorResponse {
@@ -83,13 +94,9 @@ export default class PluginTokenService {
     return { keys: [key.jwk] };
   };
 
+  // The Subject's overall count first: a refused mint never spends a plugin's own budget
   private countMint = (subject: string, pluginId: string): void => {
-    const counter = `${subject}\n${pluginId}`;
-    const count = (mintCounts.get(counter) ?? 0) + 1;
-    mintCounts.set(counter, count);
-    if (count > MINTS_PER_WINDOW) {
-      const remainingMs = mintCounts.getRemainingTTL(counter);
-      throw new TooManyMintsError(Math.max(Math.ceil(remainingMs / 1000), 1));
-    }
+    countWithin(subjectMintCounts, subject, MINTS_PER_SUBJECT_PER_WINDOW);
+    countWithin(pluginMintCounts, `${subject}\n${pluginId}`, MINTS_PER_WINDOW);
   };
 }

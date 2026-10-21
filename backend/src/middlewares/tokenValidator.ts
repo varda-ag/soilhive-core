@@ -47,8 +47,8 @@ interface VerificationKey {
   kind: TokenKind;
   key: Secret | PublicKey;
   algorithms?: Algorithm[]; // Unset for the IdP, whose algorithm follows its key type
-  issuer?: string;
-  audience?: RegExp;
+  issuer?: [string, ...string[]];
+  audience?: RegExp | [string, ...string[]] | undefined;
 }
 
 // One key per kid, never a fallback (see docs/adr/0060)
@@ -63,7 +63,7 @@ const getVerificationKey = async (kid: string, authMode: AuthModes): Promise<Ver
     if (!issuer) {
       throw new ErrorResponse('Invalid token: Plugin tokens are not configured', StatusCodes.UNAUTHORIZED);
     }
-    return { kind: 'plugin', key: pluginTokenKey.publicKey, algorithms: ['ES256'], issuer, audience: PLUGIN_AUDIENCE_PATTERN };
+    return { kind: 'plugin', key: pluginTokenKey.publicKey, algorithms: ['ES256'], issuer: [issuer], audience: PLUGIN_AUDIENCE_PATTERN };
   }
   if (authMode === AuthModes.PASSWORD) {
     const passwordGrantKey = getPasswordGrantKey();
@@ -81,7 +81,8 @@ const getVerificationKey = async (kid: string, authMode: AuthModes): Promise<Ver
 
 const verifyAsync = (token: string, { key, algorithms, issuer, audience }: VerificationKey): Promise<JwtPayload> => {
   return new Promise((resolve, reject) => {
-    jwt.verify(token, key, { algorithms, issuer, audience }, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
+    const options = { algorithms, issuer, ...(audience ? { audience } : {}) };
+    jwt.verify(token, key, options, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
       if (err) {
         reject(err);
       } else {
