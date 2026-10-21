@@ -33,26 +33,35 @@ const cornersLayer: LayerProps = {
   },
 };
 
+const clampLatitude = ([lon, lat]: [number, number]): [number, number] => [
+  lon,
+  Math.max(-MAP_MAX_LATITUDE, Math.min(MAP_MAX_LATITUDE, lat)),
+];
+
 export function MapPreviewDialog({ visible, fileName, georeference, onClose }: Props) {
   const { t } = useTranslation('admin');
+
+  // A global raster reaches ±90°: drawn up to the map's edge, so its outline and the fit stay on the map
+  const drawn = useMemo(() => georeference.map(clampLatitude), [georeference]);
 
   const outline = useMemo<FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...georeference, georeference[0]]] } }],
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[...drawn, drawn[0]!]] } }],
     }),
-    [georeference],
+    [drawn],
   );
 
   const corners = useMemo<FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: georeference.map(coordinates => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates } })),
+      features: drawn.map(coordinates => ({ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates } })),
     }),
-    [georeference],
+    [drawn],
   );
 
-  const isBeyondMap = georeference.some(([, lat]) => Math.abs(lat) > MAP_MAX_LATITUDE);
+  // Only a file entirely past one of the map's edges has nothing to show
+  const isBeyondMap = georeference.every(([, lat]) => lat > MAP_MAX_LATITUDE) || georeference.every(([, lat]) => lat < -MAP_MAX_LATITUDE);
 
   return (
     <Dialog
