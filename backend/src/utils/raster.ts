@@ -97,10 +97,12 @@ export function isMetricProjectedCrs(wkt?: string): boolean {
  * extent reprojected here — the same way computeRasterFootprints reprojects footprint geometries
  * — rather than storing native-CRS coordinates mislabeled as degrees.
  *
- * gdalinfo's own wgs84Extent is used when it holds all four corners. An interrupted projection
- * (Goode Homolosine) can leave corners in the gaps between its lobes or off the globe, so a
- * lattice of points across the raster is sampled instead, keeping the envelope of the ones that
- * reproject. Throws when none do: such a raster has no ground to place.
+ * A lattice of points across the raster is sampled, keeping the envelope of the ones that
+ * reproject, rather than gdalinfo's wgs84Extent, which holds the four corners alone. A projected
+ * raster's edges curve in EPSG:4326 (an Alaska Albers raster's top edge bulges ~4° north of its
+ * top corners), and an interrupted projection (Goode Homolosine) can leave corners in the gaps
+ * between its lobes or off the globe. Throws when no point reprojects: such a raster has no ground
+ * to place. The envelope has west > east when the raster crosses the antimeridian.
  */
 export async function wgs84Envelope(info: GdalInfoOutput, xMin: number, yMin: number, xMax: number, yMax: number): Promise<Envelope> {
   const wkt = info.coordinateSystem?.wkt;
@@ -109,9 +111,6 @@ export async function wgs84Envelope(info: GdalInfoOutput, xMin: number, yMin: nu
   if (isGeographicCrs(wkt) && (epsg === undefined || epsg === 4326)) {
     return [Math.min(xMin, xMax), Math.min(yMin, yMax), Math.max(xMin, xMax), Math.max(yMin, yMax)];
   }
-
-  const fromGdalinfo = GdalCLI.extractWgs84Envelope(info.wgs84Extent);
-  if (fromGdalinfo) return fromGdalinfo;
 
   const n = ENVELOPE_SAMPLES_PER_SIDE;
   const lattice = Array.from({ length: n * n }, (_, k): [number, number] => [
@@ -122,7 +121,12 @@ export async function wgs84Envelope(info: GdalInfoOutput, xMin: number, yMin: nu
   if (reprojected.length === 0) {
     throw new Error("No point across the raster's extent reprojects to EPSG:4326");
   }
-  return turf.bbox(turf.multiPoint(reprojected)) as Envelope;
+  return GdalCLI.lonLatEnvelope(reprojected);
+}
+
+/** An envelope's width in degrees of longitude, across the antimeridian when it crosses it. */
+export function envelopeWidthDeg([west, , east]: Envelope): number {
+  return west > east ? east + 360 - west : east - west;
 }
 
 /**
@@ -174,7 +178,11 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
     }
   }
 
-  const bbox: Polygon = turf.bboxPolygon(await wgs84Envelope(info, xMin, yMin, xMax, yMax)).geometry;
+  // raster_layers.bbox is a single Polygon that queries test with &&, so a raster crossing the
+  // antimeridian is stored as the whole band of longitude it lies in: a Polygon spanning ±180° by
+  // its west and east edges would instead cover every longitude but the raster's own.
+  const [west, south, east, north] = await wgs84Envelope(info, xMin, yMin, xMax, yMax);
+  const bbox: Polygon = turf.bboxPolygon(west > east ? [-180, south, 180, north] : [west, south, east, north]).geometry;
   const epsg = GdalCLI.extractEpsgFromWkt(wkt);
 
   return {

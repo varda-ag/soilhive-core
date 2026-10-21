@@ -33,7 +33,6 @@ import { THEME_CONFIG_ID } from '../../../src/constants/constants';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
 import { GISDataType, IngestionStatus } from '../../../src/types/data';
 import { log } from '../../../src/utils/logger';
-import * as FilteringMasksModule from '../../../src/data-layer/FilteringMasks';
 import { addRasterFilterData, addRasterFilterMappings, getDataAdminToken } from '../../helper';
 import * as RasterUtilsModule from '../../../src/utils/raster';
 import { fromFile } from 'geotiff';
@@ -100,6 +99,18 @@ async function hasNonNodataPixel(tifPath: string, nodataValue: number): Promise<
   }
   return false;
 }
+
+async function countNonNodataPixels(tifPath: string, nodataValue: number): Promise<number> {
+  const tiff = await fromFile(tifPath);
+  const image = await tiff.getImage(0);
+  const rasters = await image.readRasters({ samples: [0] });
+  const data = rasters[0] as ArrayLike<number>;
+  let count = 0;
+  for (let i = 0; i < data.length; i++) {
+    if (data[i] !== nodataValue) count++;
+  }
+  return count;
+}
 // About 31 km²
 const aoi = {
   type: 'Polygon' as const,
@@ -117,10 +128,10 @@ const aoi = {
 const authorized = (req: request.Test, token?: string) => (token ? req.set('Authorization', `Bearer ${token}`) : req);
 
 // Returns the job once it has completed or failed
-async function runExport(datasetIds: string[], formats: string[], token?: string): Promise<any> {
+async function runExport(datasetIds: string[], formats: string[], token?: string, geometry: object = aoi): Promise<any> {
   const filterResponse = await request(app)
     .post('/data-filters')
-    .send({ geometries: [aoi], parameters: {} });
+    .send({ geometries: [geometry], parameters: {} });
   expect(filterResponse.statusCode).toBe(StatusCodes.CREATED);
 
   const exportJobResponse = await authorized(request(app).post('/jobs'), token).send({
@@ -137,6 +148,33 @@ async function runExport(datasetIds: string[], formats: string[], token?: string
     if (body.status === 'completed' || body.status === 'failed') return body;
   }
   throw new Error('Export job did not finish');
+}
+
+async function downloadAndExtract(downloadPath: string): Promise<string> {
+  const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
+  const downloadResponse = await request(app)
+    .get(`/downloads/${escapedDownloadPath}`)
+    .buffer()
+    .parse((res, callback) => {
+      res.setEncoding('binary');
+      let data = '';
+      res.on('data', chunk => {
+        data += chunk;
+      });
+      res.on('end', () => {
+        callback(null, Buffer.from(data, 'binary'));
+      });
+    });
+  expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));
+  const zipPath = path.join(tempDir, 'export.zip');
+  fs.writeFileSync(zipPath, downloadResponse.body);
+
+  const extractDir = path.join(tempDir, 'extracted');
+  fs.mkdirSync(extractDir, { recursive: true });
+  await extractZip(zipPath, { dir: extractDir });
+  return extractDir;
 }
 
 describe('Soil Export Job Integration Test', () => {
@@ -699,7 +737,7 @@ describe('Soil Export Job Integration Test', () => {
       const mockSelectOverview = jest.spyOn(RasterUtilsModule, 'selectOverviewTable').mockImplementation((table: string) => {
         return table;
       });
-      const spy = jest.spyOn(FilteringMasksModule, 'getRasterMask');
+      const spy = jest.spyOn(GdalCLI, 'translate');
       const filterResponse = await request(app)
         .post('/data-filters')
         .send({
@@ -807,7 +845,8 @@ describe('Soil Export Job Integration Test', () => {
       expect(tiffFiles[0]).toContain(sanitizeField(raster_layer!.dataset.name));
       expect(tiffFiles[0]).toContain(sanitizeField(raster_layer!.soil_property.property_name));
 
-      expect(spy).toHaveBeenCalled();
+      // The raster filter classes make the AOI a non-rectangle: written tile by tile, through a VRT
+      expect(spy.mock.calls.some(([src]) => src.endsWith('.vrt'))).toBe(true);
       spy.mockRestore();
       // Cleanup
       fs.rmSync(tempDir, { recursive: true, force: true });
@@ -815,8 +854,8 @@ describe('Soil Export Job Integration Test', () => {
       mockSelectOverview.mockRestore();
     });
 
-    it('should skip mask building and crop via projwin for an axis-aligned bbox AOI without raster filters', async () => {
-      const spy = jest.spyOn(FilteringMasksModule, 'getRasterMask');
+    it('should crop natively via srcwin for an axis-aligned bbox AOI over an EPSG:4326 layer', async () => {
+      const spy = jest.spyOn(GdalCLI, 'translate');
       const filterResponse = await request(app)
         .post('/data-filters')
         .send({
@@ -921,7 +960,9 @@ describe('Soil Export Job Integration Test', () => {
       expect(maxY).toBeGreaterThanOrEqual(bboxMaxY - tolerance);
       expect(maxY).toBeLessThanOrEqual(bboxMaxY + tolerance);
 
-      expect(spy).not.toHaveBeenCalled();
+      // Every pixel of a rectangle's window touches it: cropped by GDAL, no tiles, no VRT
+      expect(spy.mock.calls.some(([, , args]) => args.includes('-srcwin'))).toBe(true);
+      expect(spy.mock.calls.some(([src]) => src.endsWith('.vrt'))).toBe(false);
       spy.mockRestore();
       fs.rmSync(tempDir, { recursive: true, force: true });
     });
@@ -938,7 +979,7 @@ describe('Soil Export Job Integration Test', () => {
           ],
         ],
       };
-      const spy = jest.spyOn(FilteringMasksModule, 'getRasterMask');
+      const spy = jest.spyOn(GdalCLI, 'translate');
       const filterResponse = await request(app)
         .post('/data-filters')
         .send({
@@ -1026,7 +1067,7 @@ describe('Soil Export Job Integration Test', () => {
       expect(insideValue).not.toBe(255);
       expect(outsideValue).toBe(255);
 
-      expect(spy).toHaveBeenCalled();
+      expect(spy.mock.calls.some(([src]) => src.endsWith('.vrt'))).toBe(true);
       spy.mockRestore();
       fs.rmSync(tempDir, { recursive: true, force: true });
     });
@@ -1186,33 +1227,6 @@ describe('Soil Export Job Integration Test', () => {
         expect(jobStatus).toBe('completed');
         expect(completedJob.data.download_path).toBeDefined();
         return completedJob;
-      }
-
-      async function downloadAndExtract(downloadPath: string): Promise<string> {
-        const escapedDownloadPath = downloadPath.replace(/\//g, '%2F');
-        const downloadResponse = await request(app)
-          .get(`/downloads/${escapedDownloadPath}`)
-          .buffer()
-          .parse((res, callback) => {
-            res.setEncoding('binary');
-            let data = '';
-            res.on('data', chunk => {
-              data += chunk;
-            });
-            res.on('end', () => {
-              callback(null, Buffer.from(data, 'binary'));
-            });
-          });
-        expect(downloadResponse.statusCode).toBe(StatusCodes.OK);
-
-        const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'export-test-'));
-        const zipPath = path.join(tempDir, 'export.zip');
-        fs.writeFileSync(zipPath, downloadResponse.body);
-
-        const extractDir = path.join(tempDir, 'extracted');
-        fs.mkdirSync(extractDir, { recursive: true });
-        await extractZip(zipPath, { dir: extractDir });
-        return extractDir;
       }
 
       it('includes a raster layer asset in the zip under assets/{layerName}/, alongside its raster output', async () => {
@@ -1389,7 +1403,6 @@ describe('Soil Export Job Integration Test', () => {
   });
 
   describe('Export Limits', () => {
-
     const setExportLimits = async (exportLimits: object) => {
       const dataSource = await getDataSource();
       await dataSource.getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits } });
@@ -1493,6 +1506,44 @@ describe('Soil Export Job Integration Test', () => {
       expect(job.status).toBe('failed');
       expect(job.data.errors[0].code).toBe('EX_NO_DATA');
       expect(job.data.download_path).toBeUndefined();
+    });
+  });
+
+  describe('Thin area of interest', () => {
+    // A sliver about 10 m wide running diagonally across ph_0-10cm_4326.tif (~230 m pixels). It
+    // contains no pixel centre, but touches 12 valid pixels, which GET /soil-data returns (ADR 0045).
+    const thinPolygon = {
+      type: 'Polygon' as const,
+      coordinates: [
+        [
+          [38.37476, 3.3068652],
+          [38.374778, 3.3069536],
+          [38.3659168, 3.320767],
+          [38.3659117, 3.3207113],
+          [38.37476, 3.3068652],
+        ],
+      ],
+    };
+
+    it('exports the pixels a thin AOI touches, though it contains no pixel centre', async () => {
+      const layer = await addRasterData(writableAsset('raster/ph_0-10cm_4326.tif'), {
+        dataset: 'thin-aoi-ph',
+        visibility: 'public',
+        dataset_status: IngestionStatus.PUBLISHED,
+      });
+
+      const job = await runExport([layer.dataset.slug], [RasterFileFormat.TIFF], undefined, thinPolygon);
+
+      expect(job.status).toBe('completed');
+      expect(job.data.total_layers_processed).toBe(1);
+
+      const extractDir = await downloadAndExtract(job.data.download_path);
+      const tiffFiles = fs.readdirSync(extractDir).filter(file => file.toLowerCase().endsWith('.tif'));
+      expect(tiffFiles).toHaveLength(1);
+      expect(await hasNonNodataPixel(path.join(extractDir, tiffFiles[0]!), 255)).toBe(true);
+      // Exactly the touched pixels, as `gdal_rasterize -at` burns them on the source grid
+      expect(await countNonNodataPixels(path.join(extractDir, tiffFiles[0]!), 255)).toBe(12);
+      fs.rmSync(path.dirname(extractDir), { recursive: true, force: true });
     });
   });
 });

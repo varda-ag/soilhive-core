@@ -43,6 +43,7 @@ export interface GdalInfoBand {
   max?: number;
   overviews?: Array<{ size: [number, number] }>;
   noDataValue?: number;
+  metadata?: Record<string, Record<string, string> | undefined>;
 }
 
 export interface GdalInfoOutput {
@@ -59,7 +60,7 @@ export interface GdalInfoOutput {
   wgs84Extent?: { type: string; coordinates: number[][][] };
 }
 
-/** An EPSG:4326 extent. */
+/** An EPSG:4326 extent. west > east when it crosses the antimeridian. */
 export type Envelope = [west: number, south: number, east: number, north: number];
 
 export class GdalCLI {
@@ -273,9 +274,33 @@ export class GdalCLI {
     const ring = wgs84Extent?.coordinates?.[0];
     // Four corners plus the closing repeat of the first
     if (!ring || ring.length !== 5 || !ring.flat().every(Number.isFinite)) return undefined;
-    const lons = ring.map(([lon]) => lon!);
-    const lats = ring.map(([, lat]) => lat!);
-    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+    return GdalCLI.lonLatEnvelope(ring as [number, number][]);
+  }
+
+  /**
+   * The envelope of points spread across one connected area, in EPSG:4326. Its longitude span is
+   * the circle minus the widest stretch of longitude no point falls in, so an area straddling the
+   * antimeridian (Alaska, Fiji) comes out with west > east, as RFC 7946 spells such a bbox, rather
+   * than as the min/max envelope covering every other longitude on the globe instead.
+   */
+  static lonLatEnvelope(points: [number, number][]): Envelope {
+    const lons = [...new Set(points.map(([lon]) => lon))].sort((a, b) => a - b);
+    const lats = points.map(([, lat]) => lat);
+    const south = Math.min(...lats);
+    const north = Math.max(...lats);
+    // The stretch from the easternmost longitude round to the westernmost, across ±180°
+    let widestGap = lons[0]! + 360 - lons[lons.length - 1]!;
+    let west = lons[0]!;
+    let east = lons[lons.length - 1]!;
+    for (let i = 1; i < lons.length; i++) {
+      const gap = lons[i]! - lons[i - 1]!;
+      if (gap > widestGap) {
+        widestGap = gap;
+        west = lons[i]!;
+        east = lons[i - 1]!;
+      }
+    }
+    return [west, south, east, north];
   }
 
   // The CRS's own EPSG code is a depth-1 ID["EPSG", n] (a direct child of the outer PROJCRS[/

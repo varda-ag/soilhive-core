@@ -5,6 +5,10 @@
 > **Amended by ADR 0057:** raster rows no longer come from Datasets "at any Ingestion Status". For
 > a non-privileged caller, unpublished Datasets are absent, for raster rows as for vector rows.
 
+> **Amended (SP-5803):** the raster export now writes exactly the pixels raster rows return. It
+> clips each Raster Layer to the same AOI with the same `AllTouchedSweep` on the layer's own grid,
+> and treats the same values as nodata. It no longer builds a raster mask. See Consequences.
+
 ## Context
 
 A raster Dataset's measurements are the pixels of its Files, one Raster Layer per (File, Band), not Observations. `GET /soil-data` reaches Observations through dataset_layers and features, so it returned nothing for a raster Dataset. Clients need pixel values synchronously. Most of their requests are point lookups whose AOI is an H3 res-10 cell (~0.015 km²), smaller than a 250 m or 1 km pixel. It was decided to serve them from `GET /soil-data`, not from a new endpoint and not by having clients read the COGs themselves.
@@ -35,7 +39,7 @@ A raster Dataset's measurements are the pixels of its Files, one Raster Layer pe
 
 - Raster coverage and the raster export still list only Published Datasets and apply the `visibility` criterion. So, as with vector data, a raster Dataset that coverage does not list can still be read through `/soil-data` by anyone who holds its slug and passes the Visibility and Entitlement check.
 - Raster rows need the `preview` Capability, as vector rows do, while the raster export needs `download`. Before this change `preview` on a private raster Dataset exposed no pixel values. Now it exposes all of them, page by page.
-- Raster rows are not the Export Bundle's pixels. The raster export clips with a coarser mask that is roughly pixel-centre, so it can leave out edge pixels that `/soil-data` returns.
+- Raster rows are the Export Bundle's pixels (amended, SP-5803). The export used to clip with a coarser EPSG:4326 mask, sampled roughly at pixel centres, so it left out edge pixels that `/soil-data` returns, and a small or thin AOI could export nothing at all. Now both use the AOI `matchRasterLayers` returns, the same all-touched test and the same nodata markers. An axis-aligned rectangle over an EPSG:4326 layer is still cropped natively by GDAL (`-srcwin` over the AOI's pixel window, every pixel of which touches the rectangle). Any other AOI is written tile by tile, so it is read in Node rather than by GDAL. A Raster Layer whose touched pixels are all nodata is left out of the bundle, and a bundle that would hold no data fails with `EX_NO_DATA`. One difference remains: the native crop honours only the File's own nodata marker, not `raster_layers.nodata_value`.
 - A skipped Raster Layer's rows are missing from the response, and nothing in the response says so. If the failure is transient and the cursor moves past that layer, the pagination loses the layer's remaining rows.
 - There is no size limit beyond paging. Memory per request is bounded by eight strips. Time is bounded by how many strips must be read to fill a page, so a huge AOI that is mostly nodata can read many strips for one page.
 - GDAL runs only to reproject. A page spawns one `gdaltransform` per distinct projected CRS for the AOI and one for the outlines. A Raster Layer in EPSG:4326 spawns none. A File with no recorded CRS and no EPSG code in its geokeys also costs one `gdalinfo`.

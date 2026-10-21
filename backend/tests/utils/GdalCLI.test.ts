@@ -316,6 +316,45 @@ describe('GdalCLI.extractWgs84Envelope', () => {
   it('returns undefined when gdalinfo reports no wgs84Extent at all', () => {
     expect(GdalCLI.extractWgs84Envelope(undefined)).toBeUndefined();
   });
+
+  it('returns west > east for a ring crossing the antimeridian, rather than the envelope of every other longitude', () => {
+    // Captured from gdalinfo -json, for an Alaska Albers (EPSG:3338) raster
+    const alaska = {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [157.3677834, 63.9124222],
+          [175.499108, 49.0545982],
+          [-132.2705925, 51.4310518],
+          [-117.2863728, 67.6023365],
+          [157.3677834, 63.9124222],
+        ],
+      ],
+    };
+    expect(GdalCLI.extractWgs84Envelope(alaska)).toEqual([157.3677834, 49.0545982, -117.2863728, 67.6023365]);
+  });
+});
+
+describe('GdalCLI.lonLatEnvelope', () => {
+  it('is the min/max envelope for points that stay clear of the antimeridian', () => {
+    expect(
+      GdalCLI.lonLatEnvelope([
+        [-10, 40],
+        [20, 50],
+        [5, 45],
+      ]),
+    ).toEqual([-10, 40, 20, 50]);
+  });
+
+  it('spans the antimeridian for points either side of it', () => {
+    expect(
+      GdalCLI.lonLatEnvelope([
+        [178, -16],
+        [-179, -18],
+        [179.5, -17],
+      ]),
+    ).toEqual([178, -18, -179, -16]);
+  });
 });
 
 describe('GdalCLI.extractEpsgFromWkt', () => {
