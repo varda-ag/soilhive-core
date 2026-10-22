@@ -23,7 +23,6 @@ function createWrapper() {
     defaultOptions: {
       queries: {
         retry: false,
-        retryDelay: 0,
       },
     },
   });
@@ -233,6 +232,21 @@ describe('useApiQueries', () => {
     expect(result.current[1].isStale).toBe(true);
   });
 
+  it("keeps the QueryClient's retry default when no retry is given", async () => {
+    requestMock.mockRejectedValue(new Error('boom'));
+
+    const { result } = renderHook(
+      () => useApiQueries<{ id: string }>([{ endpoint: '/test/1', method: 'GET', queryKey: ['test', '1'], enabled: true }]),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].isError).toBe(true);
+    });
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+
   it('retries a failed query as the given retry says', async () => {
     requestMock.mockRejectedValue(new Error('boom'));
 
@@ -241,9 +255,13 @@ describe('useApiQueries', () => {
       { wrapper: createWrapper() },
     );
 
-    await waitFor(() => {
-      expect(result.current[0].isError).toBe(true);
-    });
+    // React Query waits 1 s before the retry.
+    await waitFor(
+      () => {
+        expect(result.current[0].isError).toBe(true);
+      },
+      { timeout: 3000 },
+    );
 
     expect(requestMock).toHaveBeenCalledTimes(2);
   });

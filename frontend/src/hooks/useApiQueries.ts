@@ -58,7 +58,8 @@ export function useApiQueries<TResponse, TBody = void, TCombined = UseQueryResul
           },
           staleTime: staleTime ?? QUERY_STALE_TIME,
           refetchInterval,
-          retry,
+          // Only when set: an explicit `retry: undefined` would override the QueryClient's default.
+          ...(retry !== undefined && { retry }),
         };
       },
     ),
