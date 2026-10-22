@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { PluginMutationResult, PluginSoilIndexRun, PluginSoilIndexRunResult, PluginSoilIndexSubmission } from 'frontend-plugin-types';
 import { REST_END_POINTS } from 'configuration/api';
 import { useApiQuery } from './useApiQuery';
+import { useApiQueries } from './useApiQueries';
 import { useApiMutation } from './useApiMutation';
 import { buildPluginConfigId } from './pluginConfigId';
 import { toDataRequestError } from './usePluginDataRequest';
@@ -50,6 +51,15 @@ export function usePluginSoilIndex(id: string | undefined): PluginSoilIndexRunRe
   const { data, isLoading, error } = useApiQuery<PluginSoilIndexRun>(soilIndexQueryOptions(id));
 
   return useMemo(() => toSoilIndexRunResult({ data, isLoading, error }), [data, isLoading, error]);
+}
+
+// Same options and cache entry per Run as usePluginSoilIndex, so a row and a list reading one id send one request.
+export function usePluginSoilIndexes(ids: string[]): Record<string, PluginSoilIndexRunResult> {
+  const uniqueIds = [...new Set(ids)];
+  // React Query shares the combined record structurally: it keeps its identity until a Run's result changes.
+  return useApiQueries<PluginSoilIndexRun, void, Record<string, PluginSoilIndexRunResult>>(uniqueIds.map(soilIndexQueryOptions), results =>
+    Object.fromEntries(uniqueIds.map((id, index) => [id, toSoilIndexRunResult(results[index])])),
+  );
 }
 
 export function usePluginSoilIndexSubmit(

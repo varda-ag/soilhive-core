@@ -1,4 +1,4 @@
-import { useQueries, type QueryKey, type Query } from '@tanstack/react-query';
+import { useQueries, type QueryKey, type Query, type UseQueryResult } from '@tanstack/react-query';
 import { useRequest } from '../api-client';
 import { buildApiUrl } from '../utilities/buildApiUrl';
 import { QUERY_STALE_TIME } from '../configuration/api';
@@ -17,7 +17,11 @@ type ApiQueryItem<TResponse, TBody = void> = {
   notFoundAsNull?: boolean;
 };
 
-export function useApiQueries<TResponse, TBody = void>(queries: ApiQueryItem<TResponse, TBody>[]) {
+// `combine` maps the results to one value that keeps its identity until a result changes.
+export function useApiQueries<TResponse, TBody = void, TCombined = UseQueryResult<TResponse, Error>[]>(
+  queries: ApiQueryItem<TResponse, TBody>[],
+  combine?: (results: UseQueryResult<TResponse, Error>[]) => TCombined,
+): TCombined {
   const { request } = useRequest();
 
   return useQueries({
@@ -55,5 +59,6 @@ export function useApiQueries<TResponse, TBody = void>(queries: ApiQueryItem<TRe
         };
       },
     ),
+    combine,
   });
 }
