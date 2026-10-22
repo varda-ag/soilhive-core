@@ -10,13 +10,13 @@ const list = (value: string | undefined): string[] =>
     .filter(Boolean);
 
 /**
- * The `iss` an identity provider's token may carry: OIDC_ISSUER, a comma-separated list for an
- * IdP reached under several hostnames, else OIDC_AUTHORITY. Each with and without a trailing
- * slash. Empty when neither is set: the validator then refuses every IdP token.
+ * The `iss` an identity provider's token may carry: OIDC_AUTHORITY, the issuer the browser signs in
+ * with, plus OIDC_ISSUER, a comma-separated list for an IdP reached under other hostnames too. Added,
+ * never replaced, so listing a Machine caller's issuer can't refuse the browser's tokens. Each with
+ * and without a trailing slash. Empty when neither is set: the validator then refuses every IdP token.
  */
 export const getOidcIssuers = (): string[] => {
-  const configured = list(process.env.OIDC_ISSUER);
-  const issuers = configured.length > 0 ? configured : list(process.env.OIDC_AUTHORITY);
+  const issuers = [...list(process.env.OIDC_AUTHORITY), ...list(process.env.OIDC_ISSUER)];
   return [...new Set(issuers.flatMap(issuer => [issuer.replace(/\/+$/, ''), `${issuer.replace(/\/+$/, '')}/`]))];
 };
 

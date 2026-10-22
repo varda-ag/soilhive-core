@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals
 import jwt from 'jsonwebtoken';
 import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
 import { TOKEN_ISSUER, TokenScopes } from '../../src/types/enums';
+import { getPasswordGrantKey, signPasswordGrantToken } from '../../src/utils/password-grant-key';
 
 const IDP = 'https://idp.example/realms/soilhive';
-import { getPasswordGrantKey, signPasswordGrantToken } from '../../src/utils/password-grant-key';
 
 // Helper: build a minimal mock Express Request
 function makeRequest(authHeader?: string): any {
@@ -452,12 +452,16 @@ describe('tokenValidator — the issuer and audience of IdP tokens', () => {
     });
   });
 
-  it('accepts every issuer OIDC_ISSUER lists, instead of OIDC_AUTHORITY', async () => {
+  it('accepts every issuer OIDC_ISSUER lists, as well as OIDC_AUTHORITY', async () => {
     process.env.OIDC_ISSUER = 'https://login.example/realms/soilhive, http://keycloak.internal/realms/soilhive';
     await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: 'http://keycloak.internal/realms/soilhive' })}`), [])).resolves.toBe(
       true,
     );
-    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP })}`), [])).rejects.toMatchObject({ status: 401 });
+    // Listing a Machine caller's issuer must never refuse the browser's
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: IDP })}`), [])).resolves.toBe(true);
+    await expect(tokenValidator(makeRequest(`Bearer ${idpToken({ iss: 'https://idp.example/realms/other' })}`), [])).rejects.toMatchObject({
+      status: 401,
+    });
   });
 
   it('rejects every IdP token when no issuer is configured, rather than skipping the check', async () => {

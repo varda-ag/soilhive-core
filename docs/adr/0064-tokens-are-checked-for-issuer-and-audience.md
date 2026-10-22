@@ -6,14 +6,14 @@ Until now the token validator checked a token's signature, expiry, `sub` and sco
 
 Every token is now checked for its issuer, chosen by the key that verifies it (ADR 0060 dispatches on `kid`):
 
-| Token             | `iss` must be                                                                                   | `aud`                                                    |
-| ----------------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| Password-grant    | `soilhive-core`                                                                                 | Not checked                                              |
-| Internal-request  | `soilhive-core`                                                                                 | Not checked                                              |
-| Identity provider | One of `OIDC_ISSUER` (comma-separated), else `OIDC_AUTHORITY`, with or without a trailing slash | One of `OIDC_AUDIENCE` (comma-separated), once it is set |
+| Token             | `iss` must be                                                                                 | `aud`                                                    |
+| ----------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Password-grant    | `soilhive-core`                                                                               | Not checked                                              |
+| Internal-request  | `soilhive-core`                                                                               | Not checked                                              |
+| Identity provider | `OIDC_AUTHORITY`, or one of `OIDC_ISSUER` (comma-separated), with or without a trailing slash | One of `OIDC_AUDIENCE` (comma-separated), once it is set |
 
 - **Platform-issued tokens are checked for `iss` only.** Their keys sign nothing else, so an audience would add nothing. Every Password-grant and internal-request token already carries `iss: soilhive-core`, so nobody has to sign in again.
-- **`OIDC_ISSUER` is a list.** An identity provider reached under several hostnames, an in-cluster one for Machine callers say, can stamp a different `iss` on each. Without `OIDC_ISSUER`, `OIDC_AUTHORITY` is the issuer the browser signs in with.
+- **`OIDC_ISSUER` adds to `OIDC_AUTHORITY`.** An identity provider reached under several hostnames, an in-cluster one for Machine callers say, can stamp a different `iss` on each. `OIDC_AUTHORITY`, the issuer the browser signs in with, stays accepted, so listing a Machine caller's issuer can never refuse the browser's tokens.
 - **The issuer check fails closed.** With neither `OIDC_ISSUER` nor `OIDC_AUTHORITY` set, every IdP token is refused (401). jsonwebtoken skips the check when the issuer is `undefined`, so an unset value must never reach it.
 - **The audience check waits for `OIDC_AUDIENCE`.** Keycloak access tokens carry `aud: account` unless an _Audience_ mapper adds the client, and each Machine caller's client needs the same mapper. Requiring it on deploy would sign everyone out until each realm is changed. Until it is set, the backend logs a warning at startup.
 
@@ -27,6 +27,7 @@ Until `OIDC_AUDIENCE` is set, the core accepts tokens issued to any client of th
 
 - **Require `OIDC_AUDIENCE` at once.** It closes the gap on deploy, but signs everyone out on every realm whose tokens lack the audience, with no way back but a config change. Rejected for the rollout; it can become required once every environment sets it.
 - **Default the audience to `OIDC_CLIENT_ID`.** That is the client the browser signs in with, not necessarily an audience its tokens carry, and never the one of a Machine caller's tokens. Rejected.
+- **`OIDC_ISSUER` replacing `OIDC_AUTHORITY`.** An operator adding a Machine caller's issuer would have to repeat the browser's, or every browser sign-in would be refused. Accepting both costs nothing: either way the token must be signed by the realm's keys. Rejected.
 - **Check `azp` instead of `aud`.** `azp` names the client the token was issued to, which differs per Machine caller, so the check would need the same list of clients. `aud` is the standard claim for "meant for this API". Rejected.
 - **Keep the substring match and rename scopes.** It depends on no realm ever naming a scope that contains one of the three, across every application sharing the realm. Rejected.
 - **An `aud` on platform-issued tokens.** Each of their keys signs one kind of token, so it would separate nothing. Not done.
