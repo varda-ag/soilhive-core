@@ -211,4 +211,58 @@ describe('useApiQueries', () => {
     expect(requestMock).not.toHaveBeenCalled();
     expect(buildApiUrl).not.toHaveBeenCalled();
   });
+  it('keeps results fresh for QUERY_STALE_TIME by default and for the given staleTime otherwise', async () => {
+    requestMock.mockResolvedValue({ id: '1' });
+
+    const { result } = renderHook(
+      () =>
+        useApiQueries<{ id: string }>([
+          { endpoint: '/test/1', method: 'GET', queryKey: ['test', '1'], enabled: true },
+          { endpoint: '/test/2', method: 'GET', queryKey: ['test', '2'], enabled: true, staleTime: 0 },
+        ]),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].isSuccess).toBe(true);
+      expect(result.current[1].isSuccess).toBe(true);
+    });
+
+    expect(result.current[0].isStale).toBe(false);
+    expect(result.current[1].isStale).toBe(true);
+  });
+
+  it("keeps the QueryClient's retry default when no retry is given", async () => {
+    requestMock.mockRejectedValue(new Error('boom'));
+
+    const { result } = renderHook(
+      () => useApiQueries<{ id: string }>([{ endpoint: '/test/1', method: 'GET', queryKey: ['test', '1'], enabled: true }]),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].isError).toBe(true);
+    });
+
+    expect(requestMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a failed query as the given retry says', async () => {
+    requestMock.mockRejectedValue(new Error('boom'));
+
+    const { result } = renderHook(
+      () => useApiQueries<{ id: string }>([{ endpoint: '/test/1', method: 'GET', queryKey: ['test', '1'], enabled: true, retry: 1 }]),
+      { wrapper: createWrapper() },
+    );
+
+    // React Query waits 1 s before the retry.
+    await waitFor(
+      () => {
+        expect(result.current[0].isError).toBe(true);
+      },
+      { timeout: 3000 },
+    );
+
+    expect(requestMock).toHaveBeenCalledTimes(2);
+  });
 });

@@ -134,8 +134,7 @@ export class RasterFileWriter {
       // GDAL's crop knows only the File's GDAL_NODATA, so it is used only when that marker already
       // covers raster_layers.nodata_value; otherwise pixels holding the declared marker would ship
       // as data. The tile path honours both.
-      const fileMarkerCoversDeclared =
-        layer.nodata_value == null || nodataPredicate([band.fileNodata], band.float32)(layer.nodata_value);
+      const fileMarkerCoversDeclared = layer.nodata_value == null || nodataPredicate([band.fileNodata], band.float32)(layer.nodata_value);
 
       if (isAxisAlignedBboxPolygon(aoi) && isWgs84(crs) && fileMarkerCoversDeclared) {
         return await this.cropToWindow(layer, window, targetCrs);

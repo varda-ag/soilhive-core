@@ -83,6 +83,8 @@ export interface PluginContext {
   useSoilIndexSubmit: (pluginId: string, configId: string) => PluginMutationResult<PluginSoilIndexSubmission, PluginSoilIndexRun>;
   // Polls until completed or failed; undefined id = do not fetch.
   useSoilIndex: (id: string | undefined) => PluginSoilIndexRunResult;
+  // Reads each id like useSoilIndex, sharing its cache; one entry per id, [] reads nothing.
+  useSoilIndexes: (ids: string[]) => Record<string, PluginSoilIndexRunResult>;
   // Resolves when the id is already gone, so a delete is safe to repeat.
   useSoilIndexDelete: () => PluginMutationResult<{ id: string }, void>;
   // The map tiles of a completed Soil Index Run, as a MapLibre vector source; undefined runId =

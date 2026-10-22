@@ -387,6 +387,7 @@ A Soil Index Run scores the aggregation areas of a filter, and its scores are dr
 
 - `context.useSoilIndexSubmit(pluginId, configId)` submits one, **attached** to your saved config item `configId`. The caller needs write on that item.
 - `context.useSoilIndex(id)` reads one and polls it until it is `completed` or `failed`. Once completed, `data.score_count`, `data.bounds` and `data.tiles` describe what it produced. Pass `undefined` to skip fetching.
+- `context.useSoilIndexes(ids)` reads many, with the same polling and errors as `useSoilIndex`. It returns one entry per id. An empty list reads nothing.
 - `context.useSoilIndexDelete()` destroys one, with its scores and tiles. Deleting an id that is already gone also succeeds.
 
 Attaching gates the Run itself: reading it needs read on the config item, deleting it needs write, and deleting the config item deletes the Run. It does **not** protect the scores. Anyone holding the Run id can see its tiles and scores (see `soilhive-core` ADR 0044).

@@ -67,6 +67,8 @@ type AvailabilityContextType = {
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
 
+const matchesSearch = (name: string, searchValue: string) => !searchValue || name.toLowerCase().includes(searchValue.toLowerCase());
+
 type AvailabilityProviderProps = {
   children: ReactNode;
 };
@@ -154,7 +156,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
           (!dataset.visibility ||
             !datasetFrontendFilters.visibility.length ||
             datasetFrontendFilters.visibility.includes(dataset.visibility)) &&
-          (!searchValue || dataset.name.toLowerCase().includes(searchValue.toLowerCase()))
+          matchesSearch(dataset.name, searchValue)
         );
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -227,18 +229,18 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
 
   const availableDatasets = useMemo(() => {
     const datasets = fullFilterResults ? fullFilterResults.datasets : fullFilterDatasets || [];
-    const allowedDatasets = datasets.filter(isAvailableDataset);
+    const allowedDatasets = datasets.filter(dataset => isAvailableDataset(dataset) && matchesSearch(dataset.name, searchValue));
     if (selectedDatasets.length > 0) {
       const datasetIds = new Set(allowedDatasets.map(dataset => dataset.id));
       // Excludes the selected datasets that are not available anymore in the current
-      // map view/selection
+      // map view/selection, or are hidden by the search
       const validSelectedDatasets = new Set(selectedDatasets.filter(id => datasetIds.has(id)));
       if (validSelectedDatasets.size > 0) {
         return allowedDatasets.filter(dataset => validSelectedDatasets.has(dataset.id));
       }
     }
     return allowedDatasets.sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }));
-  }, [fullFilterResults, fullFilterDatasets, selectedDatasets, isAvailableDataset]);
+  }, [fullFilterResults, fullFilterDatasets, selectedDatasets, isAvailableDataset, searchValue]);
 
   return (
     <AvailabilityContext.Provider
