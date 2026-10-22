@@ -547,7 +547,9 @@ describe('RasterFileWriter', () => {
       expect(translate.mock.calls.some(([src]) => src.endsWith('.vrt'))).toBe(true);
       const tif = outputFiles().find(f => f.endsWith('.tif'));
       if (!tif) throw new Error('No .tif output file produced');
-      const data = (await (await (await fromFile(path.join(TEST_OUTPUT_DIR, tif))).getImage(0)).readRasters({ samples: [0] }))[0] as ArrayLike<number>;
+      const data = (
+        await (await (await fromFile(path.join(TEST_OUTPUT_DIR, tif))).getImage(0)).readRasters({ samples: [0] })
+      )[0] as ArrayLike<number>;
       expect(Array.from(data)).not.toContain(104);
     });
   });
