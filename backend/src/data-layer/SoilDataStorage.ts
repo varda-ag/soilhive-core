@@ -1055,6 +1055,7 @@ const exportRasterLayer = (row: any): FilteredRasterLayer => ({
   ...(row.epsg ? { epsg: Number(row.epsg) } : {}),
   ...(row.wkt ? { wkt: row.wkt } : {}),
   band: Number(row.band),
+  nodata_value: row.nodata_value ?? null,
   is_categorical: row.is_categorical,
   min_depth: row.min_depth,
   max_depth: row.max_depth,

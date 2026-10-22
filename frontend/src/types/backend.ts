@@ -349,7 +349,7 @@ export type Georeference = [[number, number], [number, number], [number, number]
 interface FileGeoreferenceDescriptorMetadata {
   crs_source?: 'inferred' | 'supplied'; // Absent on files that predate it: read as 'inferred'
   georeference?: Georeference | null; // In the file's own CRS. null: none found; absent: never extracted
-  georeference_wgs84?: Georeference; // [lon, lat]; absent while the CRS is unknown or when a corner does not reproject
+  georeference_wgs84?: Georeference; // [lon, lat]; absent while the CRS is unknown or when a corner does not reproject. Longitudes go past ±180° for a file crossing the antimeridian
 }
 
 export interface RasterFileDescriptorMetadata extends FileGeoreferenceDescriptorMetadata {

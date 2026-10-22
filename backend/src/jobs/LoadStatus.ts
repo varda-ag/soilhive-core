@@ -28,7 +28,7 @@ export const statusAfterLoad = (previousStatus: IngestionStatus): IngestionStatu
   previousStatus === IngestionStatus.PUBLISHED ? IngestionStatus.PUBLISHED : IngestionStatus.LOADED;
 
 /**
- * A failed load gives a PUBLISHED or LOADED Dataset its status back rather than demoting it, since
+ * A failed raster-load gives a PUBLISHED or LOADED Dataset its status back rather than demoting it, since
  * the data it held before the load is still there. Anything else, including an ONGOING left behind
  * by a worker that died mid-load, falls back to PENDING.
  */

@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.7.0 (2026-10-22)
+
+## What's Changed
+* fix(be): add EX_NO_DATA error for export by @d-rom in https://github.com/varda-ag/soilhive-core/pull/907
+* feat: sp-5804 saveconfig stops waiting for refetches after a save by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/906
+* fix: sp-5795 a soil index score the server refuses is not read again by @cristbello in https://github.com/varda-ag/soilhive-core/pull/904
+* Update 5b-conversion-rules-table.csv by @federicodelsanto in https://github.com/varda-ag/soilhive-core/pull/905
+* feat: sp-5804 cache external entitlements per token by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/910
+* feat: sp-5788 - expose useDatasets hook to the plugins by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/909
+* feat: sp-5806 batch config reads in chunks of 100 by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/913
+* feat: georef preview and nodata value by @svaccari in https://github.com/varda-ag/soilhive-core/pull/914
+* feat: sp-5811 keep finished exports in the downloads menu by @svaccari in https://github.com/varda-ag/soilhive-core/pull/915
+* fix: raster downloads to match /soil-data by @d-rom in https://github.com/varda-ag/soilhive-core/pull/916
+* fix: show queue reaps in getDatasetErrors by @d-rom in https://github.com/varda-ag/soilhive-core/pull/917
+* fix: georeferenceToWgs84 fix for antimeridian-crossing files by @d-rom in https://github.com/varda-ag/soilhive-core/pull/918
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.6.0...v1.7.0
+
 ## 1.6.0 (2026-10-15)
 
 ## What's Changed

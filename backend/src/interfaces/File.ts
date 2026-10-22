@@ -32,7 +32,7 @@ export type CrsSource = 'inferred' | 'supplied';
 interface GeoreferenceMetadata {
   crs_source?: CrsSource; // Absent on files that predate it: read as 'inferred'
   georeference?: Georeference | null; // In the file's own CRS. null: none found; absent: never extracted
-  georeference_wgs84?: Georeference; // Absent while the CRS is unknown, or when a corner does not reproject
+  georeference_wgs84?: Georeference; // Absent while the CRS is unknown, or when a corner does not reproject. Longitudes go past ±180° for a file crossing the antimeridian
 }
 
 export interface RasterFileMetadata extends GeoreferenceMetadata {

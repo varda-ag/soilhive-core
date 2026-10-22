@@ -18,9 +18,8 @@ import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import * as FilteringMasksModule from '../../src/data-layer/FilteringMasks';
 import { invalidGeometryPayload } from './invalidGeometryPayload.ts';
-import { getRasterMask, getVectorMask } from '../../src/data-layer/FilteringMasks';
+import { getVectorMaskCtes, renderCtes } from '../../src/data-layer/FilteringMasks';
 import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
-import { GdalCLI } from '../../src/utils/GdalCLI';
 import path from 'path';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
 import { writableAsset } from '../assets';
@@ -961,69 +960,13 @@ describe('SoilDataStorage class', () => {
       };
       const entityManager = await getEntityManager();
       const filter = await makeFilter(entityManager, filteringRectangle as Polygon, parameters as FilterCriteria);
-      const polygon = await getVectorMask(entityManager, filter);
+      // The AOI matchRasterLayers resolves when raster filters are present, as GeoJSON
+      const ctes = await getVectorMaskCtes(entityManager, filter);
+      const [{ geom: polygon }] = await entityManager.query(
+        `WITH ${renderCtes(ctes, '$1')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`,
+        [filter.geometryIds],
+      );
       expect(turf.area(polygon)).toEqual(turf.area({ type: 'Polygon', coordinates: [expectedPolygon] }));
-    });
-
-    it.each<[FilterCriteria, number, boolean]>(
-      [false, true].flatMap(rasterize => [
-        [{}, 25, rasterize], // No parameters, mask is filling all the rectangle
-        [{ raster_filters: { land_cover: [30] } }, 1, rasterize],
-        [{ raster_filters: { land_cover: [60] } }, 12, rasterize],
-        [{ raster_filters: { land_cover: [200] } }, 12, rasterize],
-        [{ raster_filters: { land_cover: [30, 60, 200] } }, 25, rasterize], // All values, mask is filling all the rectangle
-      ]),
-    )(
-      'Expected raster mask should be returned from a rectangle covering three raster values',
-      async (parameters, expectedPixels, rasterize) => {
-        // Filtering rectangle
-        const filteringRectangle = {
-          coordinates: [filteringMaskCoordinates],
-          type: 'Polygon',
-        };
-        const entityManager = await getEntityManager();
-        const filter = await makeFilter(entityManager, filteringRectangle as Polygon, parameters as FilterCriteria);
-        const table = await getRasterMask(entityManager, filter, 'table', rasterize);
-        expect(table).toBeDefined();
-
-        const [row] = await entityManager.query(`
-        SELECT
-          (SELECT COALESCE(SUM(count), 0) FROM ST_ValueCount(t.rast, 1) WHERE value = 1) AS true_count,
-          t.width,
-          t.height
-        FROM "${table}" t
-      `);
-
-        const trueCount = Number(row.true_count);
-        expect(trueCount).toBe(expectedPixels);
-
-        const w = Number(row.width);
-        const h = Number(row.height);
-        expect(w).toBe(5);
-        expect(h).toBe(5);
-      },
-    );
-
-    it.each([[[0, 0, 100, 10]], [[0, 0, 10, 80]]])('Raster mask should have a maximum size of 1024 pixels', async bbox => {
-      // Filtering rectangle
-      const filteringRectangle = getPolygonFromBbox(bbox);
-      const entityManager = await getEntityManager();
-      const filter = await makeFilter(entityManager, filteringRectangle as Polygon);
-      const table = await getRasterMask(entityManager, filter, 'table');
-      expect(table).toBeDefined();
-
-      const [row] = await entityManager.query(`
-        SELECT
-          (SELECT COALESCE(SUM(count), 0) FROM ST_ValueCount(t.rast, 1) WHERE value = 1) AS true_count,
-          t.width,
-          t.height
-        FROM "${table}" t
-      `);
-
-      const w = Number(row.width);
-      const h = Number(row.height);
-      const maxSize = Math.max(w, h);
-      expect(maxSize).toEqual(1024);
     });
   });
 
@@ -1183,7 +1126,7 @@ describe('SoilDataStorage class', () => {
         await addRasterFilterMappings();
       });
 
-      it('Should call getVectorMask when raster_filters are present', async () => {
+      it('Should call getVectorMaskCtes when raster_filters are present', async () => {
         const spy = jest.spyOn(FilteringMasksModule, 'getVectorMaskCtes');
         const sds = new SoilDataStorage();
         const entityManager = await getEntityManager();
@@ -1327,20 +1270,6 @@ describe('SoilDataStorage class', () => {
       const grouped = await sds.getRasterLayerAssets({ entityManager, entitlements } as any, [layer.id]);
 
       expect(grouped.get(layer.id) ?? []).toHaveLength(0);
-    });
-  });
-
-  describe('getRasterMask', () => {
-    const filteringRectangle: Polygon = { coordinates: [filteringMaskCoordinates], type: 'Polygon' };
-    it('builds the mask in EPSG:4326', async () => {
-      const entityManager = await getEntityManager();
-      const filter = await makeFilter(entityManager, filteringRectangle);
-      const filePath = await getRasterMask(entityManager, filter, 'file', true);
-      expect(filePath).toBeDefined();
-
-      const info = await GdalCLI.gdalinfo(filePath!);
-      expect(GdalCLI.extractEpsgFromWkt(info.coordinateSystem?.wkt)).toBe(4326);
-      fs.unlinkSync(filePath!);
     });
   });
 });

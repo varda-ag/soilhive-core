@@ -39,6 +39,11 @@ export const updateRasterDatasetMetadata = async (
         `${latestEnding('rl.reference_period_stop')} AS max_reference_period`,
         // Coarsest layer, so the advertised resolution never overstates the detail available.
         'MAX(rl.resolution_m) AS resolution_m',
+        // A Raster Layer crossing the antimeridian has its bbox stored as the whole band of longitude
+        // it lies in (analyzeRasterMeta), so the Dataset's extent spans that band too. Deliberate:
+        // spatial_extent is a Polygon column, and as a prefilter (&&) an extent too wide only costs
+        // time, while one too narrow would drop the Dataset. Clients, and the Metadata page's map,
+        // see that band too.
         'ST_AsGeoJSON(ST_Extent(rl.bbox)) AS extent',
         "array_agg(distinct jsonb_build_object('soil_property_id', prop.slug, 'procedure_id', proc.slug)) AS measured_properties",
       ])

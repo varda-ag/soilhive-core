@@ -399,7 +399,7 @@ export const densify = (polygons: PolygonRings[], step: number): PolygonRings[] 
     }),
   );
 
-const isWgs84 = (crs: string): boolean =>
+export const isWgs84 = (crs: string): boolean =>
   crs === WGS84 || (isGeographicCrs(crs) && crs.includes('[') && GdalCLI.extractEpsgFromWkt(crs) === 4326);
 
 const round9 = (value: number): number => Math.round(value * 1e9) / 1e9;
@@ -475,7 +475,7 @@ export const readRasterPixels = async (
   const aoiInCrs = (crs: string): Promise<PolygonRings[]> => {
     let polygons = nativeAoi.get(crs);
     if (!polygons) {
-      polygons = isWgs84(crs) ? Promise.resolve(wgs84Polygons) : reprojectPolygons(densify(wgs84Polygons, DENSIFY_STEP_DEG), crs);
+      polygons = polygonsInCrs(wgs84Polygons, crs);
       nativeAoi.set(crs, polygons);
     }
     return polygons;
@@ -553,7 +553,7 @@ export const readRasterPixels = async (
  * flagged ambiguities in CONTEXT.md) and were warped to EPSG:4326 when ingested, so they resolve from
  * their geokeys without spawning GDAL.
  */
-const resolveCrs = async (filePath: string, wkt: string | null, image: GeoTIFFImage): Promise<string> => {
+export const resolveCrs = async (filePath: string, wkt: string | null, image: GeoTIFFImage): Promise<string> => {
   if (wkt) return wkt;
   const epsg = epsgFromGeoKeys(image);
   if (epsg !== undefined) return `EPSG:${epsg}`;
@@ -589,6 +589,14 @@ const reprojectPolygons = async (polygons: PolygonRings[], crs: string): Promise
   }
   return out;
 };
+
+/**
+ * EPSG:4326 polygons in a raster's native CRS, densified first so their straight edges follow the
+ * projection; returned as they are for EPSG:4326. Shared by /soil-data and the raster export, so both
+ * sweep the same polygon.
+ */
+export const polygonsInCrs = (polygons: PolygonRings[], crs: string): Promise<PolygonRings[]> =>
+  isWgs84(crs) ? Promise.resolve(polygons) : reprojectPolygons(densify(polygons, DENSIFY_STEP_DEG), crs);
 
 /**
  * The EPSG:4326 geometry of each pixel, batched into one gdaltransform run per projected CRS. Corners

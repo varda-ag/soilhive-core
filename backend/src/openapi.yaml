@@ -3341,6 +3341,10 @@ components:
         spatial_extent:
           type: object
           nullable: true
+          description: >-
+            The Dataset's bounding box in EPSG:4326, as a GeoJSON Polygon. For a raster Dataset with a
+            Raster Layer crossing the antimeridian, it spans the whole band of longitude (-180 to 180)
+            between that layer's south and north edges, not only the longitudes the data covers.
           # TODO: this triggers an OpenApiValidator bug
           # $ref: "../src/GeoJSON-OAS3.yaml#/components/schemas/Polygon"
         n_observations:
