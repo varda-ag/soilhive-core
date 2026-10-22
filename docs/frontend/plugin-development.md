@@ -539,6 +539,8 @@ Paths are relative to the client's address and may not leave it: a path that res
 
 In local preview there is no host to get a Plugin token from, so the mock context's client rejects every call. Try your backend's signed-in calls in the host, or pass your own client to the mock: `createMockContext({ usePluginApi: () => myApi })`.
 
+To see the whole flow, build `frontend-plugin-example` and serve it from `plugin-backend-example` (its `.env-example` already pairs the two), register `http://localhost:8091/mf-manifest.json` with the host, and press **Call it** on the plugin's page: it calls the backend's `GET /api/me` with a Plugin token.
+
 #### Your backend's side
 
 Start from [`plugin-backend-example/`](../../plugin-backend-example/README.md) in `soilhive-core`: a small Express server that does all of the below, with tests. In short, your backend must:

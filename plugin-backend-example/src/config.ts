@@ -24,7 +24,7 @@ export const readConfig = (env: NodeJS.ProcessEnv = process.env): Config => {
     pluginId: required('PLUGIN_ID'),
     coreUrl,
     coreInternalUrl: withoutTrailingSlash(env.SOILHIVE_CORE_INTERNAL_URL || coreUrl),
-    port: Number(env.PORT || 8080),
+    port: Number(env.PORT || 8091),
     staticDir: env.STATIC_DIR || undefined,
   };
 };

@@ -13,7 +13,7 @@ Why it works this way: [ADR 0063](../docs/adr/0063-plugins-call-their-backend-di
 
 ```bash
 pnpm install
-cp .env-example .env   # then edit it
+cp .env-example .env   # as is, it serves frontend-plugin-example against the quickstart's core
 node --env-file=.env --import tsx src/server.ts
 ```
 
@@ -22,7 +22,7 @@ node --env-file=.env --import tsx src/server.ts
 | `PLUGIN_ID`                  | The id your plugin exports as `pluginId`. A token is accepted only if its `aud` is `plugin:{PLUGIN_ID}`.                                                                                   |
 | `SOILHIVE_CORE_URL`          | The core's `CORE_PUBLIC_URL`, exactly (e.g. `https://api.soilhive.example/api/v1`). Every token's `iss` must equal it.                                                                     |
 | `SOILHIVE_CORE_INTERNAL_URL` | Optional. Where this backend reaches the core, for its keys and its reads, when not at `SOILHIVE_CORE_URL`: an in-cluster address, or one that skips a gateway that refuses Plugin tokens. |
-| `PORT`                       | Default `8080`.                                                                                                                                                                            |
+| `PORT`                       | Default `8091`, clear of the quickstart's ports (Keycloak listens on `8080`).                                                                                                              |
 | `STATIC_DIR`                 | Optional. Your plugin's built remote (its `dist`), served on the same port, so the host's default address for your calls (the folder of `mf-manifest.json`) is this server.                |
 
 ## The token
