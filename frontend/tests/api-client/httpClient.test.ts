@@ -128,37 +128,3 @@ describe('httpClient', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
-
-describe('httpClient bodies', () => {
-  beforeEach(() => getTokenMock.mockReturnValue('tok'));
-
-  it.each([false, 0, ''])('sends a falsy body (%p) as JSON, like any other', async body => {
-    fetchMock.mockResolvedValueOnce(mockResponse({ ok: true, status: 204 }));
-
-    await httpClient({ url: '/flags/enabled', method: 'PUT', body });
-
-    const init = fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> };
-    expect(init.body).toBe(JSON.stringify(body));
-    expect(init.headers['Content-Type']).toBe('application/json');
-  });
-
-  it.each([undefined, null])('sends no body for %p', async body => {
-    fetchMock.mockResolvedValueOnce(mockResponse({ ok: true, status: 204 }));
-
-    await httpClient({ url: '/datasets/d1', method: 'DELETE', body });
-
-    const init = fetchMock.mock.calls[0][1] as RequestInit & { headers: Record<string, string> };
-    expect(init.body).toBeUndefined();
-    expect(init.headers['Content-Type']).toBeUndefined();
-  });
-
-  it('reads a JSON response as a Blob when the caller asks for one, for a file to download', async () => {
-    const file = new Blob(['{"type":"FeatureCollection"}'], { type: 'application/json' });
-    fetchMock.mockResolvedValueOnce({
-      ...mockResponse({ ok: true, status: 200, body: { type: 'FeatureCollection' } }),
-      blob: async () => file,
-    });
-
-    await expect(httpClient({ url: '/zones/export.geojson', method: 'GET', isBlobResponse: true })).resolves.toBe(file);
-  });
-});

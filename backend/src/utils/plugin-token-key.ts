@@ -75,9 +75,12 @@ export const getAdminPluginIds = (): Set<string> => {
   return new Set(ids.filter(id => PLUGIN_ID_PATTERN.test(id)));
 };
 
-/** Keeps only the admin scopes a Plugin token may carry, matched as whole words, never internal-request. */
-export const pluginTokenScope = (scope: string | undefined): string => {
-  const scopes = (scope ?? '').split(/\s+/);
+/**
+ * Keeps only the admin scopes a Plugin token may carry, matched as whole words, never
+ * internal-request. An array, which some identity providers send, is read as the list it is.
+ */
+export const pluginTokenScope = (scope: unknown): string => {
+  const scopes: unknown[] = Array.isArray(scope) ? scope : typeof scope === 'string' ? scope.split(/\s+/) : [];
   return [TokenScopes.SUPER_ADMIN, TokenScopes.DATA_ADMIN].filter(s => scopes.includes(s)).join(' ');
 };
 

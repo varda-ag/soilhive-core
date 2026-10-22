@@ -195,14 +195,6 @@ function unmuteConsole() {
   }
 }
 
-/**
- * Register and load the given remotes, returning the modules that loaded
- * successfully and the urls of the ones that didn't.
- *
- * This was previously done at module-init time via top-level await; it now runs
- * on demand so the remotes config can be fetched from the configuration service
- * at runtime (see RemotesProvider).
- */
 // A relative remote url is relative to the host page, as the MF runtime reads it
 const toAbsoluteUrl = (url: string): string | undefined => {
   try {
@@ -212,6 +204,14 @@ const toAbsoluteUrl = (url: string): string | undefined => {
   }
 };
 
+/**
+ * Register and load the given remotes, returning the modules that loaded
+ * successfully and the urls of the ones that didn't.
+ *
+ * This was previously done at module-init time via top-level await; it now runs
+ * on demand so the remotes config can be fetched from the configuration service
+ * at runtime (see RemotesProvider).
+ */
 async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[]; failed: string[] }> {
   const enabled = configs.filter(remote => remote.enabled);
   if (enabled.length === 0) return { loaded: [], failed: [] };

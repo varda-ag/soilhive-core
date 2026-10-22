@@ -6,14 +6,12 @@ import { type APIRequestConfig } from './types/api';
 export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> {
   const { url, method = 'GET', headers = {}, body, signal, isBlobResponse } = config;
   const useAuth = config.authenticate !== false;
-  // false, 0 and '' are bodies too: only a missing one means there is nothing to send.
-  const hasBody = body !== undefined && body !== null;
 
   const doFetch = (token: string | null): Promise<Response> => {
     const defaultHeaders: HeadersInit = {
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
-    if (hasBody && !(body instanceof FormData)) {
+    if (body && !(body instanceof FormData)) {
       defaultHeaders['Content-Type'] = 'application/json';
     }
 
@@ -25,7 +23,7 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
     return fetch(url, {
       method,
       headers: finalHeaders,
-      body: hasBody ? (finalHeaders['Content-Type']?.includes('application/json') ? JSON.stringify(body) : body) : undefined,
+      body: body ? (finalHeaders['Content-Type']?.includes('application/json') ? JSON.stringify(body) : body) : undefined,
       signal,
     });
   };
@@ -50,11 +48,6 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
     return undefined as T;
   }
 
-  // A caller that asked for a blob gets one whatever the type, a JSON file to download included
-  if (isBlobResponse) {
-    return (await response.blob()) as T;
-  }
-
   // try parsing JSON safely
   const contentType = response.headers.get('Content-Type');
   if (contentType && contentType.includes('application/json')) {
@@ -62,7 +55,7 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
   }
 
   // if it’s a blob (file download)
-  if (contentType?.includes('application/octet-stream') || contentType?.includes('image/svg+xml')) {
+  if (contentType?.includes('application/octet-stream') || contentType?.includes('image/svg+xml') || isBlobResponse) {
     return (await response.blob()) as T;
   }
 

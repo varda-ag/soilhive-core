@@ -526,7 +526,7 @@ Every method takes an optional last `options` argument:
 | `signal` | An `AbortSignal`. Aborting rejects the call with the `AbortError` itself |
 | `responseType` | `'json'` (default) or `'blob'`. With `'blob'`, the call reads a response of any type as a `Blob`, for example a file download. Without it, the response must be JSON, or the call rejects |
 
-`post`, `put` and `patch` take a body before `options`. They send it as JSON, or as it is when it is a `FormData`, a `Blob` or binary data. A `204` or an empty response resolves to `undefined`.
+`post`, `put` and `patch` take a body before `options`. They send it as JSON, or as it is when it is a `FormData`, a `Blob` or binary data. A `ReadableStream` is refused: send a `Blob` instead. A `204` or an empty response resolves to `undefined`.
 
 The client never shows a toast. A failed call rejects with a `PluginApiError`. This is an `Error` with the response's `status` (`0` when there was no response) and its JSON `body`, if it had one. For an HTTP error, `message` is the body's `detail` or `message` field. A few failures come from the host or the core rather than from your backend:
 

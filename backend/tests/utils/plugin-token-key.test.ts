@@ -85,6 +85,7 @@ describe('plugin-token-key', () => {
     ['super-admin data-admin', 'super-admin data-admin'],
     ['data-admin internal-request', 'data-admin'],
     ['super-admin-ish user', ''],
+    [['openid', 'data-admin', 'internal-request'], 'data-admin'],
     [undefined, ''],
   ])('keeps only the whole admin scopes of %p', (scope, kept) => {
     expect(pluginTokenScope(scope)).toBe(kept);

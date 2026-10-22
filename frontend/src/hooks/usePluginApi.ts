@@ -67,8 +67,9 @@ const isRawBody = (body: unknown) =>
   body instanceof ArrayBuffer ||
   ArrayBuffer.isView(body);
 
-// A stream is read once, so a call that sends one is never retried
-const canResend = (body: unknown) => !(typeof ReadableStream !== 'undefined' && body instanceof ReadableStream);
+// Refused rather than sent as '{}': a stream needs fetch's duplex option, which not every browser
+// supports, and is read once, so it could not be resent after a 401
+const isStream = (body: unknown) => typeof ReadableStream !== 'undefined' && body instanceof ReadableStream;
 
 const send = async (
   url: string,
@@ -135,6 +136,7 @@ const createPluginApi = (pluginId: string, baseUrl: string | undefined): PluginA
   const request = async <T>(method: Method, path: string, body: unknown, options: PluginApiRequestOptions = {}): Promise<T> => {
     // Checked before any mint, so a call that can't be sent costs nothing
     if (!base) throw pluginApiError(baseProblem, 0);
+    if (isStream(body)) throw pluginApiError('A ReadableStream body is not supported: send a Blob instead', 0);
     let url: string;
     try {
       url = buildPluginApiUrl(base, path, options.params);
@@ -152,7 +154,7 @@ const createPluginApi = (pluginId: string, baseUrl: string | undefined): PluginA
     let response = await send(url, method, body, options, token);
 
     // Renew and retry once, as the same user: the Plugin token expired or its key rotated
-    if (response.status === 401 && token && canResend(body) && !options.signal?.aborted && getPluginTokenOwner() === owner) {
+    if (response.status === 401 && token && !options.signal?.aborted && getPluginTokenOwner() === owner) {
       let renewed: string | null;
       try {
         renewed = await renewPluginToken(pluginId, token, options.signal);

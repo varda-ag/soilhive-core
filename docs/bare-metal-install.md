@@ -185,7 +185,7 @@ SELF_SIGNING_SECRET=put-any-random-string-here
 ## Plugin tokens — let plugins call their own backend as the signed-in user (docs/adr/0063)
 ## A secret of at least 32 characters (openssl rand -hex 32), and this API's public base URL
 # PLUGIN_TOKEN_SECRET=
-# CORE_PUBLIC_URL=http://localhost:3000/api/v1
+# CORE_PUBLIC_URL=http://localhost:4001/api/v1
 
 ## OIDC mode — overrides password mode when set
 # OIDC_AUTHORITY=https://<keycloak-host>/realms/<realm>

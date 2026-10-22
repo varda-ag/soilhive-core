@@ -1,4 +1,5 @@
 import React from 'react';
+import { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { renderHook } from '@testing-library/react';
 import type { PluginApiClientOptions } from 'frontend-plugin-types';
 import { buildPluginApiUrl, defaultPluginApiBase, resolvePluginApiBase, usePluginApi } from 'hooks/usePluginApi';
@@ -141,6 +142,19 @@ describe('usePluginApi', () => {
       await renderApi().post('/files', form);
       expect(fetchCall().body).toBe(form);
       expect(fetchCall().headers.has('Content-Type')).toBe(false);
+    });
+
+    it('refuses a ReadableStream body before getting a token, rather than sending it as {}', async () => {
+      // jsdom has no ReadableStream: Node's stands in for the browser's
+      const previous = global.ReadableStream;
+      global.ReadableStream = NodeReadableStream as unknown as typeof ReadableStream;
+      try {
+        await expect(renderApi().post('/files', new ReadableStream())).rejects.toMatchObject({ name: 'PluginApiError', status: 0 });
+        expect(getPluginTokenMock).not.toHaveBeenCalled();
+        expect(fetchMock).not.toHaveBeenCalled();
+      } finally {
+        global.ReadableStream = previous;
+      }
     });
 
     it('keeps a Content-Type the plugin sets, whatever its case', async () => {
