@@ -23,6 +23,7 @@ function createWrapper() {
     defaultOptions: {
       queries: {
         retry: false,
+        retryDelay: 0,
       },
     },
   });
@@ -210,5 +211,40 @@ describe('useApiQueries', () => {
     expect(result.current).toEqual([]);
     expect(requestMock).not.toHaveBeenCalled();
     expect(buildApiUrl).not.toHaveBeenCalled();
+  });
+  it('keeps results fresh for QUERY_STALE_TIME by default and for the given staleTime otherwise', async () => {
+    requestMock.mockResolvedValue({ id: '1' });
+
+    const { result } = renderHook(
+      () =>
+        useApiQueries<{ id: string }>([
+          { endpoint: '/test/1', method: 'GET', queryKey: ['test', '1'], enabled: true },
+          { endpoint: '/test/2', method: 'GET', queryKey: ['test', '2'], enabled: true, staleTime: 0 },
+        ]),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].isSuccess).toBe(true);
+      expect(result.current[1].isSuccess).toBe(true);
+    });
+
+    expect(result.current[0].isStale).toBe(false);
+    expect(result.current[1].isStale).toBe(true);
+  });
+
+  it('retries a failed query as the given retry says', async () => {
+    requestMock.mockRejectedValue(new Error('boom'));
+
+    const { result } = renderHook(
+      () => useApiQueries<{ id: string }>([{ endpoint: '/test/1', method: 'GET', queryKey: ['test', '1'], enabled: true, retry: 1 }]),
+      { wrapper: createWrapper() },
+    );
+
+    await waitFor(() => {
+      expect(result.current[0].isError).toBe(true);
+    });
+
+    expect(requestMock).toHaveBeenCalledTimes(2);
   });
 });

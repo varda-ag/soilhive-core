@@ -11,6 +11,8 @@ type ApiQueryItem<TResponse, TBody = void> = {
   queryKey: QueryKey;
   enabled: boolean;
   refetchInterval?: number | false | ((query: Query<TResponse, Error, TResponse, QueryKey>) => number | false | undefined);
+  retry?: boolean | number | ((failureCount: number, error: Error) => boolean);
+  staleTime?: number;
   showErrorNotification?: boolean;
   notFoundAsNull?: boolean;
 };
@@ -20,7 +22,19 @@ export function useApiQueries<TResponse, TBody = void>(queries: ApiQueryItem<TRe
 
   return useQueries({
     queries: queries.map(
-      ({ endpoint, method, body, parameters, queryKey, enabled, refetchInterval, showErrorNotification, notFoundAsNull }) => {
+      ({
+        endpoint,
+        method,
+        body,
+        parameters,
+        queryKey,
+        enabled,
+        refetchInterval,
+        retry,
+        staleTime,
+        showErrorNotification,
+        notFoundAsNull,
+      }) => {
         const url = buildApiUrl(endpoint, parameters);
 
         return {
@@ -35,8 +49,9 @@ export function useApiQueries<TResponse, TBody = void>(queries: ApiQueryItem<TRe
               notFoundAsNull,
             });
           },
-          staleTime: QUERY_STALE_TIME,
+          staleTime: staleTime ?? QUERY_STALE_TIME,
           refetchInterval,
+          retry,
         };
       },
     ),
