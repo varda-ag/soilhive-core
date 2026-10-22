@@ -3,8 +3,7 @@ import * as fs from 'fs';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { SyntaxValidator } from 'fast-xml-validator';
-import * as turf from '@turf/turf';
-import { fromFile, writeArrayBuffer, GeoTIFFImage } from 'geotiff';
+import { writeArrayBuffer, GeoTIFFImage } from 'geotiff';
 import { Polygon, MultiPolygon } from 'geojson';
 import { RasterFileFormat } from './types';
 import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
@@ -15,6 +14,21 @@ import { GdalCLI } from '../../utils/GdalCLI';
 import { log } from '../../utils/logger';
 import { getErrorMessage } from '../../utils/error';
 import { hasClasses } from '../../utils/soilPropertyClasses';
+import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
+import {
+  AllTouchedSweep,
+  aoiPolygons,
+  ColumnRange,
+  gridFromImage,
+  isWgs84,
+  nodataPredicate,
+  PixelGrid,
+  PixelWindow,
+  pixelWindow,
+  polygonsInCrs,
+  resolveCrs,
+  toPixelSpace,
+} from '../../data-layer/RasterPixels';
 
 const TILE_SIZE = 512;
 
@@ -50,23 +64,29 @@ ${rows}
 interface TileWriteContext {
   sourceImage: GeoTIFFImage;
   sourceSampleIndex: number; // 0-based sample index: the layer's 1-based band, converted once here.
-  maskImage: GeoTIFFImage;
-  srcOffX: number;
-  srcOffY: number;
-  outMinX: number;
-  outMaxY: number;
-  srcPixW: number;
-  srcPixH: number;
-  maskMinX: number;
-  maskMaxY: number;
-  maskPixW: number;
-  maskPixH: number;
-  maskW: number;
-  maskH: number;
+  isNodata: (value: number) => boolean;
+  grid: PixelGrid;
+  window: PixelWindow; // the AOI's pixel window on the source grid: the output extent
   nodataFill: number;
   nodataStr: string;
   layerName: string;
 }
+
+/** How a layer's band is read and what marks nodata in it, worked out once per layer. */
+interface SourceBand {
+  sampleIndex: number; // 0-based: the layer's 1-based band
+  float32: boolean; // a Float32 band holds its markers rounded to single precision (nodataPredicate)
+  fileNodata: number; // the File's GDAL_NODATA; NaN when it has none
+}
+
+const sourceBand = (image: GeoTIFFImage, layer: FilteredRasterLayer): SourceBand => {
+  const sampleIndex = layer.band - 1;
+  return {
+    sampleIndex,
+    float32: image.getSampleFormat(sampleIndex) === 3 && image.getBitsPerSample(sampleIndex) === 32,
+    fileNodata: nodataFromImage(image),
+  };
+};
 
 interface TilePlacement {
   filePath: string;
@@ -86,64 +106,81 @@ export class RasterFileWriter {
   }
 
   /**
-   * Crops the source raster layer to the AOI's bounding box extent and writes it to the output
-   * directory. This is a rectangular crop (via gdal_translate -projwin), not a polygon clip — pixels
-   * inside the bbox but outside the AOI's actual shape are still included. Only safe to use when the
-   * AOI is itself an axis-aligned bbox, so the crop extent matches the AOI exactly.
+   * Writes the pixels of a Raster Layer that touch the AOI (EPSG:4326): exactly the pixels
+   * GET /soil-data returns for it (ADR 0045). A pixel counts when any part of it with positive area
+   * lies in the AOI, decided on the layer's own grid by AllTouchedSweep after reprojecting the AOI
+   * into the layer's native CRS — so a small or thin AOI still exports the pixels it lies across.
+   * The output covers the AOI's pixel window at source resolution; pixels of the window the AOI
+   * doesn't touch, and nodata pixels, are nodata.
+   *
+   * An axis-aligned rectangle over an EPSG:4326 layer touches every pixel of its window, so that case
+   * is a plain crop natively in GDAL (cropToWindow), unless the layer declares a nodata value the
+   * File's own marker doesn't cover. Any other AOI is written tile by tile (writeTouchedTiles).
    * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}_{target_crs}
+   * Returns whether a file was written — `false` when the AOI touches no valid pixel.
    */
-  async cropToAoiBbox(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon, targetCrs?: number): Promise<void> {
+  async writeLayer(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon, targetCrs?: number): Promise<boolean> {
+    const sourceTiff = await openTiff(layer.path);
+    try {
+      const sourceImage = await sourceTiff.getImage(0);
+      const grid = gridFromImage(sourceImage);
+      const crs = await resolveCrs(layer.path, layer.wkt ?? null, sourceImage);
+      const sweep = new AllTouchedSweep(toPixelSpace(await polygonsInCrs(aoiPolygons(aoi), crs), grid));
+      const window = sweep.bounds ? pixelWindow(sweep.bounds, grid) : null;
+      if (!window) return false;
+
+      const band = sourceBand(sourceImage, layer);
+
+      // GDAL's crop knows only the File's GDAL_NODATA, so it is used only when that marker already
+      // covers raster_layers.nodata_value; otherwise pixels holding the declared marker would ship
+      // as data. The tile path honours both.
+      const fileMarkerCoversDeclared =
+        layer.nodata_value == null || nodataPredicate([band.fileNodata], band.float32)(layer.nodata_value);
+
+      if (isAxisAlignedBboxPolygon(aoi) && isWgs84(crs) && fileMarkerCoversDeclared) {
+        return await this.cropToWindow(layer, window, targetCrs);
+      }
+      return await this.writeTouchedTiles(layer, sourceImage, band, grid, sweep, window, crs, targetCrs);
+    } finally {
+      try {
+        await sourceTiff.close();
+      } catch {
+        // ignore close errors
+      }
+    }
+  }
+
+  /**
+   * Crops the source to a pixel window with gdal_translate -srcwin. Returns `false`, with the file
+   * removed, when its Band Statistics show no valid pixel (all nodata).
+   */
+  private async cropToWindow(layer: FilteredRasterLayer, window: PixelWindow, targetCrs?: number): Promise<boolean> {
     const layerName = this.buildLayerName(layer, targetCrs);
     fs.mkdirSync(path.dirname(this.outputDir), { recursive: true });
-    // wkt (a raw WKT string GDAL accepts directly) is authoritative; epsg is a best-effort label
-    // that may be absent, or wrong, for a custom/unregistered projection.
-    const srs = layer.wkt ?? `EPSG:${layer.epsg ?? 4326}`;
-    const isNative4326 = layer.epsg !== undefined ? layer.epsg === 4326 : !layer.wkt;
 
     const { mainFilePath } = await FileService.getMainFilePath(layer.path);
-    const [minX, minY, maxX, maxY] = turf.bbox(aoi);
-    let ulx = minX;
-    let uly = maxY;
-    let lrx = maxX;
-    let lry = minY;
-
-    if (!isNative4326) {
-      // aoi (and therefore minX/minY/maxX/maxY) is always in EPSG:4326, but the source raster is
-      // still in its own native CRS — the crop window has to go the opposite direction from every
-      // other reprojection in this codebase, which always lands on 4326.
-      const corners = await GdalCLI.transformPoints(
-        'EPSG:4326',
-        [
-          [minX, maxY],
-          [maxX, minY],
-        ],
-        srs,
-      );
-      [ulx, uly] = corners[0]!;
-      [lrx, lry] = corners[1]!;
-    }
 
     // -b selects the layer's band from the source, which may hold several. It applies to both
     // formats: without it a multiband source would export every band under a name that promises
     // a single-band layer.
     const translateArgs: string[] = [
-      '-projwin',
-      String(ulx),
-      String(uly),
-      String(lrx),
-      String(lry),
-      '-projwin_srs',
-      srs,
+      '-srcwin',
+      String(window.colFirst),
+      String(window.rowFirst),
+      String(window.colLast - window.colFirst + 1),
+      String(window.rowLast - window.rowFirst + 1),
       '-b',
       String(layer.band),
       '-of',
       this.getDriverName(),
+      '-ot',
+      'Float32',
     ];
 
     if (this.fileFormat === RasterFileFormat.TIFF) {
       translateArgs.push('-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES');
     } else {
-      translateArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'TILE_FORMAT=TIFF', '-ot', 'Float32');
+      translateArgs.push('-co', `RASTER_TABLE=${layerName}`, '-co', 'TILE_FORMAT=TIFF');
     }
 
     const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
@@ -154,77 +191,70 @@ export class RasterFileWriter {
     }
 
     await this.embedBandStatistics(filePath, layer);
+    if (await this.isAllNodata(filePath, layer)) {
+      fs.rmSync(filePath, { force: true });
+      return false;
+    }
     await this.embedClassMetadata(filePath, layer);
+    return true;
   }
 
   /**
-   * Clips the source raster layer using a raster mask file (from getRasterMask output='file').
-   * Reads source and mask in TILE_SIZE×TILE_SIZE windows to bound per-tile memory usage.
-   * Each tile is written to a temp TIFF on disk; a VRT mosaics them for the final gdal_translate.
-   * Output extent = intersection of source bbox and mask bbox, at source resolution.
-   * Returns whether a file was actually written — `false` when the source and mask extents
-   * (both read in the source's own CRS) don't overlap, or the overlap contains no valid pixels.
+   * Whether the Band Statistics embedBandStatistics stored say no pixel is valid. GDAL records
+   * STATISTICS_VALID_PERCENT=0 even when the stats pass fails on an all-nodata band, so no second
+   * scan is needed. Statistics missing altogether mean the pass failed for another reason: the file
+   * is not known to be empty, and ships. Never fatal, like the statistics: a file that can't be
+   * checked ships too.
    */
-  async writeLayer(layer: FilteredRasterLayer, rasterMaskFile: string, targetCrs?: number): Promise<boolean> {
-    const sourceTiff = await openTiff(layer.path);
-    const maskTiff = await fromFile(rasterMaskFile);
+  private async isAllNodata(filePath: string, layer: FilteredRasterLayer): Promise<boolean> {
+    try {
+      const bands = (await GdalCLI.gdalinfo(filePath)).bands ?? [];
+      return bands.length > 0 && bands.every(band => band.metadata?.['']?.['STATISTICS_VALID_PERCENT'] === '0');
+    } catch (error) {
+      log.warn('Could not check exported raster for valid pixels; file ships', {
+        layerId: layer.id,
+        file: path.basename(filePath),
+        error: getErrorMessage(error),
+      });
+      return false;
+    }
+  }
 
-    const sourceImage = await sourceTiff.getImage(0);
-    const maskImage = await maskTiff.getImage(0);
+  /**
+   * Writes the touched pixels of the AOI's window in TILE_SIZE×TILE_SIZE tiles, which bounds memory
+   * per tile. Each tile is written to a temp TIFF on disk; a VRT mosaics them for the final
+   * gdal_translate. A tile with no touched valid pixel is never written, so a layer whose AOI touches
+   * only nodata produces no file at all and returns `false`.
+   */
+  private async writeTouchedTiles(
+    layer: FilteredRasterLayer,
+    sourceImage: GeoTIFFImage,
+    band: SourceBand,
+    grid: PixelGrid,
+    sweep: AllTouchedSweep,
+    window: PixelWindow,
+    sourceCrs: string,
+    targetCrs?: number,
+  ): Promise<boolean> {
+    const outW = window.colLast - window.colFirst + 1;
+    const outH = window.rowLast - window.rowFirst + 1;
+    const outMinX = grid.originX + window.colFirst * grid.resX;
+    const outMaxY = grid.originY + window.rowFirst * grid.resY;
 
-    const [srcMinX, srcMinY, srcMaxX, srcMaxY] = sourceImage.getBoundingBox() as [number, number, number, number];
-    const [maskMinX, maskMinY, maskMaxX, maskMaxY] = maskImage.getBoundingBox() as [number, number, number, number];
-    const srcW = sourceImage.getWidth();
-    const srcH = sourceImage.getHeight();
-    const maskW = maskImage.getWidth();
-    const maskH = maskImage.getHeight();
-
-    const outMinX = Math.max(srcMinX, maskMinX);
-    const outMinY = Math.max(srcMinY, maskMinY);
-    const outMaxX = Math.min(srcMaxX, maskMaxX);
-    const outMaxY = Math.min(srcMaxY, maskMaxY);
-    if (outMinX >= outMaxX || outMinY >= outMaxY) return false;
-
-    const srcPixW = (srcMaxX - srcMinX) / srcW;
-    const srcPixH = (srcMaxY - srcMinY) / srcH;
-    const maskPixW = (maskMaxX - maskMinX) / maskW;
-    const maskPixH = (maskMaxY - maskMinY) / maskH;
-
-    const outW = Math.ceil((outMaxX - outMinX) / srcPixW);
-    const outH = Math.ceil((outMaxY - outMinY) / srcPixH);
-
-    // Top-left pixel of the output extent in source pixel space
-    const srcOffX = Math.floor((outMinX - srcMinX) / srcPixW);
-    const srcOffY = Math.floor((srcMaxY - outMaxY) / srcPixH);
-    // Snap to the source pixel grid so that tile GeoTransforms and ModelTiepoints
-    // align with the pixels actually being read (outMinX/outMaxY may fall between
-    // pixel boundaries, producing a sub-pixel offset if used directly).
-    const alignedOutMinX = srcMinX + srcOffX * srcPixW;
-    const alignedOutMaxY = srcMaxY - srcOffY * srcPixH;
-
-    const nodata = nodataFromImage(sourceImage);
-    const nodataFill = Number.isNaN(nodata) ? Number.NaN : nodata;
-    const nodataStr = formatGdalNodata(nodata);
+    const nodataFill = Number.isNaN(band.fileNodata) ? Number.NaN : band.fileNodata;
+    const nodataStr = formatGdalNodata(band.fileNodata);
     const layerName = this.buildLayerName(layer, targetCrs);
 
     fs.mkdirSync(this.outputDir, { recursive: true });
 
     const ctx: TileWriteContext = {
       sourceImage,
-      sourceSampleIndex: layer.band - 1,
-      maskImage,
-      srcOffX,
-      srcOffY,
-      outMinX: alignedOutMinX,
-      outMaxY: alignedOutMaxY,
-      srcPixW,
-      srcPixH,
-      maskMinX,
-      maskMaxY,
-      maskPixW,
-      maskPixH,
-      maskW,
-      maskH,
+      sourceSampleIndex: band.sampleIndex,
+      // The same markers /soil-data honours: raster_layers.nodata_value (an int column, so null or
+      // rounded for a Float32 sentinel) and the File's own GDAL_NODATA.
+      isNodata: nodataPredicate([layer.nodata_value, band.fileNodata], band.float32),
+      grid,
+      window,
       nodataFill,
       nodataStr,
       layerName,
@@ -233,10 +263,18 @@ export class RasterFileWriter {
     const tiles: TilePlacement[] = [];
     try {
       for (let tileY = 0; tileY < outH; tileY += TILE_SIZE) {
+        const th = Math.min(TILE_SIZE, outH - tileY);
+        // The sweep visits rows in order only, so a band of tile rows is swept once and shared by
+        // every tile across it.
+        const rowRanges: ColumnRange[][] = [];
+        for (let r = 0; r < th; r++) {
+          rowRanges.push(sweep.columns(window.rowFirst + tileY + r, window.colFirst, window.colLast));
+        }
+        if (rowRanges.every(ranges => ranges.length === 0)) continue;
+
         for (let tileX = 0; tileX < outW; tileX += TILE_SIZE) {
           const tw = Math.min(TILE_SIZE, outW - tileX);
-          const th = Math.min(TILE_SIZE, outH - tileY);
-          const tilePath = await this.writeTile(ctx, tileX, tileY, tw, th);
+          const tilePath = await this.writeTile(ctx, rowRanges, tileX, tileY, tw, th);
           if (tilePath) tiles.push({ filePath: tilePath, tileX, tileY, tw, th });
         }
       }
@@ -245,8 +283,7 @@ export class RasterFileWriter {
 
       const filePath = path.join(this.outputDir, `${layerName}.${this.getFileExtension()}`);
       const vrtPath = path.join(this.outputDir, `${layerName}.tmp.vrt`);
-      const srs = layer.wkt ?? `EPSG:${layer.epsg ?? 4326}`;
-      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, alignedOutMinX, alignedOutMaxY, srcPixW, srcPixH, nodataStr, srs));
+      fs.writeFileSync(vrtPath, this.buildVrt(tiles, outW, outH, outMinX, outMaxY, grid.resX, -grid.resY, nodataStr, sourceCrs));
 
       try {
         const dstTranslate = targetCrs ? path.join(this.outputDir, `${layerName}.tmp.${this.getFileExtension()}`) : filePath;
@@ -261,7 +298,7 @@ export class RasterFileWriter {
             '-ot',
             'Float32',
             '-a_srs',
-            srs,
+            sourceCrs,
           ]);
         } else {
           await GdalCLI.translate(vrtPath, dstTranslate, [
@@ -276,7 +313,7 @@ export class RasterFileWriter {
             '-ot',
             'Float32',
             '-a_srs',
-            srs,
+            sourceCrs,
           ]);
         }
         if (targetCrs) {
@@ -300,61 +337,48 @@ export class RasterFileWriter {
     return true;
   }
 
-  private async writeTile(ctx: TileWriteContext, tileX: number, tileY: number, tw: number, th: number): Promise<string | null> {
-    const {
-      sourceImage,
-      sourceSampleIndex,
-      maskImage,
-      srcOffX,
-      srcOffY,
-      outMinX,
-      outMaxY,
-      srcPixW,
-      srcPixH,
-      maskMinX,
-      maskMaxY,
-      maskPixW,
-      maskPixH,
-      maskW,
-      maskH,
-      nodataFill,
-      nodataStr,
-      layerName,
-    } = ctx;
+  /**
+   * Writes one tile of the output window: the touched pixels of `rowRanges` (absolute source
+   * columns, one entry per tile row) that are valid, nodata everywhere else. Returns null, writing
+   * nothing, when the tile holds no touched valid pixel.
+   */
+  private async writeTile(
+    ctx: TileWriteContext,
+    rowRanges: ColumnRange[][],
+    tileX: number,
+    tileY: number,
+    tw: number,
+    th: number,
+  ): Promise<string | null> {
+    const { sourceImage, sourceSampleIndex, isNodata, grid, window, nodataFill, nodataStr, layerName } = ctx;
+    const left = window.colFirst + tileX;
+    const right = left + tw - 1;
+    const top = window.rowFirst + tileY;
+    if (!rowRanges.some(ranges => ranges.some(([first, last]) => first <= right && last >= left))) return null;
 
     const srcRasters = await sourceImage.readRasters({
-      window: [srcOffX + tileX, srcOffY + tileY, srcOffX + tileX + tw, srcOffY + tileY + th],
+      window: [left, top, left + tw, top + th],
       samples: [sourceSampleIndex],
     });
     const srcData = srcRasters[0] as ArrayLike<number>;
 
-    const tileGeoXMin = outMinX + tileX * srcPixW;
-    const tileGeoYMax = outMaxY - tileY * srcPixH;
-    const tileGeoXMax = tileGeoXMin + tw * srcPixW;
-    const tileGeoYMin = tileGeoYMax - th * srcPixH;
-
-    const mxStart = Math.max(0, Math.floor((tileGeoXMin - maskMinX) / maskPixW));
-    const myStart = Math.max(0, Math.floor((maskMaxY - tileGeoYMax) / maskPixH));
-    const mxEnd = Math.min(maskW, Math.ceil((tileGeoXMax - maskMinX) / maskPixW));
-    const myEnd = Math.min(maskH, Math.ceil((maskMaxY - tileGeoYMin) / maskPixH));
-
-    const maskRasters = await maskImage.readRasters({
-      window: [mxStart, myStart, mxEnd, myEnd],
-      samples: [0],
-      width: tw,
-      height: th,
-    });
-    const maskData = maskRasters[0] as ArrayLike<number>;
-
     const tileData = new Float32Array(tw * th).fill(nodataFill);
     let hasValid = false;
-    for (let i = 0; i < tw * th; i++) {
-      if (maskData[i]) {
-        tileData[i] = srcData[i] as number;
-        hasValid = true;
+    rowRanges.forEach((ranges, r) => {
+      for (const [first, last] of ranges) {
+        for (let col = Math.max(first, left); col <= Math.min(last, right); col++) {
+          const i = r * tw + (col - left);
+          const value = srcData[i] as number;
+          if (isNodata(value)) continue;
+          tileData[i] = value;
+          hasValid = true;
+        }
       }
-    }
+    });
     if (!hasValid) return null;
+
+    const tileGeoXMin = grid.originX + left * grid.resX;
+    const tileGeoYMax = grid.originY + top * grid.resY;
 
     const ab = writeArrayBuffer(tileData, {
       height: th,
@@ -368,7 +392,7 @@ export class RasterFileWriter {
       GeographicTypeGeoKey: 4326,
       GeogCitationGeoKey: 'WGS 84',
       ModelTiepoint: [0, 0, 0, tileGeoXMin, tileGeoYMax, 0],
-      ModelPixelScale: [srcPixW, srcPixH, 0],
+      ModelPixelScale: [grid.resX, -grid.resY, 0],
     });
 
     const tilePath = path.join(this.outputDir, `${layerName}.tile_${tileY}_${tileX}.tmp.tif`);
@@ -399,7 +423,7 @@ export class RasterFileWriter {
       )
       .join('\n');
     const xml = `<VRTDataset rasterXSize="${outW}" rasterYSize="${outH}">
-  <SRS dataAxisToSRSAxisMapping="2,1">${srs}</SRS>
+  <SRS dataAxisToSRSAxisMapping="2,1">${escapeXml(srs)}</SRS>
   <GeoTransform>${xMin}, ${pixW}, 0.0, ${yMax}, 0.0, ${-pixH}</GeoTransform>
   <VRTRasterBand dataType="Float32" band="1">
     <NoDataValue>${nodataStr}</NoDataValue>
@@ -469,7 +493,7 @@ ${sources}
    * A separate in-place pass, not `-stats` on the `gdal_translate` that produced the file, even
    * though that flag would compute the same numbers during a pass GDAL is already making. Three
    * reasons, all invisible at the translate call site:
-   *   - `-stats` caches its result in a PAM sidecar *next to the source*. In `cropToAoiBbox` that
+   *   - `-stats` caches its result in a PAM sidecar *next to the source*. In `cropToWindow` that
    *     source is the ingested COG in file storage, which an export must never write to; in
    *     `writeLayer` it is the temp VRT in the job's directory, so the sidecar outlives the VRT and
    *     `zipFiles` sweeps a stray `*.tmp.vrt.aux.xml` into the user's download.
@@ -480,15 +504,15 @@ ${sources}
    * The cost is one extra read pass over an AOI-sized crop. Suppressing it means reintroducing the
    * three problems above.
    *
-   * Never fatal: a file whose pixels are complete still ships. The expected trigger is a bbox crop
-   * containing no valid pixels — `gdal_edit.py -stats` exits non-zero on an all-nodata band, where
-   * the mask path cannot reach this at all (it returns `false` and writes nothing instead).
+   * Never fatal: a file whose pixels are complete still ships. The expected trigger is a window crop
+   * containing no valid pixels — `gdal_edit.py -stats` exits non-zero on an all-nodata band, and
+   * cropToWindow then drops the file (isAllNodata); writeTouchedTiles never writes one.
    */
   private async embedBandStatistics(filePath: string, layer: FilteredRasterLayer): Promise<void> {
     try {
       await GdalCLI.editInPlace(filePath, ['-stats']);
     } catch (error) {
-      log.warn('Could not embed band statistics in exported raster; file ships without them', {
+      log.warn('Could not embed band statistics in exported raster; it ships without them unless it holds no valid pixel', {
         layerId: layer.id,
         file: path.basename(filePath),
         error: getErrorMessage(error),

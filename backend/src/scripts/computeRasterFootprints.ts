@@ -6,7 +6,7 @@ import path from 'path';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
 import { log, timed } from '../utils/logger';
-import { wgs84Envelope } from '../utils/raster';
+import { envelopeWidthDeg, wgs84Envelope } from '../utils/raster';
 
 const MAX_TILES = (256 * 256) / 16;
 // Exported so tests can override it directly.
@@ -20,7 +20,7 @@ const MAX_BATCH_VERTICES = 200_000;
 // Backstop against many degenerate, near-empty footprints trickling through the vertex budget
 // almost one at a time.
 const MAX_BATCH_FOOTPRINTS = 500;
-const FOOTPRINT_CONCURRENCY = 10;
+const FOOTPRINT_CONCURRENCY = 3;
 
 export type FootprintBatchCallback = (tiles: MultiPolygon[]) => Promise<void>;
 
@@ -145,10 +145,11 @@ export async function streamRasterFootprints(
       // constant as if it were one.
       const rasterWidthNative = xMax - xMin;
       const rasterHeightNative = yMax - yMin;
-      const [west, south, east, north] = await wgs84Envelope(info, xMin, yMin, xMax, yMax);
+      const envelope = await wgs84Envelope(info, xMin, yMin, xMax, yMax);
+      const [, south, , north] = envelope;
 
       const nativePixelSize = Math.abs(pixWFull);
-      const { nCols, nRows } = computeGrid(east - west, north - south);
+      const { nCols, nRows } = computeGrid(envelopeWidthDeg(envelope), north - south);
       const tileW = rasterWidthNative / nCols;
       const tileH = rasterHeightNative / nRows;
       const tileMinDim = Math.min(tileW, tileH);
