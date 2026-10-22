@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { PluginMutationResult, PluginSoilIndexRun, PluginSoilIndexRunResult, PluginSoilIndexSubmission } from 'frontend-plugin-types';
 import { REST_END_POINTS } from 'configuration/api';
 import { useApiQuery } from './useApiQuery';
-import { useApiQueries } from './useApiQueries';
+import { useApiQueries, type UseApiQueriesOptionsItem } from './useApiQueries';
 import { useApiMutation } from './useApiMutation';
 import { buildPluginConfigId } from './pluginConfigId';
 import { toDataRequestError } from './usePluginDataRequest';
@@ -19,16 +19,15 @@ const isTerminal = (run: PluginSoilIndexRun | undefined): boolean => run?.status
 const isPermanent = (error: unknown): boolean => toDataRequestError(error).kind !== 'unavailable';
 
 // One builder for every reader of a Run: React Query keeps one cache entry per key, so all its observers need the same options.
-export const soilIndexQueryOptions = (id: string | undefined) => ({
+export const soilIndexQueryOptions = (id: string | undefined): UseApiQueriesOptionsItem<PluginSoilIndexRun> => ({
   endpoint: `/${REST_END_POINTS.SOIL_INDEXES}/${id}`,
-  method: 'GET' as const,
+  method: 'GET',
   queryKey: soilIndexQueryKey(id),
   enabled: !!id,
   // A completed or failed Run never changes; polling refreshes one still in progress.
   staleTime: Infinity,
-  refetchInterval: (query: { state: { data: PluginSoilIndexRun | undefined; error: unknown } }) =>
-    isTerminal(query.state.data) || (query.state.error && isPermanent(query.state.error)) ? false : POLL_MS,
-  retry: (failureCount: number, retryError: unknown) => !isPermanent(retryError) && failureCount < MAX_RETRIES,
+  refetchInterval: query => (isTerminal(query.state.data) || (query.state.error && isPermanent(query.state.error)) ? false : POLL_MS),
+  retry: (failureCount, retryError) => !isPermanent(retryError) && failureCount < MAX_RETRIES,
   showErrorNotification: false,
 });
 
@@ -57,7 +56,7 @@ export function usePluginSoilIndex(id: string | undefined): PluginSoilIndexRunRe
 export function usePluginSoilIndexes(ids: string[]): Record<string, PluginSoilIndexRunResult> {
   const uniqueIds = [...new Set(ids)];
   // React Query shares the combined record structurally: it keeps its identity until a Run's result changes.
-  return useApiQueries<PluginSoilIndexRun, void, Record<string, PluginSoilIndexRunResult>>(uniqueIds.map(soilIndexQueryOptions), results =>
+  return useApiQueries(uniqueIds.map(soilIndexQueryOptions), results =>
     Object.fromEntries(uniqueIds.map((id, index) => [id, toSoilIndexRunResult(results[index])])),
   );
 }

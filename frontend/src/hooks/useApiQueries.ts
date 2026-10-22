@@ -1,25 +1,28 @@
-import { useQueries, type QueryKey, type Query, type UseQueryResult } from '@tanstack/react-query';
+import { useQueries, type UseQueryResult } from '@tanstack/react-query';
 import { useRequest } from '../api-client';
 import { buildApiUrl } from '../utilities/buildApiUrl';
 import { QUERY_STALE_TIME } from '../configuration/api';
+import type { UseApiQueryOptions } from './useApiQuery';
 
-type ApiQueryItem<TResponse, TBody = void> = {
-  endpoint: string;
-  method: 'GET' | 'POST';
-  body?: TBody;
-  parameters?: Array<[string, string]>;
-  queryKey: QueryKey;
-  enabled: boolean;
-  refetchInterval?: number | false | ((query: Query<TResponse, Error, TResponse, QueryKey>) => number | false | undefined);
-  retry?: boolean | number | ((failureCount: number, error: Error) => boolean);
-  staleTime?: number;
-  showErrorNotification?: boolean;
-  notFoundAsNull?: boolean;
-};
+// The useApiQuery options this hook handles; `authenticate` stays out (see useConfigs).
+export type UseApiQueriesOptionsItem<TResponse, TBody = void> = Pick<
+  UseApiQueryOptions<TResponse, TBody>,
+  | 'endpoint'
+  | 'method'
+  | 'body'
+  | 'parameters'
+  | 'queryKey'
+  | 'enabled'
+  | 'refetchInterval'
+  | 'retry'
+  | 'staleTime'
+  | 'showErrorNotification'
+  | 'notFoundAsNull'
+>;
 
 // `combine` maps the results to one value that keeps its identity until a result changes.
 export function useApiQueries<TResponse, TBody = void, TCombined = UseQueryResult<TResponse, Error>[]>(
-  queries: ApiQueryItem<TResponse, TBody>[],
+  queries: UseApiQueriesOptionsItem<TResponse, TBody>[],
   combine?: (results: UseQueryResult<TResponse, Error>[]) => TCombined,
 ): TCombined {
   const { request } = useRequest();

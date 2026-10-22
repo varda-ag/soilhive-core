@@ -73,14 +73,13 @@ describe('usePluginSoilIndexes', () => {
   it('polls a running Run every 2 s until it completes, then never reads it again', async () => {
     responses = { r1: [run('r1', 'running'), run('r1', 'completed')] };
 
-    const { result, rerender } = renderHook(() => usePluginSoilIndexes(['r1']), { wrapper: createWrapper() });
+    const { result } = renderHook(() => usePluginSoilIndexes(['r1']), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.r1?.data?.status).toBe('running'));
 
     await act(() => jest.advanceTimersByTimeAsync(2000));
     await waitFor(() => expect(result.current.r1?.data?.status).toBe('completed'));
 
     await act(() => jest.advanceTimersByTimeAsync(10000));
-    rerender();
     expect(requestedIds()).toEqual(['r1', 'r1']);
   });
 
@@ -108,8 +107,8 @@ describe('usePluginSoilIndexes', () => {
 
     await waitFor(() => expect(result.current.r1?.error?.kind).toBe('unavailable'));
     expect(result.current.r1?.data?.status).toBe('running');
-    // The first read, then the poll plus its retries.
-    expect(requestedIds().length).toBeGreaterThan(2);
+    // The first read, then a poll and its 3 retries; later polls may follow.
+    expect(requestedIds().length).toBeGreaterThanOrEqual(5);
   });
 
   it('shares one request with usePluginSoilIndex for the same id', async () => {

@@ -10,7 +10,7 @@ function buildRequestKey(url: string, method: string, body: unknown): string {
   return `${method}:${url}:${bodyPart}`;
 }
 
-type UseApiQueryOptions<TResponse, TBody = void> = {
+export type UseApiQueryOptions<TResponse, TBody = void> = {
   endpoint: string;
   method: 'GET' | 'POST';
   body?: TBody;
