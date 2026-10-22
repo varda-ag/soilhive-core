@@ -31,6 +31,9 @@ const HOMOLOSINE_GAP_FILE = 'homolosine_gap_1b_50km.tif';
 // The same in US survey feet, `+proj=igh +datum=WGS84 +units=us-ft`,
 // -te -26000000 18000000 -2000000 21000000 -tr 200000 200000.
 const HOMOLOSINE_GAP_FTUS_FILE = 'homolosine_gap_ftus_1b.tif';
+// Alaska Albers (EPSG:3338), -a_ullr -2175765 2383965 1493175 404505: its left corners are east of
+// the antimeridian (157°E, 175°E), its right corners west of it (117°W, 132°W).
+const ALASKA_ALBERS_FILE = 'alaska_albers_1b.tif';
 
 describe('analyzeRasterMeta', () => {
   beforeEach(() => {
@@ -93,6 +96,24 @@ describe('analyzeRasterMeta', () => {
     expect(sw![1]).toBeCloseTo(54.5053185, 6);
     expect(ne![0]).toBeCloseTo(-126.1908137, 6);
     expect(ne![1]).toBeCloseTo(77.2286092, 6);
+  });
+
+  it('stores a raster crossing the antimeridian as the whole band of longitude it lies in', async () => {
+    const { bbox } = await analyzeRasterMeta(ALASKA_ALBERS_FILE, 1);
+
+    // The corners' min/max envelope, 132°W..175°E, would cover every longitude but Alaska's own
+    const [sw, , ne] = bbox.coordinates[0]!;
+    expect(sw![0]).toBe(-180);
+    expect(ne![0]).toBe(180);
+    expect(sw![1]).toBeCloseTo(49.0545982, 6);
+  });
+
+  it("reaches the raster's curved top edge rather than stopping at its top corners", async () => {
+    const { bbox } = await analyzeRasterMeta(ALASKA_ALBERS_FILE, 1);
+
+    // The top corners are at 63.9°N and 67.6°N; the edge between them bulges up to ~71.46°N
+    const [, , ne] = bbox.coordinates[0]!;
+    expect(ne![1]).toBeGreaterThan(71.4);
   });
 
   it("measures resolution at the raster's centre rather than at a corner that can't be reprojected", async () => {
