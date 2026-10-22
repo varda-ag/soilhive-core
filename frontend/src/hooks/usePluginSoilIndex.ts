@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import type { PluginMutationResult, PluginSoilIndexRun, PluginSoilIndexRunResult, PluginSoilIndexSubmission } from 'frontend-plugin-types';
 import { REST_END_POINTS } from 'configuration/api';
 import { useApiQuery } from './useApiQuery';
+import { useApiQueries, type UseApiQueriesOptionsItem } from './useApiQueries';
 import { useApiMutation } from './useApiMutation';
 import { buildPluginConfigId } from './pluginConfigId';
 import { toDataRequestError } from './usePluginDataRequest';
@@ -17,25 +18,47 @@ const isTerminal = (run: PluginSoilIndexRun | undefined): boolean => run?.status
 
 const isPermanent = (error: unknown): boolean => toDataRequestError(error).kind !== 'unavailable';
 
-export function usePluginSoilIndex(id: string | undefined): PluginSoilIndexRunResult {
-  const { data, isLoading, error } = useApiQuery<PluginSoilIndexRun>({
-    endpoint: `/${REST_END_POINTS.SOIL_INDEXES}/${id}`,
-    method: 'GET',
-    queryKey: soilIndexQueryKey(id),
-    enabled: !!id,
-    // A completed or failed Run never changes; polling refreshes one still in progress.
-    staleTime: Infinity,
-    refetchInterval: query => (isTerminal(query.state.data) || (query.state.error && isPermanent(query.state.error)) ? false : POLL_MS),
-    retry: (failureCount, retryError) => !isPermanent(retryError) && failureCount < MAX_RETRIES,
-    showErrorNotification: false,
-  });
+// One builder for every reader of a Run: React Query keeps one cache entry per key, so all its observers need the same options.
+export const soilIndexQueryOptions = (id: string | undefined): UseApiQueriesOptionsItem<PluginSoilIndexRun> => ({
+  endpoint: `/${REST_END_POINTS.SOIL_INDEXES}/${id}`,
+  method: 'GET',
+  queryKey: soilIndexQueryKey(id),
+  enabled: !!id,
+  // A completed or failed Run never changes; polling refreshes one still in progress.
+  staleTime: Infinity,
+  refetchInterval: query => (isTerminal(query.state.data) || (query.state.error && isPermanent(query.state.error)) ? false : POLL_MS),
+  retry: (failureCount, retryError) => !isPermanent(retryError) && failureCount < MAX_RETRIES,
+  showErrorNotification: false,
+});
 
-  return useMemo(() => {
-    const runError = error ? toDataRequestError(error) : undefined;
-    // An 'unavailable' error keeps the last data; a lost or forbidden one has none to keep.
-    const keepsData = !runError || runError.kind === 'unavailable';
-    return { data: data && keepsData ? data : undefined, isLoading, isError: !!runError, error: runError };
-  }, [data, isLoading, error]);
+export const toSoilIndexRunResult = ({
+  data,
+  isLoading,
+  error,
+}: {
+  data: PluginSoilIndexRun | undefined;
+  isLoading: boolean;
+  error: unknown;
+}): PluginSoilIndexRunResult => {
+  const runError = error ? toDataRequestError(error) : undefined;
+  // An 'unavailable' error keeps the last data; a lost or forbidden one has none to keep.
+  const keepsData = !runError || runError.kind === 'unavailable';
+  return { data: data && keepsData ? data : undefined, isLoading, isError: !!runError, error: runError };
+};
+
+export function usePluginSoilIndex(id: string | undefined): PluginSoilIndexRunResult {
+  const { data, isLoading, error } = useApiQuery<PluginSoilIndexRun>(soilIndexQueryOptions(id));
+
+  return useMemo(() => toSoilIndexRunResult({ data, isLoading, error }), [data, isLoading, error]);
+}
+
+// Same options and cache entry per Run as usePluginSoilIndex, so a row and a list reading one id send one request.
+export function usePluginSoilIndexes(ids: string[]): Record<string, PluginSoilIndexRunResult> {
+  const uniqueIds = [...new Set(ids)];
+  // React Query shares the combined record structurally: it keeps its identity until a Run's result changes.
+  return useApiQueries(uniqueIds.map(soilIndexQueryOptions), results =>
+    Object.fromEntries(uniqueIds.map((id, index) => [id, toSoilIndexRunResult(results[index])])),
+  );
 }
 
 export function usePluginSoilIndexSubmit(

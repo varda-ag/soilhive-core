@@ -13,7 +13,7 @@ import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useRaster } from 'hooks/useRaster';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from 'hooks/usePluginDataRequest';
 import { useSoilIndexScore, useSoilIndexTileSource } from 'hooks/useSoilIndexTiles';
-import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexSubmit } from 'hooks/usePluginSoilIndex';
+import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexes, usePluginSoilIndexSubmit } from 'hooks/usePluginSoilIndex';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
@@ -50,6 +50,7 @@ jest.mock('hooks/usePluginDataRequest', () => ({
 }));
 jest.mock('hooks/usePluginSoilIndex', () => ({
   usePluginSoilIndex: jest.fn(),
+  usePluginSoilIndexes: jest.fn(),
   usePluginSoilIndexSubmit: jest.fn(),
   usePluginSoilIndexDelete: jest.fn(),
 }));
@@ -237,11 +238,12 @@ describe('usePluginContext', () => {
     expect(result.current.useDataRequestDelete).toBe(usePluginDataRequestDelete);
   });
 
-  it('exposes the three Soil Index Run hooks', () => {
+  it('exposes the four Soil Index Run hooks', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.useSoilIndexSubmit).toBe(usePluginSoilIndexSubmit);
     expect(result.current.useSoilIndex).toBe(usePluginSoilIndex);
+    expect(result.current.useSoilIndexes).toBe(usePluginSoilIndexes);
     expect(result.current.useSoilIndexDelete).toBe(usePluginSoilIndexDelete);
   });
 

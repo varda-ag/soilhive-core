@@ -112,6 +112,57 @@ describe('AvailabilityContext', () => {
     expect(availableIds).not.toContain(privateNonDownloadableDataset.id);
   });
 
+  it('availableDatasets is narrowed by the search when nothing is selected', () => {
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    act(() => {
+      result.current.setSearchValue('private');
+    });
+
+    const availableIds = result.current.availableDatasets.map(dataset => dataset.id);
+    expect(availableIds.sort()).toEqual([privateDownloadableDataset.id, privatePreviewOnlyDataset.id].sort());
+  });
+
+  it('availableDatasets keeps only the selected datasets matching the search', () => {
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    act(() => {
+      result.current.selectDataset(publicDataset.id);
+    });
+    act(() => {
+      result.current.selectDataset(privateDownloadableDataset.id);
+    });
+    act(() => {
+      result.current.setSearchValue('private');
+    });
+
+    expect(result.current.availableDatasets.map(dataset => dataset.id)).toEqual([privateDownloadableDataset.id]);
+  });
+
+  it('availableDatasets falls back to all datasets matching the search when the search hides every selected one', () => {
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    act(() => {
+      result.current.selectDataset(publicDataset.id);
+    });
+    act(() => {
+      result.current.setSearchValue('private');
+    });
+
+    const availableIds = result.current.availableDatasets.map(dataset => dataset.id);
+    expect(availableIds.sort()).toEqual([privateDownloadableDataset.id, privatePreviewOnlyDataset.id].sort());
+  });
+
+  it('availableDatasets is empty when the search matches nothing', () => {
+    const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+    act(() => {
+      result.current.setSearchValue('no such dataset');
+    });
+
+    expect(result.current.availableDatasets).toEqual([]);
+  });
+
   it('selectAllDatasets(true) selects datasets with the download or the preview capability', () => {
     const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
 

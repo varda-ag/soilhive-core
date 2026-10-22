@@ -1,26 +1,47 @@
-import { useQueries, type QueryKey, type Query } from '@tanstack/react-query';
+import { useQueries, type UseQueryResult } from '@tanstack/react-query';
 import { useRequest } from '../api-client';
 import { buildApiUrl } from '../utilities/buildApiUrl';
 import { QUERY_STALE_TIME } from '../configuration/api';
+import type { UseApiQueryOptions } from './useApiQuery';
 
-type ApiQueryItem<TResponse, TBody = void> = {
-  endpoint: string;
-  method: 'GET' | 'POST';
-  body?: TBody;
-  parameters?: Array<[string, string]>;
-  queryKey: QueryKey;
-  enabled: boolean;
-  refetchInterval?: number | false | ((query: Query<TResponse, Error, TResponse, QueryKey>) => number | false | undefined);
-  showErrorNotification?: boolean;
-  notFoundAsNull?: boolean;
-};
+// The useApiQuery options this hook handles; `authenticate` stays out (see useConfigs).
+export type UseApiQueriesOptionsItem<TResponse, TBody = void> = Pick<
+  UseApiQueryOptions<TResponse, TBody>,
+  | 'endpoint'
+  | 'method'
+  | 'body'
+  | 'parameters'
+  | 'queryKey'
+  | 'enabled'
+  | 'refetchInterval'
+  | 'retry'
+  | 'staleTime'
+  | 'showErrorNotification'
+  | 'notFoundAsNull'
+>;
 
-export function useApiQueries<TResponse, TBody = void>(queries: ApiQueryItem<TResponse, TBody>[]) {
+// `combine` maps the results to one value that keeps its identity until a result changes.
+export function useApiQueries<TResponse, TBody = void, TCombined = UseQueryResult<TResponse, Error>[]>(
+  queries: UseApiQueriesOptionsItem<TResponse, TBody>[],
+  combine?: (results: UseQueryResult<TResponse, Error>[]) => TCombined,
+): TCombined {
   const { request } = useRequest();
 
   return useQueries({
     queries: queries.map(
-      ({ endpoint, method, body, parameters, queryKey, enabled, refetchInterval, showErrorNotification, notFoundAsNull }) => {
+      ({
+        endpoint,
+        method,
+        body,
+        parameters,
+        queryKey,
+        enabled,
+        refetchInterval,
+        retry,
+        staleTime,
+        showErrorNotification,
+        notFoundAsNull,
+      }) => {
         const url = buildApiUrl(endpoint, parameters);
 
         return {
@@ -35,10 +56,13 @@ export function useApiQueries<TResponse, TBody = void>(queries: ApiQueryItem<TRe
               notFoundAsNull,
             });
           },
-          staleTime: QUERY_STALE_TIME,
+          staleTime: staleTime ?? QUERY_STALE_TIME,
           refetchInterval,
+          // Only when set: an explicit `retry: undefined` would override the QueryClient's default.
+          ...(retry !== undefined && { retry }),
         };
       },
     ),
+    combine,
   });
 }

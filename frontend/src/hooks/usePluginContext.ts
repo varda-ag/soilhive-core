@@ -36,7 +36,7 @@ import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from
 import { usePluginUserEntitlements } from './usePluginUserEntitlements';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from './usePluginDataRequest';
 import { useSoilIndexScore, useSoilIndexTileSource } from './useSoilIndexTiles';
-import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexSubmit } from './usePluginSoilIndex';
+import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexes, usePluginSoilIndexSubmit } from './usePluginSoilIndex';
 import { metadataUrl } from 'configuration/routes';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
@@ -164,6 +164,7 @@ export function usePluginContext(): PluginContext {
       useDataRequestDelete: usePluginDataRequestDelete,
       useSoilIndexSubmit: usePluginSoilIndexSubmit,
       useSoilIndex: usePluginSoilIndex,
+      useSoilIndexes: usePluginSoilIndexes,
       useSoilIndexDelete: usePluginSoilIndexDelete,
       // Already plugin-shaped: they return PluginContext's own types.
       useSoilIndexTileSource,
