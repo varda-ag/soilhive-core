@@ -7,6 +7,8 @@ import { getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
 import { Capability } from '../../src/types/enums';
 
+const savedConfig = (data: unknown) => ({ data, updated_at: expect.any(String) });
+
 const mockToken: Token = {
   sub: 'test-user-id',
   email: 'test@example.com',
@@ -216,7 +218,9 @@ describe('ConfigService config value entitlements', () => {
       await entityManager.getRepository('JsonStorage').save({ id: 'unreadable', data: { b: 2 } });
       const rd = buildRequestData({ entitlements: { configs: { readable: [Capability.READ] } } });
 
-      await expect(service.getConfigs(rd, ['readable', 'unreadable', 'missing'])).resolves.toEqual({ readable: { a: 1 } });
+      await expect(service.getConfigs(rd, ['readable', 'unreadable', 'missing'])).resolves.toEqual({
+        readable: savedConfig({ a: 1 }),
+      });
     });
 
     it('returns every requested id for a privileged caller', async () => {
@@ -224,7 +228,10 @@ describe('ConfigService config value entitlements', () => {
       await entityManager.getRepository('JsonStorage').save({ id: 'b', data: { b: 2 } });
       const rd = buildRequestData({ token: { ...mockToken, isSuperAdmin: true } });
 
-      await expect(service.getConfigs(rd, ['a', 'b'])).resolves.toEqual({ a: { a: 1 }, b: { b: 2 } });
+      await expect(service.getConfigs(rd, ['a', 'b'])).resolves.toEqual({
+        a: savedConfig({ a: 1 }),
+        b: savedConfig({ b: 2 }),
+      });
     });
   });
 

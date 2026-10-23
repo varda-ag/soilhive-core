@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import useConfigs from './useConfigs';
 
 const usePluginConfigs = <T>(pluginId: string, ids: string[], polling?: number) => {
@@ -7,7 +8,11 @@ const usePluginConfigs = <T>(pluginId: string, ids: string[], polling?: number) 
     polling,
   );
 
-  const unprefixedData = Object.fromEntries(Object.entries(data).map(([id, config]) => [id.slice(prefix.length), config]));
+  // Each entry is useConfigs' own, so it keeps its identity until its config changes.
+  const unprefixedData = useMemo(
+    () => Object.fromEntries(Object.entries(data).map(([id, entry]) => [id.slice(prefix.length), entry])),
+    [data, prefix],
+  );
 
   return { data: unprefixedData, isLoading, isError };
 };

@@ -1,5 +1,6 @@
 import type {
   PluginConfigEntitlements,
+  PluginConfigEntry,
   PluginConfigResult,
   PluginEntitlementScope,
   PluginMutationResult,
@@ -51,8 +52,9 @@ export interface PluginContext {
   // back in so the same config namespace is used no matter which plugin calls it.
   usePluginConfig: <T>(pluginId: string, id: string, defaultConfig?: T) => PluginConfigResult<T>;
   // Read-only batch counterpart to usePluginConfig: fetches any number of ids, in
-  // parallel requests of up to 100. Missing ids are simply absent from the returned map.
-  usePluginConfigs: <T>(pluginId: string, ids: string[], polling?: number) => PluginQueryResult<Record<string, T>>;
+  // parallel requests of up to 100. Each id maps to its config and the time of its last save;
+  // missing ids are simply absent from the returned map.
+  usePluginConfigs: <T>(pluginId: string, ids: string[], polling?: number) => PluginQueryResult<Record<string, PluginConfigEntry<T>>>;
   // Deletes a config item for everyone, with its entitlements, attached Data Requests and attached
   // Soil Index Runs (one still in progress is cancelled, see ADR 0044); final.
   // Resolves once the item has left every listing, and also when there is nothing the caller may

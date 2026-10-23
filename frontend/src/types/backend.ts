@@ -314,6 +314,12 @@ export interface VocabularyItem {
 export type EntitlementCapability = 'preview' | 'download' | 'obfuscate_as_points' | 'obfuscate_as_polygons';
 export type DatasetEntitlements = Record<string, EntitlementCapability[]>;
 
+// One entry of `GET /configs`; `updated_at` is ISO 8601 in UTC.
+export interface SavedConfig<T> {
+  data: T;
+  updated_at: string;
+}
+
 export type ConfigEntitlementCapability = 'read' | 'write';
 export type ConfigEntitlements = Record<string, ConfigEntitlementCapability[]>;
 
