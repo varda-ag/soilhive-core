@@ -1,4 +1,5 @@
 import type { UseQueryResult } from '@tanstack/react-query';
+import type { PluginConfigEntry } from 'frontend-plugin-types';
 import type { SavedConfig } from 'types/backend';
 import { useApiQueries } from './useApiQueries';
 
@@ -24,9 +25,14 @@ const useConfigs = <T>(ids: string[], polling?: number) => {
       enabled: true,
       refetchInterval: polling || false,
     })),
-    // React Query shares the combined result structurally: `data` keeps its identity until a batch changes.
+    // React Query shares the combined result structurally: an entry keeps its identity until that
+    // config changes, so saving one config does not replace the others.
     (results: UseQueryResult<Record<string, SavedConfig<T>>>[]) => ({
-      data: Object.assign({}, ...results.map(result => result.data)) as Record<string, SavedConfig<T>>,
+      data: Object.fromEntries(
+        results
+          .flatMap(result => Object.entries(result.data ?? {}))
+          .map(([id, saved]): [string, PluginConfigEntry<T>] => [id, { config: saved.data, updatedAt: saved.updated_at }]),
+      ),
       isLoading: results.some(result => result.isLoading),
       isError: results.some(result => result.isError),
     }),

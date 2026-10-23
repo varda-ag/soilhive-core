@@ -13,11 +13,11 @@ describe('usePluginConfigs', () => {
     jest.clearAllMocks();
   });
 
-  it('namespaces ids with the pluginId and strips the prefix back off the returned map', () => {
+  it('namespaces ids with the pluginId and strips the prefix back off the returned entries', () => {
     useConfigsMock.mockReturnValue({
       data: {
-        'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: updatedAt },
-        'plugin:myPlugin:b': { data: { foo: 2 }, updated_at: earlierUpdatedAt },
+        'plugin:myPlugin:a': { config: { foo: 1 }, updatedAt },
+        'plugin:myPlugin:b': { config: { foo: 2 }, updatedAt: earlierUpdatedAt },
       },
       isLoading: false,
       isError: false,
@@ -33,7 +33,7 @@ describe('usePluginConfigs', () => {
   });
 
   it('keeps every entry when useConfigs returns the same data again, e.g. an unchanged poll', () => {
-    const data = { 'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: updatedAt } };
+    const data = { 'plugin:myPlugin:a': { config: { foo: 1 }, updatedAt } };
     useConfigsMock.mockReturnValue({ data, isLoading: false, isError: false });
 
     const { result, rerender } = renderHook(() => usePluginConfigs('myPlugin', ['a']));
@@ -53,7 +53,7 @@ describe('usePluginConfigs', () => {
 
   it('omits ids missing from the response and passes isLoading/isError through unchanged', () => {
     useConfigsMock.mockReturnValue({
-      data: { 'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: updatedAt } },
+      data: { 'plugin:myPlugin:a': { config: { foo: 1 }, updatedAt } },
       isLoading: true,
       isError: true,
     });

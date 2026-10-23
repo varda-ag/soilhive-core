@@ -21,7 +21,7 @@ describe('useConfigs', () => {
     jest.clearAllMocks();
   });
 
-  it('fetches /configs with comma-separated ids and returns the resolved data', () => {
+  it('fetches /configs with comma-separated ids and returns each config with its updatedAt', () => {
     const data = {
       a: { data: { foo: 1 }, updated_at: updatedAt },
       b: { data: { foo: 2 }, updated_at: earlierUpdatedAt },
@@ -39,7 +39,11 @@ describe('useConfigs', () => {
         enabled: true,
       }),
     ]);
-    expect(result.current).toEqual({ data, isLoading: false, isError: false });
+    expect(result.current).toEqual({
+      data: { a: { config: { foo: 1 }, updatedAt }, b: { config: { foo: 2 }, updatedAt: earlierUpdatedAt } },
+      isLoading: false,
+      isError: false,
+    });
   });
 
   it('passes polling as refetchInterval when provided', () => {
