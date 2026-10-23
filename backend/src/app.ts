@@ -15,9 +15,6 @@ import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
 import { isQueryDebugEnabled, queryDebugMiddleware } from './utils/query-debug';
 import { getServerPort, isJest, setupEnv } from './utils/utils';
-import { warnIfOidcAudienceUnchecked } from './utils/token-issuers';
-import ConfigService from './services/ConfigService';
-import { AuthModes } from './types/enums';
 import { syncVocabularies } from './scripts/syncVocabularies';
 
 setupEnv();
@@ -100,10 +97,6 @@ export const initApp = async (app: Application) => {
     log.error('Vocabulary sync failed at startup', { error: error instanceof Error ? error.message : String(error) });
   }
   await startCacheEpochWatcher();
-
-  if (ConfigService.getAuthConfig().authMode === AuthModes.OIDC) {
-    warnIfOidcAudienceUnchecked();
-  }
 
   const port = getServerPort();
   const server = app.listen(port, () => {

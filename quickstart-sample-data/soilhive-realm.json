@@ -950,20 +950,6 @@
         "offline_access",
         "organization",
         "microprofile-jwt"
-      ],
-      "protocolMappers": [
-        {
-          "name": "soilhive-audience",
-          "protocol": "openid-connect",
-          "protocolMapper": "oidc-audience-mapper",
-          "consentRequired": false,
-          "config": {
-            "included.client.audience": "soilhive",
-            "id.token.claim": "false",
-            "access.token.claim": "true",
-            "introspection.token.claim": "true"
-          }
-        }
       ]
     }
   ],

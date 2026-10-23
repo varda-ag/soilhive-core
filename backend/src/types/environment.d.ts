@@ -34,8 +34,6 @@ declare namespace NodeJS {
     readonly OIDC_POST_LOGOUT_REDIRECT_URI?: string;
     readonly OIDC_SILENT_REDIRECT_URI?: string;
     readonly OIDC_SCOPE?: string;
-    readonly OIDC_ISSUER?: string;
-    readonly OIDC_AUDIENCE?: string;
     // Storage settings
     readonly STORAGE_MODE?: string;
     readonly LOCAL_STORAGE_ROOT_FOLDER?: string;
