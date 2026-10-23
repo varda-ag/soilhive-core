@@ -35,12 +35,14 @@ export const resetPluginTokenRateLimit = (): void => {
   subjectMintCounts.clear();
 };
 
-const countWithin = (counts: LRUCache<string, number>, key: string, limit: number): void => {
-  const count = (counts.get(key) ?? 0) + 1;
-  counts.set(key, count);
-  if (count > limit) {
+const assertWithin = (counts: LRUCache<string, number>, key: string, limit: number): void => {
+  if ((counts.get(key) ?? 0) >= limit) {
     throw new TooManyMintsError(Math.max(Math.ceil(counts.getRemainingTTL(key) / 1000), 1));
   }
+};
+
+const count = (counts: LRUCache<string, number>, key: string): void => {
+  counts.set(key, (counts.get(key) ?? 0) + 1);
 };
 
 export class TooManyMintsError extends ErrorResponse {
@@ -85,18 +87,25 @@ export default class PluginTokenService {
     return { access_token: signPluginToken(key, payload), token_type: 'Bearer', expires_in: Math.max(exp - now, 0) };
   };
 
-  /** The keys Plugin Backends verify Plugin tokens with. Never lists a key that verifies user tokens. */
+  /**
+   * The keys Plugin Backends verify Plugin tokens with. Never lists a key that verifies user tokens.
+   * None without a valid CORE_PUBLIC_URL either: the core then neither mints nor accepts Plugin tokens.
+   */
   getJwks = (): { keys: PublicJwk[] } => {
     const key = getPluginTokenKey();
-    if (!key) {
+    if (!key || !getPluginTokenIssuer()) {
       throw new ErrorResponse('Plugin tokens are not configured on this deployment', StatusCodes.NOT_FOUND);
     }
     return { keys: [key.jwk] };
   };
 
-  // The Subject's overall count first: a refused mint never spends a plugin's own budget
+  // Both limits are checked before either counts: a refused mint spends no budget, so a plugin over
+  // its own limit never uses up the Subject's and stops the user's other plugins
   private countMint = (subject: string, pluginId: string): void => {
-    countWithin(subjectMintCounts, subject, MINTS_PER_SUBJECT_PER_WINDOW);
-    countWithin(pluginMintCounts, `${subject}\n${pluginId}`, MINTS_PER_WINDOW);
+    const pluginKey = `${subject}\n${pluginId}`;
+    assertWithin(subjectMintCounts, subject, MINTS_PER_SUBJECT_PER_WINDOW);
+    assertWithin(pluginMintCounts, pluginKey, MINTS_PER_WINDOW);
+    count(subjectMintCounts, subject);
+    count(pluginMintCounts, pluginKey);
   };
 }

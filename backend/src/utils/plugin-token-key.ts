@@ -51,7 +51,8 @@ export const getPluginTokenKey = (): Es256Key | undefined => {
  * BACKEND_BASE_URL), without a trailing slash. `undefined` when it is unset or not an http(s) URL.
  */
 export const getPluginTokenIssuer = (): string | undefined => {
-  const value = process.env.CORE_PUBLIC_URL;
+  // Trimmed as URL parsing trims it: a trailing newline from a secret file would end up in `iss`
+  const value = process.env.CORE_PUBLIC_URL?.trim();
   if (!value) {
     return undefined;
   }

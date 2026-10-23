@@ -38,7 +38,10 @@ export function resolvePluginApiBase(baseUrl: string): URL {
 }
 
 export function buildPluginApiUrl(base: URL, path: string, params: PluginApiParams = {}): string {
-  const url = new URL(path.replace(/^\/+/, ''), base);
+  // './' keeps 'zones:search' a path rather than a URL of scheme 'zones:'. A full URL stays one, and
+  // is refused below unless it is under the base
+  const relative = path.replace(/^\/+/, '');
+  const url = new URL(/^[a-z][a-z\d+.-]*:\/\//i.test(relative) ? relative : `./${relative}`, base);
   // URL resolves dot segments (%2e%2e included), so '../other-plugin/x' would leave the base
   if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname)) {
     throw new Error(`Plugin API path "${path}" resolves outside ${base.href}`);
@@ -67,6 +70,9 @@ const isRawBody = (body: unknown) =>
   body instanceof ArrayBuffer ||
   ArrayBuffer.isView(body);
 
+// application/json and the types built on it: geo+json, problem+json, vnd.*+json
+const isJsonType = (contentType: string | null) => /^\s*application\/(?:[\w.-]+\+)?json\s*(?:;|$)/i.test(contentType ?? '');
+
 // Refused rather than sent as '{}': a stream needs fetch's duplex option, which not every browser
 // supports, and is read once, so it could not be resent after a 401
 const isStream = (body: unknown) => typeof ReadableStream !== 'undefined' && body instanceof ReadableStream;
@@ -83,7 +89,7 @@ const send = async (
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const hasBody = body !== undefined && body !== null;
   if (hasBody && !isRawBody(body) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
-  const json = hasBody && !isRawBody(body) && headers.get('Content-Type')?.includes('application/json');
+  const json = hasBody && !isRawBody(body) && isJsonType(headers.get('Content-Type'));
   try {
     return await fetch(url, {
       method,
@@ -117,7 +123,7 @@ const read = async <T>(response: Response, responseType: PluginApiRequestOptions
   // A caller that asked for a blob gets one whatever the type, a JSON file to download included
   if (responseType === 'blob') return (await response.blob()) as T;
   const contentType = response.headers.get('Content-Type') ?? '';
-  if (contentType.includes('application/json')) return (await response.json()) as T;
+  if (isJsonType(contentType)) return (await response.json()) as T;
   if (contentType.includes('application/octet-stream') || contentType.includes('image/svg+xml')) return (await response.blob()) as T;
   throw pluginApiError(`The plugin backend answered with an unexpected content type: "${contentType || 'none'}"`, response.status);
 };

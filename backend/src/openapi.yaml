@@ -133,8 +133,8 @@ paths:
       summary: Public key that verifies Plugin tokens
       description: >-
         Plugin Backends verify the Plugin tokens they receive against this key set
-        (docs/adr/0063). Available in every auth mode once PLUGIN_TOKEN_SECRET is set, and never
-        lists a key that verifies user tokens.
+        (docs/adr/0063). Available in every auth mode once PLUGIN_TOKEN_SECRET and CORE_PUBLIC_URL
+        are set, and never lists a key that verifies user tokens.
       tags:
         - auth
       responses:

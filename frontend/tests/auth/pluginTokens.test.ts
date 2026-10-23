@@ -127,6 +127,45 @@ describe('getPluginToken', () => {
     expect(await getPluginToken('zones')).toBe('pt-1');
   });
 
+  describe('after a 429', () => {
+    it('fails at once, without asking the core, until Retry-After has passed', async () => {
+      httpClientMock.mockRejectedValueOnce({ status: 429, message: 'Too many', retryAfter: '20' });
+      await expect(getPluginToken('zones')).rejects.toMatchObject({ status: 429 });
+
+      jest.advanceTimersByTime(19_000);
+      await expect(getPluginToken('zones')).rejects.toMatchObject({ status: 429 });
+      await expect(renewPluginToken('zones', 'pt-0')).rejects.toMatchObject({ status: 429 });
+      expect(httpClientMock).toHaveBeenCalledTimes(1);
+
+      jest.advanceTimersByTime(1_000);
+      minted('pt-1');
+      expect(await getPluginToken('zones')).toBe('pt-1');
+    });
+
+    it('waits 10 s without a usable Retry-After', async () => {
+      httpClientMock.mockRejectedValueOnce({ status: 429, message: 'Too many', retryAfter: null });
+      await expect(getPluginToken('zones')).rejects.toMatchObject({ status: 429 });
+
+      jest.advanceTimersByTime(9_000);
+      await expect(getPluginToken('zones')).rejects.toMatchObject({ status: 429 });
+      jest.advanceTimersByTime(1_000);
+      minted('pt-1');
+      expect(await getPluginToken('zones')).toBe('pt-1');
+    });
+
+    it("holds off that plugin only, and not another user's mints", async () => {
+      httpClientMock.mockRejectedValueOnce({ status: 429, message: 'Too many', retryAfter: '60' });
+      await expect(getPluginToken('zones')).rejects.toMatchObject({ status: 429 });
+
+      minted('other-1');
+      expect(await getPluginToken('other')).toBe('other-1');
+
+      getTokenMock.mockReturnValue('user-b');
+      minted('pt-b');
+      expect(await getPluginToken('zones')).toBe('pt-b');
+    });
+  });
+
   it('lets one caller stop waiting without cancelling the mint for the others', async () => {
     const mint = deferredMint();
     const controller = new AbortController();

@@ -15,6 +15,8 @@ const RENEW_MARGIN_MS = 30_000;
 // A token this young that a Plugin Backend rejects is not renewed: the backend is refusing every
 // token (a wrong SOILHIVE_CORE_URL, say), and renewing would only spend the mint limit
 const MIN_AGE_TO_RENEW_MS = 10_000;
+// How long a 429 without a usable Retry-After holds off the next mint
+const DEFAULT_RETRY_AFTER_MS = 10_000;
 
 interface MintedToken {
   token: string;
@@ -30,6 +32,7 @@ interface MintResponse {
 let owner: string | null = null;
 const tokens = new Map<string, MintedToken>();
 const mints = new Map<string, Promise<MintedToken>>();
+const refusals = new Map<string, { error: unknown; until: number }>();
 
 // An error whose status a PluginApiError keeps
 const userChangedError = () => Object.assign(new Error('The signed-in user changed during the call'), { status: 401 });
@@ -58,9 +61,22 @@ const currentOwner = (): string | null => {
   if (userOwner !== owner) {
     tokens.clear();
     mints.clear();
+    refusals.clear();
     owner = userOwner;
   }
   return userOwner;
+};
+
+// A 429 holds off every mint for the plugin until its Retry-After: asking sooner only gets another
+// one, and a plugin that keeps calling its backend would otherwise ask on every call
+const rememberRefusal = (pluginId: string, error: unknown): void => {
+  const { status, retryAfter } = (error ?? {}) as { status?: number; retryAfter?: string | null };
+  if (status !== 429) {
+    return;
+  }
+  const seconds = Number(retryAfter);
+  const wait = retryAfter && seconds > 0 ? seconds * 1000 : DEFAULT_RETRY_AFTER_MS;
+  refusals.set(pluginId, { error, until: Date.now() + wait });
 };
 
 // The core never mints past the user token's expiry, so a nearly expired one would give a token
@@ -94,6 +110,12 @@ const mint = (pluginId: string, mintOwner: string): Promise<MintedToken> => {
       }
       return minted;
     })
+    .catch(error => {
+      if (owner === mintOwner) {
+        rememberRefusal(pluginId, error);
+      }
+      throw error;
+    })
     .finally(() => {
       if (mints.get(pluginId) === pending) {
         mints.delete(pluginId);
@@ -119,6 +141,10 @@ const untilAborted = <T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> 
 };
 
 const mintFor = async (pluginId: string, mintOwner: string, signal?: AbortSignal): Promise<string> => {
+  const refusal = refusals.get(pluginId);
+  if (refusal && Date.now() < refusal.until) {
+    throw refusal.error;
+  }
   const minted = await untilAborted(mint(pluginId, mintOwner), signal);
   if (getPluginTokenOwner() !== mintOwner) {
     throw userChangedError();
@@ -128,7 +154,8 @@ const mintFor = async (pluginId: string, mintOwner: string, signal?: AbortSignal
 
 /**
  * The Plugin token to send to pluginId's backend, or null for an anonymous visitor, who never
- * reaches the core for one. Rejects with the mint call's error.
+ * reaches the core for one. Rejects with the mint call's error, and with a 429 again, without
+ * asking, until its Retry-After has passed.
  */
 export const getPluginToken = async (pluginId: string, signal?: AbortSignal): Promise<string | null> => {
   if (typeof window === 'undefined') {
@@ -172,5 +199,6 @@ export const renewPluginToken = async (pluginId: string, rejected: string, signa
 export const resetPluginTokens = (): void => {
   tokens.clear();
   mints.clear();
+  refusals.clear();
   owner = null;
 };

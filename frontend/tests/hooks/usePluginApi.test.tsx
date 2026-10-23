@@ -157,6 +157,14 @@ describe('usePluginApi', () => {
       }
     });
 
+    it('sends the body as JSON under a +json Content-Type the plugin sets', async () => {
+      fetchMock.mockResolvedValueOnce(mockResponse({ status: 204 }));
+      const feature = { type: 'Feature', geometry: null, properties: {} };
+      await renderApi().post('/zones', feature, { headers: { 'Content-Type': 'application/geo+json' } });
+      expect(fetchCall().body).toBe(JSON.stringify(feature));
+      expect(fetchCall().headers.get('Content-Type')).toBe('application/geo+json');
+    });
+
     it('keeps a Content-Type the plugin sets, whatever its case', async () => {
       fetchMock.mockResolvedValueOnce(mockResponse({ status: 204 }));
       await renderApi().post('/csv', 'a,b', { headers: { 'content-type': 'text/csv' } });
@@ -189,6 +197,19 @@ describe('usePluginApi', () => {
     it('resolves a 204 to undefined', async () => {
       fetchMock.mockResolvedValueOnce(mockResponse({ status: 204, contentType: '' }));
       expect(await renderApi().delete('/zones/1')).toBeUndefined();
+    });
+
+    it.each(['application/json; charset=utf-8', 'application/geo+json', 'application/problem+json', 'application/vnd.api+json'])(
+      'parses a %s response as JSON',
+      async contentType => {
+        fetchMock.mockResolvedValueOnce(mockResponse({ status: 201, body: { id: 'z1' }, contentType }));
+        expect(await renderApi().post('/zones', { name: 'Field' })).toEqual({ id: 'z1' });
+      },
+    );
+
+    it('rejects a type that is not JSON, nor a blob', async () => {
+      fetchMock.mockResolvedValueOnce(mockResponse({ body: '<html>', contentType: 'text/html' }));
+      await expect(renderApi().get('/zones')).rejects.toMatchObject({ name: 'PluginApiError', status: 200 });
     });
 
     it('returns a blob when asked, whatever the type', async () => {
@@ -356,5 +377,14 @@ describe('buildPluginApiUrl', () => {
 
   it('keeps a protocol-relative path under the base', () => {
     expect(buildPluginApiUrl(base, '//evil.example/x')).toBe('https://plugins.example/zones/evil.example/x');
+  });
+
+  it("reads a first segment with a ':' as a path, not as a URL scheme", () => {
+    expect(buildPluginApiUrl(base, '/zones:search')).toBe('https://plugins.example/zones/zones:search');
+    expect(buildPluginApiUrl(base, 'dashboards:1/zones')).toBe('https://plugins.example/zones/dashboards:1/zones');
+  });
+
+  it('accepts a full URL under the base', () => {
+    expect(buildPluginApiUrl(base, 'https://plugins.example/zones/x')).toBe('https://plugins.example/zones/x');
   });
 });

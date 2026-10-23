@@ -49,7 +49,9 @@ describe('plugin-token-key', () => {
   it.each([
     ['https://api.example/api/v1/', 'https://api.example/api/v1'],
     ['http://localhost:4001/api/v1', 'http://localhost:4001/api/v1'],
+    [' https://api.example/api/v1/\n', 'https://api.example/api/v1'],
     [undefined, undefined],
+    ['  ', undefined],
     ['not a url', undefined],
     ['ftp://api.example', undefined],
     ['https://user:pass@api.example', undefined],

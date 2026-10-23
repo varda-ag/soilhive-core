@@ -160,6 +160,17 @@ describe('Plugin tokens', () => {
       expect((await mint(otherUser, 'yet-another-plugin')).statusCode).toBe(StatusCodes.OK);
     });
 
+    it("never spends the Subject's budget on mints a plugin's own limit refuses", async () => {
+      for (let i = 0; i < MINTS_PER_WINDOW; i++) {
+        expect((await mint(userToken)).statusCode).toBe(StatusCodes.OK);
+      }
+      // As many refusals as would use up the Subject's budget, were they counted
+      for (let i = MINTS_PER_WINDOW; i < MINTS_PER_SUBJECT_PER_WINDOW; i++) {
+        expect((await mint(userToken)).statusCode).toBe(StatusCodes.TOO_MANY_REQUESTS);
+      }
+      expect((await mint(userToken, 'other-plugin')).statusCode).toBe(StatusCodes.OK);
+    });
+
     describe('admin rights', () => {
       it('drops the admin scopes of an admin caller', async () => {
         const pluginToken = await mintToken(await getSuperAdminToken());
@@ -212,8 +223,8 @@ describe('Plugin tokens', () => {
       expect(res.body.keys.map((key: { kid: string }) => key.kid)).toEqual([getPasswordGrantKey().kid]);
     });
 
-    it('answers 404 when PLUGIN_TOKEN_SECRET is unset', async () => {
-      delete process.env.PLUGIN_TOKEN_SECRET;
+    it.each(['PLUGIN_TOKEN_SECRET', 'CORE_PUBLIC_URL'])('answers 404 when %s is unset', async name => {
+      delete process.env[name];
       const res = await request(app).get('/.well-known/plugin-jwks.json');
       expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
     });
