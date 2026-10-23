@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.8.0 (2026-10-23)
+
+## What's Changed
+* feat: sp-5806 add usesoilindexes hook for plugins by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/919
+* fix: dataset list text filtering by @svaccari in https://github.com/varda-ag/soilhive-core/pull/920
+* fix: leaked connections, getEnabledRasterFilterTables deadlock by @d-rom in https://github.com/varda-ag/soilhive-core/pull/923
+* feat(be): sp-5528 check the issuer, audience and scopes of every token by @cristbello in https://github.com/varda-ag/soilhive-core/pull/912
+* feat: sp-5863 get /configs returns each config with its updated_at by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/922
+* fix(be): sp-5528 OIDC_AUDIENCE stays unset until tokens carry an audience by @cristbello in https://github.com/varda-ag/soilhive-core/pull/924
+* feat: sp-5528 plugins call their backend directly with a plugin token by @cristbello in https://github.com/varda-ag/soilhive-core/pull/911
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.7.0...v1.8.0
+
 ## 1.7.0 (2026-10-22)
 
 ## What's Changed
