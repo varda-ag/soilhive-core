@@ -5,6 +5,8 @@ import usePluginConfigs from 'hooks/usePluginConfigs';
 jest.mock('hooks/useConfigs', () => jest.fn());
 
 const useConfigsMock = useConfigs as jest.Mock;
+const updatedAt = '2026-10-23T07:59:52.473Z';
+const earlierUpdatedAt = '2026-10-22T10:00:00.000Z';
 
 describe('usePluginConfigs', () => {
   afterEach(() => {
@@ -14,8 +16,8 @@ describe('usePluginConfigs', () => {
   it('namespaces ids with the pluginId and strips the prefix back off the returned map', () => {
     useConfigsMock.mockReturnValue({
       data: {
-        'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: '2026-10-23T07:59:52.473Z' },
-        'plugin:myPlugin:b': { data: { foo: 2 }, updated_at: '2026-10-22T10:00:00.000Z' },
+        'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: updatedAt },
+        'plugin:myPlugin:b': { data: { foo: 2 }, updated_at: earlierUpdatedAt },
       },
       isLoading: false,
       isError: false,
@@ -25,9 +27,20 @@ describe('usePluginConfigs', () => {
 
     expect(useConfigs).toHaveBeenCalledWith(['plugin:myPlugin:a', 'plugin:myPlugin:b'], undefined);
     expect(result.current.data).toEqual({
-      a: { config: { foo: 1 }, updatedAt: '2026-10-23T07:59:52.473Z' },
-      b: { config: { foo: 2 }, updatedAt: '2026-10-22T10:00:00.000Z' },
+      a: { config: { foo: 1 }, updatedAt },
+      b: { config: { foo: 2 }, updatedAt: earlierUpdatedAt },
     });
+  });
+
+  it('keeps every entry when useConfigs returns the same data again, e.g. an unchanged poll', () => {
+    const data = { 'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: updatedAt } };
+    useConfigsMock.mockReturnValue({ data, isLoading: false, isError: false });
+
+    const { result, rerender } = renderHook(() => usePluginConfigs('myPlugin', ['a']));
+    const first = result.current.data.a;
+    rerender();
+
+    expect(result.current.data.a).toBe(first);
   });
 
   it('forwards polling to useConfigs', () => {
@@ -40,14 +53,14 @@ describe('usePluginConfigs', () => {
 
   it('omits ids missing from the response and passes isLoading/isError through unchanged', () => {
     useConfigsMock.mockReturnValue({
-      data: { 'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: '2026-10-23T07:59:52.473Z' } },
+      data: { 'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: updatedAt } },
       isLoading: true,
       isError: true,
     });
 
     const { result } = renderHook(() => usePluginConfigs('myPlugin', ['a', 'b']));
 
-    expect(result.current.data).toEqual({ a: { config: { foo: 1 }, updatedAt: '2026-10-23T07:59:52.473Z' } });
+    expect(result.current.data).toEqual({ a: { config: { foo: 1 }, updatedAt } });
     expect(result.current.isLoading).toBe(true);
     expect(result.current.isError).toBe(true);
   });

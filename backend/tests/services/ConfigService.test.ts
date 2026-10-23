@@ -7,6 +7,8 @@ import { getEntityManager } from '../../src/utils/data-source';
 import { Token } from '../../src/interfaces/Token';
 import { Capability } from '../../src/types/enums';
 
+const savedConfig = (data: unknown) => ({ data, updated_at: expect.any(String) });
+
 const mockToken: Token = {
   sub: 'test-user-id',
   email: 'test@example.com',
@@ -217,7 +219,7 @@ describe('ConfigService config value entitlements', () => {
       const rd = buildRequestData({ entitlements: { configs: { readable: [Capability.READ] } } });
 
       await expect(service.getConfigs(rd, ['readable', 'unreadable', 'missing'])).resolves.toEqual({
-        readable: { data: { a: 1 }, updated_at: expect.any(String) },
+        readable: savedConfig({ a: 1 }),
       });
     });
 
@@ -227,8 +229,8 @@ describe('ConfigService config value entitlements', () => {
       const rd = buildRequestData({ token: { ...mockToken, isSuperAdmin: true } });
 
       await expect(service.getConfigs(rd, ['a', 'b'])).resolves.toEqual({
-        a: { data: { a: 1 }, updated_at: expect.any(String) },
-        b: { data: { b: 2 }, updated_at: expect.any(String) },
+        a: savedConfig({ a: 1 }),
+        b: savedConfig({ b: 2 }),
       });
     });
   });

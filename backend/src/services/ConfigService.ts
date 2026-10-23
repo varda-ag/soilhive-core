@@ -115,15 +115,7 @@ export default class ConfigService {
   // Export keeps the bare `{ [id]: data }` shape, so exported files still import (ADR 0063).
   exportConfigs = async (repo: Repository<JsonStorage>): Promise<any> => {
     const rows = await repo.find();
-    return this.mapRowsById(rows);
-  };
-
-  private mapRowsById = (rows: JsonStorage[]): Record<string, unknown> => {
-    const output: Record<string, unknown> = {};
-    for (const r of rows) {
-      output[r.id] = r.data;
-    }
-    return output;
+    return Object.fromEntries(rows.map(r => [r.id, r.data]));
   };
 
   async getLogoData(repo: Repository<JsonStorage>): Promise<LogoData | undefined> {

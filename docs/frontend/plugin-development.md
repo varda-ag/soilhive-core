@@ -282,8 +282,6 @@ const { data, isLoading } = context.usePluginConfigs<WidgetSettings>(pluginId, [
 const lastUpdate = data && new Date(data['widget-a'].updatedAt).toLocaleString();
 ```
 
-Show `updatedAt` with `new Date(updatedAt)` so it is in the user's time zone; slicing the string shows UTC.
-
 ### Fetching a stored filter
 
 Call `context.useFilter(filterId)` to fetch a stored filter's geometries and parameters by id. It sends no request while `filterId` is `undefined`. A filter that doesn't exist sets `isError`, and it isn't retried:
