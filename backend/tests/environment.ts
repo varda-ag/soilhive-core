@@ -55,6 +55,8 @@ export const setupTestEnv = () => {
     OIDC_POST_LOGOUT_REDIRECT_URI: undefined,
     OIDC_SILENT_REDIRECT_URI: undefined,
     OIDC_SCOPE: undefined,
+    OIDC_ISSUER: undefined,
+    OIDC_AUDIENCE: undefined,
     S3_STORAGE_REGION: 'eu-central-1',
     S3_STORAGE_BUCKET: 'varda-local-euc1-soilhive',
     S3_STORAGE_ROOT_FOLDER: 'Original_Data',

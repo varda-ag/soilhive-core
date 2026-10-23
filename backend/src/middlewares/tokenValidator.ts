@@ -4,11 +4,12 @@ import jwksClient from 'jwks-rsa';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import StatusCodes from 'http-status-codes';
 import { Token } from '../interfaces/Token';
-import { AuthModes, TokenScopes } from '../types/enums';
+import { AuthModes, TOKEN_ISSUER, TokenScopes } from '../types/enums';
 import assert from 'assert';
 import { AuthConfig } from '../interfaces/AuthConfig';
 import ConfigService from '../services/ConfigService';
 import { getPasswordGrantKey } from '../utils/password-grant-key';
+import { getOidcAudiences, getOidcIssuers } from '../utils/token-issuers';
 
 // Global JWKS client based on env var to fetch the public key
 let client: any | undefined = undefined;
@@ -35,30 +36,37 @@ const getSigningKeyAsync = async (kid: string): Promise<string> => {
 interface VerificationKey {
   key: Secret | PublicKey;
   algorithms?: Algorithm[]; // Unset for the IdP, whose algorithm follows its key type
+  issuer: [string, ...string[]]; // Never empty: jsonwebtoken skips the check for an undefined issuer
+  audience?: [string, ...string[]] | undefined; // Unset only for an IdP token while OIDC_AUDIENCE is (docs/adr/0064)
 }
 
-// One key per kid, never a fallback (see docs/adr/0060)
+// One key per kid, never a fallback (see docs/adr/0060), and the issuer each key's tokens must name
 const getVerificationKey = async (kid: string, authMode: AuthModes): Promise<VerificationKey> => {
   if (kid === TokenScopes.INTERNAL_REQUEST) {
-    return { key: process.env.SELF_SIGNING_SECRET!, algorithms: ['HS256'] };
+    return { key: process.env.SELF_SIGNING_SECRET!, algorithms: ['HS256'], issuer: [TOKEN_ISSUER] };
   }
   if (authMode === AuthModes.PASSWORD) {
     const passwordGrantKey = getPasswordGrantKey();
     if (kid !== passwordGrantKey.kid) {
       throw new ErrorResponse('Invalid token: unknown kid', StatusCodes.UNAUTHORIZED);
     }
-    return { key: passwordGrantKey.publicKey, algorithms: ['ES256'] };
+    return { key: passwordGrantKey.publicKey, algorithms: ['ES256'], issuer: [TOKEN_ISSUER] };
+  }
+  const [issuer, ...otherIssuers] = getOidcIssuers();
+  if (!issuer) {
+    throw new ErrorResponse('Invalid token: no issuer is configured to check it against', StatusCodes.UNAUTHORIZED);
   }
   try {
-    return { key: await getSigningKeyAsync(kid) };
+    return { key: await getSigningKeyAsync(kid), issuer: [issuer, ...otherIssuers], audience: getOidcAudiences() };
   } catch (err) {
     throw new ErrorResponse(`Invalid token: ${getErrorMessage(err)}`, StatusCodes.UNAUTHORIZED);
   }
 };
 
-const verifyAsync = (token: string, { key, algorithms }: VerificationKey): Promise<JwtPayload> => {
+const verifyAsync = (token: string, { key, algorithms, issuer, audience }: VerificationKey): Promise<JwtPayload> => {
   return new Promise((resolve, reject) => {
-    jwt.verify(token, key, { algorithms }, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
+    const options = { algorithms, issuer, ...(audience ? { audience } : {}) };
+    jwt.verify(token, key, options, (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
       if (err) {
         reject(err);
       } else {
@@ -109,10 +117,21 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
   assertTokenScope(decodedToken, scopes);
   req.customData.token = decodedToken;
   req.customData.token.raw = tokenString; // Putting original token string here
-  req.customData.token.isSuperAdmin = decodedToken.scope?.includes(TokenScopes.SUPER_ADMIN);
-  req.customData.token.isDataAdmin = decodedToken.scope?.includes(TokenScopes.DATA_ADMIN);
-  req.customData.token.isInternalRequest = decodedToken.scope?.includes(TokenScopes.INTERNAL_REQUEST); // True on bulk load jobs
+  req.customData.token.isSuperAdmin = hasScope(decodedToken, TokenScopes.SUPER_ADMIN);
+  req.customData.token.isDataAdmin = hasScope(decodedToken, TokenScopes.DATA_ADMIN);
+  req.customData.token.isInternalRequest = hasScope(decodedToken, TokenScopes.INTERNAL_REQUEST); // True on bulk load jobs
   return true;
+};
+
+/**
+ * Whether the token holds `scope`, matched as a whole entry of its space-separated list: a scope
+ * named `metadata-admin` must not count as `data-admin` (docs/adr/0064). An array, which some
+ * identity providers send, is read as the list it is.
+ */
+const hasScope = (token: Token, scope: string): boolean => {
+  const scopes: unknown = token.scope;
+  const list = Array.isArray(scopes) ? scopes : typeof scopes === 'string' ? scopes.split(/\s+/) : [];
+  return list.includes(scope);
 };
 
 const assertTokenScope = (token: Token, scopes: string[]) => {
@@ -120,7 +139,7 @@ const assertTokenScope = (token: Token, scopes: string[]) => {
     return;
   }
   for (const s of scopes) {
-    if (token.scope.includes(s)) {
+    if (hasScope(token, s)) {
       return;
     }
   }
