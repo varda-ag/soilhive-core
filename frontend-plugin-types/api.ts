@@ -14,23 +14,36 @@ export interface PluginApiClientOptions {
 
 export interface PluginApiRequestOptions {
   params?: PluginApiParams; // appended to the query string
-  // Sent as given, except Authorization, which is always the Plugin token. A header other than
-  // Content-Type needs the backend's CORS approval (Access-Control-Allow-Headers).
+  // Sent as given, except Authorization, which is always the Plugin token. The backend's CORS
+  // preflight must allow Authorization by name ('*' does not cover it), Content-Type (a JSON body
+  // sends application/json), and any header added here.
   headers?: Record<string, string>;
-  signal?: AbortSignal; // aborting rejects the call with the AbortError itself, not a PluginApiError
-  responseType?: 'json' | 'blob'; // default 'json'; 'blob' reads a response of any type, e.g. a file
+  // Aborting rejects with signal.reason, not a PluginApiError: an AbortError for abort(), a
+  // TimeoutError for AbortSignal.timeout()
+  signal?: AbortSignal;
+  // 'json' (default) parses a JSON response (application/json or a +json type), returns an
+  // application/octet-stream or image/svg+xml one as a Blob, and rejects any other type; 'blob'
+  // reads a response of any type, e.g. a file
+  responseType?: 'json' | 'blob';
 }
 
-// What a call rejects with, unless it was aborted. When the core refused a Plugin token (401, 403,
-// 429, 503), the message starts with "Could not get a plugin token".
+// What a call rejects with, unless it was aborted; check error.name. When the core refused a Plugin
+// token (401, 403, 429, 503) or could not be reached (0), the message starts with "Could not get a
+// plugin token".
 export interface PluginApiError extends Error {
-  status: number; // the response's HTTP status, or 0 when there was no response (a CORS refusal too)
+  name: 'PluginApiError';
+  // The response's HTTP status (a 2xx when its type was unexpected or its body could not be read),
+  // or 0 when no response came: a CORS refusal or a redirect, or a call refused before sending (no
+  // backend address, a bad baseUrl, a path outside the base, a ReadableStream body). Retrying 0 can
+  // loop forever.
+  status: number;
   body?: unknown; // the response's JSON body, if it had one
 }
 
 // Paths are relative to the client's base and may not leave it: get('/zones') calls {base}/zones.
-// A body is sent as JSON, or as is when it is FormData, a Blob or binary data. A 204 or empty
-// response resolves to undefined.
+// A body is sent as JSON, or as is when it is FormData, a Blob or binary data. A 204, or a response
+// with Content-Length: 0, resolves to undefined. Another empty body rejects unless it is read as a
+// Blob, so a backend with nothing to send answers 204.
 export interface PluginApi {
   get: <T = unknown>(path: string, options?: PluginApiRequestOptions) => Promise<T>;
   post: <T = unknown>(path: string, body?: unknown, options?: PluginApiRequestOptions) => Promise<T>;

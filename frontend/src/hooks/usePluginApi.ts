@@ -118,14 +118,24 @@ const responseError = async (response: Response) => {
   return pluginApiError(text ?? (response.statusText || `HTTP ${response.status}`), response.status, body);
 };
 
-const read = async <T>(response: Response, responseType: PluginApiRequestOptions['responseType']): Promise<T> => {
+const read = async <T>(response: Response, options: PluginApiRequestOptions): Promise<T> => {
   if (response.status === 204 || response.headers.get('Content-Length') === '0') return undefined as T;
-  // A caller that asked for a blob gets one whatever the type, a JSON file to download included
-  if (responseType === 'blob') return (await response.blob()) as T;
   const contentType = response.headers.get('Content-Type') ?? '';
-  if (isJsonType(contentType)) return (await response.json()) as T;
-  if (contentType.includes('application/octet-stream') || contentType.includes('image/svg+xml')) return (await response.blob()) as T;
-  throw pluginApiError(`The plugin backend answered with an unexpected content type: "${contentType || 'none'}"`, response.status);
+  // A caller that asked for a blob gets one whatever the type, a JSON file to download included
+  const asBlob =
+    options.responseType === 'blob' || contentType.includes('application/octet-stream') || contentType.includes('image/svg+xml');
+  if (!asBlob && !isJsonType(contentType)) {
+    throw pluginApiError(`The plugin backend answered with an unexpected content type: "${contentType || 'none'}"`, response.status);
+  }
+  try {
+    return (asBlob ? await response.blob() : await response.json()) as T;
+  } catch (error) {
+    // An abort while the body was still arriving stays an abort
+    if (isAbort(error, options.signal)) throw options.signal?.reason ?? error;
+    // Bad JSON, or an empty body without Content-Length: 0
+    const reason = (error as Error | null)?.message ?? 'Unknown error';
+    throw pluginApiError(`Could not read the plugin backend's response: ${reason}`, response.status);
+  }
 };
 
 const createPluginApi = (pluginId: string, baseUrl: string | undefined): PluginApi => {
@@ -171,7 +181,7 @@ const createPluginApi = (pluginId: string, baseUrl: string | undefined): PluginA
     }
 
     if (!response.ok) throw await responseError(response);
-    return read<T>(response, options.responseType);
+    return read<T>(response, options);
   };
 
   return {

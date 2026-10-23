@@ -212,6 +212,49 @@ describe('usePluginApi', () => {
       await expect(renderApi().get('/zones')).rejects.toMatchObject({ name: 'PluginApiError', status: 200 });
     });
 
+    it.each([
+      ['bad JSON', new SyntaxError("Expected property name or '}' in JSON at position 1")],
+      ['an empty body without Content-Length: 0', new SyntaxError('Unexpected end of JSON input')],
+    ])('rejects %s in a 2xx response with a PluginApiError carrying its status', async (_, failure) => {
+      fetchMock.mockResolvedValueOnce({
+        ...mockResponse({ status: 201 }),
+        json: async () => {
+          throw failure;
+        },
+      });
+      await expect(renderApi().post('/zones', { name: 'Field' })).rejects.toMatchObject({
+        name: 'PluginApiError',
+        status: 201,
+        message: `Could not read the plugin backend's response: ${failure.message}`,
+      });
+    });
+
+    it('rejects a blob whose body breaks off with a PluginApiError', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ...mockResponse({ contentType: 'application/octet-stream' }),
+        blob: async () => {
+          throw new TypeError('network error');
+        },
+      });
+      await expect(renderApi().get('/export')).rejects.toMatchObject({ name: 'PluginApiError', status: 200 });
+    });
+
+    it('passes an abort while the body arrives through as is', async () => {
+      const controller = new AbortController();
+      fetchMock.mockResolvedValueOnce({
+        ...mockResponse({ body: {} }),
+        json: async () => {
+          controller.abort();
+          throw controller.signal.reason;
+        },
+      });
+      const error = await renderApi()
+        .get('/zones', { signal: controller.signal })
+        .catch(e => e);
+      expect(error).toBe(controller.signal.reason);
+      expect(error).toMatchObject({ name: 'AbortError' });
+    });
+
     it('returns a blob when asked, whatever the type', async () => {
       const blob = new Blob(['a,b']);
       fetchMock.mockResolvedValueOnce(mockResponse({ body: blob, contentType: 'text/csv' }));
