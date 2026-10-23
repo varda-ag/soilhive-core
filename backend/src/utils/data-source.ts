@@ -31,12 +31,20 @@ const createDataSource = async (schema: string, includeEntities = true): Promise
     },
     namingStrategy: new DatabaseNamingStrategy(),
     poolSize: 50,
+    // pg's connectionTimeoutMillis: also bounds the wait for a free pooled connection, which is
+    // otherwise unbounded, so an exhausted pool fails requests instead of hanging them.
+    connectTimeoutMS: 10000,
+    // Lets pg_stat_activity tell this backend's connections apart from pg-boss's and other clients'.
+    applicationName: 'soilhive-backend',
     extra: {
       // Also an upper bound on how long a query can outlive the test that issued it: Jest's
       // testTimeout must stay above this, or abandoned queries deadlock with clearDatabase's
       // TRUNCATE. See the invariant documented on clearDatabase in tests/helper.ts.
       statement_timeout: 20000,
-      options: `-c search_path="${schema}",public`,
+      // idle_in_transaction_session_timeout: a request stuck outside the DB (a storage read, a wait
+      // on another connection) loses its session after 5 minutes rather than holding a pooled
+      // connection until the pod restarts. A long-running statement is active, not idle, so it is unaffected.
+      options: `-c search_path="${schema}",public -c idle_in_transaction_session_timeout=300000`,
     },
     cache: isQueryCacheEnabled() ? { provider: () => new InMemoryQueryResultCache() } : false,
   });

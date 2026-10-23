@@ -54,7 +54,7 @@ export const stageObservations = async (
   // Raster-filter parity with coverage comes free: buildRasterSql reads only the `aoi`
   // CTE, and matching_features ⊆ candidate_features = features ∩ aoi, so restricting
   // stage 1 to it is exact and still lets the unit_id be attached by the aoi join.
-  const enabledRasterFilterTables = hasRasterFilters(filter.parameters) ? await getEnabledRasterFilterTables() : [];
+  const enabledRasterFilterTables = hasRasterFilters(filter.parameters) ? await getEnabledRasterFilterTables(em) : [];
   const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
   const featureSource = usesMatchingFeatures ? 'matching_features' : `${schema}.features`;
 
