@@ -1,8 +1,10 @@
 import { Request, Response } from 'express';
 import AuthService from '../services/AuthService';
 import ConfigService from '../services/ConfigService';
+import PluginTokenService from '../services/PluginTokenService';
 
 const authService = new AuthService();
+const pluginTokenService = new PluginTokenService();
 
 const JWKS_MAX_AGE_SECONDS = 300;
 
@@ -15,6 +17,12 @@ export const getToken = async (req: Request, res: Response) => {
 
 export const getJwks = (req: Request, res: Response): void => {
   const jwks = authService.getJwks();
+  res.set('Cache-Control', `public, max-age=${JWKS_MAX_AGE_SECONDS}`);
+  res.json(jwks);
+};
+
+export const getPluginJwks = (req: Request, res: Response): void => {
+  const jwks = pluginTokenService.getJwks();
   res.set('Cache-Control', `public, max-age=${JWKS_MAX_AGE_SECONDS}`);
   res.json(jwks);
 };

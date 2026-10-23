@@ -37,6 +37,7 @@ import { usePluginUserEntitlements } from './usePluginUserEntitlements';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from './usePluginDataRequest';
 import { useSoilIndexScore, useSoilIndexTileSource } from './useSoilIndexTiles';
 import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexes, usePluginSoilIndexSubmit } from './usePluginSoilIndex';
+import { usePluginApi } from './usePluginApi';
 import { metadataUrl } from 'configuration/routes';
 
 function usePluginTheme(): PluginQueryResult<PluginTheme> {
@@ -173,6 +174,8 @@ export function usePluginContext(): PluginContext {
       // row, so it must not add a hook to their render order.
       metadataUrl,
       useNotifications: usePluginNotifications,
+      // Already plugin-shaped, like the tile hooks above.
+      usePluginApi,
     }),
     [user],
   );

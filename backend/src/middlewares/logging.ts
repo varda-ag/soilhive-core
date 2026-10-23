@@ -24,6 +24,8 @@ export const loggingMiddleware = (req: Request, res: Response, next: NextFunctio
       [ATTR_USER_AGENT_ORIGINAL]: req.headers['user-agent'],
       [ATTR_NETWORK_PEER_ADDRESS]: req.ip,
       duration_ms,
+      // No customData on /health, /ready or a request refused before it is set
+      ...(req.customData?.token?.pluginId ? { 'soilhive.plugin_id': req.customData.token.pluginId } : {}),
     };
     const message = `${req.method} ${req.originalUrl} ${statusCode} ${duration_ms}ms`;
     if (statusCode >= 400) {

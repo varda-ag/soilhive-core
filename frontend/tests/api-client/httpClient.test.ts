@@ -27,15 +27,17 @@ type MockResponseInit = {
   statusText?: string;
   body?: unknown;
   contentType?: string;
+  retryAfter?: string;
 };
 
-function mockResponse({ ok, status, statusText = '', body, contentType = 'application/json' }: MockResponseInit): Response {
+function mockResponse({ ok, status, statusText = '', body, contentType = 'application/json', retryAfter }: MockResponseInit): Response {
+  const headers: Record<string, string | undefined> = { 'Content-Type': contentType, 'Retry-After': retryAfter };
   return {
     ok,
     status,
     statusText,
     headers: {
-      get: (name: string) => (name === 'Content-Type' ? contentType : null),
+      get: (name: string) => headers[name] ?? null,
     },
     json: async () => body,
     blob: async () => body,
@@ -126,5 +128,12 @@ describe('httpClient', () => {
     await expect(httpClient({ url: '/datasets', method: 'GET' })).rejects.toMatchObject({ status: 500 });
     expect(refreshMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps an error's Retry-After", async () => {
+    getTokenMock.mockReturnValue('tok');
+    fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 429, body: { detail: 'slow down' }, retryAfter: '42' }));
+
+    await expect(httpClient({ url: '/plugins/zones/token', method: 'POST' })).rejects.toMatchObject({ status: 429, retryAfter: '42' });
   });
 });

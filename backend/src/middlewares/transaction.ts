@@ -8,6 +8,9 @@ const skip = ['/health', '/ready', '/docs', '/openapi.json', '/oauth'];
 // A map view fires dozens at once, and each would otherwise hold a connection and a transaction.
 const skipSoilIndexTiles = /^(\/api\/v1)?\/soil-indexes\/[^/]+\/(tiles|scores)(\/|$)/;
 
+// Key sets and Plugin token mints never read the database (docs/adr/0065)
+const skipTokenRoutes = /^(\/api\/v1)?\/(\.well-known\/|plugins\/[^/]+\/token$)/;
+
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   // Every request gets a disconnect signal, not just endpoints that currently borrow pooled
   // connections (see runCancelableQuery/ADR 0036): it costs one extra `res.on('close', ...)`
@@ -16,7 +19,11 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   // having to wire its own signal per controller.
   const signal = withDisconnectSignal(res);
 
-  if (skip.some(p => req.path.startsWith(p)) || (req.method === 'GET' && skipSoilIndexTiles.test(req.path))) {
+  if (
+    skip.some(p => req.path.startsWith(p)) ||
+    (req.method === 'GET' && skipSoilIndexTiles.test(req.path)) ||
+    skipTokenRoutes.test(req.path)
+  ) {
     req.customData = req.customData || ({ signal } as typeof req.customData);
     return next();
   }

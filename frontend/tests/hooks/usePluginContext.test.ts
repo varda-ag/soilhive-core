@@ -14,6 +14,7 @@ import { useRaster } from 'hooks/useRaster';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from 'hooks/usePluginDataRequest';
 import { useSoilIndexScore, useSoilIndexTileSource } from 'hooks/useSoilIndexTiles';
 import { usePluginSoilIndex, usePluginSoilIndexDelete, usePluginSoilIndexes, usePluginSoilIndexSubmit } from 'hooks/usePluginSoilIndex';
+import { usePluginApi } from 'hooks/usePluginApi';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
@@ -58,6 +59,7 @@ jest.mock('hooks/useSoilIndexTiles', () => ({
   useSoilIndexTileSource: jest.fn(),
   useSoilIndexScore: jest.fn(),
 }));
+jest.mock('hooks/usePluginApi', () => ({ usePluginApi: jest.fn() }));
 
 const useAuthContextMock = useAuthContext as jest.MockedFunction<typeof useAuthContext>;
 const useFilterMock = useFilter as jest.MockedFunction<typeof useFilter>;
@@ -252,6 +254,12 @@ describe('usePluginContext', () => {
 
     expect(result.current.useSoilIndexTileSource).toBe(useSoilIndexTileSource);
     expect(result.current.useSoilIndexScore).toBe(useSoilIndexScore);
+  });
+
+  it("exposes usePluginApi for calling the plugin's own backend", () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.usePluginApi).toBe(usePluginApi);
   });
 
   it('narrows user to profile name/email only, never leaking tokens', () => {

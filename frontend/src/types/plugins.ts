@@ -35,6 +35,9 @@ export interface RemotePlugin {
   // operator's Plugin.mustBeLoggedIn into it, so after loading it is the
   // effective requirement (ADR 0042).
   requiresAuth?: boolean;
+  // The absolute URL of the plugin's mf-manifest.json, from the operator's config, never from the
+  // module. usePluginApi sends calls to its folder by default. Optional: set by loadRemotes only.
+  remoteUrl?: string;
   // Specialized plugins below pin the exact component props.
   Page?: React.ComponentType<any>;
 }

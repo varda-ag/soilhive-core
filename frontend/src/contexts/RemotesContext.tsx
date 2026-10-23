@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import React, { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { isNewTabModule, loadRemotes, partitionDuplicatePluginIds, partitionInvalidPlugins } from '../utilities/moduleFederation';
 import type { Plugin, RemotePlugin } from '../types/plugins';
@@ -102,14 +102,9 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
     load();
   }, [themeConfig?.plugins, isLoadingThemeConfig, authMode, showNotification, t]);
 
-  return (
-    <RemotesContext.Provider
-      value={{
-        plugins,
-        isLoadingRemotes: isLoadingThemeConfig || isLoadingModules,
-      }}
-    >
-      {children}
-    </RemotesContext.Provider>
-  );
+  // Memoized: every plugin component reads it through usePluginApi
+  const isLoadingRemotes = isLoadingThemeConfig || isLoadingModules;
+  const value = useMemo(() => ({ plugins, isLoadingRemotes }), [plugins, isLoadingRemotes]);
+
+  return <RemotesContext.Provider value={value}>{children}</RemotesContext.Provider>;
 };

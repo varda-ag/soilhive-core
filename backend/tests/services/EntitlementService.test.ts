@@ -508,6 +508,15 @@ describe('EntitlementService', () => {
       });
     });
 
+    it('never sends a Plugin token to the external endpoint (docs/adr/0065)', async () => {
+      const pluginRequestData = { ...requestData, token: { ...requestData.token!, pluginId: 'zones' } };
+
+      const entitlements = await service.callEntitlementsEndpoint(pluginRequestData);
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(entitlements).toEqual({ datasets: {}, configs: {} });
+    });
+
     it('treats a "__proto__" entry key from the external reply as an ordinary grant, not prototype hijacking', async () => {
       // JSON.parse of raw response text (not a JS object literal, which special-cases a literal
       // `__proto__:` key as setting the object's own prototype rather than creating an own

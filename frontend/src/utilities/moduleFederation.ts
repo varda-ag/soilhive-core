@@ -195,6 +195,15 @@ function unmuteConsole() {
   }
 }
 
+// A relative remote url is relative to the host page, as the MF runtime reads it
+const toAbsoluteUrl = (url: string): string | undefined => {
+  try {
+    return new URL(url, window.location.href).href;
+  } catch {
+    return undefined;
+  }
+};
+
 /**
  * Register and load the given remotes, returning the modules that loaded
  * successfully and the urls of the ones that didn't.
@@ -233,8 +242,8 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
     } else {
       // Copied rather than mutated: a loaded module is an ES module namespace,
       // which is not extensible. Any truthy value gates, so a malformed flag
-      // fails closed.
-      loaded.push({ ...module, requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn });
+      // fails closed. remoteUrl comes last so a module can't supply its own.
+      loaded.push({ ...module, requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn, remoteUrl: toAbsoluteUrl(url) });
     }
   });
 

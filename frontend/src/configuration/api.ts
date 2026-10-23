@@ -10,4 +10,5 @@ export const REST_END_POINTS = {
   JOBS: 'jobs',
   DATA_REQUESTS: 'data-requests',
   SOIL_INDEXES: 'soil-indexes',
+  PLUGINS: 'plugins',
 };

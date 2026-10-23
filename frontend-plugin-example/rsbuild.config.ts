@@ -24,4 +24,10 @@ export default defineConfig({
   server: {
     port: 3333,
   },
+  output: {
+    // The host loads this remote from another origin: 'auto' resolves the manifest's entry and
+    // this bundle's own chunks against wherever its script came from, not against the host's
+    // origin (soilhive-plugins does the same)
+    assetPrefix: 'auto',
+  },
 });

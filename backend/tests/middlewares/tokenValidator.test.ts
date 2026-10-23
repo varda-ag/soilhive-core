@@ -383,6 +383,102 @@ describe('tokenValidator — OIDC mode, OIDC_JWKS_URL not set', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Plugin tokens, in PASSWORD and OIDC mode alike (docs/adr/0065)
+// ---------------------------------------------------------------------------
+
+describe.each(['password', 'oidc'])('tokenValidator — Plugin tokens in %s mode', authMode => {
+  const CORE_PUBLIC_URL = 'https://api.example/api/v1';
+  let tokenValidator: (req: any, scopes: string[]) => Promise<boolean>;
+  let signPlugin: (claims: object) => string;
+
+  beforeEach(async () => {
+    jest.resetModules();
+    process.env.OIDC_JWKS_URL = 'https://example.com/.well-known/jwks.json';
+    process.env.PLUGIN_TOKEN_SECRET = 'a-plugin-token-secret-of-at-least-32-characters';
+    process.env.CORE_PUBLIC_URL = CORE_PUBLIC_URL;
+    jest.doMock('../../src/services/ConfigService', () => ({
+      __esModule: true,
+      default: { getAuthConfig: jest.fn().mockReturnValue({ authMode }) },
+    }));
+    // A Plugin token's kid must never reach the IdP
+    jest.doMock('jwks-rsa', () =>
+      jest.fn(() => ({
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+        getSigningKey: (_kid: string, cb: Function) => cb(new Error('unknown kid at the IdP'), null),
+      })),
+    );
+    ({ tokenValidator } = await import('../../src/middlewares/tokenValidator'));
+    const { getPluginTokenKey, signPluginToken } = await import('../../src/utils/plugin-token-key');
+    signPlugin = claims =>
+      signPluginToken(getPluginTokenKey()!, {
+        iss: CORE_PUBLIC_URL,
+        aud: 'plugin:zones',
+        sub: 'user@example.com',
+        exp: Math.floor(Date.now() / 1000) + 60,
+        ...claims,
+      });
+  });
+
+  const pluginRequest = (token: string, method = 'GET', schema: object | null = {}) => ({
+    ...makeRequest(`Bearer ${token}`),
+    method,
+    openapi: schema ? { schema } : undefined,
+  });
+
+  it('accepts a GET as the user, without admin rights, whatever the claims say', async () => {
+    const req = pluginRequest(
+      signPlugin({ scope: 'super-admin data-admin internal-request', email: 'other@example.com', gty: 'client_credentials' }),
+    );
+
+    expect(await tokenValidator(req, [])).toBe(true);
+    expect(req.customData.token).toMatchObject({
+      sub: 'user@example.com',
+      pluginId: 'zones',
+      scope: '',
+      isSuperAdmin: false,
+      isDataAdmin: false,
+      isInternalRequest: false,
+    });
+    // The Subject is sub: no claim may redirect it
+    expect(req.customData.token.email).toBeUndefined();
+    expect(req.customData.token.gty).toBeUndefined();
+  });
+
+  it('keeps only super-admin and data-admin for a listed plugin, never internal-request', async () => {
+    process.env.PLUGIN_TOKEN_ADMIN_PLUGINS = 'zones';
+    const req = pluginRequest(signPlugin({ scope: 'internal-request data-admin super-admin-ish' }));
+
+    expect(await tokenValidator(req, ['data-admin'])).toBe(true);
+    expect(req.customData.token).toMatchObject({ scope: 'data-admin', isDataAdmin: true, isSuperAdmin: false, isInternalRequest: false });
+  });
+
+  it('refuses a scoped route with a 403, not a TypeError', async () => {
+    await expect(tokenValidator(pluginRequest(signPlugin({})), ['super-admin'])).rejects.toMatchObject({ status: 403 });
+  });
+
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE'])('refuses %s before the token is attached', async method => {
+    const req = pluginRequest(signPlugin({}), method);
+    await expect(tokenValidator(req, [])).rejects.toMatchObject({ status: 403, message: 'A Plugin token only reads' });
+    expect(req.customData.token).toBeUndefined();
+  });
+
+  it.each([
+    ['a route that denies Plugin tokens', { 'x-plugin-token-denied': true }],
+    ['no matched route', null],
+  ])('refuses %s', async (_, schema) => {
+    const req = pluginRequest(signPlugin({}), 'GET', schema);
+    await expect(tokenValidator(req, [])).rejects.toMatchObject({ status: 403, message: 'This route does not accept a Plugin token' });
+    expect(req.customData.token).toBeUndefined();
+  });
+
+  it('refuses every Plugin token once CORE_PUBLIC_URL is unset', async () => {
+    const token = signPlugin({});
+    delete process.env.CORE_PUBLIC_URL;
+    await expect(tokenValidator(pluginRequest(token), [])).rejects.toMatchObject({ status: 401 });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Issuer and audience (docs/adr/0064)
 // ---------------------------------------------------------------------------
 

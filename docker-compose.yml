@@ -51,6 +51,9 @@ services:
       POSTGRES_PASSWORD: dbpass
       POSTGRES_SCHEMA: soilhive
       SELF_SIGNING_SECRET: quickstart-demo-signing-secret
+      # Plugin tokens, for plugins that call their own backend (docs/adr/0065)
+      PLUGIN_TOKEN_SECRET: quickstart-demo-plugin-token-secret-not-for-real-use
+      CORE_PUBLIC_URL: http://localhost:4001/api/v1
       OIDC_JWKS_URL: http://keycloak:8080/realms/soilhive/protocol/openid-connect/certs
       OIDC_AUTHORITY: http://localhost:8080/realms/soilhive
       OIDC_CLIENT_ID: soilhive

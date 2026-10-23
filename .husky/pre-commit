@@ -4,6 +4,12 @@ pnpm i -r --quiet
 
 npm run lint:fix
 
-cd backend && npm i && npm test && cd ..
+# husky runs this with sh -e, which ignores a failure inside an && chain: each suite exits on its own
+(cd backend && npm i && npm test) || exit 1
 
-cd frontend && pnpm test && cd ..
+(cd frontend && pnpm test) || exit 1
+
+# The Plugin Backend example is a package of its own: tested only by a commit that touches it
+if git diff --cached --name-only | grep -q '^plugin-backend-example/'; then
+  (cd plugin-backend-example && pnpm install --frozen-lockfile --silent && pnpm test) || exit 1
+fi

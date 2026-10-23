@@ -54,6 +54,8 @@ export const initApp = async (app: Application) => {
       credentials: true, // Allow cookies/auth headers
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
+      // The host waits out a Plugin token mint's 429 for this long; the browser hides it otherwise
+      exposedHeaders: ['Retry-After'],
       maxAge: 86400, // 24 hours
     }),
   );

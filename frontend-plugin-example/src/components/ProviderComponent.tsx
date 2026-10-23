@@ -1,5 +1,5 @@
-import React from 'react';
-import type { PluginContext } from 'frontend-plugin-types';
+import React, { useState } from 'react';
+import type { PluginApiError, PluginContext } from 'frontend-plugin-types';
 // After running `soilhive-plugin` against this plugin, UI/ is synced in from the host and
 // its components become available like this: import { Button } from '../../UI/Button/Button';
 import './ProviderComponent.css';
@@ -24,8 +24,21 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
     useRasterCategories,
     useSoilData,
     usePluginConfig,
+    usePluginApi,
   } = context;
   const { config: settings, saveConfig: saveSettings } = usePluginConfig(pluginId, 'settings', { clickCount: 0 });
+  // This plugin's own backend, at the folder of its mf-manifest.json (see docs/adr/0065).
+  // plugin-backend-example answers GET /api/me; called on a click only, since a plugin without a
+  // backend would get an error on every load.
+  const pluginApi = usePluginApi(pluginId);
+  const [backendReply, setBackendReply] = useState('not called yet');
+  const callBackend = () => {
+    setBackendReply('calling…');
+    pluginApi
+      .get<{ subject: string }>('/api/me')
+      .then(me => setBackendReply(`subject = ${me.subject}`))
+      .catch((error: PluginApiError) => setBackendReply(`failed (${error.status}): ${error.message}`));
+  };
   const { data: theme } = useTheme();
   const { data: filterId, isLoading: isFilterLoading } = useDataFilterQuery({
     geometries: [],
@@ -95,6 +108,12 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
         Own persisted config: clicked {settings?.clickCount ?? 0} time(s).{' '}
         <button type="button" onClick={() => saveSettings({ clickCount: (settings?.clickCount ?? 0) + 1 })}>
           Click me
+        </button>
+      </p>
+      <p>
+        Own Plugin Backend: {backendReply}{' '}
+        <button type="button" onClick={callBackend}>
+          Call it
         </button>
       </p>
     </div>

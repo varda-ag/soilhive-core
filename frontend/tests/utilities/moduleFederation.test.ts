@@ -137,7 +137,15 @@ describe('loadRemotes', () => {
 
     const result = await loadRemotes([toConfig(okUrl), toConfig(badUrl)]);
 
-    expect(result).toEqual({ loaded: [{ ...singlePage, requiresAuth: false }], failed: [badUrl] });
+    expect(result).toEqual({ loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: okUrl }], failed: [badUrl] });
+  });
+
+  it("keeps the operator's remote url, made absolute, never one the module exports", async () => {
+    loadRemote.mockResolvedValue({ ...singlePage, remoteUrl: 'https://evil.example/mf-manifest.json' });
+
+    const result = await loadRemotes([toConfig('/plugins/zones/mf-manifest.json')]);
+
+    expect(result.loaded[0].remoteUrl).toBe(`${window.location.origin}/plugins/zones/mf-manifest.json`);
   });
 
   it.each<[string, unknown, boolean, boolean]>([

@@ -182,6 +182,11 @@ SUPER_ADMIN_PASSWORD_HASH=$2a$10$OaWUPUR7csoiBYqzp3jq8.s336/WXRvMIWGFluF3BvO/6l/
 DATA_ADMIN_PASSWORD_HASH=$2a$10$.oAbT7ZPV75DAhmYTSgW3ucDSFj00wvN/R.bq8.4Y1gL.aQxYAMQ2
 SELF_SIGNING_SECRET=put-any-random-string-here
 
+## Plugin tokens — let plugins call their own backend as the signed-in user (docs/adr/0065)
+## A secret of at least 32 characters (openssl rand -hex 32), and this API's public base URL
+# PLUGIN_TOKEN_SECRET=
+# CORE_PUBLIC_URL=http://localhost:4001/api/v1
+
 ## OIDC mode — overrides password mode when set
 # OIDC_AUTHORITY=https://<keycloak-host>/realms/<realm>
 # OIDC_CLIENT_ID=soilhive

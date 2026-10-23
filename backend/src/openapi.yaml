@@ -126,6 +126,92 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /.well-known/plugin-jwks.json:
+    get:
+      x-eov-operation-handler: controllers/auth
+      x-eov-operation-id: getPluginJwks
+      summary: Public key that verifies Plugin tokens
+      description: >-
+        Plugin Backends verify the Plugin tokens they receive against this key set
+        (docs/adr/0065). Available in every auth mode once PLUGIN_TOKEN_SECRET and CORE_PUBLIC_URL
+        are set, and never lists a key that verifies user tokens.
+      tags:
+        - auth
+      responses:
+        '200':
+          description: JSON Web Key Set with the ES256 key that signs Plugin tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Jwks'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /plugins/{pluginId}/token:
+    parameters:
+      - name: pluginId
+        in: path
+        required: true
+        schema:
+          type: string
+          pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
+        description: The id the plugin exports as `pluginId`
+    post:
+      x-eov-operation-handler: controllers/plugins
+      x-eov-operation-id: postPluginToken
+      summary: Get a Plugin token for one plugin
+      description: >-
+        Exchanges the caller's token for a short-lived Plugin token that the plugin's own Plugin
+        Backend accepts (docs/adr/0065). The host frontend calls this on the plugin's behalf.
+        `aud` is `plugin:{pluginId}`, `sub` is the caller's Subject, and the token expires within 5
+        minutes and never after the caller's token. On the core API it only reads, as its user,
+        without admin rights unless the deployment lists the plugin in PLUGIN_TOKEN_ADMIN_PLUGINS.
+        Limited per Subject and plugin, and per Subject overall.
+      security:
+        - bearerAuth: []
+      tags:
+        - auth
+      responses:
+        '200':
+          description: The Plugin token
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: no-store
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - access_token
+                  - token_type
+                  - expires_in
+                properties:
+                  access_token:
+                    type: string
+                  token_type:
+                    type: string
+                    enum:
+                      - Bearer
+                  expires_in:
+                    type: integer
+                    description: Seconds until the token expires
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          description: Plugin tokens are not configured on this deployment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /configs/{configId}:
     parameters:
       - name: configId
@@ -1187,6 +1273,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/entitlements
       x-eov-operation-id: getDatasetEntitlements
+      x-plugin-token-denied: true
       summary: Get all dataset entitlements
       tags:
         - datasets
@@ -1246,6 +1333,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/entitlements
       x-eov-operation-id: getConfigEntitlements
+      x-plugin-token-denied: true
       x-entitlements-required: true
       summary: Get entitlement grants for a config item
       description: >-
@@ -1664,6 +1752,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilters
+      x-plugin-token-denied: true
       summary: Retrieves all data filters owned by the user
       tags:
         - data-filters
@@ -2276,6 +2365,7 @@ paths:
     get:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: fileDownload
+      x-plugin-token-denied: true
       summary: Download a file
       tags:
         - files

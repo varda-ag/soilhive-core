@@ -17,6 +17,7 @@ export async function handleError(response: Response) {
     statusText: response.statusText,
     message,
     raw: details,
+    retryAfter: response.headers.get('Retry-After'),
   };
 
   if (response.status === 401) {
