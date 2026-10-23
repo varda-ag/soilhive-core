@@ -46,7 +46,12 @@ export default class RasterFilterService {
       return results as RasterFilterWithEnabled[];
     }
     const output = { enabled: false, ...input };
-    const hasTable = await requestData.entityManager.queryRunner?.hasTable(input.id);
+    // A plain query rather than queryRunner.hasTable: the pool's default manager has no queryRunner,
+    // and opening one here would take a second connection from inside a request's transaction.
+    const [{ exists: hasTable }] = await requestData.entityManager.query(
+      'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = $1) AS exists',
+      [input.id],
+    );
     output.enabled = Boolean(hasTable && input.mappings && Object.keys(input.mappings).length > 0);
     return output;
   };
