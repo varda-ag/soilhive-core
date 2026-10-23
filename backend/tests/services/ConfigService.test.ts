@@ -216,7 +216,9 @@ describe('ConfigService config value entitlements', () => {
       await entityManager.getRepository('JsonStorage').save({ id: 'unreadable', data: { b: 2 } });
       const rd = buildRequestData({ entitlements: { configs: { readable: [Capability.READ] } } });
 
-      await expect(service.getConfigs(rd, ['readable', 'unreadable', 'missing'])).resolves.toEqual({ readable: { a: 1 } });
+      await expect(service.getConfigs(rd, ['readable', 'unreadable', 'missing'])).resolves.toEqual({
+        readable: { data: { a: 1 }, updated_at: expect.any(String) },
+      });
     });
 
     it('returns every requested id for a privileged caller', async () => {
@@ -224,7 +226,10 @@ describe('ConfigService config value entitlements', () => {
       await entityManager.getRepository('JsonStorage').save({ id: 'b', data: { b: 2 } });
       const rd = buildRequestData({ token: { ...mockToken, isSuperAdmin: true } });
 
-      await expect(service.getConfigs(rd, ['a', 'b'])).resolves.toEqual({ a: { a: 1 }, b: { b: 2 } });
+      await expect(service.getConfigs(rd, ['a', 'b'])).resolves.toEqual({
+        a: { data: { a: 1 }, updated_at: expect.any(String) },
+        b: { data: { b: 2 }, updated_at: expect.any(String) },
+      });
     });
   });
 
