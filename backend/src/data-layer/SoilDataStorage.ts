@@ -11,7 +11,6 @@ import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, FilteredRaster
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
 import RasterFilterService from '../services/RasterFilterService';
-import { getDataSource } from '../utils/data-source';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
 import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
@@ -43,7 +42,9 @@ export default class SoilDataStorage {
       return [];
     }
     const schema = process.env.POSTGRES_SCHEMA;
-    const enabledRasterFilterTables = await timed('filterVector.enabledRasterFilterTables', () => getEnabledRasterFilterTables());
+    const enabledRasterFilterTables = await timed('filterVector.enabledRasterFilterTables', () =>
+      getEnabledRasterFilterTables(entityManager),
+    );
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
     // Feature IDs resolved entirely in-DB: the MATERIALIZED feature CTE is evaluated
@@ -250,7 +251,7 @@ export default class SoilDataStorage {
 
     const { outerWhere, lateralJoins, lateralWhere } = buildDatasetFilterClauses(filters, p, schema!);
 
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables(entityManager);
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
     // Pre-compute spatially-intersecting features once as a materialized CTE to avoid
@@ -467,7 +468,7 @@ export default class SoilDataStorage {
       // vector rows were exhausted on an earlier page, so they are not queried again.
       const rows: SoilDataSample[] = [];
       if (!rasterCursor) {
-        const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+        const enabledRasterFilterTables = await getEnabledRasterFilterTables(transactionalEntityManager);
         const { sql, params } = buildRawSoilQuery(filter, datasetSlugs, {
           limit,
           cursor,
@@ -705,7 +706,7 @@ export default class SoilDataStorage {
       await transactionalEntityManager.query(SET_LOCAL_WORK_MEM_SQL);
       await transactionalEntityManager.query("SET LOCAL statement_timeout = '60s';");
 
-      const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+      const enabledRasterFilterTables = await getEnabledRasterFilterTables(transactionalEntityManager);
       const { sql, params } = buildRawSoilQuery(filter, datasetSlugs, {
         mode: 'count',
         enabledRasterFilterTables,
@@ -796,7 +797,7 @@ export default class SoilDataStorage {
 
     const whereClause = whereClauses.length > 0 ? `AND ${whereClauses.join('\n      AND ')}` : '';
 
-    const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+    const enabledRasterFilterTables = await getEnabledRasterFilterTables(entityManager);
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
 
     const featureSource = usesMatchingFeatures ? 'matching_features' : 'candidate_features';
@@ -857,7 +858,9 @@ export default class SoilDataStorage {
       // No input geometry, raster coverage cannot be applied
       return {};
     }
-    const enabledRasterFilterTables = await timed('getRasterCoverage.enabledRasterFilterTables', () => getEnabledRasterFilterTables());
+    const enabledRasterFilterTables = await timed('getRasterCoverage.enabledRasterFilterTables', () =>
+      getEnabledRasterFilterTables(entityManager),
+    );
 
     if (enabledRasterFilterTables.length === 0) {
       // No raster data is available
@@ -936,24 +939,17 @@ export const resetEnabledRasterFilterTablesCache = (): void => {
   enabledRasterFilterTablesCache = undefined;
 };
 
-export const getEnabledRasterFilterTables = async (): Promise<string[]> => {
+// Reads on the caller's entityManager, never a connection of its own: a request already holds one
+// pooled connection for its transaction, and waiting on a second deadlocks the pool once every
+// connection is held by a request doing the same.
+export const getEnabledRasterFilterTables = async (entityManager: EntityManager): Promise<string[]> => {
   if (enabledRasterFilterTablesCache && enabledRasterFilterTablesCache.expiresAt > Date.now()) {
     return enabledRasterFilterTablesCache.value;
   }
-  const dataSource = await getDataSource();
-  const queryRunner = dataSource.createQueryRunner();
-  await queryRunner.connect();
-  try {
-    const enabledFilters = await rasterFilterService.getActiveRasterFilters({
-      entityManager: queryRunner.manager,
-      entitlements: {},
-    });
-    const value = enabledFilters.map(f => f.id);
-    enabledRasterFilterTablesCache = { value, expiresAt: Date.now() + ENABLED_RASTER_FILTER_TABLES_TTL_MS };
-    return value;
-  } finally {
-    await queryRunner.release();
-  }
+  const enabledFilters = await rasterFilterService.getActiveRasterFilters({ entityManager, entitlements: {} });
+  const value = enabledFilters.map(f => f.id);
+  enabledRasterFilterTablesCache = { value, expiresAt: Date.now() + ENABLED_RASTER_FILTER_TABLES_TTL_MS };
+  return value;
 };
 
 const decodeRasterColumns = (row: any): any => {
