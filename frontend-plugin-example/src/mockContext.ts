@@ -1,5 +1,6 @@
 import type {
   PluginConfigEntitlements,
+  PluginConfigEntry,
   PluginConfigResult,
   PluginContext,
   PluginDataRequest,
@@ -149,7 +150,7 @@ const pluginConfig = <T>(defaultConfig?: T): PluginConfigResult<T> => ({
 });
 
 // Static stand-in for the batch endpoint: no ids are pre-populated in local preview.
-const pluginConfigs = <T>(): PluginQueryResult<Record<string, T>> => query({});
+const pluginConfigs = <T>(): PluginQueryResult<Record<string, PluginConfigEntry<T>>> => query({});
 
 // A no-op, same as saveConfig above.
 const pluginConfigDelete: PluginMutationResult<{ id: string }, void> = {

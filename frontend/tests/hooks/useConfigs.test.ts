@@ -6,8 +6,14 @@ jest.mock('hooks/useApiQueries', () => ({ useApiQueries: jest.fn() }));
 
 const useApiQueriesMock = useApiQueries as jest.Mock;
 
+const updatedAt = '2026-10-23T07:59:52.473Z';
+const earlierUpdatedAt = '2026-10-22T10:00:00.000Z';
+// Runs useConfigs' combine on the given per-batch results, as React Query does.
+const mockResults = (results: unknown[]) =>
+  useApiQueriesMock.mockImplementation((_queries, combine: (r: unknown[]) => unknown) => combine(results));
+
 const ids = (count: number) => Array.from({ length: count }, (_, i) => `id-${i}`);
-const configsFor = (chunk: string[]) => Object.fromEntries(chunk.map(id => [id, { id }]));
+const configsFor = (chunk: string[]) => Object.fromEntries(chunk.map(id => [id, { data: { id }, updated_at: updatedAt }]));
 const queriesPassed = () => useApiQueriesMock.mock.calls[0][0];
 
 describe('useConfigs', () => {
@@ -15,9 +21,12 @@ describe('useConfigs', () => {
     jest.clearAllMocks();
   });
 
-  it('fetches /configs with comma-separated ids and returns the resolved data', () => {
-    const data = { a: { foo: 1 }, b: { foo: 2 } };
-    useApiQueriesMock.mockReturnValue([{ data, isLoading: false, isError: false }]);
+  it('fetches /configs with comma-separated ids and returns each config with its updatedAt', () => {
+    const data = {
+      a: { data: { foo: 1 }, updated_at: updatedAt },
+      b: { data: { foo: 2 }, updated_at: earlierUpdatedAt },
+    };
+    mockResults([{ data, isLoading: false, isError: false }]);
 
     const { result } = renderHook(() => useConfigs(['a', 'b']));
 
@@ -30,11 +39,15 @@ describe('useConfigs', () => {
         enabled: true,
       }),
     ]);
-    expect(result.current).toEqual({ data, isLoading: false, isError: false });
+    expect(result.current).toEqual({
+      data: { a: { config: { foo: 1 }, updatedAt }, b: { config: { foo: 2 }, updatedAt: earlierUpdatedAt } },
+      isLoading: false,
+      isError: false,
+    });
   });
 
   it('passes polling as refetchInterval when provided', () => {
-    useApiQueriesMock.mockReturnValue([{ data: {}, isLoading: false, isError: false }]);
+    mockResults([{ data: {}, isLoading: false, isError: false }]);
 
     renderHook(() => useConfigs(['a'], 5000));
 
@@ -42,7 +55,7 @@ describe('useConfigs', () => {
   });
 
   it('disables refetchInterval when polling is not provided', () => {
-    useApiQueriesMock.mockReturnValue([{ data: {}, isLoading: false, isError: false }]);
+    mockResults([{ data: {}, isLoading: false, isError: false }]);
 
     renderHook(() => useConfigs(['a']));
 
@@ -50,7 +63,7 @@ describe('useConfigs', () => {
   });
 
   it('runs no query and returns empty, settled data when ids is empty', () => {
-    useApiQueriesMock.mockReturnValue([]);
+    mockResults([]);
 
     const { result } = renderHook(() => useConfigs([]));
 
@@ -61,7 +74,7 @@ describe('useConfigs', () => {
   it('splits ids into batches of 100, the backend maxItems, and merges every batch', () => {
     const allIds = ids(250);
     const chunks = [allIds.slice(0, 100), allIds.slice(100, 200), allIds.slice(200)];
-    useApiQueriesMock.mockReturnValue(chunks.map(chunk => ({ data: configsFor(chunk), isLoading: false, isError: false })));
+    mockResults(chunks.map(chunk => ({ data: configsFor(chunk), isLoading: false, isError: false })));
 
     const { result } = renderHook(() => useConfigs(allIds));
 
@@ -77,7 +90,7 @@ describe('useConfigs', () => {
     [100, [100]],
     [101, [100, 1]],
   ])('sends %i ids as batches of %p', (count, batchSizes) => {
-    useApiQueriesMock.mockReturnValue(batchSizes.map(() => ({ data: {}, isLoading: false, isError: false })));
+    mockResults(batchSizes.map(() => ({ data: {}, isLoading: false, isError: false })));
 
     renderHook(() => useConfigs(ids(count)));
 
@@ -86,7 +99,7 @@ describe('useConfigs', () => {
 
   it('reports isError when one batch fails and still returns the other batches', () => {
     const allIds = ids(150);
-    useApiQueriesMock.mockReturnValue([
+    mockResults([
       { data: configsFor(allIds.slice(0, 100)), isLoading: false, isError: false },
       { data: undefined, isLoading: false, isError: true },
     ]);
@@ -99,7 +112,7 @@ describe('useConfigs', () => {
 
   it('reports isLoading until every batch has resolved', () => {
     const allIds = ids(150);
-    useApiQueriesMock.mockReturnValue([
+    mockResults([
       { data: configsFor(allIds.slice(0, 100)), isLoading: false, isError: false },
       { data: undefined, isLoading: true, isError: false },
     ]);

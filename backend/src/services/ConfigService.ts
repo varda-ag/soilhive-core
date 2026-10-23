@@ -23,6 +23,12 @@ export interface LogoData {
   bytes?: string;
 }
 
+export interface SavedConfig {
+  data: unknown;
+  // ISO 8601, UTC: the last save of the config.
+  updated_at: string;
+}
+
 export default class ConfigService {
   private readConfigRow = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
     const row = await repo.findOneBy({ id });
@@ -99,24 +105,17 @@ export default class ConfigService {
    * Silently omits ids the caller can't read from the result map — the same precedent
    * `getConfigs` already sets for ids that don't exist at all (see ADR 0037).
    */
-  getConfigs = async (requestData: RequestData, ids: string[]): Promise<any> => {
+  getConfigs = async (requestData: RequestData, ids: string[]): Promise<Record<string, SavedConfig>> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
     const readableRows = rows.filter(row => entitlementService.canReadConfig(requestData, row.id));
-    return this.mapRowsById(readableRows);
+    return Object.fromEntries(readableRows.map(r => [r.id, { data: r.data, updated_at: r.updated_at!.toISOString() }]));
   };
 
+  // Export keeps the bare `{ [id]: data }` shape, so exported files still import (ADR 0063).
   exportConfigs = async (repo: Repository<JsonStorage>): Promise<any> => {
     const rows = await repo.find();
-    return this.mapRowsById(rows);
-  };
-
-  private mapRowsById = (rows: JsonStorage[]): Record<string, unknown> => {
-    const output: Record<string, unknown> = {};
-    for (const r of rows) {
-      output[r.id] = r.data;
-    }
-    return output;
+    return Object.fromEntries(rows.map(r => [r.id, r.data]));
   };
 
   async getLogoData(repo: Repository<JsonStorage>): Promise<LogoData | undefined> {
