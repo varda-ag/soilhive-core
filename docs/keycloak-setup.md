@@ -76,11 +76,9 @@ OIDC_REDIRECT_URI=http://<BASE_APP_URL>
 OIDC_POST_LOGOUT_REDIRECT_URI=http://<BASE_APP_URL>
 OIDC_SILENT_REDIRECT_URI=http://<BASE_APP_URL>
 OIDC_SCOPE=openid
-# The audience the mapper below adds to access tokens, so tokens issued to other clients are refused
-OIDC_AUDIENCE=<your-client-id>
 ```
 
-To give access tokens that audience, open the client, then "Client scopes", the `<your-client-id>-dedicated` scope, "Add mapper", "By configuration", **Audience**: set "Included Client Audience" to your client, and turn on "Add to access token". By default Keycloak access tokens carry `aud: account` only. Clients of Machine callers that call this API need the same mapper. See [Authentication](authentication.md#issuer-and-audience).
+Optional, and left off on SoilHive's own deployments for now: to have tokens issued to other clients of the realm refused, give access tokens an audience, then set `OIDC_AUDIENCE=<your-client-id>`. Open the client, then "Client scopes", the `<your-client-id>-dedicated` scope, "Add mapper", "By configuration", **Audience**: set "Included Client Audience" to your client, and turn on "Add to access token". Clients of Machine callers that call this API need the same mapper. Without the mapper, Keycloak doesn't put your client in `aud`, so set `OIDC_AUDIENCE` only after a real access token shows it, or every sign-in is refused. See [Authentication](authentication.md#issuer-and-audience).
 
 ## 12. Test Authentication
 Open the admin page while logged out and click **Log in**. You should be redirected to Keycloak, and back to the admin page after logging in.

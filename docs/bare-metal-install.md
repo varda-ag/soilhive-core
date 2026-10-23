@@ -189,8 +189,10 @@ SELF_SIGNING_SECRET=put-any-random-string-here
 # OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:3000
 # OIDC_SILENT_REDIRECT_URI=http://localhost:3000
 # OIDC_SCOPE=openid
-## Optional: issuers tokens may carry besides OIDC_AUTHORITY, and the audience they must carry
+## Optional: issuers tokens may carry besides OIDC_AUTHORITY
 # OIDC_ISSUER=
+## Optional: the audience tokens must carry. Set it only once your realm adds it to access tokens
+## (docs/keycloak-setup.md), or every sign-in is refused
 # OIDC_AUDIENCE=soilhive
 
 # ── Storage ───────────────────────────────────────────────────────────────────
