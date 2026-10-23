@@ -30,7 +30,7 @@ export const getOidcAudiences = (): [string, ...string[]] | undefined => {
 export const warnIfOidcAudienceUnchecked = (): void => {
   if (!getOidcAudiences()) {
     log.warn(
-      'OIDC_AUDIENCE is unset: tokens the identity provider issued to any client of the realm are accepted. Set it to the audience your access tokens carry (docs/adr/0064)',
+      'OIDC_AUDIENCE is unset: tokens the identity provider issued to any client of the realm are accepted. Set it only once your access tokens carry an audience, or every sign-in is refused (docs/adr/0064)',
     );
   }
 };

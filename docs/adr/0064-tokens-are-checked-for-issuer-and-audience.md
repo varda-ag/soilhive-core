@@ -15,7 +15,7 @@ Every token is now checked for its issuer, chosen by the key that verifies it (A
 - **Platform-issued tokens are checked for `iss` only.** Their keys sign nothing else, so an audience would add nothing. Every Password-grant and internal-request token already carries `iss: soilhive-core`, so nobody has to sign in again.
 - **`OIDC_ISSUER` adds to `OIDC_AUTHORITY`.** An identity provider reached under several hostnames, an in-cluster one for Machine callers say, can stamp a different `iss` on each. `OIDC_AUTHORITY`, the issuer the browser signs in with, stays accepted, so listing a Machine caller's issuer can never refuse the browser's tokens.
 - **The issuer check fails closed.** With neither `OIDC_ISSUER` nor `OIDC_AUTHORITY` set, every IdP token is refused (401). jsonwebtoken skips the check when the issuer is `undefined`, so an unset value must never reach it.
-- **The audience check waits for `OIDC_AUDIENCE`.** Keycloak access tokens carry `aud: account` unless an _Audience_ mapper adds the client, and each Machine caller's client needs the same mapper. Requiring it on deploy would sign everyone out until each realm is changed. Until it is set, the backend logs a warning at startup.
+- **The audience check waits for `OIDC_AUDIENCE`, which stays unset for now.** The SoilHive realm adds no audience to its access tokens: a QA access token from 23 October 2026 carries no `aud` at all. Setting `OIDC_AUDIENCE` today would refuse every sign-in. It can be set once the browser's client and each Machine caller's client have an _Audience_ mapper. Until then, the backend logs a warning at startup.
 
 ## Scopes are matched as whole entries
 
@@ -37,4 +37,4 @@ Until `OIDC_AUDIENCE` is set, the core accepts tokens issued to any client of th
 - A caller who held admin rights only through a scope that merely contains `super-admin`, `data-admin` or `internal-request` loses them. The pre-deploy token check below shows whether any does.
 - A deployment whose `OIDC_AUTHORITY` differs from the `iss` its tokens carry (another hostname, a trailing path) refuses every IdP token until `OIDC_ISSUER` lists the right value. Before deploying, decode a real access token from the browser and from each Machine caller.
 - Until `OIDC_AUDIENCE` is set, a token issued to any client of the realm is still accepted. The startup warning says so.
-- The quickstart realm's `soilhive` client gains an Audience mapper, so a freshly imported realm's tokens carry `aud: soilhive`. A realm imported before keeps working, since the quickstart does not set `OIDC_AUDIENCE`.
+- The quickstart realm's `soilhive` client gains an Audience mapper, so a freshly imported realm's tokens carry `aud: soilhive` and the check can be tried locally. QA's realm has no such mapper. A realm imported before keeps working, since the quickstart does not set `OIDC_AUDIENCE`.
