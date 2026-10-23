@@ -27,7 +27,7 @@ const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
     usePluginApi,
   } = context;
   const { config: settings, saveConfig: saveSettings } = usePluginConfig(pluginId, 'settings', { clickCount: 0 });
-  // This plugin's own backend, at the folder of its mf-manifest.json (see docs/adr/0063).
+  // This plugin's own backend, at the folder of its mf-manifest.json (see docs/adr/0065).
   // plugin-backend-example answers GET /api/me; called on a click only, since a plugin without a
   // backend would get an error on every load.
   const pluginApi = usePluginApi(pluginId);

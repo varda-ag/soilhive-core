@@ -7,7 +7,7 @@ A minimal **Plugin Backend**: the HTTP API a plugin's own deployment serves next
 - it reads the SoilHive core as the user, with that same token;
 - it never logs a token or a cookie.
 
-Why it works this way: [ADR 0063](../docs/adr/0063-plugins-call-their-backend-directly-with-a-plugin-token.md). The plugin's side: [Calling your plugin's own backend](../docs/frontend/plugin-development.md#calling-your-plugins-own-backend).
+Why it works this way: [ADR 0065](../docs/adr/0065-plugins-call-their-backend-directly-with-a-plugin-token.md). The plugin's side: [Calling your plugin's own backend](../docs/frontend/plugin-development.md#calling-your-plugins-own-backend).
 
 ## Run it
 

@@ -508,7 +508,7 @@ describe('EntitlementService', () => {
       });
     });
 
-    it('never sends a Plugin token to the external endpoint (docs/adr/0063)', async () => {
+    it('never sends a Plugin token to the external endpoint (docs/adr/0065)', async () => {
       const pluginRequestData = { ...requestData, token: { ...requestData.token!, pluginId: 'zones' } };
 
       const entitlements = await service.callEntitlementsEndpoint(pluginRequestData);

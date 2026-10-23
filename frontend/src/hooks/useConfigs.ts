@@ -1,3 +1,6 @@
+import type { UseQueryResult } from '@tanstack/react-query';
+import type { PluginConfigEntry } from 'frontend-plugin-types';
+import type { SavedConfig } from 'types/backend';
 import { useApiQueries } from './useApiQueries';
 
 // Matches maxItems of the ids parameter on GET /configs.
@@ -13,7 +16,7 @@ const useConfigs = <T>(ids: string[], polling?: number) => {
   // caller's token when they're logged in, which is needed to read their own entitled configs.
   // If useApiQueries ever gains an authenticate option, these queries must not set it to false,
   // or a logged-in caller's non-EVERYONE configs are silently left out.
-  const results = useApiQueries<Record<string, T>>(
+  return useApiQueries(
     toBatches(ids).map(batch => ({
       endpoint: '/configs',
       method: 'GET',
@@ -22,11 +25,18 @@ const useConfigs = <T>(ids: string[], polling?: number) => {
       enabled: true,
       refetchInterval: polling || false,
     })),
+    // React Query shares the combined result structurally: an entry keeps its identity until that
+    // config changes, so saving one config does not replace the others.
+    (results: UseQueryResult<Record<string, SavedConfig<T>>>[]) => ({
+      data: Object.fromEntries(
+        results
+          .flatMap(result => Object.entries(result.data ?? {}))
+          .map(([id, saved]): [string, PluginConfigEntry<T>] => [id, { config: saved.data, updatedAt: saved.updated_at }]),
+      ),
+      isLoading: results.some(result => result.isLoading),
+      isError: results.some(result => result.isError),
+    }),
   );
-
-  const data = Object.assign({}, ...results.map(result => result.data)) as Record<string, T>;
-
-  return { data, isLoading: results.some(result => result.isLoading), isError: results.some(result => result.isError) };
 };
 
 export default useConfigs;

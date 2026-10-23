@@ -25,7 +25,7 @@ Frontend will receive the login configuration from this backend.
 
 ## Plugin tokens
 
-In every mode with sign-in, the core also issues **Plugin tokens**: short-lived ES256 tokens for one plugin and one signed-in user, which the host sends to that plugin's own backend instead of the user's token (`docs/adr/0063`).
+In every mode with sign-in, the core also issues **Plugin tokens**: short-lived ES256 tokens for one plugin and one signed-in user, which the host sends to that plugin's own backend instead of the user's token (`docs/adr/0065`).
 
 - The host gets one with `POST /plugins/{pluginId}/token`, sending the user's token. It carries `iss` = `CORE_PUBLIC_URL`, `aud` = `plugin:{pluginId}`, `sub` = the user's Subject, a `jti`, and expires within 5 minutes and never after the user's token.
 - `GET /.well-known/plugin-jwks.json` publishes the key that verifies them, in every auth mode. It never lists a key that verifies user tokens, so a Plugin Backend that trusts it can never accept a user's token.
@@ -60,10 +60,23 @@ Set the following backend environment variables to enable OIDC authentication (s
 - `OIDC_POST_LOGOUT_REDIRECT_URI`: URL to redirect after logout (typically the app main page)
 - `OIDC_SILENT_REDIRECT_URI`: URL to redirect after token refresh (typically the app main page)
 - `OIDC_SCOPE`: Set to `openid`
+- `OIDC_ISSUER` (optional): other `iss` values the identity provider's access tokens may carry, besides `OIDC_AUTHORITY`. A comma-separated list, for a provider reached under several hostnames, for example an in-cluster address that Machine callers get their tokens from. Every token's `iss` must be `OIDC_AUTHORITY` or one of these, with or without a trailing slash; `OIDC_AUTHORITY` stays accepted, so listing another issuer never refuses the browser's tokens
+- `OIDC_AUDIENCE` (optional, leave it unset for now): the `aud` values an access token for this API may carry, comma-separated. Without it, a token the identity provider issued to any client of the realm is accepted, and the backend logs a warning at startup. The SoilHive realm adds no `aud` to its access tokens yet, so setting it would refuse every sign-in. To turn it on later, first add an *Audience* mapper to the client in Keycloak (see [Keycloak setup](keycloak-setup.md)) and to the clients of Machine callers, then check that a real token carries the audience
 
 Users must belong to the realm `OIDC_AUTHORITY` points to, and need the `super-admin` (or `data-admin`) role to access the application as admin.
 
 - [Keycloak setup](keycloak-setup.md): Example setup for Keycloak IDP and OIDC authentication
+
+### Issuer and audience
+
+Every token is checked for its issuer, `iss` (`docs/adr/0064`):
+
+| Token | `iss` must be | `aud` |
+| --- | --- | --- |
+| Password-grant and internal-request tokens | `soilhive-core` | Not checked: their keys sign nothing else |
+| Identity provider tokens | `OIDC_AUTHORITY`, or one of `OIDC_ISSUER` | One of `OIDC_AUDIENCE`, once it is set |
+
+If neither `OIDC_ISSUER` nor `OIDC_AUTHORITY` is set, every identity provider token is refused rather than accepted unchecked. Before turning the audience check on, decode a real access token from each kind of caller (browser sign-in and each Machine caller) and check its `iss` and `aud`.
 
 ### Authentication Priority
 - If both password and OIDC variables are set, **OIDC takes precedence**

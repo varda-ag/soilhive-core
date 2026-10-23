@@ -26,7 +26,7 @@ export const renderCtes = (ctes: CteDef[], geometryIdsParam: string): string =>
 export const getVectorMaskCtes = async (entityManager: EntityManager, filter: DataFilter, aoiRawSeed?: CteDef): Promise<CteDef[]> => {
   const { parameters: filters, area: aoiAreaM2 } = filter;
   const schema = process.env.POSTGRES_SCHEMA;
-  const enabledRasterFilterTables = await getEnabledRasterFilterTables();
+  const enabledRasterFilterTables = await getEnabledRasterFilterTables(entityManager);
   const raster_filters = filters.raster_filters;
   const ctes: CteDef[] = [];
   const maskCteNames: string[] = [];

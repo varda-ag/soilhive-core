@@ -71,7 +71,7 @@ export const getDaiPointDataPrecomputed = async (
 
   // Mirrors buildRasterSql's activation rule: only enabled tables with a
   // non-empty value selection mask anything; otherwise the plain AOI is used.
-  const enabledRasterFilterTables = hasRasterFilters(parameters) ? await getEnabledRasterFilterTables() : [];
+  const enabledRasterFilterTables = hasRasterFilters(parameters) ? await getEnabledRasterFilterTables(entityManager) : [];
   const rasterMaskActive = enabledRasterFilterTables.some(table => (parameters.raster_filters?.[table]?.length ?? 0) > 0);
 
   let cteSql: string;

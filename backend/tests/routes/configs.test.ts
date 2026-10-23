@@ -168,7 +168,20 @@ describe('Testing GET /configs routes', () => {
     await request(app).put('/configs/b').set(superAdminAuthHeader).send(dataB);
     const res = await request(app).get('/configs').query({ ids: 'a,b' }).set(superAdminAuthHeader);
     expect(res.statusCode).toBe(200);
-    expect(res.body).toStrictEqual({ a: dataA, b: dataB });
+    expect(res.body).toStrictEqual({ a: savedConfig(dataA), b: savedConfig(dataB) });
+  });
+
+  it('Returns updated_at as an ISO time that moves forward on each save', async () => {
+    await request(app).put('/configs/a').set(superAdminAuthHeader).send({ v: 1 });
+    const first = await request(app).get('/configs').query({ ids: 'a' }).set(superAdminAuthHeader);
+    const firstUpdatedAt = Date.parse(first.body.a.updated_at);
+    expect(first.body.a.updated_at).toBe(new Date(firstUpdatedAt).toISOString());
+
+    await new Promise(resolve => setTimeout(resolve, 20));
+    await request(app).put('/configs/a').set(superAdminAuthHeader).send({ v: 2 });
+    const second = await request(app).get('/configs').query({ ids: 'a' }).set(superAdminAuthHeader);
+    expect(second.body.a.data).toStrictEqual({ v: 2 });
+    expect(Date.parse(second.body.a.updated_at)).toBeGreaterThan(firstUpdatedAt);
   });
 
   it('Silently omits ids that do not exist, for a privileged caller', async () => {
@@ -176,7 +189,7 @@ describe('Testing GET /configs routes', () => {
     await request(app).put('/configs/a').set(superAdminAuthHeader).send(dataA);
     const res = await request(app).get('/configs').query({ ids: 'a,doesnotexist' }).set(superAdminAuthHeader);
     expect(res.statusCode).toBe(200);
-    expect(res.body).toStrictEqual({ a: dataA });
+    expect(res.body).toStrictEqual({ a: savedConfig(dataA) });
   });
 
   it('Silently omits ids an anonymous caller lacks READ/WRITE on, alongside ids that do not exist', async () => {
@@ -188,7 +201,7 @@ describe('Testing GET /configs routes', () => {
 
     const res = await request(app).get('/configs').query({ ids: 'a,b,doesnotexist' });
     expect(res.statusCode).toBe(200);
-    expect(res.body).toStrictEqual({ a: dataA });
+    expect(res.body).toStrictEqual({ a: savedConfig(dataA) });
   });
 
   it('Missing ids query param should fail', async () => {
@@ -216,6 +229,8 @@ describe('Testing GET /configs routes', () => {
     expect(res.body).toStrictEqual({});
   });
 });
+
+const savedConfig = (data: unknown) => ({ data, updated_at: expect.any(String) });
 
 const createTestConfigInDB = async (data: any) => {
   const dataSource = await getDataSource();

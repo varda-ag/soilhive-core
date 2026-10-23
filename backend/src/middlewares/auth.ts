@@ -12,7 +12,7 @@ export const authMiddleware = async (req: Request & { openapi?: any }) => {
     await tokenValidator(req, []);
   }
   // The validator already refused these; checked again because a route whose security also allows
-  // no token drops the security handler's refusal (docs/adr/0063)
+  // no token drops the security handler's refusal (docs/adr/0065)
   if (req.customData.token?.pluginId) {
     assertPluginTokenAllowed(req);
   }

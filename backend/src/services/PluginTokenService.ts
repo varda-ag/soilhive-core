@@ -53,7 +53,7 @@ export class TooManyMintsError extends ErrorResponse {
 
 export default class PluginTokenService {
   /**
-   * A Plugin token for the caller and one plugin (see docs/adr/0063): signed with the plugin key,
+   * A Plugin token for the caller and one plugin (see docs/adr/0065): signed with the plugin key,
    * `aud` names the plugin, `sub` is the caller's Subject, and it never outlives the caller's token.
    */
   mint = (requestData: RequestData, pluginId: string): TokenResponse => {

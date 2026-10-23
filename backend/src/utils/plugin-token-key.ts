@@ -4,7 +4,7 @@ import { log } from './logger';
 import { deriveEs256Key, Es256Key } from './password-grant-key';
 
 // Plugin tokens are ES256 with a key derived from PLUGIN_TOKEN_SECRET, never from SELF_SIGNING_SECRET
-// (see docs/adr/0063). Changing INFO or the secret rotates the key: Plugin Backends then reject the
+// (see docs/adr/0065). Changing INFO or the secret rotates the key: Plugin Backends then reject the
 // tokens already handed out, and the host mints new ones on the 401.
 const INFO = 'plugin-token-es256';
 

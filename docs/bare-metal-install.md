@@ -182,7 +182,7 @@ SUPER_ADMIN_PASSWORD_HASH=$2a$10$OaWUPUR7csoiBYqzp3jq8.s336/WXRvMIWGFluF3BvO/6l/
 DATA_ADMIN_PASSWORD_HASH=$2a$10$.oAbT7ZPV75DAhmYTSgW3ucDSFj00wvN/R.bq8.4Y1gL.aQxYAMQ2
 SELF_SIGNING_SECRET=put-any-random-string-here
 
-## Plugin tokens — let plugins call their own backend as the signed-in user (docs/adr/0063)
+## Plugin tokens — let plugins call their own backend as the signed-in user (docs/adr/0065)
 ## A secret of at least 32 characters (openssl rand -hex 32), and this API's public base URL
 # PLUGIN_TOKEN_SECRET=
 # CORE_PUBLIC_URL=http://localhost:4001/api/v1
@@ -194,6 +194,11 @@ SELF_SIGNING_SECRET=put-any-random-string-here
 # OIDC_POST_LOGOUT_REDIRECT_URI=http://localhost:3000
 # OIDC_SILENT_REDIRECT_URI=http://localhost:3000
 # OIDC_SCOPE=openid
+## Optional: issuers tokens may carry besides OIDC_AUTHORITY
+# OIDC_ISSUER=
+## Optional: the audience tokens must carry. Set it only once your realm adds it to access tokens
+## (docs/keycloak-setup.md), or every sign-in is refused
+# OIDC_AUDIENCE=soilhive
 
 # ── Storage ───────────────────────────────────────────────────────────────────
 ## local filesystem (default for bare-metal)

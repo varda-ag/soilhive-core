@@ -26,7 +26,7 @@ declare namespace NodeJS {
     readonly SELF_SIGNING_SECRET?: string;
     readonly ENTITLEMENTS_ENDPOINT?: string;
     readonly ENTITLEMENTS_CACHE_TTL_MS?: string;
-    // Plugin tokens (docs/adr/0063)
+    // Plugin tokens (docs/adr/0065)
     readonly PLUGIN_TOKEN_SECRET?: string;
     readonly CORE_PUBLIC_URL?: string;
     readonly PLUGIN_TOKEN_ADMIN_PLUGINS?: string;
@@ -38,6 +38,8 @@ declare namespace NodeJS {
     readonly OIDC_POST_LOGOUT_REDIRECT_URI?: string;
     readonly OIDC_SILENT_REDIRECT_URI?: string;
     readonly OIDC_SCOPE?: string;
+    readonly OIDC_ISSUER?: string;
+    readonly OIDC_AUDIENCE?: string;
     // Storage settings
     readonly STORAGE_MODE?: string;
     readonly LOCAL_STORAGE_ROOT_FOLDER?: string;

@@ -6,7 +6,7 @@ import { getPluginToken, getPluginTokenOwner, renewPluginToken } from '../auth/p
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
 // Plugins call their own backend straight from the browser, with a Plugin token instead of the
-// user's token (docs/adr/0063). This client never uses httpClient or its error handling: a 401 from
+// user's token (docs/adr/0065). This client never uses httpClient or its error handling: a 401 from
 // a Plugin Backend must never clear or renew the user's token.
 
 const pluginApiError = (message: string, status: number, body?: unknown) =>

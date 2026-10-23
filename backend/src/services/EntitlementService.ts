@@ -389,7 +389,7 @@ export default class EntitlementService {
    */
   async callEntitlementsEndpoint(requestData: RequestData): Promise<Entitlements> {
     const raw = requestData.token?.raw;
-    // A Plugin token is signed by the core: it never leaves for a third party (docs/adr/0063)
+    // A Plugin token is signed by the core: it never leaves for a third party (docs/adr/0065)
     if (!process.env.ENTITLEMENTS_ENDPOINT || !raw || requestData.token?.pluginId) {
       return emptyEntitlements();
     }

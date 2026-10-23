@@ -4,7 +4,7 @@ import jwksClient from 'jwks-rsa';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import StatusCodes from 'http-status-codes';
 import { Token } from '../interfaces/Token';
-import { AuthModes, TokenScopes } from '../types/enums';
+import { AuthModes, TOKEN_ISSUER, TokenScopes } from '../types/enums';
 import assert from 'assert';
 import { AuthConfig } from '../interfaces/AuthConfig';
 import ConfigService from '../services/ConfigService';
@@ -18,6 +18,7 @@ import {
   pluginIdFromAudience,
   pluginTokenScope,
 } from '../utils/plugin-token-key';
+import { getOidcAudiences, getOidcIssuers } from '../utils/token-issuers';
 
 // Global JWKS client based on env var to fetch the public key
 let client: any | undefined = undefined;
@@ -47,16 +48,17 @@ interface VerificationKey {
   kind: TokenKind;
   key: Secret | PublicKey;
   algorithms?: Algorithm[]; // Unset for the IdP, whose algorithm follows its key type
-  issuer?: [string, ...string[]];
+  issuer: [string, ...string[]]; // Never empty: jsonwebtoken skips the check for an undefined issuer
+  // plugin:{pluginId} for a Plugin token; unset only for an IdP token while OIDC_AUDIENCE is (docs/adr/0064)
   audience?: RegExp | [string, ...string[]] | undefined;
 }
 
-// One key per kid, never a fallback (see docs/adr/0060)
+// One key per kid, never a fallback (see docs/adr/0060), and the issuer each key's tokens must name
 const getVerificationKey = async (kid: string, authMode: AuthModes): Promise<VerificationKey> => {
   if (kid === TokenScopes.INTERNAL_REQUEST) {
-    return { kind: 'internal', key: process.env.SELF_SIGNING_SECRET!, algorithms: ['HS256'] };
+    return { kind: 'internal', key: process.env.SELF_SIGNING_SECRET!, algorithms: ['HS256'], issuer: [TOKEN_ISSUER] };
   }
-  // Before the auth-mode branch: Plugin tokens are accepted in password and OIDC mode alike (docs/adr/0063)
+  // Before the auth-mode branch: Plugin tokens are accepted in password and OIDC mode alike (docs/adr/0065)
   const pluginTokenKey = getPluginTokenKey();
   if (pluginTokenKey && kid === pluginTokenKey.kid) {
     const issuer = getPluginTokenIssuer();
@@ -70,10 +72,14 @@ const getVerificationKey = async (kid: string, authMode: AuthModes): Promise<Ver
     if (kid !== passwordGrantKey.kid) {
       throw new ErrorResponse('Invalid token: unknown kid', StatusCodes.UNAUTHORIZED);
     }
-    return { kind: 'password', key: passwordGrantKey.publicKey, algorithms: ['ES256'] };
+    return { kind: 'password', key: passwordGrantKey.publicKey, algorithms: ['ES256'], issuer: [TOKEN_ISSUER] };
+  }
+  const [issuer, ...otherIssuers] = getOidcIssuers();
+  if (!issuer) {
+    throw new ErrorResponse('Invalid token: no issuer is configured to check it against', StatusCodes.UNAUTHORIZED);
   }
   try {
-    return { kind: 'idp', key: await getSigningKeyAsync(kid) };
+    return { kind: 'idp', key: await getSigningKeyAsync(kid), issuer: [issuer, ...otherIssuers], audience: getOidcAudiences() };
   } catch (err) {
     throw new ErrorResponse(`Invalid token: ${getErrorMessage(err)}`, StatusCodes.UNAUTHORIZED);
   }
@@ -138,16 +144,16 @@ export const tokenValidator = async (req: Request, scopes: string[]): Promise<bo
   // token, the validator drops this handler's error and only authMiddleware's second call refuses
   assertTokenScope(decodedToken, scopes);
   decodedToken.raw = tokenString; // Putting original token string here
-  decodedToken.isSuperAdmin = decodedToken.scope?.includes(TokenScopes.SUPER_ADMIN);
-  decodedToken.isDataAdmin = decodedToken.scope?.includes(TokenScopes.DATA_ADMIN);
-  decodedToken.isInternalRequest = verificationKey.kind !== 'plugin' && decodedToken.scope?.includes(TokenScopes.INTERNAL_REQUEST); // True on bulk load jobs
+  decodedToken.isSuperAdmin = hasScope(decodedToken, TokenScopes.SUPER_ADMIN);
+  decodedToken.isDataAdmin = hasScope(decodedToken, TokenScopes.DATA_ADMIN);
+  decodedToken.isInternalRequest = verificationKey.kind !== 'plugin' && hasScope(decodedToken, TokenScopes.INTERNAL_REQUEST); // True on bulk load jobs
   req.customData.token = decodedToken;
   return true;
 };
 
 /**
  * Refuses a Plugin token on this request unless it is a GET on a route that accepts one: a Plugin
- * token only reads, and `x-plugin-token-denied` marks the reads it may not make (docs/adr/0063).
+ * token only reads, and `x-plugin-token-denied` marks the reads it may not make (docs/adr/0065).
  * A request with no matched route is refused too.
  */
 export const assertPluginTokenAllowed = (req: Request & { openapi?: any }): void => {
@@ -175,12 +181,23 @@ const applyPluginTokenRules = (req: Request & { openapi?: any }, token: Token, t
   token.pluginId = pluginId;
 };
 
+/**
+ * Whether the token holds `scope`, matched as a whole entry of its space-separated list: a scope
+ * named `metadata-admin` must not count as `data-admin` (docs/adr/0064). An array, which some
+ * identity providers send, is read as the list it is.
+ */
+const hasScope = (token: Token, scope: string): boolean => {
+  const scopes: unknown = token.scope;
+  const list = Array.isArray(scopes) ? scopes : typeof scopes === 'string' ? scopes.split(/\s+/) : [];
+  return list.includes(scope);
+};
+
 const assertTokenScope = (token: Token, scopes: string[]) => {
   if (scopes.length === 0) {
     return;
   }
   for (const s of scopes) {
-    if (token.scope.includes(s)) {
+    if (hasScope(token, s)) {
       return;
     }
   }

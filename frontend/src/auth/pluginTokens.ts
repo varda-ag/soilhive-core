@@ -5,7 +5,7 @@ import { getToken } from './tokenStore';
 import { isTokenExpired } from './tokenClaims';
 import { refreshAccessToken } from './tokenRefresher';
 
-// Plugin tokens (docs/adr/0063): a short-lived token the core mints for one plugin and the signed-in
+// Plugin tokens (docs/adr/0065): a short-lived token the core mints for one plugin and the signed-in
 // user. usePluginApi sends it to that plugin's own backend instead of the user's token, which never
 // leaves for a Plugin Backend. Kept in memory only, per pluginId, for the user they were minted for:
 // a silent renew of the user's token keeps them, a sign-out or another user starts over.

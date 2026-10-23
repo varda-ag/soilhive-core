@@ -8,7 +8,7 @@ const skip = ['/health', '/ready', '/docs', '/openapi.json', '/oauth'];
 // A map view fires dozens at once, and each would otherwise hold a connection and a transaction.
 const skipSoilIndexTiles = /^(\/api\/v1)?\/soil-indexes\/[^/]+\/(tiles|scores)(\/|$)/;
 
-// Key sets and Plugin token mints never read the database (docs/adr/0063)
+// Key sets and Plugin token mints never read the database (docs/adr/0065)
 const skipTokenRoutes = /^(\/api\/v1)?\/(\.well-known\/|plugins\/[^/]+\/token$)/;
 
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
@@ -35,14 +35,18 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   // Get the PID for this request connection only
   const [{ pid: backendPid }] = await queryRunner.query('SELECT pg_backend_pid() as pid');
 
+  // Awaited before the request's connection is released, so a late cancel can never hit the backend
+  // after the pool has handed it to another request. On an exhausted pool the connect gives up after
+  // the pool's connectionTimeoutMillis rather than holding this request's connection indefinitely.
   const cancelBackend = async () => {
+    const cancelRunner = dataSource.createQueryRunner();
     try {
-      const cancelRunner = dataSource.createQueryRunner();
       await cancelRunner.connect();
       await cancelRunner.query('SELECT pg_cancel_backend($1)', [backendPid]);
-      await cancelRunner.release();
     } catch {
-      // best-effort; ignore if the backend already finished
+      // best-effort; ignore if the backend already finished or no connection was free
+    } finally {
+      await cancelRunner.release().catch(() => {});
     }
   };
 

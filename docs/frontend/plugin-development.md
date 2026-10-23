@@ -274,10 +274,12 @@ Object.entries(dashboards ?? {})
 
 ### Batch-fetching multiple config ids
 
-Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map:
+Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map. Each entry is a `PluginConfigEntry<T>`: the `config` and `updatedAt`, the time of its last save as an ISO 8601 string in UTC:
 
 ```tsx
 const { data, isLoading } = context.usePluginConfigs<WidgetSettings>(pluginId, ['widget-a', 'widget-b']);
+// data?.['widget-a'] → { config: { … }, updatedAt: '2026-10-23T07:59:52.473Z' }
+const lastUpdate = data && new Date(data['widget-a'].updatedAt).toLocaleString();
 ```
 
 ### Fetching a stored filter
@@ -479,7 +481,7 @@ If your plugin's deployment also serves an API, its **Plugin Backend**, call it 
 
 The client calls your backend straight from the browser. By default it calls the folder that holds your `mf-manifest.json`: with a remote at `https://zones.example/mf-manifest.json`, `api.get('/api/zones')` calls `https://zones.example/api/zones`. With a remote at `https://plugins.example/zones/mf-manifest.json`, it calls `https://plugins.example/zones/api/zones`. The default is the folder, not the origin, because several plugins can share one origin under their own paths, and each plugin's token must reach only its own backend. If your API lives elsewhere, pass its address: `context.usePluginApi('my-plugin', { baseUrl: 'https://api.zones.example/v1' })`. It must be `https`, or `http` on `localhost`. An empty `baseUrl` counts as unset, so `baseUrl: process.env.ZONES_API ?? ''` is safe.
 
-For a signed-in user, every call carries a **Plugin token**: a token the core mints for your `pluginId` and that user, valid for a few minutes, sent as `Authorization: Bearer …`. The user's own token never reaches your backend. An anonymous visitor's calls carry no token. The host gets the token, reuses it until shortly before it expires, and when your backend answers `401`, gets a new one and retries the call once. See `soilhive-core` ADR 0063, and [Your backend's side](#your-backends-side) for what your backend must do with it.
+For a signed-in user, every call carries a **Plugin token**: a token the core mints for your `pluginId` and that user, valid for a few minutes, sent as `Authorization: Bearer …`. The user's own token never reaches your backend. An anonymous visitor's calls carry no token. The host gets the token, reuses it until shortly before it expires, and when your backend answers `401`, gets a new one and retries the call once. See `soilhive-core` ADR 0065, and [Your backend's side](#your-backends-side) for what your backend must do with it.
 
 ```tsx
 import { useEffect, useState } from 'react';

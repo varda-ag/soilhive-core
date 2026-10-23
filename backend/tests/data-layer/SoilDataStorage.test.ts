@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach, jest, afterAll } from '@jest/globals'
 import * as fs from 'fs';
 import * as turf from '@turf/turf';
 import { MultiPolygon, Polygon } from 'geojson';
-import { getEntityManager } from '../../src/utils/data-source';
+import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { addAssetToRasterLayer, addFile, addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import SoilDataStorage, {
   buildDatasetFilterClauses,
+  getEnabledRasterFilterTables,
   hasRasterFilters,
   resetEnabledRasterFilterTablesCache,
 } from '../../src/data-layer/SoilDataStorage';
@@ -1271,5 +1272,32 @@ describe('SoilDataStorage class', () => {
 
       expect(grouped.get(layer.id) ?? []).toHaveLength(0);
     });
+  });
+});
+
+describe('getEnabledRasterFilterTables', () => {
+  beforeEach(async () => {
+    await addRasterFilterData();
+    await addRasterFilterMappings();
+  });
+
+  it('reads on the pool manager', async () => {
+    const tables = await getEnabledRasterFilterTables(await getEntityManager());
+    expect(tables.sort()).toEqual(['land_cover', 'soil_groups']);
+  });
+
+  // An uncommitted change is visible only on the transaction's own connection, so this fails if
+  // the read takes a second pooled connection (which deadlocks an exhausted pool).
+  it("reads on the caller's transaction rather than a connection of its own", async () => {
+    const queryRunner = (await getDataSource()).createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    try {
+      await queryRunner.query("UPDATE raster_filters SET active = false WHERE id = 'land_cover'");
+      expect(await getEnabledRasterFilterTables(queryRunner.manager)).toEqual(['soil_groups']);
+    } finally {
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+    }
   });
 });

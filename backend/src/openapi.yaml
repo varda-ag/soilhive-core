@@ -133,7 +133,7 @@ paths:
       summary: Public key that verifies Plugin tokens
       description: >-
         Plugin Backends verify the Plugin tokens they receive against this key set
-        (docs/adr/0063). Available in every auth mode once PLUGIN_TOKEN_SECRET and CORE_PUBLIC_URL
+        (docs/adr/0065). Available in every auth mode once PLUGIN_TOKEN_SECRET and CORE_PUBLIC_URL
         are set, and never lists a key that verifies user tokens.
       tags:
         - auth
@@ -162,7 +162,7 @@ paths:
       summary: Get a Plugin token for one plugin
       description: >-
         Exchanges the caller's token for a short-lived Plugin token that the plugin's own Plugin
-        Backend accepts (docs/adr/0063). The host frontend calls this on the plugin's behalf.
+        Backend accepts (docs/adr/0065). The host frontend calls this on the plugin's behalf.
         `aud` is `plugin:{pluginId}`, `sub` is the caller's Subject, and the token expires within 5
         minutes and never after the caller's token. On the core API it only reads, as its user,
         without admin rights unless the deployment lists the plugin in PLUGIN_TOKEN_ADMIN_PLUGINS.
@@ -326,12 +326,21 @@ paths:
           explode: false
       responses:
         '200':
-          description: Object mapping requested ids to their configuration data
+          description: Object mapping requested ids to their configuration data and the time of their last save
           content:
             application/json:
               schema:
                 type: object
-                additionalProperties: {}
+                additionalProperties:
+                  type: object
+                  required:
+                    - data
+                    - updated_at
+                  properties:
+                    data: {}
+                    updated_at:
+                      type: string
+                      format: date-time
 
   /configs-export:
     post:

@@ -404,7 +404,7 @@ describe('Plugin tokens', () => {
   });
 });
 
-// Every GET a Plugin token may make, as audited for docs/adr/0063; a new GET changes this count
+// Every GET a Plugin token may make, as audited for docs/adr/0065; a new GET changes this count
 const ALLOWED_GET_COUNT = 48;
 
 const getUserTokenExpiringIn = (seconds: number): string => {
