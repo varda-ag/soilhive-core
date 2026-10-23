@@ -144,6 +144,16 @@ describe('Plugin tokens', () => {
       expect((await mint(otherUser)).statusCode).toBe(StatusCodes.OK);
     });
 
+    it('lets a host on another origin read the Retry-After of a 429', async () => {
+      for (let i = 0; i < MINTS_PER_WINDOW; i++) {
+        await mint(userToken);
+      }
+      const res = await mint(userToken).set('Origin', 'http://localhost:3000');
+      expect(res.statusCode).toBe(StatusCodes.TOO_MANY_REQUESTS);
+      expect(res.headers['access-control-allow-origin']).toBe('http://localhost:3000');
+      expect(res.headers['access-control-expose-headers']).toBe('Retry-After');
+    });
+
     it(`allows ${MINTS_PER_SUBJECT_PER_WINDOW} mints a minute per Subject, whatever the pluginIds`, async () => {
       // Any well-formed pluginId is accepted, so a per-plugin limit alone would not bound a caller
       const perPlugin = MINTS_PER_WINDOW / 2;
