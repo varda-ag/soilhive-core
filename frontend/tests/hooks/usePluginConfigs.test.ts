@@ -13,7 +13,10 @@ describe('usePluginConfigs', () => {
 
   it('namespaces ids with the pluginId and strips the prefix back off the returned map', () => {
     useConfigsMock.mockReturnValue({
-      data: { 'plugin:myPlugin:a': { foo: 1 }, 'plugin:myPlugin:b': { foo: 2 } },
+      data: {
+        'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: '2026-10-23T07:59:52.473Z' },
+        'plugin:myPlugin:b': { data: { foo: 2 }, updated_at: '2026-10-22T10:00:00.000Z' },
+      },
       isLoading: false,
       isError: false,
     });
@@ -21,7 +24,10 @@ describe('usePluginConfigs', () => {
     const { result } = renderHook(() => usePluginConfigs('myPlugin', ['a', 'b']));
 
     expect(useConfigs).toHaveBeenCalledWith(['plugin:myPlugin:a', 'plugin:myPlugin:b'], undefined);
-    expect(result.current.data).toEqual({ a: { foo: 1 }, b: { foo: 2 } });
+    expect(result.current.data).toEqual({
+      a: { config: { foo: 1 }, updatedAt: '2026-10-23T07:59:52.473Z' },
+      b: { config: { foo: 2 }, updatedAt: '2026-10-22T10:00:00.000Z' },
+    });
   });
 
   it('forwards polling to useConfigs', () => {
@@ -34,14 +40,14 @@ describe('usePluginConfigs', () => {
 
   it('omits ids missing from the response and passes isLoading/isError through unchanged', () => {
     useConfigsMock.mockReturnValue({
-      data: { 'plugin:myPlugin:a': { foo: 1 } },
+      data: { 'plugin:myPlugin:a': { data: { foo: 1 }, updated_at: '2026-10-23T07:59:52.473Z' } },
       isLoading: true,
       isError: true,
     });
 
     const { result } = renderHook(() => usePluginConfigs('myPlugin', ['a', 'b']));
 
-    expect(result.current.data).toEqual({ a: { foo: 1 } });
+    expect(result.current.data).toEqual({ a: { config: { foo: 1 }, updatedAt: '2026-10-23T07:59:52.473Z' } });
     expect(result.current.isLoading).toBe(true);
     expect(result.current.isError).toBe(true);
   });

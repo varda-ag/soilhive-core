@@ -7,7 +7,7 @@ jest.mock('hooks/useApiQueries', () => ({ useApiQueries: jest.fn() }));
 const useApiQueriesMock = useApiQueries as jest.Mock;
 
 const ids = (count: number) => Array.from({ length: count }, (_, i) => `id-${i}`);
-const configsFor = (chunk: string[]) => Object.fromEntries(chunk.map(id => [id, { id }]));
+const configsFor = (chunk: string[]) => Object.fromEntries(chunk.map(id => [id, { data: { id }, updated_at: '2026-10-23T07:59:52.473Z' }]));
 const queriesPassed = () => useApiQueriesMock.mock.calls[0][0];
 
 describe('useConfigs', () => {
@@ -16,7 +16,10 @@ describe('useConfigs', () => {
   });
 
   it('fetches /configs with comma-separated ids and returns the resolved data', () => {
-    const data = { a: { foo: 1 }, b: { foo: 2 } };
+    const data = {
+      a: { data: { foo: 1 }, updated_at: '2026-10-23T07:59:52.473Z' },
+      b: { data: { foo: 2 }, updated_at: '2026-10-22T10:00:00.000Z' },
+    };
     useApiQueriesMock.mockReturnValue([{ data, isLoading: false, isError: false }]);
 
     const { result } = renderHook(() => useConfigs(['a', 'b']));

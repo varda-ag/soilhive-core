@@ -274,11 +274,15 @@ Object.entries(dashboards ?? {})
 
 ### Batch-fetching multiple config ids
 
-Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map:
+Call `context.usePluginConfigs<T>(pluginId, ids)` to fetch several config ids in one request instead of one `usePluginConfig` call per id. It is read-only (no batch `saveConfig`), and an id with no stored config is simply absent from the returned map. Each entry is a `PluginConfigEntry<T>`: the `config` and `updatedAt`, the time of its last save as an ISO 8601 string in UTC:
 
 ```tsx
 const { data, isLoading } = context.usePluginConfigs<WidgetSettings>(pluginId, ['widget-a', 'widget-b']);
+// data?.['widget-a'] → { config: { … }, updatedAt: '2026-10-23T07:59:52.473Z' }
+const lastUpdate = data && new Date(data['widget-a'].updatedAt).toLocaleString();
 ```
+
+Show `updatedAt` with `new Date(updatedAt)` so it is in the user's time zone; slicing the string shows UTC.
 
 ### Fetching a stored filter
 

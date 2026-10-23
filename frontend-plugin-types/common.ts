@@ -19,6 +19,13 @@ export interface PluginConfigResult<T> {
   saveConfig: (config: T) => Promise<void>;
 }
 
+export interface PluginConfigEntry<T> {
+  config: T;
+  // ISO 8601 in UTC (ends in `Z`): the last save of the item. Show it with `new Date(updatedAt)`,
+  // formatted in the user's locale (e.g. `toLocaleString`), not by slicing the string.
+  updatedAt: string;
+}
+
 export interface PluginMutationResult<TInput, TOutput> {
   mutateAsync: (input: TInput) => Promise<TOutput>;
   isPending: boolean;
