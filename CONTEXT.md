@@ -56,6 +56,10 @@ _Avoid_: Query, search, selection
 A catalog entry describing a raster-backed classification layer (e.g. land cover, soil groups) that a Filter's `raster_filters` criterion can reference by table name. Distinct from a Filter itself — a Raster Filter is a thing that *can be selected*, not a stored query. Carries two independent status flags: `active` (admin-controlled — whether this Raster Filter is offered to users at all) and `enabled` (computed — whether its backing raster table exists and has value mappings). A Raster Filter can be enabled but inactive (functional but hidden), or active but not enabled (offered but not yet backed by data).
 _Avoid_: Filter (a persisted query scope; a Raster Filter is a catalog entry a Filter can reference), "active filter" in the query sense (see Flagged ambiguities — unrelated to the `active` column)
 
+**Raster Filter Installation**:
+The one-time operation that builds a Raster Filter's backing raster table from a raster file and records its value mappings, after which the Raster Filter is enabled (shown as "Installed"). Installation and activation are independent: an installed Raster Filter is still offered to users only when it is also active.
+_Avoid_: import (a Bulk Load's avoided term), load (Raster Load is the Dataset operation), upload (the earlier step that puts the file on the server)
+
 **Content identity** (of a Filter):
 What makes two Filter submissions "the same Filter": the same owner, the same *set* of canonical UserGeometries (order and duplicates irrelevant), and equivalent parameter criteria (list-valued criteria compare as sets; an explicitly null criterion is **not** the same as an absent one). Byte equality of the submission is neither necessary nor sufficient.
 _Avoid_: Hash, checksum (mechanisms, not the concept), equality (too generic)
