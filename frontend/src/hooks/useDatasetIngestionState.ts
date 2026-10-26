@@ -113,9 +113,13 @@ export function useDatasetIngestionState(datasetId?: string) {
     });
   }, []);
 
-  const handlePrevious = useCallback(() => {
-    navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/soil-data`);
-  }, [navigate, datasetId]);
+  const saveAndGoBack = useCallback(
+    async (save: () => Promise<void>) => {
+      await save();
+      navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/soil-data`);
+    },
+    [navigate, datasetId],
+  );
 
   const saveAndContinueLater = useCallback(
     async (save: () => Promise<void>) => {
@@ -154,7 +158,7 @@ export function useDatasetIngestionState(datasetId?: string) {
     isLoadingExistingMappings,
     expandedRows,
     toggleRow,
-    handlePrevious,
+    saveAndGoBack,
     saveAndContinueLater,
   };
 }

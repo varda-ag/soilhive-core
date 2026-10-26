@@ -393,9 +393,14 @@ describe('useDatasetPreview', () => {
     expect(result.current.datasetName).toBe('');
   });
 
-  it('handlePrevious navigates to the mappings step', () => {
+  it('handlePrevious saves the mapping, then navigates to the mappings step', async () => {
     const { result } = renderHook(() => useDatasetPreview(DATASET_ID));
-    act(() => result.current.handlePrevious());
+    await waitFor(() => expect(result.current.selectedFile).toBe('file-a'));
+
+    await act(() => result.current.handlePrevious());
+
+    expect(createMutateAsync).toHaveBeenCalledTimes(1);
+    expect(updateMutateAsync).toHaveBeenCalledWith({ fileID: 'file-a', mappingId: 99 });
     expect(mockNavigate).toHaveBeenCalledWith(expect.stringContaining('mappings'));
   });
 

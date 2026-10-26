@@ -30,6 +30,7 @@ function buildHookMock(overrides: Record<string, unknown> = {}) {
     fileInputRef: { current: null },
     soilDataFiles: [],
     uploadingFiles: [],
+    isPreviousEnabled: true,
     isContinueEnabled: false,
     isSaving: false,
     handleFiles: jest.fn(),
@@ -58,20 +59,29 @@ describe('DatasetsSoilDataStep', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('disables Continue and Save-and-continue-later while a save is in flight, even if otherwise enabled', () => {
+  it('disables Previous, Continue and Save-and-continue-later while a save is in flight, even if otherwise enabled', () => {
     buildHookMock({ isContinueEnabled: true, isSaving: true });
     render(<DatasetsSoilDataStep />);
 
+    expect(screen.getByText('datasets.actions.previous').closest('button')).toBeDisabled();
     expect(screen.getByText('datasets.actions.continue').closest('button')).toBeDisabled();
     expect(screen.getByText('datasets.actions.save_and_continue_later').closest('button')).toBeDisabled();
   });
 
-  it('enables Continue and Save-and-continue-later once isContinueEnabled is true and no save is in flight', () => {
+  it('enables Previous, Continue and Save-and-continue-later once isContinueEnabled is true and no save is in flight', () => {
     buildHookMock({ isContinueEnabled: true, isSaving: false });
     render(<DatasetsSoilDataStep />);
 
+    expect(screen.getByText('datasets.actions.previous').closest('button')).toBeEnabled();
     expect(screen.getByText('datasets.actions.continue').closest('button')).toBeEnabled();
     expect(screen.getByText('datasets.actions.save_and_continue_later').closest('button')).toBeEnabled();
+  });
+
+  it('disables Previous when the step cannot be saved', () => {
+    buildHookMock({ isPreviousEnabled: false });
+    render(<DatasetsSoilDataStep />);
+
+    expect(screen.getByText('datasets.actions.previous').closest('button')).toBeDisabled();
   });
 
   it('appends the max upload size to the caption', () => {

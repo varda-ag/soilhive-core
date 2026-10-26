@@ -335,9 +335,10 @@ export function useDatasetPreview(datasetId?: string) {
     }
   }, [datasetId, datasetFileMappings, mappings, markedForDeletion, createMapping, updateFileMapping, resetChanges]);
 
-  const handlePrevious = useCallback(() => {
+  const handlePrevious = useCallback(async () => {
+    await save();
     navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`);
-  }, [navigate, datasetId]);
+  }, [save, navigate, datasetId]);
 
   const handleSaveAndContinueLater = useCallback(async () => {
     await save();

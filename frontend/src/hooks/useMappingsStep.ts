@@ -218,7 +218,7 @@ export function useMappingsStep(datasetId?: string) {
     isLoadingExistingMappings,
     expandedRows,
     toggleRow,
-    handlePrevious,
+    saveAndGoBack,
     saveAndContinueLater,
   } = useDatasetIngestionState(datasetId);
 
@@ -488,6 +488,8 @@ export function useMappingsStep(datasetId?: string) {
     queryClient,
     resetChanges,
   ]);
+
+  const handlePrevious = useCallback(() => saveAndGoBack(save), [saveAndGoBack, save]);
 
   const handleSaveAndContinueLater = useCallback(() => saveAndContinueLater(save), [saveAndContinueLater, save]);
 

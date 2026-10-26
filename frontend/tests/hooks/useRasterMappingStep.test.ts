@@ -191,11 +191,13 @@ describe('useRasterMappingStep', () => {
   });
 
   describe('navigation', () => {
-    it('handlePrevious navigates to the soil-data step', () => {
+    it('handlePrevious saves, then navigates to the soil-data step', async () => {
+      mockResetChanges.mockClear();
       const { result } = renderHook(() => useRasterMappingStep('42'));
-      act(() => {
-        result.current.handlePrevious();
+      await act(async () => {
+        await result.current.handlePrevious();
       });
+      expect(mockResetChanges).toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/soil-data');
     });
 

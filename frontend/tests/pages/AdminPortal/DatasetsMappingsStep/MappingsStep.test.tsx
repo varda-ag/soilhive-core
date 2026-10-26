@@ -93,5 +93,10 @@ describe('MappingsStep', () => {
       render(<MappingsStep {...defaultProps({ isSaveEnabled: false })} />);
       expect(screen.getByTestId('sh-mappings-save-later')).toBeDisabled();
     });
+
+    it('disables previous when isSaveEnabled is false, since previous saves first', () => {
+      render(<MappingsStep {...defaultProps({ isSaveEnabled: false })} />);
+      expect(screen.getByTestId('sh-mappings-previous')).toBeDisabled();
+    });
   });
 });
