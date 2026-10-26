@@ -69,6 +69,8 @@ jobs:
       context: frontend
       image-name: soilhive-core-frontend
       image-version: ${{ needs.image-version.outputs.imageVersion }}
+      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
     permissions:
       contents: read
       packages: write
