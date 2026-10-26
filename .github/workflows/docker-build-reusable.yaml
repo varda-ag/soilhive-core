@@ -21,6 +21,14 @@ on:
         type: boolean
         default: true
         required: false
+      aws-role-to-assume:
+        description: The AWS IAM role ARN that the workflow should assume to authenticate with AWS services (for example, to push images to Amazon ECR)
+        type: string
+        required: true
+      aws-region:
+        description: The AWS region
+        type: string
+        required: true
 
 jobs:
   build:
@@ -84,6 +92,14 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
           annotations: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ inputs.aws-role-to-assume }}
+          role-session-name: docker-build-push-image-${{ matrix.platform.name }}-${{ github.run_id }}
+          role-duration-seconds: 1200
+          aws-region: ${{ inputs.aws-region }}
 
       - name: Build and push Docker image
         id: build-and-push
