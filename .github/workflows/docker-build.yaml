@@ -58,6 +58,7 @@ jobs:
       contents: read
       packages: write
       pull-requests: write
+      id-token: write # This is required for requesting the JWT token from OIDC
 
   build-push-docker-frontend:
     uses: ./.github/workflows/docker-build-reusable.yaml
@@ -75,4 +76,5 @@ jobs:
       contents: read
       packages: write
       pull-requests: write
+      id-token: write # This is required for requesting the JWT token from OIDC
 
