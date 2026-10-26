@@ -124,6 +124,20 @@ describe('Testing /files routes (local storage)', () => {
       expect(extractSpy).toHaveBeenCalledTimes(2);
     });
 
+    // The upload and the GDAL probe can take minutes: a request transaction held across them sits idle
+    // in transaction and is terminated by idle_in_transaction_session_timeout (QueryRunnerAlreadyReleasedError).
+    it('holds no request transaction while the upload is probed', async () => {
+      const extractSpy = jest.spyOn(FileService.prototype, 'extractMetadata');
+      const res = await request(app)
+        .post('/files')
+        .set(dataAdminAuthHeader)
+        .attach('file', Buffer.from(fs.readFileSync(`${vectorFilesPassPath}/${fileName}`)), 'no_request_transaction.geojson');
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+
+      const [requestData] = extractSpy.mock.calls[0]!;
+      expect(requestData.entityManager.queryRunner).toBeUndefined();
+    });
+
     it('rejects a non-boolean spatial parameter', async () => {
       const res = await request(app).post('/files?spatial=maybe').set(dataAdminAuthHeader).attach('file', Buffer.from('x'), 'x.txt');
       expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
