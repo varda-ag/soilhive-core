@@ -101,6 +101,13 @@ jobs:
           role-session-name: docker-build-push-image-${{ matrix.platform.name }}-${{ github.run_id }}
           role-duration-seconds: 1200
           aws-region: ${{ inputs.aws-region }}
+      
+      # Login against public ECR
+      - name: Login to Amazon ECR Public
+        if: inputs.push == true
+        uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64 # v2.1.6
+        with:
+          registry-type: public
 
       - name: Build and push Docker image
         id: build-and-push
