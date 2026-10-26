@@ -13,7 +13,7 @@ import { GdalCLI, OgrInfoLayer, GdalInfoOutput } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath } from '../interfaces/File';
-import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
+import { georeferenceBboxWgs84, georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
@@ -222,12 +222,15 @@ export default class FileService {
     return reloaded!;
   };
 
-  /** The metadata with `epsg` as a Supplied CRS, and the Georeference placed again under it. */
+  /** The metadata with `epsg` as a Supplied CRS, and the Georeference (and a raster's Bounding box) placed again under it. */
   static withSuppliedCrs = async (metadata: FileMetadata | undefined, epsg: number): Promise<FileMetadata> => {
     const updated = { ...metadata, epsg, crs_source: 'supplied' } as FileMetadata;
     delete updated.georeference_wgs84;
-    const georeference_wgs84 = updated.georeference ? await georeferenceToWgs84(updated.georeference, `EPSG:${epsg}`) : undefined;
-    return { ...updated, ...(georeference_wgs84 && { georeference_wgs84 }) };
+    if (updated.is_raster) delete updated.bbox_wgs84;
+    const srs = `EPSG:${epsg}`;
+    const georeference_wgs84 = updated.georeference ? await georeferenceToWgs84(updated.georeference, srs) : undefined;
+    const bbox_wgs84 = updated.is_raster && updated.georeference ? await georeferenceBboxWgs84(updated.georeference, srs) : undefined;
+    return { ...updated, ...(georeference_wgs84 && { georeference_wgs84 }), ...(bbox_wgs84 && { bbox_wgs84 }) };
   };
 
   deleteFile = async (requestData: RequestData, slug: string): Promise<void> => {
@@ -627,6 +630,7 @@ export default class FileService {
       const epsg = GdalCLI.extractEpsgFromWkt(wkt);
       const georeference = rasterGeoreference(gdalInfo);
       const georeference_wgs84 = georeference && wkt ? await georeferenceToWgs84(georeference, wkt) : undefined;
+      const bbox_wgs84 = georeference && wkt ? await georeferenceBboxWgs84(georeference, wkt) : undefined;
       const size: [number, number] = gdalInfo.size ?? [0, 0];
 
       const metadata: FileMetadata = {
@@ -639,6 +643,7 @@ export default class FileService {
         ...(wkt && { wkt, crs_source: 'inferred' as const }),
         georeference,
         ...(georeference_wgs84 && { georeference_wgs84 }),
+        ...(bbox_wgs84 && { bbox_wgs84 }),
       };
 
       return metadata;

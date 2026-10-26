@@ -5,7 +5,7 @@ import { datasetExistsFor, getSubject, isPrivilegedCaller } from '../utils/auth'
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
-import { EntityType, IngestionStatus } from '../types/data';
+import { EntityType, GISDataType, IngestionStatus } from '../types/data';
 import { epsgMap } from '../assets/epsgMap';
 import { Capability, JobQueues } from '../types/enums';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
@@ -18,6 +18,9 @@ import JobService from './JobService';
 import { RefreshDaiStatsJob } from '../interfaces/Job';
 import { ProcessingSteps } from '../interfaces/Dataset';
 import { assertNoUnfinishedJob, getQueuedJobs } from '../data-layer/DatasetJobs';
+import { getRasterFileBboxes } from '../data-layer/DatasetBbox';
+import { GdalCLI, type Envelope } from '../utils/GdalCLI';
+import * as turf from '@turf/turf';
 import { substituteClassLabels } from '../utils/soilPropertyClasses';
 
 const vdl = new VectorDataLoad();
@@ -181,6 +184,21 @@ export default class DatasetService {
     );
     for (const dataset of datasets) {
       dataset.queued_job = queued.get(dataset.slug) ?? null;
+    }
+  };
+
+  /**
+   * Sets `bbox`, the Dataset's Bounding box: for a raster Dataset the narrowest one around its
+   * Raster Layers' Files, for any other its spatial_extent's own. Null exactly when spatial_extent is.
+   */
+  decorateWithBbox = async (requestData: RequestData, datasets: DatasetEntity[]): Promise<void> => {
+    const rasterIds = datasets.filter(d => d.spatial_extent && d.gis_datatype === GISDataType.RASTER).map(d => d.id);
+    const fileBboxes =
+      rasterIds.length > 0 ? await getRasterFileBboxes(requestData.entityManager, rasterIds) : new Map<string, Envelope[]>();
+    for (const dataset of datasets) {
+      const files = fileBboxes.get(dataset.id);
+      if (!dataset.spatial_extent) dataset.bbox = null;
+      else dataset.bbox = files ? GdalCLI.envelopeUnion(files) : (turf.bbox(dataset.spatial_extent) as Envelope);
     }
   };
 

@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import FileService from '../../src/services/FileService';
-import { Georeference, VectorFileMetadata } from '../../src/interfaces/File';
+import { Georeference, RasterFileMetadata, VectorFileMetadata } from '../../src/interfaces/File';
 import { getTableColumns } from '../helper';
 import { getRawTableName, sanitizeField } from '../../src/utils/utils';
 import { DetectableFields } from '../../src/types/DataMapping';
@@ -27,6 +27,11 @@ const expectCornersCloseTo = (actual: number[][], expected: number[][], digits =
     expect(actual[i]![0]).toBeCloseTo(x!, digits);
     expect(actual[i]![1]).toBeCloseTo(y!, digits);
   });
+};
+
+const expectEnvelopeCloseTo = (actual: number[], expected: number[], digits = 5) => {
+  expect(actual).toHaveLength(4);
+  expected.forEach((edge, i) => expect(actual[i]).toBeCloseTo(edge, digits));
 };
 
 const mockToken: Token = {
@@ -516,6 +521,7 @@ describe('FileService', () => {
       ];
       expectCornersCloseTo(metadata.georeference!, corners);
       expectCornersCloseTo(metadata.georeference_wgs84!, corners);
+      expectEnvelopeCloseTo(metadata.bbox_wgs84!, [-81.1441253, -34.0033135, -80.4794715, -33.4456381]);
     });
 
     it('keeps the corners of a projected raster in its own CRS and reprojects them to WGS84', async () => {
@@ -539,6 +545,7 @@ describe('FileService', () => {
         [-80.4643008, -34.0144794],
         [-81.1625158, -34.0144794],
       ]);
+      expectEnvelopeCloseTo(metadata.bbox_wgs84!, [-81.1625158, -34.0144794, -80.4643008, -33.4299807]);
     });
 
     it('stores no WGS84 corners when one of them falls in a gap of an interrupted projection', async () => {
@@ -547,6 +554,16 @@ describe('FileService', () => {
 
       expect(metadata.georeference).toHaveLength(4);
       expect(metadata).not.toHaveProperty('georeference_wgs84');
+      // Its bounding box comes from the points across it that do reproject
+      expectEnvelopeCloseTo(metadata.bbox_wgs84!, [-179.4683186, 54.5053185, -126.1908137, 77.2286092]);
+    });
+
+    it('stores the bounding box of a raster crossing the antimeridian with west > east', async () => {
+      const metadata = await fileService.extractMetadata(requestData, 'alaska_albers_1b.tif');
+      if (!metadata.is_raster) throw new Error('expected raster metadata');
+
+      // Its top edge bulges north of its top corners, to ~71.46°N
+      expectEnvelopeCloseTo(metadata.bbox_wgs84!, [157.3677834, 49.0545982, -117.2863728, 71.4556065]);
     });
 
     it('records a null georeference for a raster with no geotransform, rather than its pixel corners', async () => {
@@ -555,6 +572,7 @@ describe('FileService', () => {
 
       expect(metadata.georeference).toBeNull();
       expect(metadata).not.toHaveProperty('georeference_wgs84');
+      expect(metadata).not.toHaveProperty('bbox_wgs84');
       expect(metadata).not.toHaveProperty('crs_source');
     });
 
@@ -920,6 +938,33 @@ describe('FileService', () => {
 
       expect(metadata.georeference).toBeNull();
       expect(metadata).not.toHaveProperty('georeference_wgs84');
+    });
+
+    it("places a raster's bounding box under the supplied CRS too", async () => {
+      const metadata = await FileService.withSuppliedCrs({ is_raster: true, georeference } as RasterFileMetadata, 3857);
+      if (!metadata.is_raster) throw new Error('expected raster metadata');
+
+      // A few kilometres east and north of 0,0
+      const [west, south, east, north] = metadata.bbox_wgs84!;
+      expect(west).toBeGreaterThan(0);
+      expect(south).toBeGreaterThan(0);
+      expect(east).toBeLessThan(0.05);
+      expect(north).toBeLessThan(0.05);
+    });
+
+    it("drops a raster's bounding box left over from the previous CRS when there is no georeference", async () => {
+      const metadata = await FileService.withSuppliedCrs(
+        { is_raster: true, georeference: null, bbox_wgs84: [0, 0, 1, 1] } as unknown as RasterFileMetadata,
+        3857,
+      );
+
+      expect(metadata).not.toHaveProperty('bbox_wgs84');
+    });
+
+    it('gives a vector file no bounding box', async () => {
+      const metadata = await FileService.withSuppliedCrs({ is_raster: false, georeference } as VectorFileMetadata, 3857);
+
+      expect(metadata).not.toHaveProperty('bbox_wgs84');
     });
   });
 

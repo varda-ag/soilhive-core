@@ -156,6 +156,7 @@ export interface Dataset {
   geographical_extent?: string | null;
   gis_datatype?: GISDataType | null;
   spatial_extent: Polygon | null;
+  bbox?: BoundingBox | null; // What to show on a map: unlike spatial_extent, narrower than the whole band of longitude for data crossing the antimeridian
   n_observations?: string | null;
   n_raster_layers?: number | null;
   soil_depth?: object | null;
@@ -352,6 +353,9 @@ export interface FileRasterBandDescriptor {
 /** Four [x, y] corners: upper-left, upper-right, lower-right, lower-left. */
 export type Georeference = [[number, number], [number, number], [number, number], [number, number]];
 
+/** EPSG:4326 edges, west > east when they cross the antimeridian (RFC 7946). */
+export type BoundingBox = [west: number, south: number, east: number, north: number];
+
 interface FileGeoreferenceDescriptorMetadata {
   crs_source?: 'inferred' | 'supplied'; // Absent on files that predate it: read as 'inferred'
   georeference?: Georeference | null; // In the file's own CRS. null: none found; absent: never extracted
@@ -363,6 +367,7 @@ export interface RasterFileDescriptorMetadata extends FileGeoreferenceDescriptor
   driver?: string;
   epsg?: number;
   wkt?: string; // Coordinate system as GDAL reports it as WKT string
+  bbox_wgs84?: BoundingBox; // Absent while the CRS is unknown, when no point reprojects, and on files uploaded before it existed
   size: [number, number]; // [width, height] in pixels
   band_count: number;
   raster_bands: FileRasterBandDescriptor[];

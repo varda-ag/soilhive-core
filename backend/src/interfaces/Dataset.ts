@@ -3,6 +3,7 @@ import { GISDataType, IngestionStatus } from '../types/data';
 import { Capability } from '../types/enums';
 import { CleaningReport } from './CleaningReport';
 import { QueuedJob } from './Job';
+import type { Envelope } from '../utils/GdalCLI';
 
 export interface MeasuredProperty {
   soil_property_id: string;
@@ -48,4 +49,5 @@ export interface Dataset {
   preprocessing_steps?: string | null;
   related_resources?: string[] | null;
   queued_job?: QueuedJob | null;
+  bbox?: Envelope | null; // [west, south, east, north], west > east across the antimeridian
 }
