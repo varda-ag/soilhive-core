@@ -96,24 +96,13 @@ describe('useDatasetIngestionState', () => {
     });
   });
 
-  describe('saveAndGoBack', () => {
-    it('awaits the given save callback, then navigates to the soil-data step for the dataset', async () => {
-      const save = jest.fn().mockResolvedValue(undefined);
+  describe('handlePrevious', () => {
+    it('navigates to the soil-data step for the dataset', () => {
       const { result } = renderHook(() => useDatasetIngestionState('42'));
-      await act(async () => {
-        await result.current.saveAndGoBack(save);
+      act(() => {
+        result.current.handlePrevious();
       });
-      expect(save).toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets/edit/42/soil-data');
-    });
-
-    it('does not navigate when the save fails', async () => {
-      const save = jest.fn().mockRejectedValue(new Error('server error'));
-      const { result } = renderHook(() => useDatasetIngestionState('42'));
-      await act(async () => {
-        await expect(result.current.saveAndGoBack(save)).rejects.toThrow('server error');
-      });
-      expect(mockNavigate).not.toHaveBeenCalled();
     });
   });
 

@@ -108,13 +108,6 @@ export function useDatasetsSoilData() {
 
   const { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles: handleFilesUpload } = useFileUpload(onFileUploaded);
 
-  // A file needs a CRS: an EPSG code, chosen or detected. Also block while an upload is still in flight.
-  // Previous saves too, but an empty list is fine to save
-  const isPreviousEnabled =
-    uploadingFiles.length === 0 &&
-    annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.suppliedCrs || !!f.hasCustomCrs) && !f.error);
-  const isContinueEnabled = isPreviousEnabled && annotatedFiles.length > 0;
-
   const handleFiles = useCallback(
     (files: FileList | File[] | null) => {
       setDataFormatErrors([]);
@@ -163,6 +156,15 @@ export function useDatasetsSoilData() {
     queryKey: ['datasets', datasetId, 'files'],
     enabled: !!datasetId,
   });
+
+  // A file needs a CRS: an EPSG code, chosen or detected. Also block while an upload is still in flight.
+  // Previous saves too: an empty list is fine to save, but not before the saved files have loaded,
+  // or it would save that empty list and reset the dataset's raster type
+  const isPreviousEnabled =
+    existingFiles !== undefined &&
+    uploadingFiles.length === 0 &&
+    annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.suppliedCrs || !!f.hasCustomCrs) && !f.error);
+  const isContinueEnabled = isPreviousEnabled && annotatedFiles.length > 0;
 
   useEffect(() => {
     if (!existingFiles) return;

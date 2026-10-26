@@ -122,6 +122,15 @@ describe('useDatasetsSoilData', () => {
       expect(result.current.isPreviousEnabled).toBe(true);
     });
 
+    it('is false until the saved files have loaded, so it cannot save an empty list over them', () => {
+      buildDefaultMocks();
+      useApiQueryMock.mockImplementation(({ endpoint }: { endpoint: string }) =>
+        endpoint === '/epsg' ? ({ data: [], isLoading: false } as any) : ({ data: undefined, isLoading: true } as any),
+      );
+      const { result } = renderHook(() => useDatasetsSoilData());
+      expect(result.current.isPreviousEnabled).toBe(false);
+    });
+
     it('is false when a file is missing a crs', async () => {
       buildDefaultMocks({ existingFiles: [{ id: '1', name: 'a.csv', metadata: {} }] });
       const { result } = renderHook(() => useDatasetsSoilData());

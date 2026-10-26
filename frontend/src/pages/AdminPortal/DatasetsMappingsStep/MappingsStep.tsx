@@ -63,7 +63,7 @@ export function MappingsStep({
       </div>
 
       <div className={styles.Actions}>
-        <Button type="secondary" onClick={onPrevious} dataTestId="sh-mappings-previous" isDisabled={!isSaveEnabled}>
+        <Button type="secondary" onClick={onPrevious} dataTestId="sh-mappings-previous">
           {t('datasets.actions.previous')}
         </Button>
         <div className={styles.ActionsSpacer} />
