@@ -52,6 +52,7 @@ type AvailabilityContextType = {
   datasetFilters: FilterCriteria;
   appliedFiltersCount: number;
   filterId: string | undefined;
+  isLoadingFilterId: boolean;
   selectedFilters: BackendStoredDataFilter | undefined;
   isFiltersSelected: boolean;
   selectDataset: (id: string) => void;
@@ -103,7 +104,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     [geometryFilter, coverageFilterParameters],
   );
 
-  const { filterId: fullFilterId, selectedFilters } = useDataFilterQuery(fullFilterPayload);
+  const { filterId: fullFilterId, selectedFilters, isLoading: isLoadingFullFilter } = useDataFilterQuery(fullFilterPayload);
   const { filterId: coverageFilterId, isLoading: isLoadingCoverageFilter } = useDataFilterQuery(coverageFilterPayload);
 
   const { data: fullFilterResults, isLoading: isFullCoverageLoading } = useFilteredCoverageQuery(coverageFilterId);
@@ -291,6 +292,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         selectedTimeFilter,
         appliedFiltersCount,
         filterId: fullFilterId,
+        isLoadingFilterId: isLoadingFullFilter,
         selectedFilters,
         isFiltersSelected,
         selectDataset,
