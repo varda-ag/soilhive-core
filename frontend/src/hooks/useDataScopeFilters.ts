@@ -41,9 +41,9 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
 
   // Options reflect what exists in the AOI regardless of the active criteria:
   // geometryFilterResults is the criteria-free coverage, while allDatasets is
-  // already narrowed by data_types/visibility and would collapse the option
-  // lists to the current selection. allDatasets is only a fallback while the
-  // geometry-only coverage loads.
+  // narrowed by the coverage criteria (soil properties, dates, raster filters)
+  // and would hide options outside them. allDatasets is only a fallback while
+  // the geometry-only coverage loads.
   const optionSourceDatasets = useMemo(
     (): AvailabilityDataset[] => geometryFilterResults?.datasets.map(mapFilteredDatasetSummaryToAvailabilityDataset) ?? allDatasets,
     [geometryFilterResults, allDatasets],

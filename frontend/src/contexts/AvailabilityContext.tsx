@@ -14,7 +14,7 @@ import {
   type FilteredData,
   type FilteredDataset,
 } from 'types/backend';
-import { applyDataScopeCriteria, computeDatasetSummary } from '../domain';
+import { applyDataScopeCriteria, computeDatasetSummary, withoutDataScopeCriteria } from '../domain';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
@@ -88,16 +88,25 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
   const { allCategories: allRasterCategories, isLoading: isLoadingRasterCategories } = useRaster();
 
+  // The full filter carries every criterion: DAI is computed server-side per H3 cell, and
+  // Download/Explore links use its id. The coverage filter leaves out data_types/visibility,
+  // which the coverage list applies in the browser, so changing them does not refetch coverage.
   const fullFilterPayload = useMemo(() => ({ geometries: geometryFilter, parameters: datasetFilters }), [geometryFilter, datasetFilters]);
-
-  const { filterId: fullFilterId, selectedFilters, isLoading: isLoadingFullFilter } = useDataFilterQuery(fullFilterPayload);
-
-  const { data: fullFilterResults, isLoading: isFullCoverageLoading } = useFilteredCoverageQuery(fullFilterId);
-  const { data: geometryFilterResults, isLoading: isPartialCoverageLoading } = useFilteredCoverageQuery(
-    fullFilterId,
-    Object.keys(fullFilterPayload.parameters).length > 0, // Ask for geometry only coverage if there are frontend filters applied
+  const coverageFilterParameters = useMemo(() => withoutDataScopeCriteria(datasetFilters), [datasetFilters]);
+  const coverageFilterPayload = useMemo(
+    () => ({ geometries: geometryFilter, parameters: coverageFilterParameters }),
+    [geometryFilter, coverageFilterParameters],
   );
-  const { data: fullFilterDatasets, isLoading: isFullDatasetsLoading } = useFilteredDatasetsQuery(fullFilterId);
+
+  const { filterId: fullFilterId, selectedFilters } = useDataFilterQuery(fullFilterPayload);
+  const { filterId: coverageFilterId, isLoading: isLoadingCoverageFilter } = useDataFilterQuery(coverageFilterPayload);
+
+  const { data: fullFilterResults, isLoading: isFullCoverageLoading } = useFilteredCoverageQuery(coverageFilterId);
+  const { data: geometryFilterResults, isLoading: isPartialCoverageLoading } = useFilteredCoverageQuery(
+    coverageFilterId,
+    Object.keys(coverageFilterParameters).length > 0, // Ask for geometry only coverage if there are coverage criteria applied
+  );
+  const { data: fullFilterDatasets, isLoading: isFullDatasetsLoading } = useFilteredDatasetsQuery(coverageFilterId);
 
   const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
   const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>({});
@@ -163,12 +172,12 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [searchValue, allDatasets, datasetFrontendFilters]);
 
   const isDatasetsLoading = useMemo(() => {
-    return isLoadingFullFilter || (SPLIT_FILTERING_QUERIES ? isFullDatasetsLoading : isFullCoverageLoading);
-  }, [isLoadingFullFilter, isFullDatasetsLoading, isFullCoverageLoading]);
+    return isLoadingCoverageFilter || (SPLIT_FILTERING_QUERIES ? isFullDatasetsLoading : isFullCoverageLoading);
+  }, [isLoadingCoverageFilter, isFullDatasetsLoading, isFullCoverageLoading]);
 
   const isCoverageLoading = useMemo(() => {
-    return isLoadingFullFilter || isFullCoverageLoading || isPartialCoverageLoading;
-  }, [isFullCoverageLoading, isLoadingFullFilter, isPartialCoverageLoading]);
+    return isLoadingCoverageFilter || isFullCoverageLoading || isPartialCoverageLoading;
+  }, [isFullCoverageLoading, isLoadingCoverageFilter, isPartialCoverageLoading]);
 
   const isLoading = useMemo(() => {
     return isCoverageLoading || isLoadingSoilProperties || isLoadingCategories;
@@ -261,7 +270,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
         isLoading,
         isDatasetsLoading,
         isCoverageLoading,
-        isLoadingPartialFilter: isLoadingFullFilter,
+        isLoadingPartialFilter: isLoadingCoverageFilter,
         isLoadingRasterCategories,
         searchValue,
         datasetFrontendFilters,

@@ -10,7 +10,7 @@ import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
 import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
-import { Capability, GISDataType, type FilteredDatasetSummary } from 'types/backend';
+import { Capability, GISDataType, type FilterCriteria, type FilteredDatasetSummary } from 'types/backend';
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
@@ -219,5 +219,76 @@ describe('AvailabilityContext', () => {
     });
 
     expect(result.current.isNoFilteredData).toBe(true);
+  });
+
+  describe('coverage filter', () => {
+    const FULL_FILTER_ID = 'full-filter';
+    const COVERAGE_FILTER_ID = 'coverage-filter';
+    const hasScopeCriteria = (parameters: FilterCriteria) => 'data_types' in parameters || 'visibility' in parameters;
+
+    // Payloads carrying data_types/visibility get the full filter id; the others get the coverage filter id
+    const mockDataFilterQuery = (isLoadingFullFilter = false) => {
+      (useDataFilterQuery as jest.Mock).mockImplementation(({ parameters }: { parameters: FilterCriteria }) =>
+        hasScopeCriteria(parameters)
+          ? { filterId: FULL_FILTER_ID, selectedFilters: undefined, isLoading: isLoadingFullFilter }
+          : { filterId: COVERAGE_FILTER_ID, selectedFilters: undefined, isLoading: false },
+      );
+    };
+
+    it('keeps data_types out of the coverage filter payload and in the full filter payload', () => {
+      mockDataFilterQuery();
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+      jest.mocked(useDataFilterQuery).mockClear();
+
+      act(() => {
+        result.current.setFrontendFilters(['raster'], 'type');
+      });
+
+      const payloads = jest.mocked(useDataFilterQuery).mock.calls.map(([payload]) => payload.parameters);
+      expect(payloads).toContainEqual({});
+      expect(payloads).toContainEqual({ data_types: ['raster'] });
+      expect(result.current.filterId).toBe(FULL_FILTER_ID);
+    });
+
+    it('queries coverage and datasets with the coverage filter id', () => {
+      mockDataFilterQuery();
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+      jest.mocked(useFilteredCoverageQuery).mockClear();
+      jest.mocked(useFilteredDatasetsQuery).mockClear();
+
+      act(() => {
+        result.current.setFrontendFilters(['public'], 'visibility');
+      });
+
+      const coverageIds = jest.mocked(useFilteredCoverageQuery).mock.calls.map(([id]) => id);
+      const datasetsIds = jest.mocked(useFilteredDatasetsQuery).mock.calls.map(([id]) => id);
+      expect(coverageIds.length).toBeGreaterThan(0);
+      expect(new Set([...coverageIds, ...datasetsIds])).toEqual(new Set([COVERAGE_FILTER_ID]));
+    });
+
+    it('does not ask for geometry-only coverage when only scope criteria are set', () => {
+      mockDataFilterQuery();
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => {
+        result.current.setFrontendFilters(['raster'], 'type');
+      });
+
+      const geometryOnlyFlags = jest.mocked(useFilteredCoverageQuery).mock.calls.map(([, geometryOnly]) => !!geometryOnly);
+      expect(geometryOnlyFlags).not.toContain(true);
+    });
+
+    it('coverage loading flags ignore the full filter loading', () => {
+      mockDataFilterQuery(true);
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => {
+        result.current.setFrontendFilters(['raster'], 'type');
+      });
+
+      expect(result.current.isCoverageLoading).toBe(false);
+      expect(result.current.isDatasetsLoading).toBe(false);
+      expect(result.current.isLoadingPartialFilter).toBe(false);
+    });
   });
 });
