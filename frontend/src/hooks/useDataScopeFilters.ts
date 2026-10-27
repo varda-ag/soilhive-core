@@ -4,6 +4,7 @@ import type { Selection } from 'components/UI/types';
 import type { AvailabilityDataset, DatasetFrontendFilters, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetSummaryToAvailabilityDataset, yearRangeToDatasetFilters } from '../adapters';
 import { DATA_ACCESS_ITEMS, DATA_TYPE_ITEMS } from '../configuration/filters';
+import { matchesDataScope } from '../domain';
 
 type TimeFilterRange = {
   min: number;
@@ -49,13 +50,16 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
     [geometryFilterResults, allDatasets],
   );
 
+  // The slider spans only the datasets of the selected data type / visibility: coverage is
+  // fetched without those criteria, so allDatasets still holds the other types
   const timeFilterRange = useMemo((): TimeFilterRange => {
-    if (!allDatasets.length) return { min: 0, max: 0 };
+    const scopedDatasets = allDatasets.filter(dataset => matchesDataScope(dataset.dataType, dataset.visibility, datasetFrontendFilters));
+    if (!scopedDatasets.length) return { min: 0, max: 0 };
 
     let min: number = Infinity;
     let max: number = -Infinity;
 
-    for (const dataset of allDatasets) {
+    for (const dataset of scopedDatasets) {
       if (dataset.properties.dateStart) {
         min = Math.min(min, dataset.properties.dateStart);
       }
@@ -68,7 +72,7 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
       min: Number.isFinite(min) ? min : 0,
       max: Number.isFinite(max) ? max : 0,
     };
-  }, [allDatasets]);
+  }, [allDatasets, datasetFrontendFilters]);
 
   const handleTimeFilterChange = useCallback(
     (value: TimeFilterState) => {
