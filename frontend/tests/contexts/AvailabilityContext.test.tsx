@@ -370,7 +370,7 @@ describe('AvailabilityContext', () => {
       expect(geometryOnlyFlags).not.toContain(true);
     });
 
-    it('coverage loading flags ignore the full filter loading', () => {
+    it('coverage loading flags ignore the full filter loading, isLoadingFilterId follows it', () => {
       mockDataFilterQuery(true);
       const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
 
@@ -381,18 +381,7 @@ describe('AvailabilityContext', () => {
       expect(result.current.isCoverageLoading).toBe(false);
       expect(result.current.isDatasetsLoading).toBe(false);
       expect(result.current.isLoadingPartialFilter).toBe(false);
-    });
-
-    it('isLoadingFilterId follows the full filter while the coverage filter is ready', () => {
-      mockDataFilterQuery(true);
-      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
-
-      act(() => {
-        result.current.setFrontendFilters(['raster'], 'type');
-      });
-
       expect(result.current.isLoadingFilterId).toBe(true);
-      expect(result.current.isLoadingPartialFilter).toBe(false);
     });
   });
 });

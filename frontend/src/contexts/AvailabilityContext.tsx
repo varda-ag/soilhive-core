@@ -14,7 +14,7 @@ import {
   type FilteredData,
   type FilteredDataset,
 } from 'types/backend';
-import { applyDataScopeCriteria, computeDatasetSummary, withoutDataScopeCriteria } from '../domain';
+import { applyDataScopeCriteria, computeDatasetSummary, matchesDataScope, withoutDataScopeCriteria } from '../domain';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
 import { useSoilProperties } from '../hooks/useSoilProperties';
 import { usePropertiesCategories } from 'hooks/usePropertiesCategories';
@@ -69,11 +69,6 @@ type AvailabilityContextType = {
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
 
 const matchesSearch = (name: string, searchValue: string) => !searchValue || name.toLowerCase().includes(searchValue.toLowerCase());
-
-// An empty selection, or a dataset without the field, matches everything
-const matchesDataScope = (dataType: string | undefined, visibility: string | undefined, filters: DatasetFrontendFilters) =>
-  (!dataType || !filters.type.length || filters.type.includes(dataType)) &&
-  (!visibility || !filters.visibility.length || filters.visibility.includes(visibility));
 
 type AvailabilityProviderProps = {
   children: ReactNode;
@@ -147,8 +142,6 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     [datasetFrontendFilters],
   );
 
-  // Coverage is fetched without data_types/visibility (see coverageFilterPayload), so the
-  // "Data type" / "Data access" selection is applied here
   const scopedCoverageDatasets = useMemo(
     () => fullFilterResults?.datasets.filter(dataset => matchesDataScope(dataset.data_type, dataset.visibility, datasetFrontendFilters)),
     [fullFilterResults, datasetFrontendFilters],
