@@ -2917,6 +2917,13 @@ components:
               type: number
             minItems: 2
             maxItems: 2
+        category_labels:
+          type: object
+          additionalProperties:
+            type: integer
+          description: >-
+            Label → pixel value, read from the band's raster attribute table, else its category names.
+            Absent when the band carries neither.
       required:
         - band_number
         - data_type
@@ -4014,6 +4021,14 @@ components:
           description: >-
             Privileged callers only. Each pixel value of the installed raster, nodata excluded, with its pixel
             count. Null until installed, and for raster filters installed from the command line.
+        suggested_mappings:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: integer
+          description: >-
+            Privileged callers only. The labels the uploaded raster carried (its attribute table or category
+            names) for values it holds, as a starting point for PUT mappings. Never applied by themselves.
         install:
           $ref: '#/components/schemas/RasterFilterInstall'
 
@@ -4065,7 +4080,6 @@ components:
         - name
         - description
         - file_id
-        - band
         - kind
       properties:
         id:
@@ -4085,7 +4099,9 @@ components:
         band:
           type: integer
           minimum: 1
-          description: The band to install, numbered from 1. The other bands are discarded.
+          description: >-
+            The band to install, numbered from 1. The other bands are discarded. Required when the file has
+            more than one band; defaults to 1 when it has one.
         kind:
           type: string
           enum: [categorical]

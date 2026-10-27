@@ -47,6 +47,7 @@ export interface AdminRasterFilter extends PublicRasterFilter {
   file_id: string | null;
   created_by: string | null;
   pixel_values: Record<string, number> | null;
+  suggested_mappings: Record<string, number> | null;
   install: RasterFilterInstall;
 }
 
@@ -82,7 +83,7 @@ export default class RasterFilterService {
    * install consumes (docs/adr/0066). Labels come later, through putMappings.
    */
   createRasterFilter = async (requestData: RequestData, input: CreateRasterFilterInput): Promise<AdminRasterFilter> => {
-    const { id, name, description, band, kind } = input;
+    const { id, name, description, kind } = input;
     if (!RASTER_FILTER_ID_PATTERN.test(id)) {
       throw new ErrorResponse(
         `Raster filter id '${id}' must start with a lowercase letter and hold only lowercase letters, digits and underscores, 58 characters at most`,
@@ -101,7 +102,7 @@ export default class RasterFilterService {
       );
     }
 
-    const file = await this.resolveSourceFile(requestData, input.file_id, band);
+    const { file, band } = await this.resolveSourceFile(requestData, input.file_id, input.band);
 
     const entity = repo.create({
       id,
@@ -229,15 +230,27 @@ export default class RasterFilterService {
   };
 
   /**
-   * The raster File a new Raster Filter installs from. The install deletes it, so it must belong to nothing else.
+   * The raster File a new Raster Filter installs from, and the band to install: given, or the only one
+   * a single-band File has. The install deletes the File, so it must belong to nothing else.
    */
-  private resolveSourceFile = async (requestData: RequestData, slug: string, band: number): Promise<FileEntity> => {
+  private resolveSourceFile = async (
+    requestData: RequestData,
+    slug: string,
+    requestedBand: number | undefined,
+  ): Promise<{ file: FileEntity; band: number }> => {
     const { entityManager } = requestData;
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
     const metadata = file.metadata as RasterFileMetadata | undefined;
     if (!metadata?.is_raster) {
       throw new ErrorResponse(`File '${slug}' is not a raster`, StatusCodes.BAD_REQUEST);
     }
+    if (requestedBand === undefined && metadata.band_count !== 1) {
+      throw new ErrorResponse(
+        `File '${slug}' has ${metadata.band_count} bands: choose the one to install with 'band'`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+    const band = requestedBand ?? 1;
     if (band > metadata.band_count) {
       throw new ErrorResponse(`File '${slug}' has ${metadata.band_count} band(s), so it has no band ${band}`, StatusCodes.BAD_REQUEST);
     }
@@ -252,7 +265,7 @@ export default class RasterFilterService {
         StatusCodes.CONFLICT,
       );
     }
-    return file;
+    return { file, band };
   };
 
   private toAdmin = async (requestData: RequestData, filters: RasterFilterWithEnabled[]): Promise<AdminRasterFilter[]> => {
@@ -270,6 +283,7 @@ export default class RasterFilterService {
       file_id: f.file_id ? (slugs.get(f.file_id) ?? null) : null,
       created_by: f.created_by,
       pixel_values: f.pixel_values,
+      suggested_mappings: f.suggested_mappings,
       install: installs.get(f.id)!,
     }));
   };

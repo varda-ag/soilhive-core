@@ -6,7 +6,7 @@ import * as turf from '@turf/turf';
 import FileService from '../services/FileService';
 import ConfigService from '../services/ConfigService';
 import { StorageModes } from '../types/enums';
-import { GdalCLI, type Envelope, type GdalInfoOutput } from './GdalCLI';
+import { GdalCLI, type Envelope, type GdalInfoBand, type GdalInfoOutput } from './GdalCLI';
 import { log } from './logger';
 
 export interface RasterMeta {
@@ -192,6 +192,45 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
     ...(epsg !== undefined && { epsg }),
     ...(wkt && { wkt }),
   };
+}
+
+// gdalinfo's raster attribute table codes
+const RAT_STRING = 2;
+const RAT_NAME = 2;
+const RAT_MIN = 3;
+const RAT_MAX = 4;
+const RAT_MIN_MAX = 5;
+
+/**
+ * The class labels a band carries, as `{ label: pixel value }`: from its raster attribute table, else
+ * from its category names. Undefined when it has neither, or none that name a whole-number value.
+ * A label or value that repeats keeps its first pairing.
+ */
+export function categoryLabels(band: GdalInfoBand | undefined): Record<string, number> | undefined {
+  const pairs = band?.rat ? ratPairs(band.rat) : (band?.categories ?? []).map((label, value): [unknown, number] => [label, value]);
+  const labels: Record<string, number> = {};
+  const values = new Set<number>();
+  for (const [label, value] of pairs) {
+    const name = typeof label === 'string' ? label.trim() : '';
+    if (!name || !Number.isInteger(value) || name in labels || values.has(value)) continue;
+    labels[name] = value;
+    values.add(value);
+  }
+  return Object.keys(labels).length > 0 ? labels : undefined;
+}
+
+function ratPairs(rat: NonNullable<GdalInfoBand['rat']>): Array<[unknown, number]> {
+  const fields = rat.fieldDefn ?? [];
+  const label = fields.find(f => f.usage === RAT_NAME) ?? fields.find(f => f.type === RAT_STRING);
+  if (!label) return [];
+  const value = fields.find(f => f.usage === RAT_MIN_MAX) ?? fields.find(f => /^value$/i.test(f.name) && f.type !== RAT_STRING);
+  // Rows that each span a range of values cannot name one pixel value
+  if (!value && fields.some(f => f.usage === RAT_MIN || f.usage === RAT_MAX)) return [];
+  return (rat.row ?? []).map(row => {
+    if (value) return [row.f[label.index], Number(row.f[value.index])];
+    // Without a value column, a row's position is its value, offset when the rows are value bins
+    return [row.f[label.index], (rat.row0Min ?? 0) + row.index * (rat.binSize ?? 1)];
+  });
 }
 
 /** The overview factors of every Raster Filter: its overview tables are named o_<factor>_<table>. */

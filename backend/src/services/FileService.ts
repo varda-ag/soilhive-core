@@ -9,11 +9,12 @@ import { FileStorage } from '@flystorage/file-storage';
 import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
-import { GdalCLI, OgrInfoLayer, GdalInfoOutput } from '../utils/GdalCLI';
+import { GdalCLI, OgrInfoLayer, GdalInfoOutput, GdalInfoBand } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath } from '../interfaces/File';
 import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
+import { categoryLabels } from '../utils/raster';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
@@ -633,6 +634,7 @@ export default class FileService {
         ...(band.max !== undefined && { max_value: band.max }),
         ...(band.noDataValue !== undefined && { no_data_value: band.noDataValue }),
         ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => ov.size) }),
+        ...withCategoryLabels(band),
       }));
 
       const wkt = gdalInfo.coordinateSystem?.wkt;
@@ -910,3 +912,10 @@ export default class FileService {
     return parseInt(result[0].count, 10);
   }
 }
+
+// Shown on the upload so an admin can tell which band a Raster Filter's labels are in. The install
+// reads them again itself, since the File it consumes may predate this.
+const withCategoryLabels = (band: GdalInfoBand): { category_labels?: Record<string, number> } => {
+  const labels = categoryLabels(band);
+  return labels ? { category_labels: labels } : {};
+};

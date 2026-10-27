@@ -9,9 +9,9 @@ A map-based filter is a raster classification layer (land cover, soil groups...)
    ```json
    { "id": "land_cover_2024", "name": "Land Cover 2024", "description": "...", "file_id": "<file id>", "band": 1, "kind": "categorical" }
    ```
-   `id` names the filter's database table, so it can never change: lowercase letters, digits and underscores, starting with a letter, at most 58 characters.
+   `id` names the filter's database table, so it can never change: lowercase letters, digits and underscores, starting with a letter, at most 58 characters. `band` is the one band installed, chosen from the upload's `metadata.raster_bands`; the others are discarded. It can be left out for a single-band raster.
 3. **Wait for the install.** `GET /raster-filters/{id}` reports `install.status`: `queued`, `installing` (with `progress_percentage`), then `installed` or `failed`. A failure lists its causes and remedies in `install.errors`.
-4. **Label it** with `PUT /raster-filters/{id}/mappings`, a `{ "label": pixel value }` object. `pixel_values` on the filter lists the values its raster holds, with their pixel counts. A filter is **enabled** once it is installed and labelled.
+4. **Label it** with `PUT /raster-filters/{id}/mappings`, a `{ "label": pixel value }` object. `pixel_values` on the filter lists the values its raster holds, with their pixel counts. When the raster carried its own labels (a raster attribute table or category names), `suggested_mappings` holds them, for the values it holds, ready to send as the body. A filter is **enabled** once it is installed and labelled.
 5. **Activate it** with `PATCH /raster-filters/{id}` and `{ "active": true }`, or with its toggle in the Admin console.
 
 A new version of a filter's data is a new filter, with a new `id`: an installed filter cannot be reinstalled.
@@ -22,6 +22,7 @@ A new version of a filter's data is a new filter, with a new `id`: an installed 
 - **Categorical**: the chosen band holds whole-number classes, in a type of 32 bits or less. Continuous rasters (floating-point values) cannot be installed yet.
 - **Nodata**: unless the raster is already in EPSG:4326, its band must declare a nodata value that is not one of its classes.
 - At most `MAX_UPLOAD_SIZE_MB` (5000 MB by default).
+- Optionally, its own labels: a raster attribute table, or category names. `POST /files` shows them per band as `category_labels`. Formats that keep them inside the file (ERDAS Imagine `.img`, and GeoTIFF attribute tables) carry them through the upload; GeoTIFF category names live in a `.aux.xml` sidecar and are lost.
 
 ## What the install does to your raster
 
