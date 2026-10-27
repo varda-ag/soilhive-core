@@ -4,6 +4,7 @@ import path from 'path';
 import { fromArrayBuffer, writeArrayBuffer } from 'geotiff';
 import {
   analyzeRasterMeta,
+  categoryLabels,
   formatGdalNodata,
   isMetricProjectedCrs,
   nodataFromImage,
@@ -238,4 +239,84 @@ describe('nodataFromImage', () => {
       expect(parseGdalNodata(formatGdalNodata(value))).toBe(value);
     },
   );
+});
+
+describe('categoryLabels', () => {
+  const rat = (fieldDefn: Array<{ name: string; type: number; usage: number }>, rows: Array<Array<string | number>>, extra = {}) => ({
+    rat: { fieldDefn: fieldDefn.map((f, index) => ({ index, ...f })), row: rows.map((f, index) => ({ index, f })), ...extra },
+  });
+
+  it('reads a value column and a name column', () => {
+    const band = rat(
+      [
+        { name: 'Value', type: 0, usage: 0 },
+        { name: 'Class_Names', type: 2, usage: 2 },
+      ],
+      [
+        [65, 'Acrisols'],
+        [70, 'Cambisols'],
+      ],
+    );
+    expect(categoryLabels(band)).toEqual({ Acrisols: 65, Cambisols: 70 });
+  });
+
+  it('prefers a min-max column for the value, and takes the first string column without a name column', () => {
+    const band = rat(
+      [
+        { name: 'Code', type: 0, usage: 5 },
+        { name: 'Count', type: 0, usage: 1 },
+        { name: 'Label', type: 2, usage: 0 },
+      ],
+      [
+        [11, 900, 'Rangeland'],
+        [1, 40, 'Water'],
+      ],
+    );
+    expect(categoryLabels(band)).toEqual({ Rangeland: 11, Water: 1 });
+  });
+
+  it('uses the row position without a value column, offset by value bins', () => {
+    const columns = [{ name: 'Class', type: 2, usage: 2 }];
+    expect(categoryLabels(rat(columns, [['Nodata'], ['Forest'], ['Crops']]))).toEqual({ Nodata: 0, Forest: 1, Crops: 2 });
+    expect(categoryLabels(rat(columns, [['Forest'], ['Crops']], { row0Min: 10, binSize: 5 }))).toEqual({ Forest: 10, Crops: 15 });
+  });
+
+  it('skips a table whose rows span value ranges', () => {
+    const band = rat(
+      [
+        { name: 'Min', type: 1, usage: 3 },
+        { name: 'Max', type: 1, usage: 4 },
+        { name: 'Class', type: 2, usage: 2 },
+      ],
+      [[0, 0.5, 'Low']],
+    );
+    expect(categoryLabels(band)).toBeUndefined();
+  });
+
+  it('skips blank labels, values that are not whole numbers, and repeats', () => {
+    const band = rat(
+      [
+        { name: 'Value', type: 1, usage: 0 },
+        { name: 'Label', type: 2, usage: 2 },
+      ],
+      [
+        [1, 'Water'],
+        [2, ' '],
+        [2.5, 'Half'],
+        [3, 'Water'],
+        [1, 'Lake'],
+        [4, 'Trees'],
+      ],
+    );
+    expect(categoryLabels(band)).toEqual({ Water: 1, Trees: 4 });
+  });
+
+  it('falls back to category names, the value being the position', () => {
+    expect(categoryLabels({ categories: ['', 'Class one', 'Class two'] })).toEqual({ 'Class one': 1, 'Class two': 2 });
+  });
+
+  it('is undefined for a band without labels', () => {
+    expect(categoryLabels({})).toBeUndefined();
+    expect(categoryLabels(undefined)).toBeUndefined();
+  });
 });

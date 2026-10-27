@@ -14,6 +14,8 @@ export interface RasterFilter {
   resolution_m: number | null;
   // Pixel value → pixel count of the installed band, nodata excluded. NULL for filters installed by the CLI.
   pixel_values: Record<string, number> | null;
+  // Labels the source File carried, for values in pixel_values: a starting point for the mappings, never applied by itself
+  suggested_mappings: Record<string, number> | null;
   created_at: Date;
   updated_at: Date | null;
 }
@@ -55,7 +57,8 @@ export interface CreateRasterFilterInput {
   description: string;
   // A File's public id (its slug)
   file_id: string;
-  band: number;
+  // Optional when the File has a single band
+  band?: number;
   kind: RasterFilterKind;
 }
 

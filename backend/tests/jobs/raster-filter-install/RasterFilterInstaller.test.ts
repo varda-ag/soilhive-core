@@ -118,9 +118,36 @@ describe('processRasterFilterInstall', () => {
     expect(values.length).toBeGreaterThan(0);
     // Soil groups are WRB codes; nodata (0) is not counted
     expect(values.every(value => /^[1-9]\d*$/.test(value))).toBe(true);
+    // The sample carries no labels
+    expect(filter.suggested_mappings).toBeNull();
 
     expect(await dataSource.getRepository(FileEntity).findOneBy({ id: file.id })).toBeNull();
     expect(fs.existsSync(path.join(process.env.LOCAL_STORAGE_ROOT_FOLDER!, file.file_path))).toBe(false);
+  });
+
+  it('suggests the labels the source carried, for the values it holds', async () => {
+    // Every pixel is 7; the attribute table also labels a 9 the raster does not hold
+    const constant = makeRaster('constant.tif', ['-ot', 'Byte', '-scale', '0', '1000000000', '7', '7', '-a_nodata', '255']);
+    fs.writeFileSync(
+      `${constant}.aux.xml`,
+      `<PAMDataset><PAMRasterBand band="1"><GDALRasterAttributeTable>
+        <FieldDefn index="0"><Name>Value</Name><Type>0</Type><Usage>0</Usage></FieldDefn>
+        <FieldDefn index="1"><Name>Class_Names</Name><Type>2</Type><Usage>2</Usage></FieldDefn>
+        <Row index="0"><F>7</F><F>Seven</F></Row>
+        <Row index="1"><F>9</F><F>Nine</F></Row>
+      </GDALRasterAttributeTable></PAMRasterBand></PAMDataset>`,
+    );
+    // ERDAS Imagine keeps the table inside the file, so it survives the upload
+    const labelled = path.join(sourceDir, 'labelled.img');
+    fs.rmSync(labelled, { force: true });
+    execFileSync('gdal_translate', ['-q', '-of', 'HFA', constant, labelled]);
+    await addFilterWithSource(labelled);
+    await processRasterFilterInstall(getJob());
+
+    const filter = await (await getDataSource()).getRepository(RasterFilterEntity).findOneByOrFail({ id: FILTER_ID });
+    expect(Object.keys(filter.pixel_values!)).toEqual(['7']);
+    expect(filter.suggested_mappings).toEqual({ Seven: 7 });
+    expect(filter.mappings).toBeNull();
   });
 
   it('reprojects a projected raster, filling outside its footprint with its nodata', async () => {

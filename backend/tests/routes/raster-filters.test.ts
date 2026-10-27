@@ -188,6 +188,25 @@ describe('Testing /raster-filters routes', () => {
       expect(res.statusCode).toBe(400);
     });
 
+    it('installs the only band of a single-band file when no band is given', async () => {
+      const file = await addRasterFile('single_band.tif');
+      const { band: _, ...withoutBand } = payload(file.slug);
+      const res = await request(app).post('/raster-filters').set(dataAdminAuthHeader).send(withoutBand);
+      expect(res.statusCode).toBe(201);
+      const jobs = await (
+        await getDataSource()
+      ).query(`SELECT data FROM ${PG_BOSS_SCHEMA}.job WHERE name = $1`, [JobQueues.RASTER_FILTER_INSTALL]);
+      expect(jobs[0].data).toMatchObject({ raster_filter_id: NEW_ID, band: 1 });
+    });
+
+    it('requires a band for a multiband file', async () => {
+      const file = await addRasterFile('no_band_chosen.tif', 2);
+      const { band: _, ...withoutBand } = payload(file.slug);
+      const res = await request(app).post('/raster-filters').set(dataAdminAuthHeader).send(withoutBand);
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('2 bands');
+    });
+
     it('refuses a band the file does not have', async () => {
       const file = await addRasterFile('two_bands.tif', 2);
       const res = await request(app)

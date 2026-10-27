@@ -45,6 +45,20 @@ export interface GdalInfoBand {
   overviews?: Array<{ size: [number, number] }>;
   noDataValue?: number;
   metadata?: Record<string, Record<string, string> | undefined>;
+  // Class names, the value being the position. GeoTIFF keeps them only in a .aux.xml sidecar.
+  categories?: string[];
+  rat?: GdalRasterAttributeTable;
+}
+
+/** A band's raster attribute table, as gdalinfo -json reports it. */
+export interface GdalRasterAttributeTable {
+  tableType?: string;
+  // Set on a table whose rows are evenly spaced value bins
+  row0Min?: number;
+  binSize?: number;
+  // `type`: 0 integer, 1 real, 2 string. `usage`: 0 generic, 2 name, 3 min, 4 max, 5 min-max, ...
+  fieldDefn: Array<{ index: number; name: string; type: number; usage: number }>;
+  row: Array<{ index: number; f: Array<string | number> }>;
 }
 
 export interface GdalInfoOutput {

@@ -13,7 +13,7 @@ import { getEntityManager } from '../../utils/data-source';
 import { getErrorMessage } from '../../utils/error';
 import { log } from '../../utils/logger';
 import { GdalCLI, GdalInfoOutput } from '../../utils/GdalCLI';
-import { geographicResolutionM, isGeographicCrs, RASTER_FILTER_OVERVIEW_FACTORS } from '../../utils/raster';
+import { categoryLabels, geographicResolutionM, isGeographicCrs, RASTER_FILTER_OVERVIEW_FACTORS } from '../../utils/raster';
 import { StorageModes } from '../../types/enums';
 import FileService from '../../services/FileService';
 import ConfigService from '../../services/ConfigService';
@@ -141,6 +141,8 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
     if (Object.keys(pixelValues).length === 0) {
       throw new JobError('RFI_NO_VALID_PIXELS', params);
     }
+    // Read from the source, not the File's metadata, which predates them on older uploads
+    const suggestedMappings = suggestedLabels(categoryLabels(info.bands?.[band - 1]), pixelValues);
 
     await reportProgress(VALUE_COUNT_CEILING, `Finishing map-based filter '${id}'...`);
     await entityManager.transaction(async em => {
@@ -155,7 +157,7 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
       await em.query(`ALTER TABLE "${schema}"."${staging}" RENAME TO "${id}"`);
       const result = await em
         .getRepository(RasterFilterEntity)
-        .update({ id }, { pixel_values: pixelValues, resolution_m: resolutionM, file_id: null });
+        .update({ id }, { pixel_values: pixelValues, suggested_mappings: suggestedMappings, resolution_m: resolutionM, file_id: null });
       if (!result.affected) {
         throw new JobError('RFI_FILTER_NOT_FOUND', { raster_filter_id: id });
       }
@@ -226,6 +228,12 @@ async function localSource(file: FileEntity, workDir: string): Promise<{ sourceP
   }
   const { mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(file.file_path);
   return { sourcePath: mainFilePath, tempZipExtractPath };
+}
+
+/** The source's labels for the values the installed raster holds, or null when none of them is labelled. */
+function suggestedLabels(labels: Record<string, number> | undefined, pixelValues: Record<string, number>): Record<string, number> | null {
+  const present = Object.entries(labels ?? {}).filter(([, value]) => String(value) in pixelValues);
+  return present.length > 0 ? Object.fromEntries(present) : null;
 }
 
 /** Pixel value → pixel count over the base table, nodata excluded. Exact, where an overview would miss rare classes. */

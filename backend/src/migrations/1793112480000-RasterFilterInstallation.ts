@@ -18,6 +18,7 @@ export class RasterFilterInstallation1793112480000 implements MigrationInterface
     await queryRunner.query(`ALTER TABLE "raster_filters" ADD COLUMN IF NOT EXISTS "created_by" text`);
     await queryRunner.query(`ALTER TABLE "raster_filters" ADD COLUMN IF NOT EXISTS "resolution_m" int`);
     await queryRunner.query(`ALTER TABLE "raster_filters" ADD COLUMN IF NOT EXISTS "pixel_values" jsonb`);
+    await queryRunner.query(`ALTER TABLE "raster_filters" ADD COLUMN IF NOT EXISTS "suggested_mappings" jsonb`);
     // A new filter stays hidden until an admin activates it
     await queryRunner.query(`ALTER TABLE "raster_filters" ALTER COLUMN "active" SET DEFAULT false`);
     await queryRunner.query(
@@ -60,6 +61,7 @@ export class RasterFilterInstallation1793112480000 implements MigrationInterface
     await queryRunner.query(`ALTER TABLE "raster_filters" DROP CONSTRAINT IF EXISTS "FK_raster_filters_file_id_files_id"`);
     await queryRunner.query(`ALTER TABLE "raster_filters" DROP CONSTRAINT IF EXISTS "CHK_raster_filters_kind"`);
     await queryRunner.query(`ALTER TABLE "raster_filters" ALTER COLUMN "active" SET DEFAULT true`);
+    await queryRunner.query(`ALTER TABLE "raster_filters" DROP COLUMN IF EXISTS "suggested_mappings"`);
     await queryRunner.query(`ALTER TABLE "raster_filters" DROP COLUMN IF EXISTS "pixel_values"`);
     await queryRunner.query(`ALTER TABLE "raster_filters" DROP COLUMN IF EXISTS "resolution_m"`);
     await queryRunner.query(`ALTER TABLE "raster_filters" DROP COLUMN IF EXISTS "created_by"`);
