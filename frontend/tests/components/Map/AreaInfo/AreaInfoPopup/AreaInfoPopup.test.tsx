@@ -7,16 +7,18 @@ import { type LngLat } from 'maplibre-gl';
 jest.mock('react-map-gl/maplibre', () => ({
   Popup: ({
     children,
+    anchor,
     longitude,
     latitude,
     onClose,
   }: {
     children: React.ReactNode;
+    anchor: string;
     longitude: number;
     latitude: number;
     onClose: () => void;
   }) => (
-    <div data-testid="popup" data-longitude={longitude} data-latitude={latitude}>
+    <div data-testid="popup" data-anchor={anchor} data-longitude={longitude} data-latitude={latitude}>
       <button data-testid="popup-close" onClick={onClose} />
       {children}
     </div>
@@ -49,6 +51,12 @@ describe('AreaInfoPopup', () => {
     const popup = screen.getByTestId('popup');
     expect(popup).toHaveAttribute('data-longitude', '12.34');
     expect(popup).toHaveAttribute('data-latitude', '56.78');
+  });
+
+  it('anchors the popup at its top-left corner so the tip stays on the point whatever the card height', () => {
+    render(<AreaInfoPopup selectedPoint={mockSelectedPoint} selection={mockSelection} onClose={jest.fn()} />);
+
+    expect(screen.getByTestId('popup')).toHaveAttribute('data-anchor', 'top-left');
   });
 
   it('renders AreaInfoContent with selection and locationName', () => {
