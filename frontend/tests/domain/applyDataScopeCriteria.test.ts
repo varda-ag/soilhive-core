@@ -1,4 +1,4 @@
-import { applyDataScopeCriteria } from '../../src/domain';
+import { applyDataScopeCriteria, withoutDataScopeCriteria } from '../../src/domain';
 import { GISDataType, type FilterCriteria } from 'types/backend';
 
 describe('applyDataScopeCriteria', () => {
@@ -58,5 +58,29 @@ describe('applyDataScopeCriteria', () => {
     applyDataScopeCriteria(prev, 'type', []);
     applyDataScopeCriteria(prev, 'visibility', []);
     expect(prev).toEqual({ data_types: [GISDataType.POINT], visibility: 'public' });
+  });
+});
+
+describe('withoutDataScopeCriteria', () => {
+  it('removes data_types and visibility and keeps the rest', () => {
+    const criteria: FilterCriteria = { data_types: [GISDataType.POINT], visibility: 'public', min_depth: 10 };
+    expect(withoutDataScopeCriteria(criteria)).toEqual({ min_depth: 10 });
+  });
+
+  it('returns an empty object for empty criteria', () => {
+    expect(withoutDataScopeCriteria({})).toEqual({});
+  });
+
+  it('deletes the keys instead of setting them to undefined', () => {
+    const result = withoutDataScopeCriteria({ data_types: [GISDataType.RASTER], visibility: 'private' });
+    expect('data_types' in result).toBe(false);
+    expect('visibility' in result).toBe(false);
+  });
+
+  it('does not mutate the input', () => {
+    const criteria: FilterCriteria = { data_types: [GISDataType.POINT], visibility: 'public' };
+    const result = withoutDataScopeCriteria(criteria);
+    expect(result).not.toBe(criteria);
+    expect(criteria).toEqual({ data_types: [GISDataType.POINT], visibility: 'public' });
   });
 });

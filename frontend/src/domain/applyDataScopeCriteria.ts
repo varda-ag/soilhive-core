@@ -29,3 +29,15 @@ export const applyDataScopeCriteria = (prevFilters: FilterCriteria, name: string
   }
   return prevFilters;
 };
+
+/**
+ * Returns the criteria without the data-scope keys (`data_types`, `visibility`), so the
+ * coverage filter stays the same when only the "Data type" / "Data access" selection
+ * changes. Keys are deleted, not set to undefined, for the same Object.keys reason as above.
+ */
+export const withoutDataScopeCriteria = (criteria: FilterCriteria): FilterCriteria => {
+  const next = { ...criteria };
+  delete next.data_types;
+  delete next.visibility;
+  return next;
+};
