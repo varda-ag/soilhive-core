@@ -68,11 +68,13 @@ function mockCan(capabilitiesById: Record<string, Capability[]>) {
   });
 }
 
-function renderWithDatasets(availableDatasets: unknown[], { isLoadingFilterId = false }: { isLoadingFilterId?: boolean } = {}) {
+function renderWithDatasets(
+  availableDatasets: unknown[],
+  filterState: { filterId: string | undefined; isLoadingFilterId: boolean } = { filterId: 'mock-filter-id', isLoadingFilterId: false },
+) {
   const contextValue = {
     availableDatasets,
-    filterId: isLoadingFilterId ? undefined : 'mock-filter-id',
-    isLoadingFilterId,
+    ...filterState,
     datasetFrontendFilters: { type: [] },
     datasetsSummary: { count: 5, dataPoints: 1000, layers: 3, depth: '0-30', date: '2020 - 2024' },
   } as unknown as React.ContextType<typeof AvailabilityContext>;
@@ -131,7 +133,18 @@ describe('DatasetsSidebar', () => {
   it('disables explore and download buttons while the filter id is loading', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
 
-    renderWithDatasets([{ id: 'test-dataset', visibility: 'public' }], { isLoadingFilterId: true });
+    // During the debounce the previous filter's id is still set
+    renderWithDatasets([{ id: 'test-dataset', visibility: 'public' }], { filterId: 'previous-filter-id', isLoadingFilterId: true });
+
+    expect(screen.getByRole('button', { name: /explore/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();
+  });
+
+  it('disables explore and download buttons when the filter id is missing after loading', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
+
+    // e.g. the full-filter POST failed
+    renderWithDatasets([{ id: 'test-dataset', visibility: 'public' }], { filterId: undefined, isLoadingFilterId: false });
 
     expect(screen.getByRole('button', { name: /explore/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();

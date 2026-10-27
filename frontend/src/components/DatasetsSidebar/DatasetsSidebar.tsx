@@ -31,8 +31,9 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const navigate = useNavigate();
 
   // The list comes from the coverage filter and updates at once on a "Data type" / "Data access"
-  // change; filterId (passed to Explore/Download) is the full filter, which is stale or undefined
-  // until its POST settles. Both buttons wait for it so the URL matches the list.
+  // change; filterId (passed to Explore/Download) is the full filter, which is stale during the
+  // debounce, undefined while its POST is pending, and stays undefined if the POST fails
+  const isFilterIdReady = !!filterId && !isLoadingFilterId;
 
   const previewDatasetIds = useMemo(
     () =>
@@ -82,7 +83,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           <Button
             className={styles.PreviewButton}
             type="secondary"
-            isDisabled={isLoadingFilterId || previewDatasetIds.length === 0}
+            isDisabled={!isFilterIdReady || previewDatasetIds.length === 0}
             onClick={() => {
               const searchParams = getSearchParams(previewDatasetIds);
               if (datasetFrontendFilters.type.length) {
@@ -95,7 +96,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
           <Button
             className={styles.DownloadButton}
-            isDisabled={isLoadingFilterId || isMobileDevice || downloadDatasetIds.length === 0}
+            isDisabled={!isFilterIdReady || isMobileDevice || downloadDatasetIds.length === 0}
             onClick={handleDownloadClick}
           >
             <DownloadIcon />
