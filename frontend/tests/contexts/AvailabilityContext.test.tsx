@@ -221,6 +221,98 @@ describe('AvailabilityContext', () => {
     expect(result.current.isNoFilteredData).toBe(true);
   });
 
+  describe('data scope selection', () => {
+    const rasterPrivateDataset: FilteredDatasetSummary = {
+      id: 'dataset-raster-private',
+      name: 'Raster Private Dataset',
+      data_type: GISDataType.RASTER,
+      visibility: 'private',
+      dataset_layer_count: 0,
+      raster_layer_count: 7,
+    };
+
+    beforeEach(() => {
+      capabilitiesById[rasterPrivateDataset.id] = [Capability.DOWNLOAD];
+      (useFilteredCoverageQuery as jest.Mock).mockReturnValue({
+        data: { datasets: [publicDataset, privateDownloadableDataset, rasterPrivateDataset], raster_filters: {} },
+        isLoading: false,
+      });
+    });
+
+    afterAll(() => {
+      delete capabilitiesById[rasterPrivateDataset.id];
+    });
+
+    it('datasetsSummary counts only the datasets of the selected data type', () => {
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => {
+        result.current.setFrontendFilters([GISDataType.RASTER], 'type');
+      });
+
+      expect(result.current.datasetsSummary.count).toBe(1);
+      expect(result.current.datasetsSummary.layers).toBe(7);
+      expect(result.current.datasetsSummary.dataPoints).toBe(0);
+    });
+
+    it('availableDatasets and selectAllDatasets exclude datasets outside the selected visibility', () => {
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => {
+        result.current.setFrontendFilters(['public'], 'visibility');
+      });
+      act(() => {
+        result.current.selectAllDatasets(true);
+      });
+
+      expect(result.current.availableDatasets.map(dataset => dataset.id)).toEqual([publicDataset.id]);
+      expect(result.current.selectedDatasets).toEqual([publicDataset.id]);
+    });
+
+    it('filteredDatasets keeps only the datasets of the selected data type', () => {
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => {
+        result.current.setFrontendFilters([GISDataType.RASTER], 'type');
+      });
+
+      expect(result.current.filteredDatasets.map(dataset => dataset.id)).toEqual([rasterPrivateDataset.id]);
+    });
+
+    it('isNoFilteredData is true when no dataset matches both the data type and the visibility', () => {
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => {
+        result.current.setFrontendFilters([GISDataType.RASTER], 'type');
+      });
+      act(() => {
+        result.current.setFrontendFilters(['public'], 'visibility');
+      });
+
+      expect(result.current.isNoFilteredData).toBe(true);
+    });
+
+    it('narrows the datasets query results the same way when SPLIT_FILTERING_QUERIES is set', () => {
+      mockSplitFilteringQueries = true;
+      (useFilteredCoverageQuery as jest.Mock).mockReturnValue({ data: undefined, isLoading: false });
+      (useFilteredDatasetsQuery as jest.Mock).mockReturnValue({
+        data: [publicDataset, privateDownloadableDataset, rasterPrivateDataset],
+        isLoading: false,
+      });
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => {
+        result.current.setFrontendFilters([GISDataType.POINT], 'type');
+      });
+      act(() => {
+        result.current.selectAllDatasets(true);
+      });
+
+      expect(result.current.datasetsSummary.count).toBe(2);
+      expect(result.current.selectedDatasets.sort()).toEqual([privateDownloadableDataset.id, publicDataset.id].sort());
+    });
+  });
+
   describe('coverage filter', () => {
     const FULL_FILTER_ID = 'full-filter';
     const COVERAGE_FILTER_ID = 'coverage-filter';
