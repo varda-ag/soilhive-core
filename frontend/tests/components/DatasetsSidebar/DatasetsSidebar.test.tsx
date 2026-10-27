@@ -68,10 +68,11 @@ function mockCan(capabilitiesById: Record<string, Capability[]>) {
   });
 }
 
-function renderWithDatasets(availableDatasets: unknown[]) {
+function renderWithDatasets(availableDatasets: unknown[], { isLoadingFilterId = false }: { isLoadingFilterId?: boolean } = {}) {
   const contextValue = {
     availableDatasets,
-    filterId: 'mock-filter-id',
+    filterId: isLoadingFilterId ? undefined : 'mock-filter-id',
+    isLoadingFilterId,
     datasetFrontendFilters: { type: [] },
     datasetsSummary: { count: 5, dataPoints: 1000, layers: 3, depth: '0-30', date: '2020 - 2024' },
   } as unknown as React.ContextType<typeof AvailabilityContext>;
@@ -122,6 +123,15 @@ describe('DatasetsSidebar', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
 
     renderWithDatasets([]);
+
+    expect(screen.getByRole('button', { name: /explore/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();
+  });
+
+  it('disables explore and download buttons while the filter id is loading', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
+
+    renderWithDatasets([{ id: 'test-dataset', visibility: 'public' }], { isLoadingFilterId: true });
 
     expect(screen.getByRole('button', { name: /explore/i })).toBeDisabled();
     expect(screen.getByRole('button', { name: /download/i })).toBeDisabled();

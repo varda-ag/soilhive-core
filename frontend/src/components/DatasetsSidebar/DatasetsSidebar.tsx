@@ -23,11 +23,16 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { t } = useTranslation(['availability', 'common']);
 
   const { isDesktopLayout, isMobileDevice } = useDevice();
-  const { availableDatasets, filterId, datasetFrontendFilters, datasetsSummary, isCoverageLoading, isDatasetsLoading } = useAvailability();
+  const { availableDatasets, filterId, isLoadingFilterId, datasetFrontendFilters, datasetsSummary, isCoverageLoading, isDatasetsLoading } =
+    useAvailability();
   const { selectionType, locationName } = useAvailabilityMap();
   const { can } = useEntitlements(EntitlementScope.DATASETS);
 
   const navigate = useNavigate();
+
+  // The list comes from the coverage filter and updates at once on a "Data type" / "Data access"
+  // change; filterId (passed to Explore/Download) is the full filter, which is stale or undefined
+  // until its POST settles. Both buttons wait for it so the URL matches the list.
 
   const previewDatasetIds = useMemo(
     () =>
@@ -77,7 +82,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           <Button
             className={styles.PreviewButton}
             type="secondary"
-            isDisabled={previewDatasetIds.length === 0}
+            isDisabled={isLoadingFilterId || previewDatasetIds.length === 0}
             onClick={() => {
               const searchParams = getSearchParams(previewDatasetIds);
               if (datasetFrontendFilters.type.length) {
@@ -90,7 +95,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
           <Button
             className={styles.DownloadButton}
-            isDisabled={isMobileDevice || downloadDatasetIds.length === 0}
+            isDisabled={isLoadingFilterId || isMobileDevice || downloadDatasetIds.length === 0}
             onClick={handleDownloadClick}
           >
             <DownloadIcon />
