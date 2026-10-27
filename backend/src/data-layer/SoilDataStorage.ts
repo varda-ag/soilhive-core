@@ -1453,7 +1453,9 @@ export const buildRasterSql = (
     if (!values || values.length === 0) continue;
 
     const table = selectOverviewTable(baseTable, aoiAreaM2, resolutionM);
-    const clippedRaster = `clipped_${table}`;
+    // Numbered, not named after the table: clipped_o_32_<id> can pass Postgres' 63 characters, and
+    // two ids truncated to the same name would clash
+    const clippedRaster = `clipped_${clippedRasterCtes.length}`;
 
     clippedRasterCtes.push(`${clippedRaster} AS MATERIALIZED (
       SELECT ST_Union(ST_Clip(rr.rast, aoi.geom, touched => TRUE)) AS rast

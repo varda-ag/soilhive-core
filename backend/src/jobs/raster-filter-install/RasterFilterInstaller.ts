@@ -7,6 +7,8 @@ import { pipeline } from 'stream/promises';
 import { Readable } from 'stream';
 import RasterFilterEntity from '../../entities/RasterFilter';
 import FileEntity from '../../entities/File';
+import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
+import RasterLayerAssetEntity from '../../entities/RasterLayerAsset';
 import { RasterFilterInstallJob } from '../../interfaces/Job';
 import { JobError } from '../../errors/JobError';
 import { getEntityManager } from '../../utils/data-source';
@@ -161,18 +163,8 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
       }
     });
 
-    // After the commit, as storage cannot take part in it. A File left behind is unreferenced and
-    // PENDING, which orphan cleanup collects.
-    try {
-      await new FileService().deleteFileFromStorage(file.file_path);
-      await entityManager.getRepository(FileEntity).delete({ id: file.id });
-    } catch (error) {
-      log.warn('Failed to delete an installed raster filter source file', {
-        raster_filter_id: id,
-        file_id: file.id,
-        error: getErrorMessage(error),
-      });
-    }
+    // After the commit, as storage cannot take part in it
+    await deleteSourceFile(entityManager, file, id);
     await reportProgress(100, `Map-based filter '${id}' installed`);
   } catch (error) {
     await dropStagingTables(entityManager, schema, staging);
@@ -241,6 +233,32 @@ async function countPixelValues(entityManager: EntityManager, schema: string, ta
     );
     return Object.fromEntries(rows.map(row => [row.value, Number(row.count)]));
   });
+}
+
+/**
+ * Deletes an installed Raster Filter's source File (docs/adr/0066): its row, then its bytes, in one
+ * transaction, so a failed storage delete rolls the row back and leaves the File PENDING and
+ * unreferenced, for orphan cleanup. A File a Dataset took while the install was queued is kept, as
+ * deleting it would break that Dataset.
+ */
+async function deleteSourceFile(entityManager: EntityManager, file: FileEntity, rasterFilterId: string): Promise<void> {
+  const context = { raster_filter_id: rasterFilterId, file_id: file.id };
+  try {
+    await entityManager.transaction(async em => {
+      const [mapping, asset] = await Promise.all([
+        em.getRepository(DatasetFileMappingEntity).findOneBy({ file_id: file.id }),
+        em.getRepository(RasterLayerAssetEntity).findOneBy({ file_id: file.id }),
+      ]);
+      if (mapping || asset) {
+        log.warn('Kept an installed raster filter source file that a dataset uses', context);
+        return;
+      }
+      await em.getRepository(FileEntity).delete({ id: file.id });
+      await new FileService().deleteFileFromStorage(file.file_path);
+    });
+  } catch (error) {
+    log.warn('Failed to delete an installed raster filter source file', { ...context, error: getErrorMessage(error) });
+  }
 }
 
 /** Drops whatever this job's staging tables reached. A reaped job never gets here: orphan cleanup sweeps those. */

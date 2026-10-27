@@ -8,5 +8,5 @@ Every other upload is kept: a Raster Layer's COG, a Dataset's files. A Raster Fi
 
 - `file_id` means "the File awaiting Installation" and is NULL on every installed Raster Filter. Provenance can't be recovered for filters installed under this rule.
 - `POST /raster-filters` requires exclusive ownership of the File. It returns 409 if any Dataset File Mapping, Raster Layer Asset or other Raster Filter references it, since the job will destroy it.
-- The File is deleted after the rename transaction commits. If that delete fails, the File is left `PENDING` and unreferenced, and orphan cleanup collects it.
-- A failed install keeps the File, so `DELETE` + `POST` can retry without re-uploading. While a row references the File, orphan cleanup skips it and `DELETE /files/{id}` returns 409.
+- The File is deleted after the rename transaction commits: its row, then its bytes, in one transaction. If the storage delete fails, the row is rolled back, so the File is left `PENDING` and unreferenced, and orphan cleanup collects it. A File a Dataset references anyway is kept rather than deleted.
+- A failed install keeps the File, so `DELETE` + `POST` can retry without re-uploading. While a row references the File, orphan cleanup skips it, and `DELETE /files/{id}` and attaching it to a Dataset return 409.

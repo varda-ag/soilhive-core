@@ -5,10 +5,13 @@ import path from 'path';
 import { v7 as uuidv7 } from 'uuid';
 import { Job } from 'pg-boss';
 import FileEntity from '../../../src/entities/File';
+import DatasetFileMappingEntity from '../../../src/entities/DatasetFileMapping';
 import RasterFilterEntity from '../../../src/entities/RasterFilter';
 import { RasterFilterInstallJob } from '../../../src/interfaces/Job';
 import { processRasterFilterInstall, stagingTableName } from '../../../src/jobs/raster-filter-install/RasterFilterInstaller';
 import * as PgBossModule from '../../../src/services/PgBoss';
+import FileService from '../../../src/services/FileService';
+import { addDataMapping, addDataset, addDatasetFileMapping } from '../../../src/utils/mock';
 import { JobQueues } from '../../../src/types/enums';
 import { getDataSource } from '../../../src/utils/data-source';
 import { rasterFilterTables } from '../../../src/utils/raster';
@@ -175,6 +178,32 @@ describe('processRasterFilterInstall', () => {
     await expect(processRasterFilterInstall(job)).rejects.toMatchObject({ code: 'RFI_NAME_TAKEN', params: { table: `o_16_${FILTER_ID}` } });
     expect(await relationsLike(`%${stagingTableName(job.id)}`)).toEqual([]);
     expect(await relationsLike(FILTER_ID)).toEqual([]);
+  });
+
+  it('keeps the File when a dataset took it while the install was queued', async () => {
+    const file = await addFilterWithSource(path.join(sourceDir, 'small.tif'));
+    const dataset = await addDataset('dataset-taking-the-file', [0, 0, 1, 1]);
+    const mapping = await addDatasetFileMapping(dataset.id, (await addDataMapping({})).id);
+    const dataSource = await getDataSource();
+    // Set up directly: DatasetFileMappingService refuses the source of a raster filter
+    await dataSource.getRepository(DatasetFileMappingEntity).update({ id: mapping.id }, { file_id: file.id });
+    await processRasterFilterInstall(getJob());
+
+    expect(await relationsLike(`%${FILTER_ID}`)).toEqual([...rasterFilterTables(FILTER_ID)].sort());
+    expect(await dataSource.getRepository(FileEntity).findOneBy({ id: file.id })).not.toBeNull();
+    expect(fs.existsSync(path.join(process.env.LOCAL_STORAGE_ROOT_FOLDER!, file.file_path))).toBe(true);
+  });
+
+  it('keeps the File row for orphan cleanup when its bytes cannot be deleted', async () => {
+    const file = await addFilterWithSource(path.join(sourceDir, 'small.tif'));
+    jest
+      .spyOn(FileService, 'getStorageEngine')
+      .mockReturnValue({ deleteFile: () => Promise.reject(new Error('storage unavailable')) } as any);
+    await processRasterFilterInstall(getJob());
+
+    const dataSource = await getDataSource();
+    expect((await dataSource.getRepository(RasterFilterEntity).findOneByOrFail({ id: FILTER_ID })).file_id).toBeNull();
+    expect(await dataSource.getRepository(FileEntity).findOneBy({ id: file.id })).not.toBeNull();
   });
 
   it('fails when the raster filter was deleted before it ran', async () => {

@@ -408,4 +408,27 @@ describe('Testing /raster-filters routes', () => {
     const res = await request(app).delete(`/files/${file.slug}`).set(dataAdminAuthHeader);
     expect(res.statusCode).toBe(409);
   });
+
+  it('dataset file mappings refuse the source of a raster filter', async () => {
+    const file = await addRasterFile('wanted_by_dataset.tif');
+    const created = await request(app)
+      .post('/raster-filters')
+      .set(dataAdminAuthHeader)
+      .send({ id: NEW_ID, name: 'New', description: '', file_id: file.slug, band: 1, kind: 'categorical' });
+    expect(created.statusCode).toBe(201);
+    const dataset = await addDataset('dataset-wanting-the-file', [0, 0, 1, 1]);
+
+    const post = await request(app)
+      .post(`/datasets/${dataset.slug}/dataset-file-mapping`)
+      .set(dataAdminAuthHeader)
+      .send({ fileID: file.slug });
+    expect(post.statusCode).toBe(409);
+
+    const mapping = await addDatasetFileMapping(dataset.id, (await addDataMapping({})).id);
+    const patch = await request(app)
+      .patch(`/datasets/${dataset.slug}/dataset-file-mapping/${mapping.id}`)
+      .set(dataAdminAuthHeader)
+      .send({ fileID: file.slug });
+    expect(patch.statusCode).toBe(409);
+  });
 });

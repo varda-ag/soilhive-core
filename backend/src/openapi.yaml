@@ -1097,7 +1097,7 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or the file is the source of a raster filter
           content:
             application/json:
               schema:
@@ -1209,7 +1209,7 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or the file is the source of a raster filter
           content:
             application/json:
               schema:
