@@ -1,4 +1,4 @@
-INSERT INTO "raster_filters" (id,name,description) VALUES ('land_cover','Land cover','The Copernicus Global Land Service (CGLS) provides a series of biogeophysical products (i.e. Leaf Area Index, Land Surface Temperature, soil moisture, etc.) on the status and evolution of land surface at global scale.') ON CONFLICT(id) DO NOTHING;
+INSERT INTO "raster_filters" (id,name,description,active) VALUES ('land_cover','Land cover','The Copernicus Global Land Service (CGLS) provides a series of biogeophysical products (i.e. Leaf Area Index, Land Surface Temperature, soil moisture, etc.) on the status and evolution of land surface at global scale.', true) ON CONFLICT(id) DO NOTHING;
 
 UPDATE raster_filters SET mappings = '
 {

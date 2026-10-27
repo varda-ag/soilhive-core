@@ -11,7 +11,8 @@ import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from './EntitlementService';
 import { EntitlementScope } from '../types/Entitlements';
 
-const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
+// Global Raster Filter sources run to several GB (docs/adr/0067)
+const DEFAULT_MAX_UPLOAD_SIZE_MB = 5000;
 const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
 const DEFAULT_S3_STORAGE_QUEUE_SIZE = 4;
 

@@ -1,7 +1,9 @@
 import { getDataSource } from './data-source';
-import { isQueryCacheEnabled, resetQueryCache } from './query-cache';
+import { resetQueryCache } from './query-cache';
 import { log } from './logger';
 import { getErrorMessage } from './error';
+import { isJest } from './utils';
+import { resetEnabledRasterFilterTablesCache } from '../data-layer/EnabledRasterFilters';
 
 // Cross-node cache invalidation signal (see docs/adr/0008): the query cache is
 // per-process and nodes have no channel to each other, but they all share
@@ -9,7 +11,13 @@ import { getErrorMessage } from './error';
 // every node polls it and drops its local cache when the version changes, so
 // post-ingest staleness is bounded by the poll interval instead of the TTL.
 // The TTLs stay on as a backstop in case the watcher is down.
+// The enabled Raster Filter list is cleared with it, whether or not the query cache is on.
 const POLL_INTERVAL_MS = 30_000;
+
+const resetCaches = (): void => {
+  resetQueryCache();
+  resetEnabledRasterFilterTablesCache();
+};
 
 // Single-row table
 const SEED_ROW_SQL = `INSERT INTO cache_epoch (id) VALUES (1) ON CONFLICT (id) DO NOTHING`;
@@ -45,7 +53,7 @@ export const bumpCacheEpoch = async (): Promise<void> => {
     const rows: { version: string }[] = await dataSource.query(
       'UPDATE cache_epoch SET version = version + 1, updated_at = now() WHERE id = 1 RETURNING version',
     );
-    resetQueryCache();
+    resetCaches();
     log.info('Cache epoch bumped', { version: rows[0]?.version });
   } catch (error) {
     log.warn('Failed to bump cache epoch; other nodes will serve stale data until TTL', { error: getErrorMessage(error) });
@@ -56,7 +64,7 @@ const poll = async (): Promise<void> => {
   try {
     const version = await readVersion();
     if (knownVersion !== undefined && version !== knownVersion) {
-      resetQueryCache();
+      resetCaches();
       log.info('Query cache cleared: data changed on another node', { version });
     }
     knownVersion = version;
@@ -66,7 +74,7 @@ const poll = async (): Promise<void> => {
 };
 
 export const startCacheEpochWatcher = async (): Promise<void> => {
-  if (pollTimer || !isQueryCacheEnabled()) {
+  if (pollTimer || isJest()) {
     return;
   }
   const dataSource = await getDataSource();

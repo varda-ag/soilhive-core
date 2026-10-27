@@ -1283,7 +1283,14 @@ describe('getEnabledRasterFilterTables', () => {
 
   it('reads on the pool manager', async () => {
     const tables = await getEnabledRasterFilterTables(await getEntityManager());
-    expect(tables.sort()).toEqual(['land_cover', 'soil_groups']);
+    expect(tables.map(t => t.id).sort()).toEqual(['land_cover', 'soil_groups']);
+  });
+
+  it('carries each filter resolution for the overview choice', async () => {
+    await (await getEntityManager()).query("UPDATE raster_filters SET resolution_m = 928 WHERE id = 'soil_groups'");
+    const tables = await getEnabledRasterFilterTables(await getEntityManager());
+    expect(tables.find(t => t.id === 'soil_groups')).toEqual({ id: 'soil_groups', resolutionM: 928 });
+    expect(tables.find(t => t.id === 'land_cover')).toEqual({ id: 'land_cover', resolutionM: null });
   });
 
   // An uncommitted change is visible only on the transaction's own connection, so this fails if
@@ -1294,7 +1301,7 @@ describe('getEnabledRasterFilterTables', () => {
     await queryRunner.startTransaction();
     try {
       await queryRunner.query("UPDATE raster_filters SET active = false WHERE id = 'land_cover'");
-      expect(await getEnabledRasterFilterTables(queryRunner.manager)).toEqual(['soil_groups']);
+      expect((await getEnabledRasterFilterTables(queryRunner.manager)).map(t => t.id)).toEqual(['soil_groups']);
     } finally {
       await queryRunner.rollbackTransaction();
       await queryRunner.release();

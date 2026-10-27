@@ -10,7 +10,8 @@ import { Capability } from '../types/enums';
 import { FilteredDatasetSummary, FilteredDataset, FilterCriteria, FilteredRasterLayer, DataFilter } from '../interfaces/DatasetFilter';
 import { SoilDataSample } from '../interfaces/SoilDataSample';
 import assert from 'assert';
-import RasterFilterService from '../services/RasterFilterService';
+import { EnabledRasterFilterTable } from '../interfaces/RasterFilter';
+import { getEnabledRasterFilterTables } from './EnabledRasterFilters';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
 import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
@@ -26,7 +27,6 @@ import { classLabel } from '../utils/soilPropertyClasses';
 import { existingDatasetSlugs } from '../utils/slugs';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
-const rasterFilterService = new RasterFilterService();
 const entitlementService = new EntitlementService();
 
 export default class SoilDataStorage {
@@ -873,11 +873,11 @@ export default class SoilDataStorage {
     // Current query is composed of an "aoi" CTE and subqueries wrapped in arrays in SELECT clauses
     const selectClauses: string[] = [];
 
-    for (const baseTable of enabledRasterFilterTables) {
+    for (const { id: baseTable, resolutionM } of enabledRasterFilterTables) {
       const outputColumn = `#${baseTable}`; // Prefixing column name with "#" to detect it in the results
       const values = raster_filters?.[baseTable];
       const hasFilteringValues = values && values.length > 0;
-      const table = selectOverviewTable(baseTable, aoiAreaM2);
+      const table = selectOverviewTable(baseTable, aoiAreaM2, resolutionM);
       if (hasFilteringValues) {
         // Adding same input values
         selectClauses.push(`ARRAY[${values.join(',')}] as "${outputColumn}"`);
@@ -929,28 +929,8 @@ export const hasRasterFilters = (filters: FilterCriteria): boolean => {
   return Boolean(filters.raster_filters && Object.keys(filters.raster_filters).length > 0);
 };
 
-const ENABLED_RASTER_FILTER_TABLES_TTL_MS = 30 * 60 * 1000;
-let enabledRasterFilterTablesCache: { value: string[]; expiresAt: number } | undefined;
-
-// Test hook: the cache outlives any single DB state, so it must be cleared whenever
-// the underlying raster_filters table is reset (e.g. clearDatabase between tests),
-// otherwise a value cached while the table was empty leaks across tests.
-export const resetEnabledRasterFilterTablesCache = (): void => {
-  enabledRasterFilterTablesCache = undefined;
-};
-
-// Reads on the caller's entityManager, never a connection of its own: a request already holds one
-// pooled connection for its transaction, and waiting on a second deadlocks the pool once every
-// connection is held by a request doing the same.
-export const getEnabledRasterFilterTables = async (entityManager: EntityManager): Promise<string[]> => {
-  if (enabledRasterFilterTablesCache && enabledRasterFilterTablesCache.expiresAt > Date.now()) {
-    return enabledRasterFilterTablesCache.value;
-  }
-  const enabledFilters = await rasterFilterService.getActiveRasterFilters({ entityManager, entitlements: {} });
-  const value = enabledFilters.map(f => f.id);
-  enabledRasterFilterTablesCache = { value, expiresAt: Date.now() + ENABLED_RASTER_FILTER_TABLES_TTL_MS };
-  return value;
-};
+// Kept importable from here, where they used to live
+export { getEnabledRasterFilterTables, resetEnabledRasterFilterTablesCache } from './EnabledRasterFilters';
 
 const decodeRasterColumns = (row: any): any => {
   const output = new Map<string, number[]>();
@@ -1454,7 +1434,7 @@ export const buildDatasetFilterClauses = (
  */
 export const buildRasterSql = (
   filter: DataFilter,
-  enabledRasterFilterTables: string[],
+  enabledRasterFilterTables: EnabledRasterFilterTable[],
 ): { ctes: string; usesMatchingFeatures: boolean } => {
   const { geometryIds, parameters: filters, area: aoiAreaM2 } = filter;
   const hasGeometry = geometryIds.length > 0;
@@ -1468,11 +1448,11 @@ export const buildRasterSql = (
   const joinTables: string[] = [];
   const whereClauses: string[] = [];
 
-  for (const baseTable of enabledRasterFilterTables) {
+  for (const { id: baseTable, resolutionM } of enabledRasterFilterTables) {
     const values = raster_filters[baseTable];
     if (!values || values.length === 0) continue;
 
-    const table = selectOverviewTable(baseTable, aoiAreaM2);
+    const table = selectOverviewTable(baseTable, aoiAreaM2, resolutionM);
     const clippedRaster = `clipped_${table}`;
 
     clippedRasterCtes.push(`${clippedRaster} AS MATERIALIZED (
@@ -1539,7 +1519,7 @@ const buildRawSoilQuery = (
     limit?: number | undefined;
     cursor?: string | undefined;
     sort?: string | undefined;
-    enabledRasterFilterTables?: string[] | undefined;
+    enabledRasterFilterTables?: EnabledRasterFilterTable[] | undefined;
   },
 ): { sql: string; params: any[] } => {
   const { geometryIds, parameters: filters } = filter;

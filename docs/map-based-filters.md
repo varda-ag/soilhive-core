@@ -1,35 +1,54 @@
 # Map-Based Filters
 
-Each filter provides **global coverage** and is distributed as a **separate package**, to be installed in a running SoilHive instance.
+A map-based filter is a raster classification layer (land cover, soil groups...) that users can select classes from to narrow an area of interest. Each one is installed into a running SoilHive instance by a data-admin. Until the Admin console supports installing, use the API with a `data-admin` or `super-admin` token.
 
-## Installation
+## Installing a filter
 
-1. Choose a filter and download the two related files: `<filter>.dump` and `<filter>.mappings`
-2. Copy the two files inside the root folder of the running SoilHive instance
-3. Open terminal inside SoilHive instance
-4. Run command `node dist/app.js --load-raster-filter ./<filter>.dump`
-5. Wait for the process to complete
-6. Access SoilHive Admin console to confirm filter has been enabled
+1. **Upload the raster** with `POST /files` (multipart). Note the `id` it returns.
+2. **Create the filter** with `POST /raster-filters`:
+   ```json
+   { "id": "land_cover_2024", "name": "Land Cover 2024", "description": "...", "file_id": "<file id>", "band": 1, "kind": "categorical" }
+   ```
+   `id` names the filter's database table, so it can never change: lowercase letters, digits and underscores, starting with a letter, at most 58 characters.
+3. **Wait for the install.** `GET /raster-filters/{id}` reports `install.status`: `queued`, `installing` (with `progress_percentage`), then `installed` or `failed`. A failure lists its causes and remedies in `install.errors`.
+4. **Label it** with `PUT /raster-filters/{id}/mappings`, a `{ "label": pixel value }` object. `pixel_values` on the filter lists the values its raster holds, with their pixel counts. A filter is **enabled** once it is installed and labelled.
+5. **Activate it** with `PATCH /raster-filters/{id}` and `{ "active": true }`, or with its toggle in the Admin console.
 
-## Turning On/Off Installed Filters
+A new version of a filter's data is a new filter, with a new `id`: an installed filter cannot be reinstalled.
 
-Installing a filter (see above) is a one-time step that makes the filter **available** to the instance, or **active**. Whether an installed filter is actually **on** is controlled separately by a toggle in the Admin console — no CLI reload is needed to switch it on or off.
+## Preparing the raster
 
-> **Prerequisite:** the filter must already be installed. The toggle only appears for filters that have been loaded via `--load-raster-filter`.
+- Any raster GDAL reads, georeferenced: it has a coordinate reference system and a geotransform.
+- **Categorical**: the chosen band holds whole-number classes, in a type of 32 bits or less. Continuous rasters (floating-point values) cannot be installed yet.
+- **Nodata**: unless the raster is already in EPSG:4326, its band must declare a nodata value that is not one of its classes.
+- At most `MAX_UPLOAD_SIZE_MB` (5000 MB by default).
 
-To turn on or off an installed filter:
+## What the install does to your raster
+
+- Keeps the chosen band and discards the others.
+- Reprojects it to EPSG:4326 with nearest-neighbour resampling, unless it is already in EPSG:4326, which is copied unchanged.
+- Loads it into the database with five overviews, and counts its pixel values (`pixel_values`).
+- Deletes the uploaded file. A failed install keeps it.
+- Leaves the filter inactive and unlabelled.
+
+## Turning installed filters on and off
+
+Whether an installed filter is offered to users is controlled separately by a toggle in the Admin console, or by `PATCH /raster-filters/{id}` with `active`:
 1. Open the SoilHive Admin console and go to the **Map-based filters** page
-2. Scroll to the **Activate the filters** list inside the **Activate the filters** section
-3. Each filter shows its installation status (**Installed** or **Not installed**) next to a toggle switch
-4. Flip the toggle to turn on or off the filter — the change is saved immediately (the toggle is briefly disabled while saving)
+2. Each filter in the **Activate the filters** list shows whether it is **Installed**, next to a toggle switch
+3. Flip the toggle to turn the filter on or off. The change is saved immediately.
 
-Turning a filter off does **not** uninstall it or delete its data; it only disables it. You can re-enable it at any time with the same toggle, without re-running the installation command.
+Turning a filter off does **not** delete its data. Users see a filter only when it is both active and enabled.
 
-### Available Filters
+## Deleting a filter
+
+Deactivate it, then call `DELETE /raster-filters/{id}`. This drops its tables, and its `id` can be used again. Filters users saved with its classes keep them, but they no longer apply.
+
+## Available filters
+
+Their GeoTIFF packages are being republished for the API install; download links will be listed here. Each filter's labels below are the body of its `PUT /raster-filters/{id}/mappings` request.
 
 - Agroecological zones (37 MB)
-  - https://static.soilhive.ag/map-based-filters/agroecological_zones.dump
-  - https://static.soilhive.ag/map-based-filters/agroecological_zones.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -69,8 +88,6 @@ Turning a filter off does **not** uninstall it or delete its data; it only disab
 
     </details>
 - Agroecological zones v5 (37 MB)
-  - https://static.soilhive.ag/map-based-filters/agroecological_zones_v5.dump
-  - https://static.soilhive.ag/map-based-filters/agroecological_zones_v5.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -113,8 +130,6 @@ Turning a filter off does **not** uninstall it or delete its data; it only disab
 
     </details>
 - Land Cover 2019 (3.6 GB)
-  - https://static.soilhive.ag/map-based-filters/land_cover.dump
-  - https://static.soilhive.ag/map-based-filters/land_cover.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -146,8 +161,6 @@ Turning a filter off does **not** uninstall it or delete its data; it only disab
 
     </details>
 - Land Cover 2024 (2.6 GB)
-  - https://static.soilhive.ag/map-based-filters/land_cover_2024.dump
-  - https://static.soilhive.ag/map-based-filters/land_cover_2024.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -164,8 +177,6 @@ Turning a filter off does **not** uninstall it or delete its data; it only disab
 
     </details>
 - Soil Groups (30 MB)
-  - https://static.soilhive.ag/map-based-filters/soil_groups.dump
-  - https://static.soilhive.ag/map-based-filters/soil_groups.mappings
   - <details>
     <summary>Mappings</summary>
 
@@ -206,9 +217,8 @@ Turning a filter off does **not** uninstall it or delete its data; it only disab
 
     </details>
 
-### Troubleshooting
+## Troubleshooting
 
-- **Q**: *I run `--load-raster-filter` command but I received an error. How should I proceed?*
-- **A**: You need administrator DB access to proceed. You can try following steps:
-  - Check that SoilHive application DB user has permissions to create tables in the desired schema
-  - Open a database client and search for the table named as the filter you are trying to install. Delete the table and retry running the command line command
+- **The install failed.** Read `install.errors` on `GET /raster-filters/{id}`, fix the raster, then delete the filter and create it again. Its upload is kept until then, so the same `file_id` can be reused if the raster itself was fine.
+- **`POST /files` is refused as too large.** Raise `MAX_UPLOAD_SIZE_MB`, and the body size limit of any reverse proxy in front of the backend.
+- **`RFI_DB_LOAD_FAILED`.** The database user needs permission to create tables in the application schema, and the database needs room for the filter, which takes several times the size of its compressed GeoTIFF.

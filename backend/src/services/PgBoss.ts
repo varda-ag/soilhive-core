@@ -10,6 +10,7 @@ import {
   DataRequestJob,
   SoilIndexJob,
   SoilIndexTilesJob,
+  RasterFilterInstallJob,
 } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import {
@@ -37,6 +38,7 @@ import { processRefreshDaiStats } from '../jobs/refresh-dai-stats/RefreshDaiStat
 import { processDataRequest } from '../jobs/data-requests/DataRequestJob';
 import { processSoilIndex } from '../jobs/soil-indexes/SoilIndexJob';
 import { processSoilIndexTiles } from '../jobs/soil-index-tiles/SoilIndexTilesJob';
+import { processRasterFilterInstall } from '../jobs/raster-filter-install/RasterFilterInstaller';
 import { getEntity } from '../utils/slugs';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
@@ -95,7 +97,15 @@ const setupQueues = async () => {
 // whatever was cached against the old rollup while the job was pending.
 // RASTER_LOAD is included because filterRaster caches the query.
 // It needs no DAI refresh, though: raster datasets are excluded from DAI scoring.
-const DATA_MUTATING_QUEUES: JobQueues[] = [JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD, JobQueues.BULK_DELETE, JobQueues.REFRESH_DAI_STATS];
+// RASTER_FILTER_INSTALL is included because a deleted Raster Filter's id can be installed again,
+// and a cached mask query names the table, not what it holds.
+const DATA_MUTATING_QUEUES: JobQueues[] = [
+  JobQueues.BULK_LOAD,
+  JobQueues.RASTER_LOAD,
+  JobQueues.BULK_DELETE,
+  JobQueues.REFRESH_DAI_STATS,
+  JobQueues.RASTER_FILTER_INSTALL,
+];
 
 export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
   const start = Date.now();
@@ -236,6 +246,17 @@ const setupWorkers = async () => {
     async (jobs: Job<SoilIndexTilesJob>[]) => {
       for (const job of jobs) {
         await runJob(JobQueues.SOIL_INDEX_TILES, job, processSoilIndexTiles);
+      }
+    },
+  );
+  // GDAL-, disk- and memory-heavy like RASTER_LOAD, with the same per-node caveat. The two queues
+  // are capped separately, so one node may run a raster load and a filter install at once.
+  await boss.work<RasterFilterInstallJob>(
+    JobQueues.RASTER_FILTER_INSTALL,
+    { ...options, localConcurrency: 1 },
+    async (jobs: Job<RasterFilterInstallJob>[]) => {
+      for (const job of jobs) {
+        await runJob(JobQueues.RASTER_FILTER_INSTALL, job, processRasterFilterInstall);
       }
     },
   );

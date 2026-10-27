@@ -155,7 +155,7 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   const wkt = info.coordinateSystem?.wkt;
   let resolution: number;
   if (isGeographicCrs(wkt)) {
-    resolution = Math.round(Math.abs(pixW) * 111320);
+    resolution = geographicResolutionM(pixW);
   } else {
     // Projected CRS units aren't necessarily meters (e.g. state-plane feet), so measure the ground
     // distance across one pixel — at the raster's centre, since its corners are the likeliest
@@ -194,6 +194,18 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   };
 }
 
+/** The overview factors of every Raster Filter: its overview tables are named o_<factor>_<table>. */
+export const RASTER_FILTER_OVERVIEW_FACTORS = [2, 4, 8, 16, 32] as const;
+
+// Assumed for a Raster Filter whose resolution is unknown: Land Cover 2019's, which the overview choice was tuned on
+const DEFAULT_RASTER_FILTER_RESOLUTION_M = 100;
+
+/** A Raster Filter's base table and its overview tables. */
+export const rasterFilterTables = (table: string): string[] => [table, ...RASTER_FILTER_OVERVIEW_FACTORS.map(f => `o_${f}_${table}`)];
+
+/** A geographic raster's resolution_m: the ground width of one pixel at the equator. */
+export const geographicResolutionM = (pixelWidthDegrees: number): number => Math.round(Math.abs(pixelWidthDegrees) * 111320);
+
 /**
  * Returns the PostGIS table name to query given an AOI area in m².
  *
@@ -201,16 +213,16 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
  * still keeps the AOI represented by at least ~TARGET_PIXELS pixels.
  * If the AOI is small (high detail needed), use the base table.
  *
- * @param table     - e.g. "land_cover"
- * @param aoiAreaM2 - total input AOI size in square meters
+ * @param table           - e.g. "land_cover"
+ * @param aoiAreaM2       - total input AOI size in square meters
+ * @param baseResolutionM - the base table's pixel size; null when unknown
  */
-export const selectOverviewTable = (table: string, aoiAreaM2: number): string => {
-  const BASE_PIXEL_SIZE_M = 100;
+export const selectOverviewTable = (table: string, aoiAreaM2: number, baseResolutionM: number | null = null): string => {
   const TARGET_PIXELS = 512;
-  const OVERVIEWS = [32, 16, 8, 4, 2] as const;
+  const basePixelSizeM = baseResolutionM && baseResolutionM > 0 ? baseResolutionM : DEFAULT_RASTER_FILTER_RESOLUTION_M;
 
-  for (const factor of OVERVIEWS) {
-    const pixelSizeM = BASE_PIXEL_SIZE_M * factor;
+  for (const factor of [...RASTER_FILTER_OVERVIEW_FACTORS].reverse()) {
+    const pixelSizeM = basePixelSizeM * factor;
     const pixelAreaM2 = pixelSizeM ** 2;
     const pixelCount = aoiAreaM2 / pixelAreaM2;
     if (pixelCount >= TARGET_PIXELS) {

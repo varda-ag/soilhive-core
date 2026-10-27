@@ -57,8 +57,12 @@ A catalog entry describing a raster-backed classification layer (e.g. land cover
 _Avoid_: Filter (a persisted query scope; a Raster Filter is a catalog entry a Filter can reference), "active filter" in the query sense (see Flagged ambiguities — unrelated to the `active` column)
 
 **Raster Filter Installation**:
-The one-time operation that builds a Raster Filter's backing raster table from a raster file and records its value mappings, after which the Raster Filter is enabled (shown as "Installed"). Installation and activation are independent: an installed Raster Filter is still offered to users only when it is also active.
+The operation that builds a Raster Filter's backing raster table from an uploaded File, after which the Raster Filter is shown as "Installed". It happens at most once per Raster Filter: a new version of the data is a new Raster Filter, never a reinstall. Recording its value mappings is a separate step, so an installed Raster Filter is enabled only once it also has mappings, and offered to users only when it is also active.
 _Avoid_: import (a Bulk Load's avoided term), load (Raster Load is the Dataset operation), upload (the earlier step that puts the file on the server)
+
+**Raster Filter Kind** (`kind`):
+What a Raster Filter's source raster holds: `categorical` (each pixel value is already a class) or `continuous` (a measured quantity that Installation would reclassify into classes by breaks). A property of the source, not the installed table, which is always categorical. Only `categorical` can be installed for now.
+_Avoid_: data type (that is a Dataset's `gis_datatype`), pixel type (the storage format of a band)
 
 **Content identity** (of a Filter):
 What makes two Filter submissions "the same Filter": the same owner, the same *set* of canonical UserGeometries (order and duplicates irrelevant), and equivalent parameter criteria (list-valued criteria compare as sets; an explicitly null criterion is **not** the same as an absent one). Byte equality of the submission is neither necessary nor sufficient.

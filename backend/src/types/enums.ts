@@ -35,6 +35,8 @@ export enum JobQueues {
   SOIL_INDEXES = 'soil-indexes',
   // Internal: pre-renders a completed Soil Index Run's heaviest map tiles (docs/adr/0043)
   SOIL_INDEX_TILES = 'soil-index-tiles',
+  // Enqueued only by POST /raster-filters (docs/adr/0067)
+  RASTER_FILTER_INSTALL = 'raster-filter-install',
 }
 
 /**

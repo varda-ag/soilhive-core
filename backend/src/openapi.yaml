@@ -403,6 +403,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '413':
+          description: The logo is larger than 5 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
       security:
         - bearerAuth: [super-admin]
     get:
@@ -2354,6 +2360,12 @@ paths:
           description: File deleted successfully
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: The file is the source of a raster filter, which owns it until installed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /files/{fileId}/download:
     parameters:
       - name: fileId
@@ -2484,6 +2496,9 @@ paths:
       x-eov-operation-handler: controllers/raster-filters
       x-eov-operation-id: getRasterFilters
       summary: Get raster filters
+      description: >-
+        A caller without the data-admin or super-admin scope is shown only the raster filters that are both
+        active and enabled, without their install details.
       tags:
         - raster-filters
       responses:
@@ -2495,6 +2510,49 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/RasterFilter'
+    post:
+      x-eov-operation-handler: controllers/raster-filters
+      x-eov-operation-id: createRasterFilter
+      summary: Create a raster filter and install it from an uploaded raster file
+      description: >-
+        Upload the raster first with POST /files. Creating the raster filter enqueues its installation,
+        followed through `install` on GET /raster-filters/{rasterFilterId}. One band of the file is
+        installed, and the file is deleted once the installation succeeds. The raster filter is created
+        inactive and unlabelled: label it with PUT /raster-filters/{rasterFilterId}/mappings, then
+        activate it with PATCH.
+      tags:
+        - raster-filters
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RasterFilterCreatePayload'
+      responses:
+        '201':
+          description: Raster filter created and its installation queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RasterFilter'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            The id is taken, by a raster filter or by a database object, or the file is already used by a
+            dataset or another raster filter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /raster-filters/{rasterFilterId}:
     parameters:
@@ -2508,6 +2566,9 @@ paths:
       x-eov-operation-handler: controllers/raster-filters
       x-eov-operation-id: getRasterFilter
       summary: Get raster filter by ID
+      description: >-
+        Not found for a caller without the data-admin or super-admin scope unless the raster filter is
+        both active and enabled.
       tags:
         - raster-filters
       responses:
@@ -2522,7 +2583,7 @@ paths:
     patch:
       x-eov-operation-handler: controllers/raster-filters
       x-eov-operation-id: patchRasterFilter
-      summary: Update a raster filter's active status
+      summary: Update a raster filter's active status, name or description
       tags:
         - raster-filters
       security:
@@ -2544,6 +2605,79 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+    delete:
+      x-eov-operation-handler: controllers/raster-filters
+      x-eov-operation-id: deleteRasterFilter
+      summary: Delete a raster filter and drop its tables
+      description: >-
+        Refused while the raster filter is active, so deactivate it first, and while its installation is
+        queued or running. Filters saved with its values keep them, but they no longer apply.
+      tags:
+        - raster-filters
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      responses:
+        '204':
+          description: Raster filter deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The raster filter is active, its installation is unfinished, or a query is still reading its tables
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /raster-filters/{rasterFilterId}/mappings:
+    parameters:
+      - name: rasterFilterId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: Raster filter ID
+    put:
+      x-eov-operation-handler: controllers/raster-filters
+      x-eov-operation-id: putRasterFilterMappings
+      summary: Replace a raster filter's labels
+      description: >-
+        Maps each label to one pixel value of the installed raster (see `pixel_values`). A raster filter is
+        enabled once it has labels; an empty object removes them all and disables it.
+      tags:
+        - raster-filters
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RasterFilterMappings'
+      responses:
+        '200':
+          description: Labels replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RasterFilter'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The raster filter is not installed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   parameters:
@@ -3830,27 +3964,145 @@ components:
       properties:
         id:
           type: string
+          description: The name of the raster filter's table
         name:
           type: string
         description:
           type: string
         enabled:
           type: boolean
+          description: Whether the raster filter is installed and labelled. Independent of `active`.
         active:
           type: boolean
           description: Whether a data-admin has made this raster filter available for use. Independent of `enabled`.
         mappings:
           type: object
           nullable: true
+          description: Label → pixel value
+          additionalProperties:
+            type: integer
+        kind:
+          type: string
+          enum: [categorical, continuous]
+          description: What the source raster holds. Only categorical raster filters can be installed for now.
+        resolution_m:
+          type: integer
+          nullable: true
+          description: The installed raster's pixel size in metres, at the equator
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        file_id:
+          type: string
+          nullable: true
+          description: >-
+            Privileged callers only. The file awaiting installation. Null once installed, as the
+            installation deletes it.
+        created_by:
+          type: string
+          nullable: true
+          description: Privileged callers only
+        pixel_values:
+          type: object
+          nullable: true
+          additionalProperties:
+            type: integer
+          description: >-
+            Privileged callers only. Each pixel value of the installed raster, nodata excluded, with its pixel
+            count. Null until installed, and for raster filters installed from the command line.
+        install:
+          $ref: '#/components/schemas/RasterFilterInstall'
+
+    RasterFilterInstall:
+      type: object
+      description: Privileged callers only. Derived from the latest installation job and whether the raster filter's table exists.
+      properties:
+        status:
+          type: string
+          enum: [not_installed, queued, installing, installed, failed]
+        job_id:
+          type: string
+          nullable: true
+        progress_percentage:
+          type: number
+        progress_description:
+          type: string
+        errors:
+          type: array
+          description: Why the installation failed, as the dataset errors explain a failed load
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              message:
+                type: string
+              actions:
+                type: array
+                items:
+                  type: string
+              params:
+                type: object
+                additionalProperties: true
+              detail:
+                type: string
+
+    RasterFilterMappings:
+      type: object
+      description: Label → pixel value. Each pixel value takes at most one label.
+      additionalProperties:
+        type: integer
+
+    RasterFilterCreatePayload:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - description
+        - file_id
+        - band
+        - kind
+      properties:
+        id:
+          type: string
+          pattern: '^[a-z][a-z0-9_]{0,57}$'
+          description: >-
+            Becomes the name of the raster filter's table and the key saved filters select its values under,
+            so it can never change. It must not collide with a table already in the database.
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        file_id:
+          type: string
+          description: A raster file uploaded with POST /files, used by no dataset or other raster filter
+        band:
+          type: integer
+          minimum: 1
+          description: The band to install, numbered from 1. The other bands are discarded.
+        kind:
+          type: string
+          enum: [categorical]
+          description: Continuous raster filters are not supported yet
 
     RasterFilterPatchPayload:
       type: object
-      required:
-        - active
+      minProperties: 1
       properties:
         active:
           type: boolean
           description: Whether this raster filter should be available for use.
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
 
     Entitlements:
       type: object

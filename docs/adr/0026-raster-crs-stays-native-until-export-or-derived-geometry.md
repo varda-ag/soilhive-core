@@ -2,6 +2,10 @@
 
 **Status:** Accepted — partially supersedes ADR 0025, which included an eager ingest-time warp to EPSG:4326.
 
+> **Scope:** Raster Layers only. Raster Filters are, and always were, stored in EPSG:4326, because
+> their masks are clipped in SQL against EPSG:4326 user geometries. The prebuilt dumps were 4326.
+> The install job (ADR 0067) now enforces it by warping.
+
 > **Amended (SP-5803):** export-time masking no longer builds an EPSG:4326 raster mask and warps it
 > per layer CRS (`getMaskForLayer` is gone). The AOI is reprojected as a polygon into each layer's
 > native CRS, and the pixels it touches are selected on the layer's own grid (ADR 0045). The raster

@@ -193,6 +193,19 @@ describe('raster tests', () => {
     const table = selectOverviewTable(baseTable, aoiM2);
     expect(table).toEqual(expected);
   });
+
+  it.each([
+    // A 1 km raster (Soil Groups): Italy on o_32 would be ~300 pixels
+    [1000, 300_000_000_000, 'o_16_raster'],
+    [1000, 22_000_000_000, 'o_4_raster'],
+    [1000, 500_000_000, 'raster'],
+    // A 10 m raster: a field-sized AOI already has enough pixels on an overview
+    [10, 1_000_000, 'o_4_raster'],
+    // Unknown resolution falls back to 100 m
+    [null, 300_000_000_000, 'o_32_raster'],
+  ])('selectOverviewTable scales with a %s m base resolution', (resolutionM, aoiM2, expected) => {
+    expect(selectOverviewTable('raster', aoiM2, resolutionM)).toEqual(expected);
+  });
 });
 
 describe('nodataFromImage', () => {

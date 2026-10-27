@@ -1,4 +1,4 @@
-INSERT INTO "raster_filters" (id,name,description) VALUES ('soil_groups','Soil groups','This filter refers to the categories defined by the WRB, an international soil classification system developed by the IUSS. These groups classify soils based on their physical and chemical properties, providing a standardized framework for naming soils and creating legends for soil maps. FAO & IIASA. 2023. Harmonized World Soil Database version 2.0. Rome and Laxenburg.') ON CONFLICT(id) DO NOTHING;
+INSERT INTO "raster_filters" (id,name,description,active) VALUES ('soil_groups','Soil groups','This filter refers to the categories defined by the WRB, an international soil classification system developed by the IUSS. These groups classify soils based on their physical and chemical properties, providing a standardized framework for naming soils and creating legends for soil maps. FAO & IIASA. 2023. Harmonized World Soil Database version 2.0. Rome and Laxenburg.', true) ON CONFLICT(id) DO NOTHING;
 
 UPDATE raster_filters SET mappings = '
 {"Acrisols": 6567, 

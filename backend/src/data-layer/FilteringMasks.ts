@@ -43,11 +43,11 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
   );
 
   if (raster_filters) {
-    for (const baseTable of enabledRasterFilterTables) {
+    for (const { id: baseTable, resolutionM } of enabledRasterFilterTables) {
       const values = raster_filters[baseTable];
       if (!values || values.length === 0) continue;
 
-      const table = selectOverviewTable(baseTable, aoiAreaM2);
+      const table = selectOverviewTable(baseTable, aoiAreaM2, resolutionM);
       const clippedRaster = `clipped_${table}`;
       const maskCte = `mask_${baseTable}`;
 

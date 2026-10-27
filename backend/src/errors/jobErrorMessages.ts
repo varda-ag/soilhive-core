@@ -19,6 +19,7 @@ export interface JobErrorMessage {
 const DOCS_BASE_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/data-model';
 const VECTOR_DOCS_URL = `${DOCS_BASE_URL}/1a-vector-data-ingestion.md`;
 const RASTER_DOCS_URL = `${DOCS_BASE_URL}/1b-raster-data-ingestion.md`;
+const RASTER_FILTER_DOCS_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md';
 
 export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   FTD_FILE_NOT_FOUND: {
@@ -149,6 +150,64 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'Re-scale the raster yourself so its values are already in {standard_unit}, then re-upload the file.',
       `What the load does to pixel values: ${RASTER_DOCS_URL}#what-the-load-does-to-your-raster`,
     ],
+  },
+  RFI_FILTER_NOT_FOUND: {
+    message: "Map-based filter '{raster_filter_id}' no longer exists, so there was nothing to install.",
+    actions: ['If you still need it, create the filter again.'],
+  },
+  RFI_FILE_NOT_FOUND: {
+    message: "The file for map-based filter '{raster_filter_id}' was removed before it could be installed.",
+    actions: ['Delete the filter, re-upload the file, then create the filter again.'],
+  },
+  RFI_NOT_GEOREFERENCED: {
+    message: "'{file_name}' has no coordinate reference system or no georeference, so it cannot be placed on the map.",
+    actions: [
+      'Add the missing georeferencing to the raster (it should open in the right place in QGIS), then re-upload it.',
+      `What a filter raster needs: ${RASTER_FILTER_DOCS_URL}#preparing-the-raster`,
+    ],
+  },
+  RFI_INVALID_BAND: {
+    message: "Band {band} was chosen, but '{file_name}' has {band_count} band(s).",
+    actions: ['Delete the filter and create it again with a band from 1 to {band_count}.'],
+  },
+  RFI_CONTINUOUS_NOT_SUPPORTED: {
+    message:
+      "Band {band} of '{file_name}' holds {pixel_type} values, which are continuous. Only categorical rasters can be installed as filters.",
+    actions: [
+      'Classify the raster into whole-number classes yourself, then re-upload it.',
+      `What a filter raster needs: ${RASTER_FILTER_DOCS_URL}#preparing-the-raster`,
+    ],
+  },
+  RFI_UNSUPPORTED_PIXEL_TYPE: {
+    message: "Band {band} of '{file_name}' holds {pixel_type} values, which the database cannot store as a raster.",
+    actions: [
+      'Convert the band to a 32-bit or narrower whole-number type (for example with gdal_translate -ot Int32), then re-upload it.',
+      `What a filter raster needs: ${RASTER_FILTER_DOCS_URL}#preparing-the-raster`,
+    ],
+  },
+  RFI_NODATA_REQUIRED: {
+    message:
+      "Band {band} of '{file_name}' declares no nodata value. It has to be reprojected to EPSG:4326, which adds pixels outside the original raster that would otherwise read as a real class.",
+    actions: [
+      'Set a nodata value on the band that is not one of its classes (for example with gdal_edit.py -a_nodata), then re-upload it.',
+      `What the install does to your raster: ${RASTER_FILTER_DOCS_URL}#what-the-install-does-to-your-raster`,
+    ],
+  },
+  RFI_WARP_FAILED: {
+    message: "Band {band} of '{file_name}' could not be extracted or reprojected to EPSG:4326.",
+    actions: ['Check if the raster opens in QGIS or with gdalinfo, then re-upload it.'],
+  },
+  RFI_DB_LOAD_FAILED: {
+    message: "Map-based filter '{raster_filter_id}' could not be written to the database.",
+    actions: ['Contact your system administrator: the database user may lack permissions, or the database may be out of space.'],
+  },
+  RFI_NO_VALID_PIXELS: {
+    message: "Band {band} of '{file_name}' contains only nodata pixels.",
+    actions: ['Check that you chose the right band, and that its nodata value is not one of its classes.'],
+  },
+  RFI_NAME_TAKEN: {
+    message: "The database already has a table named like map-based filter '{raster_filter_id}' ('{table}').",
+    actions: ['Delete the filter and create it again with a different id.'],
   },
   BL_RECORD_VALIDATION_FAILED: {
     message: "A record was rejected because field '{field}' {issue}.",

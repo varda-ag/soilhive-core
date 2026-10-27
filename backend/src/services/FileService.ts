@@ -31,6 +31,7 @@ import { log } from '../utils/logger';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import RasterFilterEntity from '../entities/RasterFilter';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
@@ -235,6 +236,14 @@ export default class FileService {
 
   deleteFile = async (requestData: RequestData, slug: string): Promise<void> => {
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+    // The install deletes it once done, and a failed one keeps it for a retry (docs/adr/0066)
+    const rasterFilter = await requestData.entityManager.getRepository(RasterFilterEntity).findOneBy({ file_id: file.id });
+    if (rasterFilter) {
+      throw new ErrorResponse(
+        `File '${slug}' is the source of raster filter '${rasterFilter.id}': delete the raster filter instead`,
+        StatusCodes.CONFLICT,
+      );
+    }
     await requestData.entityManager.getRepository(FileEntity).softRemove(file);
     // Raster filter queries join on files (f.deleted_at IS NULL); see docs/adr/0008.
     await bumpCacheEpoch();
