@@ -44,7 +44,7 @@ function Availability() {
   const { isDesktopLayout } = useDevice();
   const { showNotification } = useNotifications();
   const { themeConfig } = useTheme();
-  const { filterId, isLoadingPartialFilter } = useAvailability();
+  const { filterId, isLoadingFilterId } = useAvailability();
 
   // SoilhiveMap no longer reads AvailabilityMapContext itself — this page owns it and passes the
   // whole thing through as `selectionState`, plus pulls out the fields it needs for its own
@@ -73,7 +73,7 @@ function Availability() {
     filterId,
     daiViewport?.bbox,
     daiViewport?.resolution,
-    isDaiEnabled && !!filterId && !isLoadingPartialFilter && daiViewport !== null,
+    isDaiEnabled && !!filterId && !isLoadingFilterId && daiViewport !== null,
   );
 
   const isAreaInfoVisible = Boolean(selectedPoint) && !showDrawControl;

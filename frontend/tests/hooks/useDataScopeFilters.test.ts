@@ -59,6 +59,21 @@ describe('useDataScopeFilters', () => {
     expect(result.current.timeFilterRange).toEqual({ min: 1980, max: 2020 });
   });
 
+  it('timeFilterRange covers only the datasets matching the data type and visibility selection', () => {
+    (useAvailability as jest.Mock).mockReturnValue({
+      ...defaultAvailabilityState,
+      allDatasets: [
+        { dataType: 'point', visibility: 'public', properties: { dateStart: 1990, dateEnd: 2020 } },
+        { dataType: 'raster', visibility: 'public', properties: { dateStart: 2015, dateEnd: 2018 } },
+        { dataType: 'raster', visibility: 'private', properties: { dateStart: 2010, dateEnd: 2022 } },
+      ],
+      datasetFrontendFilters: { type: ['raster'], visibility: ['public'] },
+    });
+
+    const { result } = renderHook(() => useDataScopeFilters());
+    expect(result.current.timeFilterRange).toEqual({ min: 2015, max: 2018 });
+  });
+
   it('handleTimeFilterChange sets selectedTimeFilter and merges dataset filters via setDatasetFilters', () => {
     const { result } = renderHook(() => useDataScopeFilters());
 

@@ -1,5 +1,9 @@
 @import 'styles/variables/breakpoints';
 
+// The area info popup has no z-index and is the map's last child, so it covers any overlay without
+// one. This lifts the overlays above it while keeping them below maplibre's own controls (z-index 2)
+$map-overlay-z-index: 1;
+
 .soilhive-map {
   display: flex;
   flex-direction: column;
@@ -13,6 +17,7 @@
 
   .map-style-switcher {
     position: absolute;
+    z-index: $map-overlay-z-index;
     bottom: 163px;
     right: 10px;
 
@@ -31,6 +36,7 @@
 
   .soilhive-map-dai {
     position: absolute;
+    z-index: $map-overlay-z-index;
     bottom: 35px;
     right: 74px;
 
@@ -398,6 +404,7 @@
     gap: 8px;
     white-space: nowrap;
     position: absolute;
+    z-index: $map-overlay-z-index;
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);

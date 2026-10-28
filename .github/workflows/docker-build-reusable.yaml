@@ -120,6 +120,8 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha,scope=${{ inputs.image-name }}-${{ matrix.platform.name }}
           cache-to: type=gha,mode=max,scope=${{ inputs.image-name }}-${{ matrix.platform.name }}
+          sbom: false
+          provenance: false
 
   create-image-manifest:
     runs-on: ubuntu-latest
