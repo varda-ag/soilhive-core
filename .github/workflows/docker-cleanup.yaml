@@ -1,4 +1,4 @@
-name: PR Cleanup
+name: Docker images Cleanup
 
 on:
   pull_request:
