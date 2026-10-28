@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       imageVersion: ${{ steps.image_version.outputs.imageVersion }}
+      imageSuffix: ${{ steps.image_version.outputs.imageSuffix }}
     steps:
       - name: Set imageVersion
         id: image_version
