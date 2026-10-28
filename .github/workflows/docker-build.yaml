@@ -47,7 +47,25 @@ jobs:
     needs: 
       - gate
       - image-version
-    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true') && ( startsWith( github.ref, 'refs/tags/') )
+    with:
+      context: backend
+      image-name: soilhive-core-backend
+      image-version: ${{ needs.image-version.outputs.imageVersion }}
+      aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+      aws-region: ${{ vars.AWS_REGION }}
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+      id-token: write # This is required for requesting the JWT token from OIDC
+
+  build-push-docker-backend-dev:
+    uses: ./.github/workflows/docker-build-reusable.yaml
+    needs: 
+      - gate
+      - image-version
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true') && ( startsWith( github.ref, 'refs/pull/') ||  startsWith( github.ref, 'refs/heads/') )
     with:
       context: backend
       image-name: soilhive-core-backend
