@@ -22,7 +22,7 @@ jobs:
       base-sha: ${{ github.event.pull_request.base.sha }}
       author-association: ${{ github.event.pull_request.author_association }}
 
-  image-version:
+  image-facts:
     name: Determine Image Version
     needs:
       - gate
@@ -30,14 +30,17 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       imageVersion: ${{ steps.image_version.outputs.imageVersion }}
+      imageSuffix: ${{ steps.image_version.outputs.imageSuffix }}
     steps:
       - name: Set imageVersion
         id: image_version
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "imageVersion=pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+            echo "imageSuffix=-dev" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
             echo "imageVersion=${{ github.sha }}" >> $GITHUB_OUTPUT
+            echo "imageSuffix=-dev" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "imageVersion=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
@@ -46,12 +49,12 @@ jobs:
     uses: ./.github/workflows/docker-build-reusable.yaml
     needs: 
       - gate
-      - image-version
+      - image-facts
     if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
     with:
       context: backend
-      image-name: soilhive-core-backend
-      image-version: ${{ needs.image-version.outputs.imageVersion }}
+      image-name: soilhive-core-backend${{ needs.image-facts.outputs.imageSuffix }}
+      image-version: ${{ needs.image-facts.outputs.imageVersion }}
       aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
       aws-region: ${{ vars.AWS_REGION }}
     permissions:
@@ -64,12 +67,12 @@ jobs:
     uses: ./.github/workflows/docker-build-reusable.yaml
     needs: 
       - gate
-      - image-version
+      - image-facts
     if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
     with:
       context: frontend
-      image-name: soilhive-core-frontend
-      image-version: ${{ needs.image-version.outputs.imageVersion }}
+      image-name: soilhive-core-frontend${{ needs.image-facts.outputs.imageSuffix }}
+      image-version: ${{ needs.image-facts.outputs.imageVersion }}
       aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
       aws-region: ${{ vars.AWS_REGION }}
     permissions:
