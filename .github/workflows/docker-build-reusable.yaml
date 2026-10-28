@@ -157,7 +157,6 @@ jobs:
           IMAGE_VERSION: ${{ inputs.image-version }}
         run: |
           docker buildx imagetools create \
-            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --tag "${IMAGE_NAME}:${IMAGE_VERSION}" \
             "${IMAGE_NAME}:${IMAGE_VERSION}-amd64" \
             "${IMAGE_NAME}:${IMAGE_VERSION}-arm64"
