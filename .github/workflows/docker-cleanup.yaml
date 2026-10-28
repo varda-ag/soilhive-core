@@ -1,4 +1,4 @@
-name: PR Cleanup
+name: Docker images Cleanup
 
 on:
   pull_request:
@@ -34,13 +34,12 @@ jobs:
           INPUT_IMAGE_NAME: ${{ inputs.image-name }}
           INPUT_IMAGE_VERSION: ${{ inputs.image-version }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-          HEAD_REPO_NAME: ${{ github.event.pull_request.head.repo.name }}
         run: |
           if [[ "${EVENT_NAME}" == "workflow_call" ]]; then
-            PACKAGE_NAME="${INPUT_IMAGE_NAME}"
+            PACKAGE_NAMES=("${INPUT_IMAGE_NAME}")
             TAG_PREFIX="${INPUT_IMAGE_VERSION}"
           else
-            PACKAGE_NAME="${HEAD_REPO_NAME}"
+            PACKAGE_NAMES=("soilhive-core-backend" "soilhive-core-frontend")
             TAG_PREFIX="pr-${PR_NUMBER}-"
           fi
 
@@ -52,26 +51,33 @@ jobs:
 
           echo "Looking for images with tag prefix: ${TAG_PREFIX}"
 
-          gh api "${API_BASE}/packages/container/${PACKAGE_NAME}/versions" \
-            --paginate \
-            --jq '.[] | {id: .id, tags: .metadata.container.tags}' | \
-          jq -c '.' | while IFS= read -r version; do
-            VERSION_ID=$(echo "$version" | jq -r '.id')
-            TAGS=$(echo "$version" | jq -r '.tags[]?' 2>/dev/null)
-
-            MATCH=false
-            while IFS= read -r tag; do
-              if [[ "$tag" == ${TAG_PREFIX}* ]]; then
-                MATCH=true
-                break
-              fi
-            done <<< "$TAGS"
-
-            if [ "$MATCH" = "true" ]; then
-              echo "Deleting version ${VERSION_ID} (tags: $(echo "$TAGS" | tr '\n' ' '))"
-              gh api --method DELETE \
-                "${API_BASE}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
-                && echo "Deleted ${VERSION_ID}" \
-                || echo "Failed to delete ${VERSION_ID}, skipping"
+          for PACKAGE_NAME in "${PACKAGE_NAMES[@]}"; do
+            echo "Package: ${PACKAGE_NAME}"
+            if ! VERSIONS=$(gh api "${API_BASE}/packages/container/${PACKAGE_NAME}/versions" \
+              --paginate \
+              --jq '.[] | {id: .id, tags: .metadata.container.tags}'); then
+              echo "Package ${PACKAGE_NAME} not found, skipping"
+              continue
             fi
+
+            echo "$VERSIONS" | jq -c '.' | while IFS= read -r version; do
+              VERSION_ID=$(echo "$version" | jq -r '.id')
+              TAGS=$(echo "$version" | jq -r '.tags[]?' 2>/dev/null)
+
+              MATCH=false
+              while IFS= read -r tag; do
+                if [[ "$tag" == ${TAG_PREFIX}* ]]; then
+                  MATCH=true
+                  break
+                fi
+              done <<< "$TAGS"
+
+              if [ "$MATCH" = "true" ]; then
+                echo "Deleting version ${VERSION_ID} (tags: $(echo "$TAGS" | tr '\n' ' '))"
+                gh api --method DELETE \
+                  "${API_BASE}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+                  && echo "Deleted ${VERSION_ID}" \
+                  || echo "Failed to delete ${VERSION_ID}, skipping"
+              fi
+            done
           done
