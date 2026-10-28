@@ -641,6 +641,46 @@ describe('RasterFileWriter', () => {
     });
   });
 
+  describe('buildLayerNames', () => {
+    const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+
+    it('numbers layers that share every part of their name, in the order given, and leaves the rest as they are', () => {
+      const names = writer.buildLayerNames([
+        makeLayer({ id: 'a', min_depth: 0, max_depth: 5 }),
+        makeLayer({ id: 'b', min_depth: 5, max_depth: 15 }),
+        makeLayer({ id: 'c', min_depth: 0, max_depth: 5 }),
+        makeLayer({ id: 'd', min_depth: 0, max_depth: 5 }),
+      ]);
+
+      const base = writer.buildLayerName(makeLayer({ min_depth: 0, max_depth: 5 }));
+      expect(names.get('a')).toBe(`${base}_1`);
+      expect(names.get('c')).toBe(`${base}_2`);
+      expect(names.get('d')).toBe(`${base}_3`);
+      expect(names.get('b')).toBe(writer.buildLayerName(makeLayer({ min_depth: 5, max_depth: 15 })));
+    });
+
+    it('tells layers apart by their CRS, unless a target CRS puts them in the same one', () => {
+      const layers = [makeLayer({ id: 'a', epsg: 4326 }), makeLayer({ id: 'b', epsg: 3857 })];
+
+      expect(writer.buildLayerNames(layers).get('a')).not.toMatch(/_1$/);
+      expect(writer.buildLayerNames(layers, 3857).get('a')).toMatch(/_3857_1$/);
+      expect(writer.buildLayerNames(layers, 3857).get('b')).toMatch(/_3857_2$/);
+    });
+
+    it('writes each numbered layer to its own file', async () => {
+      const layers = [makeLayer({ id: 'a' }), makeLayer({ id: 'b' })];
+      const names = writer.buildLayerNames(layers);
+
+      for (const layer of layers) await writer.writeLayer(layer, TRIANGLE_AOI, undefined, names.get(layer.id));
+
+      expect(
+        outputFiles()
+          .filter(f => f.endsWith('.tif'))
+          .sort(),
+      ).toEqual([`${names.get('a')}.tif`, `${names.get('b')}.tif`]);
+    });
+  });
+
   describe('layer naming', () => {
     it('builds filename from sanitized dataset and property names and layer EPSG (default 4326)', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);

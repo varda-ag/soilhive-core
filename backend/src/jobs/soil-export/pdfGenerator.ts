@@ -19,6 +19,7 @@ const FONT = {
 
 const FONT_SIZE = 12;
 const PAGE_WIDTH = 595.28; // A4 pt
+const PAGE_HEIGHT = 841.89; // A4 pt
 const MARGIN = 60;
 const COVER_HEIGHT = 84;
 const LOGO_HEIGHT = 44;
@@ -53,6 +54,21 @@ export interface DatasetPdfInfo {
   gis_datatype: GISDataType;
 }
 
+/** One exported Raster Layer, as the readme's layer table lists it. */
+export interface RasterLayerPdfInfo {
+  layer_name: string; // its file name without extension, or its GeoPackage raster table
+  description: string | null;
+  dataset_name: string;
+  soil_property_name: string;
+  min_depth: number | null;
+  max_depth: number | null;
+  reference_period_start: string | null;
+  reference_period_stop: string | null;
+  laboratory_method: string | null;
+  standard_unit: string | null;
+  crs: string; // an EPSG code, or `custom`
+}
+
 export interface GeneratePdfParams {
   outputPath: string;
   datasets: DatasetPdfInfo[];
@@ -64,6 +80,7 @@ export interface GeneratePdfParams {
   termsUrl: string | undefined;
   hasVector: boolean;
   hasRaster: boolean;
+  rasterLayers?: RasterLayerPdfInfo[];
 }
 
 interface TocEntry {
@@ -92,7 +109,6 @@ export function drawHeader(doc: PDFKit.PDFDocument, logoBuffer: Buffer | null): 
 }
 
 export function drawFooter(doc: PDFKit.PDFDocument, pageNumber: number, homepageUrl?: string): void {
-  const PAGE_HEIGHT = 841.89; // A4 pt
   const y = PAGE_HEIGHT - MARGIN + 10;
   const copyrightText = `© ${YEAR} SoilHive is a Varda Foundation service. `;
 
@@ -300,7 +316,7 @@ function drawDataStructureSection(doc: PDFKit.PDFDocument, hasVector: boolean, h
   if (hasRaster) {
     bullet(
       doc,
-      `Raster maps (GeoTIFF) are delivered as one single-band layer per combination of soil property, dataset, depth range (if available), year (if available) and laboratory method information (if available), following the naming convention: [dataset_name]_[property_name]_[laboratory_method]_[standard_unit]_[depth_range_cm]_[year]_[crs](.tif)`,
+      `Raster maps (GeoTIFF) are delivered as one single-band layer per raster layer, following the naming convention: [dataset_name]_[property_name]_[laboratory_method]_[standard_unit]_[depth_range_cm]_[year]_[crs](.tif). Layers sharing all of these are numbered with a suffix (_1, _2, ...). Each layer is described in the raster layers table.`,
     );
     if (!hasVector) {
       return;
@@ -377,6 +393,117 @@ function drawFieldDictionarySection(doc: PDFKit.PDFDocument): void {
   bullet(doc, 'Lab Procedure: measured using a laboratory analytical protocol');
   bullet(doc, 'Spectral: derived from spectral measurements (e.g., NIR or MIR spectroscopy) using calibration models');
   bullet(doc, 'Calculated: computed from other variables using formulas, statistical models, or process-based models');
+}
+
+// Where table rows stop, clear of the footer drawn at PAGE_HEIGHT - MARGIN + 10
+const TABLE_BOTTOM = PAGE_HEIGHT - MARGIN - 10;
+
+interface TableColumn<T> {
+  header: string;
+  width: number;
+  value: (row: T) => string;
+}
+
+const range = (start: string | number | null, stop: string | number | null, unit = ''): string => {
+  if (start === null && stop === null) return '';
+  if (start === null || stop === null || start === stop) return `${start ?? stop}${unit}`;
+  return `${start}–${stop}${unit}`;
+};
+
+// Widths add up to CONTENT_WIDTH
+const RASTER_LAYER_COLUMNS: TableColumn<RasterLayerPdfInfo>[] = [
+  { header: 'Layer', width: 105, value: l => l.layer_name },
+  { header: 'Description', width: 75, value: l => l.description ?? '' },
+  { header: 'Dataset', width: 55, value: l => l.dataset_name },
+  { header: 'Soil property', width: 50, value: l => l.soil_property_name },
+  { header: 'Depth (cm)', width: 34, value: l => range(l.min_depth, l.max_depth) },
+  { header: 'Period', width: 40, value: l => range(l.reference_period_start, l.reference_period_stop) },
+  { header: 'Laboratory method', width: 42, value: l => l.laboratory_method ?? '' },
+  { header: 'Unit', width: 34, value: l => l.standard_unit ?? '' },
+  { header: 'CRS', width: CONTENT_WIDTH - 435, value: l => (l.crs === 'custom' ? 'custom' : `EPSG:${l.crs}`) },
+];
+
+/**
+ * Opens a content page as the other pages are laid out (header band, header, footer) and returns
+ * its 1-based number. The footer is drawn here, since a table may break onto pages of its own.
+ */
+function startContentPage(doc: PDFKit.PDFDocument, params: GeneratePdfParams): number {
+  doc.addPage();
+  doc.rect(0, 0, PAGE_WIDTH, 60).fill(COLOR.header);
+  const page = doc.bufferedPageRange().count;
+  drawHeader(doc, params.logoBuffer);
+  drawFooter(doc, page, params.homepageUrl);
+  doc.y = MARGIN;
+  doc.moveDown(5);
+  return page;
+}
+
+/**
+ * A table styled as the field dictionary's, with every cell wrapped to its column. A row that
+ * doesn't fit above the footer moves to a new page, where the header row is repeated.
+ */
+function drawTable<T>(doc: PDFKit.PDFDocument, params: GeneratePdfParams, columns: TableColumn<T>[], rows: T[]): void {
+  const FONT_SIZE_TABLE = 7;
+  const PAD = 4;
+  const MIN_ROW_H = 16;
+
+  const rowHeight = (cells: string[], font: string): number =>
+    Math.max(
+      MIN_ROW_H,
+      ...cells.map(
+        (text, i) =>
+          doc
+            .font(font)
+            .fontSize(FONT_SIZE_TABLE)
+            .heightOfString(text, { width: columns[i]!.width - PAD * 2 }) +
+          PAD * 2,
+      ),
+    );
+
+  const drawRow = (cells: string[], y: number, height: number, header: boolean): void => {
+    let x = MARGIN;
+    cells.forEach((text, i) => {
+      const width = columns[i]!.width;
+      if (header) doc.rect(x, y, width, height).fillAndStroke('#F5F5F5', COLOR.rule);
+      else doc.rect(x, y, width, height).stroke(COLOR.grid);
+      doc
+        .font(header ? FONT.bold : FONT.regular)
+        .fontSize(FONT_SIZE_TABLE)
+        .fillColor(COLOR.black)
+        .text(text, x + PAD, y + PAD, { width: width - PAD * 2 });
+      x += width;
+    });
+  };
+
+  const headerCells = columns.map(c => c.header);
+  const headerHeight = rowHeight(headerCells, FONT.bold);
+  let y = doc.y;
+  drawRow(headerCells, y, headerHeight, true);
+  y += headerHeight;
+
+  for (const row of rows) {
+    const cells = columns.map(c => c.value(row));
+    const height = rowHeight(cells, FONT.regular);
+    if (y + height > TABLE_BOTTOM) {
+      startContentPage(doc, params);
+      y = doc.y;
+      drawRow(headerCells, y, headerHeight, true);
+      y += headerHeight;
+    }
+    drawRow(cells, y, height, false);
+    y += height;
+  }
+
+  doc.y = y + 10;
+}
+
+function drawRasterLayersSection(doc: PDFKit.PDFDocument, params: GeneratePdfParams, rasterLayers: RasterLayerPdfInfo[]): void {
+  sectionHeading(doc, 'Raster layers');
+  bodyText(
+    doc,
+    'Each raster layer in this data package, by the name it is delivered under: its file name without extension (GeoTIFF), or its raster table (GeoPackage).',
+  );
+  drawTable(doc, params, RASTER_LAYER_COLUMNS, rasterLayers);
 }
 
 function drawStandardsSection(doc: PDFKit.PDFDocument): void {
@@ -502,6 +629,13 @@ export async function generateExportPdf(params: GeneratePdfParams): Promise<void
   doc.moveDown(3);
   drawDataStructureSection(doc, params.hasVector, params.hasRaster, params.fileFormat);
   drawFooter(doc, p2, params.homepageUrl);
+
+  if (params.rasterLayers?.length) {
+    // ── Raster layers table, over as many pages as it needs ──────────────────
+    const pRaster = startContentPage(doc, params);
+    tocEntries.push({ title: 'Raster layers', indent: false, page: pRaster });
+    drawRasterLayersSection(doc, params, params.rasterLayers);
+  }
 
   if (params.hasVector) {
     // ── PAGE 3: Field dictionary ───────────────────────────────────────────────
