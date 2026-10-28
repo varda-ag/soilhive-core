@@ -68,7 +68,7 @@ jobs:
     if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true') && ( startsWith( github.ref, 'refs/pull/') ||  startsWith( github.ref, 'refs/heads/') )
     with:
       context: backend
-      image-name: soilhive-core-backend
+      image-name: soilhive-core-backend-dev
       image-version: ${{ needs.image-version.outputs.imageVersion }}
       aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
       aws-region: ${{ vars.AWS_REGION }}
