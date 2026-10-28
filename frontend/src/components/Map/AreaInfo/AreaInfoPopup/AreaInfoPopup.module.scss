@@ -1,17 +1,31 @@
+$tip-top: 26px;
+$tip-size: 10px; // maplibre draws the tip as a triangle of 10px borders
+
 .AreaInfoPopup {
-  margin-top: 2.5rem;
+  // The popup hangs from its top-left corner, so lifting it by the tip's centre puts the tip on
+  // the clicked point whatever the card's height
+  margin-top: -($tip-top + $tip-size);
 
-  :global(.maplibregl-popup-content) {
-    border-radius: 0.5rem;
-    padding: 0px;
-    box-shadow: 0px 0.25rem 0.25rem 0px #00000040;
-    min-width: 250px;
-  }
+  // A plugin that vendors the map can load maplibre's stylesheet after this one, so these rules
+  // carry the anchor class to outrank maplibre's own anchor rules
+  &:global(.maplibregl-popup-anchor-top-left) {
+    flex-direction: row;
 
-  :global(.maplibregl-popup-tip) {
-    align-self: unset;
-    margin-top: 26px;
-    border-right-color: var(--color-bg-primary);
+    :global(.maplibregl-popup-content) {
+      border-radius: 0.5rem;
+      padding: 0px;
+      box-shadow: 0px 0.25rem 0.25rem 0px #00000040;
+      min-width: 250px;
+    }
+
+    :global(.maplibregl-popup-tip) {
+      align-self: flex-start;
+      margin-top: $tip-top;
+      border-top: $tip-size solid transparent;
+      border-bottom-color: transparent;
+      border-left: none;
+      border-right-color: var(--color-bg-primary);
+    }
   }
 
   .AreaInfoPopupHeader {

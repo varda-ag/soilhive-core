@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Popup, type LngLat } from 'react-map-gl/maplibre';
-import { type Offset } from 'maplibre-gl';
 
 import Flower from 'assets/images/flower.svg?react';
 import CloseIcon from 'assets/icons/small-cross-icon.svg?react';
@@ -21,21 +20,13 @@ export function AreaInfoPopup({ selectedPoint, selection, locationName, onClose 
 
   return (
     <Popup
-      anchor="left"
+      anchor="top-left"
       longitude={selectedPoint.lng}
       latitude={selectedPoint.lat}
       closeOnClick={false}
       closeButton={false}
       className={styles.AreaInfoPopup}
       onClose={onClose}
-      offset={
-        {
-          left: [0, 0],
-          top: [0, 0],
-          'top-left': [0, 0],
-          bottom: [0, 0],
-        } as Offset
-      }
     >
       <div className={styles.AreaInfoPopupHeader}>
         <Flower className={styles.AreaInfoPopupHeaderIcon} />
