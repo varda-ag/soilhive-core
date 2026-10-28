@@ -39,7 +39,7 @@ jobs:
             PACKAGE_NAMES=("${INPUT_IMAGE_NAME}")
             TAG_PREFIX="${INPUT_IMAGE_VERSION}"
           else
-            PACKAGE_NAMES=("soilhive-core-backend" "soilhive-core-frontend")
+            PACKAGE_NAMES=("soilhive-core-backend-dev" "soilhive-core-frontend-dev")
             TAG_PREFIX="pr-${PR_NUMBER}-"
           fi
 
