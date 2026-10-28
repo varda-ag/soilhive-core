@@ -49,7 +49,8 @@ Deactivate it, then call `DELETE /raster-filters/{id}`. This drops its tables, a
 
 Their GeoTIFF packages are being republished for the API install; download links will be listed here. Each filter's labels below are the body of its `PUT /raster-filters/{id}/mappings` request.
 
-- Agroecological zones (37 MB)
+- Agroecological zones v4 (49 MB)
+  - https://static.soilhive.ag/map-based-filters/agroecological_zones_v4.tif
   - <details>
     <summary>Mappings</summary>
 
@@ -177,7 +178,8 @@ Their GeoTIFF packages are being republished for the API install; download links
     | Rangeland | 11 |
 
     </details>
-- Soil Groups (30 MB)
+- Soil Groups (25 MB)
+  - https://static.soilhive.ag/map-based-filters/soil_groups.tif
   - <details>
     <summary>Mappings</summary>
 
