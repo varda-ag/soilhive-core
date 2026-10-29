@@ -882,8 +882,8 @@ export default class SoilDataStorage {
         // Adding same input values
         selectClauses.push(`ARRAY[${values.join(',')}] as "${outputColumn}"`);
       } else {
-        // Get all values from mappings
-        let selectValues = `ARRAY(SELECT value::numeric FROM jsonb_each_text((SELECT mappings FROM ${schema}.raster_filters WHERE id = '${baseTable}')))`;
+        // Get all values from mappings, which are keyed by pixel value
+        let selectValues = `ARRAY(SELECT key::numeric FROM jsonb_each_text((SELECT mappings FROM ${schema}.raster_filters WHERE id = '${baseTable}')))`;
         if (calculateRealCoverage) {
           // Add a select column with all raster values intersecting the input geometry
           // Use ST_ValueCount to get distinct values as an array

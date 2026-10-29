@@ -5,7 +5,8 @@ export interface RasterFilter {
   id: string;
   name: string;
   description: string;
-  mappings: Record<string, number> | null;
+  // Pixel value → label. Several values may share a label.
+  mappings: Record<string, string> | null;
   active: boolean;
   kind: RasterFilterKind;
   // The File awaiting Installation: NULL once installed, as the install deletes it (docs/adr/0066)
@@ -15,7 +16,7 @@ export interface RasterFilter {
   // Pixel value → pixel count of the installed band, nodata excluded. NULL for filters installed by the CLI.
   pixel_values: Record<string, number> | null;
   // Labels the source File carried, for values in pixel_values: a starting point for the mappings, never applied by itself
-  suggested_mappings: Record<string, number> | null;
+  suggested_mappings: Record<string, string> | null;
   created_at: Date;
   updated_at: Date | null;
 }

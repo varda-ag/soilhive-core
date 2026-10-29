@@ -16,7 +16,7 @@ export default class RasterFilterEntity extends BaseTable implements RasterFilte
   description: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  mappings: Record<string, number> | null;
+  mappings: Record<string, string> | null;
 
   @Column({ type: 'boolean', default: false })
   active: boolean;
@@ -44,5 +44,5 @@ export default class RasterFilterEntity extends BaseTable implements RasterFilte
   pixel_values: Record<string, number> | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  suggested_mappings: Record<string, number> | null;
+  suggested_mappings: Record<string, string> | null;
 }

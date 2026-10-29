@@ -223,8 +223,8 @@ async function localSource(file: FileEntity, workDir: string): Promise<{ sourceP
 }
 
 /** The source's labels for the values the installed raster holds, or null when none of them is labelled. */
-function suggestedLabels(labels: Record<string, number> | undefined, pixelValues: Record<string, number>): Record<string, number> | null {
-  const present = Object.entries(labels ?? {}).filter(([, value]) => String(value) in pixelValues);
+function suggestedLabels(labels: Record<string, string> | undefined, pixelValues: Record<string, number>): Record<string, string> | null {
+  const present = Object.entries(labels ?? {}).filter(([value]) => value in pixelValues);
   return present.length > 0 ? Object.fromEntries(present) : null;
 }
 

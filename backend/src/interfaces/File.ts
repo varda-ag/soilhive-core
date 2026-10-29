@@ -21,7 +21,7 @@ export interface RasterBandMetadata {
   max_value?: number;
   no_data_value?: number;
   overviews?: Array<[number, number]>; // [width, height] in pixels
-  category_labels?: Record<string, number>; // { label: pixel value }, from the band's attribute table or category names
+  category_labels?: Record<string, string>; // { pixel value: label }, from the band's attribute table or category names
 }
 
 /** Four [x, y] corners: upper-left, upper-right, lower-right, lower-left. */

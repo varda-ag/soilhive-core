@@ -179,7 +179,7 @@ describe('Testing /raster-filters routes', () => {
       ['an id that is not a table name', { id: 'Not-A-Table' }],
       ['an id too long for its overview tables', { id: `a${'b'.repeat(58)}` }],
       ['a continuous kind', { kind: 'continuous' }],
-      ['mappings, which are labelled once installed', { mappings: { Forest: 1 } }],
+      ['mappings, which are labelled once installed', { mappings: { '1': 'Forest' } }],
       ['breaks, which are not supported yet', { breaks: [1, 2] }],
       ['a band below 1', { band: 0 }],
     ])('refuses %s with 400', async (_, overrides) => {
@@ -292,7 +292,7 @@ describe('Testing /raster-filters routes', () => {
       const res = await request(app)
         .patch('/raster-filters/land_cover')
         .set(dataAdminAuthHeader)
-        .send({ name: 'Land cover 2019', description: 'Renamed', mappings: { foo: 1 } });
+        .send({ name: 'Land cover 2019', description: 'Renamed', mappings: { '1': 'foo' } });
       expect(res.statusCode).toBe(200);
       expect(res.body.name).toBe('Land cover 2019');
       expect(res.body.description).toBe('Renamed');
@@ -324,44 +324,51 @@ describe('Testing /raster-filters routes', () => {
     });
 
     it('refuses to label a raster filter that is not installed', async () => {
-      expect((await put(NEW_ID, { Forest: 1 })).statusCode).toBe(409);
+      expect((await put(NEW_ID, { '1': 'Forest' })).statusCode).toBe(409);
     });
 
     it('labels an installed raster filter, which enables it', async () => {
       await markInstalled(NEW_ID);
-      const res = await put(NEW_ID, { Forest: 1, Grassland: 2 });
+      const res = await put(NEW_ID, { '1': 'Forest', '2': 'Grassland' });
       expect(res.statusCode).toBe(200);
-      expect(res.body.mappings).toEqual({ Forest: 1, Grassland: 2 });
+      expect(res.body.mappings).toEqual({ '1': 'Forest', '2': 'Grassland' });
       expect(res.body.enabled).toBe(true);
     });
 
     it('replaces the labels, and an empty object disables the raster filter', async () => {
       await markInstalled(NEW_ID);
-      await put(NEW_ID, { Forest: 1, Grassland: 2 });
-      expect((await put(NEW_ID, { Woodland: 1 })).body.mappings).toEqual({ Woodland: 1 });
+      await put(NEW_ID, { '1': 'Forest', '2': 'Grassland' });
+      expect((await put(NEW_ID, { '1': 'Woodland' })).body.mappings).toEqual({ '1': 'Woodland' });
       const res = await put(NEW_ID, {});
       expect(res.statusCode).toBe(200);
       expect(res.body.enabled).toBe(false);
     });
 
+    it('lets several values share a label', async () => {
+      await markInstalled(NEW_ID);
+      const res = await put(NEW_ID, { '1': 'Forest', '2': 'Forest' });
+      expect(res.statusCode).toBe(200);
+      expect(res.body.mappings).toEqual({ '1': 'Forest', '2': 'Forest' });
+    });
+
     it('refuses a value the raster does not hold', async () => {
       await markInstalled(NEW_ID);
-      expect((await put(NEW_ID, { Forest: 1, Water: 3 })).statusCode).toBe(400);
+      expect((await put(NEW_ID, { '1': 'Forest', '3': 'Water' })).statusCode).toBe(400);
     });
 
     it('accepts any value for a raster filter installed without recorded values', async () => {
       await markInstalled(NEW_ID, null);
-      expect((await put(NEW_ID, { Water: 3 })).statusCode).toBe(200);
+      expect((await put(NEW_ID, { '3': 'Water' })).statusCode).toBe(200);
     });
 
-    it('refuses two labels for one value', async () => {
-      await markInstalled(NEW_ID);
-      expect((await put(NEW_ID, { Forest: 1, Woodland: 1 })).statusCode).toBe(400);
+    it.each(['1.5', '01', 'one'])('refuses %s, which is not a whole number in canonical form', async value => {
+      await markInstalled(NEW_ID, null);
+      expect((await put(NEW_ID, { [value]: 'Forest' })).statusCode).toBe(400);
     });
 
-    it('refuses values that are not whole numbers', async () => {
+    it('refuses an empty label', async () => {
       await markInstalled(NEW_ID);
-      expect((await put(NEW_ID, { Forest: 1.5 })).statusCode).toBe(400);
+      expect((await put(NEW_ID, { '1': '' })).statusCode).toBe(400);
     });
   });
 

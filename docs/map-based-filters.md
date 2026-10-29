@@ -11,7 +11,7 @@ A map-based filter is a raster classification layer (land cover, soil groups...)
    ```
    `id` names the filter's database table, so it can never change: lowercase letters, digits and underscores, starting with a letter, at most 58 characters. `band` is the one band installed, chosen from the upload's `metadata.raster_bands`; the others are discarded. It can be left out for a single-band raster.
 3. **Wait for the install.** `GET /raster-filters/{id}` reports `install.status`: `queued`, `installing` (with `progress_percentage`), then `installed` or `failed`. A failure lists its causes and remedies in `install.errors`.
-4. **Label it** with `PUT /raster-filters/{id}/mappings`, a `{ "label": pixel value }` object. `pixel_values` on the filter lists the values its raster holds, with their pixel counts. When the raster carried its own labels (a raster attribute table or category names), `suggested_mappings` holds them, for the values it holds, ready to send as the body. A filter is **enabled** once it is installed and labelled.
+4. **Label it** with `PUT /raster-filters/{id}/mappings`, a `{ "pixel value": "label" }` object such as `{ "1": "Water", "2": "Trees" }`. Several pixel values may share a label: users then select them together. `pixel_values` on the filter lists the values its raster holds, with their pixel counts. When the raster carried its own labels (a raster attribute table or category names), `suggested_mappings` holds them, for the values it holds, ready to send as the body. A filter is **enabled** once it is installed and labelled.
 5. **Activate it** with `PATCH /raster-filters/{id}` and `{ "active": true }`, or with its toggle in the Admin console.
 
 A new version of a filter's data is a new filter, with a new `id`: an installed filter cannot be reinstalled.
@@ -47,7 +47,7 @@ Deactivate it, then call `DELETE /raster-filters/{id}`. This drops its tables, a
 
 ## Available filters
 
-Their GeoTIFF packages are being republished for the API install; download links will be listed here. Each filter's labels below are the body of its `PUT /raster-filters/{id}/mappings` request.
+Their GeoTIFF packages are being republished for the API install; download links will be listed here. Each filter's labels below, keyed by value, are the body of its `PUT /raster-filters/{id}/mappings` request.
 
 - Agroecological zones v4 (49 MB)
   - https://static.soilhive.ag/map-based-filters/agroecological_zones_v4.tif

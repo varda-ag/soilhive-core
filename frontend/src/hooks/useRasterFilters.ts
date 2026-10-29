@@ -2,6 +2,9 @@ import { useMemo } from 'react';
 import useAvailability from './useAvailability';
 import type { Selection } from 'components/UI/types';
 
+// Mappings are keyed by pixel value. A value with no label shows as itself
+const labelOf = (mappings: Record<string, string>, value: number): string => mappings[String(value)] ?? String(value);
+
 export function useRasterFilters(categoryId?: string) {
   const {
     datasetFilters,
@@ -18,15 +21,20 @@ export function useRasterFilters(categoryId?: string) {
     return allRasterCategories?.find(cat => cat.id === categoryId);
   }, [allRasterCategories, categoryId]);
 
-  // These are those raster filter options that are actually available given the current geometry. This is what will be displayed as checkboxes
-  const availableOptions = useMemo((): { label: string; value: number }[] => {
+  // These are those raster filter options that are actually available given the current geometry. This is what will be displayed as checkboxes.
+  // Several pixel values may share a label, so an option carries every value of its label
+  const availableOptions = useMemo((): { label: string; values: number[] }[] => {
     if (!categoryId || !currentRasterCategory || !currentRasterCategory.mappings) return [];
     const merged = new Set<number>();
     geometryFilterResults?.raster_filters?.[categoryId]?.forEach(v => merged.add(v));
 
-    return Object.entries(currentRasterCategory.mappings)
-      .filter(([_, value]) => merged.has(value))
-      .map(([label, value]) => ({ label, value }));
+    const valuesByLabel = new Map<string, number[]>();
+    for (const [value, label] of Object.entries(currentRasterCategory.mappings)) {
+      valuesByLabel.set(label, [...(valuesByLabel.get(label) ?? []), Number(value)]);
+    }
+    return [...valuesByLabel]
+      .filter(([_, values]) => values.some(value => merged.has(value)))
+      .map(([label, values]) => ({ label, values }));
   }, [geometryFilterResults, categoryId, currentRasterCategory]);
 
   const hasNoOptions = useMemo(() => {
@@ -42,27 +50,28 @@ export function useRasterFilters(categoryId?: string) {
     return datasetFilters.raster_filters?.[categoryId] || [];
   }, [datasetFilters.raster_filters, categoryId]);
 
-  // This is the logic to determine which pill to render also considering that, because of the geometry, maybe it's value isn't available anymore
+  // This is the logic to determine which pill to render also considering that, because of the geometry, maybe it's value isn't available anymore.
+  // One pill per label, whose id is the label
   const pillSelections = useMemo((): Selection[] => {
     const mappings = currentRasterCategory?.mappings; // Capture it
     if (!mappings) return []; // Narrow it
-    const availableValues = availableOptions.map(o => o.value);
-    return selectedValues.map(value => {
-      const label = Object.keys(mappings).find(key => mappings[key] === value) ?? String(value);
-      return {
-        id: String(value),
-        label,
-        disabled: !isLoadingRasterCategories && !isLoadingPartialFilter && !availableValues.includes(value),
-      };
-    });
+    const availableLabels = new Set(availableOptions.map(o => o.label));
+    const labels = new Set(selectedValues.map(value => labelOf(mappings, value)));
+    return [...labels].map(label => ({
+      id: label,
+      label,
+      disabled: !isLoadingRasterCategories && !isLoadingPartialFilter && !availableLabels.has(label),
+    }));
   }, [currentRasterCategory, selectedValues, availableOptions, isLoadingRasterCategories, isLoadingPartialFilter]);
 
   const hasUnavailableRasterSelected = useMemo(() => {
     return pillSelections.some(pill => pill.disabled);
   }, [pillSelections]);
 
+  // Removes every selected value of the pill's label
   const handlePillRemove = (id: string) => {
-    handleOnChange(selectedValues.filter(v => String(v) !== id));
+    const mappings = currentRasterCategory?.mappings ?? {};
+    handleOnChange(selectedValues.filter(v => labelOf(mappings, v) !== id));
   };
 
   // user selction is stored in the dataset filter of the AvailabilityCOntext

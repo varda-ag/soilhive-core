@@ -2645,8 +2645,8 @@ paths:
       x-eov-operation-id: putRasterFilterMappings
       summary: Replace a raster filter's labels
       description: >-
-        Maps each label to one pixel value of the installed raster (see `pixel_values`). A raster filter is
-        enabled once it has labels; an empty object removes them all and disables it.
+        Labels pixel values of the installed raster (see `pixel_values`); several values may share a label. A
+        raster filter is enabled once it has labels; an empty object removes them all and disables it.
       tags:
         - raster-filters
       security:
@@ -2920,9 +2920,9 @@ components:
         category_labels:
           type: object
           additionalProperties:
-            type: integer
+            type: string
           description: >-
-            Label → pixel value, read from the band's raster attribute table, else its category names.
+            Pixel value → label, read from the band's raster attribute table, else its category names.
             Absent when the band carries neither.
       required:
         - band_number
@@ -3985,9 +3985,9 @@ components:
         mappings:
           type: object
           nullable: true
-          description: Label → pixel value
+          description: Pixel value → label. Several pixel values may share a label.
           additionalProperties:
-            type: integer
+            type: string
         kind:
           type: string
           enum: [categorical, continuous]
@@ -4025,7 +4025,7 @@ components:
           type: object
           nullable: true
           additionalProperties:
-            type: integer
+            type: string
           description: >-
             Privileged callers only. The labels the uploaded raster carried (its attribute table or category
             names) for values it holds, as a starting point for PUT mappings. Never applied by themselves.
@@ -4068,9 +4068,10 @@ components:
 
     RasterFilterMappings:
       type: object
-      description: Label → pixel value. Each pixel value takes at most one label.
+      description: Pixel value → label. Keys are whole numbers; several may share a label.
       additionalProperties:
-        type: integer
+        type: string
+        minLength: 1
 
     RasterFilterCreatePayload:
       type: object

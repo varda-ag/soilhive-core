@@ -149,7 +149,7 @@ describe('processRasterFilterInstall', () => {
 
     const filter = await (await getDataSource()).getRepository(RasterFilterEntity).findOneByOrFail({ id: FILTER_ID });
     expect(Object.keys(filter.pixel_values!)).toEqual(['7']);
-    expect(filter.suggested_mappings).toEqual({ Seven: 7 });
+    expect(filter.suggested_mappings).toEqual({ '7': 'Seven' });
     expect(filter.mappings).toBeNull();
   });
 

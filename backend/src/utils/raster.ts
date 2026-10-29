@@ -202,19 +202,17 @@ const RAT_MAX = 4;
 const RAT_MIN_MAX = 5;
 
 /**
- * The class labels a band carries, as `{ label: pixel value }`: from its raster attribute table, else
+ * The class labels a band carries, as `{ pixel value: label }`: from its raster attribute table, else
  * from its category names. Undefined when it has neither, or none that name a whole-number value.
- * A label or value that repeats keeps its first pairing.
+ * A value that repeats keeps its first label; several values may share one.
  */
-export function categoryLabels(band: GdalInfoBand | undefined): Record<string, number> | undefined {
+export function categoryLabels(band: GdalInfoBand | undefined): Record<string, string> | undefined {
   const pairs = band?.rat ? ratPairs(band.rat) : (band?.categories ?? []).map((label, value): [unknown, number] => [label, value]);
-  const labels: Record<string, number> = {};
-  const values = new Set<number>();
+  const labels: Record<string, string> = {};
   for (const [label, value] of pairs) {
     const name = typeof label === 'string' ? label.trim() : '';
-    if (!name || !Number.isInteger(value) || name in labels || values.has(value)) continue;
-    labels[name] = value;
-    values.add(value);
+    if (!name || !Number.isInteger(value) || String(value) in labels) continue;
+    labels[String(value)] = name;
   }
   return Object.keys(labels).length > 0 ? labels : undefined;
 }

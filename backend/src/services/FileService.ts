@@ -915,7 +915,7 @@ export default class FileService {
 
 // Shown on the upload so an admin can tell which band a Raster Filter's labels are in. The install
 // reads them again itself, since the File it consumes may predate this.
-const withCategoryLabels = (band: GdalInfoBand): { category_labels?: Record<string, number> } => {
+const withCategoryLabels = (band: GdalInfoBand): { category_labels?: Record<string, string> } => {
   const labels = categoryLabels(band);
   return labels ? { category_labels: labels } : {};
 };

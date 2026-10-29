@@ -257,7 +257,7 @@ describe('categoryLabels', () => {
         [70, 'Cambisols'],
       ],
     );
-    expect(categoryLabels(band)).toEqual({ Acrisols: 65, Cambisols: 70 });
+    expect(categoryLabels(band)).toEqual({ '65': 'Acrisols', '70': 'Cambisols' });
   });
 
   it('prefers a min-max column for the value, and takes the first string column without a name column', () => {
@@ -272,13 +272,13 @@ describe('categoryLabels', () => {
         [1, 40, 'Water'],
       ],
     );
-    expect(categoryLabels(band)).toEqual({ Rangeland: 11, Water: 1 });
+    expect(categoryLabels(band)).toEqual({ '11': 'Rangeland', '1': 'Water' });
   });
 
   it('uses the row position without a value column, offset by value bins', () => {
     const columns = [{ name: 'Class', type: 2, usage: 2 }];
-    expect(categoryLabels(rat(columns, [['Nodata'], ['Forest'], ['Crops']]))).toEqual({ Nodata: 0, Forest: 1, Crops: 2 });
-    expect(categoryLabels(rat(columns, [['Forest'], ['Crops']], { row0Min: 10, binSize: 5 }))).toEqual({ Forest: 10, Crops: 15 });
+    expect(categoryLabels(rat(columns, [['Nodata'], ['Forest'], ['Crops']]))).toEqual({ '0': 'Nodata', '1': 'Forest', '2': 'Crops' });
+    expect(categoryLabels(rat(columns, [['Forest'], ['Crops']], { row0Min: 10, binSize: 5 }))).toEqual({ '10': 'Forest', '15': 'Crops' });
   });
 
   it('skips a table whose rows span value ranges', () => {
@@ -293,7 +293,7 @@ describe('categoryLabels', () => {
     expect(categoryLabels(band)).toBeUndefined();
   });
 
-  it('skips blank labels, values that are not whole numbers, and repeats', () => {
+  it('skips blank labels, values that are not whole numbers, and repeated values, but lets values share a label', () => {
     const band = rat(
       [
         { name: 'Value', type: 1, usage: 0 },
@@ -308,11 +308,11 @@ describe('categoryLabels', () => {
         [4, 'Trees'],
       ],
     );
-    expect(categoryLabels(band)).toEqual({ Water: 1, Trees: 4 });
+    expect(categoryLabels(band)).toEqual({ '1': 'Water', '3': 'Water', '4': 'Trees' });
   });
 
   it('falls back to category names, the value being the position', () => {
-    expect(categoryLabels({ categories: ['', 'Class one', 'Class two'] })).toEqual({ 'Class one': 1, 'Class two': 2 });
+    expect(categoryLabels({ categories: ['', 'Class one', 'Class two'] })).toEqual({ '1': 'Class one', '2': 'Class two' });
   });
 
   it('is undefined for a band without labels', () => {

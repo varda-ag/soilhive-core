@@ -14,7 +14,7 @@ const SOIL_GROUPS_CATEGORY = {
   name: 'Soil Groups',
   description: 'World Reference Base for Soil Resources',
   enabled: true,
-  mappings: { Acrisols: 1, Ferralsols: 2, Gleysols: 3, Leptosols: 4 },
+  mappings: { '1': 'Acrisols', '2': 'Ferralsols', '3': 'Gleysols', '4': 'Leptosols' },
 };
 
 function buildAvailabilityMock(overrides = {}) {
@@ -68,8 +68,8 @@ describe('useRasterFilters', () => {
       const { result } = renderHook(() => useRasterFilters('soil_groups'));
 
       expect(result.current.availableOptions).toEqual([
-        { label: 'Acrisols', value: 1 },
-        { label: 'Gleysols', value: 3 },
+        { label: 'Acrisols', values: [1] },
+        { label: 'Gleysols', values: [3] },
       ]);
     });
 
@@ -83,9 +83,25 @@ describe('useRasterFilters', () => {
       const { result } = renderHook(() => useRasterFilters('soil_groups'));
 
       expect(result.current.availableOptions).toEqual([
-        { label: 'Acrisols', value: 1 },
-        { label: 'Gleysols', value: 3 },
-        { label: 'Leptosols', value: 4 },
+        { label: 'Acrisols', values: [1] },
+        { label: 'Gleysols', values: [3] },
+        { label: 'Leptosols', values: [4] },
+      ]);
+    });
+
+    it('offers one option per label, carrying every value of that label', () => {
+      useAvailabilityMock.mockReturnValue(
+        buildAvailabilityMock({
+          allRasterCategories: [{ ...SOIL_GROUPS_CATEGORY, mappings: { '1': 'Forest', '2': 'Forest', '3': 'Water' } }],
+          geometryFilterResults: { datasets: [{ id: 'ds-1' }], raster_filters: { soil_groups: [2, 3] } },
+        }) as any,
+      );
+
+      const { result } = renderHook(() => useRasterFilters('soil_groups'));
+
+      expect(result.current.availableOptions).toEqual([
+        { label: 'Forest', values: [1, 2] },
+        { label: 'Water', values: [3] },
       ]);
     });
   });
@@ -124,12 +140,12 @@ describe('useRasterFilters', () => {
       const { result } = renderHook(() => useRasterFilters('soil_groups'));
 
       expect(result.current.pillSelections).toEqual([
-        { id: '1', label: 'Acrisols', disabled: false },
-        { id: '2', label: 'Ferralsols', disabled: false },
+        { id: 'Acrisols', label: 'Acrisols', disabled: false },
+        { id: 'Ferralsols', label: 'Ferralsols', disabled: false },
       ]);
     });
 
-    it('marks a pill as disabled when its value is not in availableOptions and not loading', () => {
+    it('marks a pill as disabled when its label is not in availableOptions and not loading', () => {
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
           datasetFilters: { raster_filters: { soil_groups: [1, 2] } },
@@ -141,8 +157,8 @@ describe('useRasterFilters', () => {
       const { result } = renderHook(() => useRasterFilters('soil_groups'));
 
       expect(result.current.pillSelections).toEqual([
-        { id: '1', label: 'Acrisols', disabled: false },
-        { id: '2', label: 'Ferralsols', disabled: true },
+        { id: 'Acrisols', label: 'Acrisols', disabled: false },
+        { id: 'Ferralsols', label: 'Ferralsols', disabled: true },
       ]);
     });
 
@@ -158,8 +174,8 @@ describe('useRasterFilters', () => {
       const { result } = renderHook(() => useRasterFilters('soil_groups'));
 
       expect(result.current.pillSelections).toEqual([
-        { id: '1', label: 'Acrisols', disabled: false },
-        { id: '2', label: 'Ferralsols', disabled: false },
+        { id: 'Acrisols', label: 'Acrisols', disabled: false },
+        { id: 'Ferralsols', label: 'Ferralsols', disabled: false },
       ]);
     });
   });
@@ -198,7 +214,7 @@ describe('useRasterFilters', () => {
   });
 
   describe('handlePillRemove', () => {
-    it('removes the value matching the given id from selectedValues', () => {
+    it('removes the values whose label matches the given id from selectedValues', () => {
       const setDatasetFilters = jest.fn();
       useAvailabilityMock.mockReturnValue(
         buildAvailabilityMock({
@@ -209,11 +225,36 @@ describe('useRasterFilters', () => {
 
       const { result } = renderHook(() => useRasterFilters('soil_groups'));
 
-      act(() => result.current.handlePillRemove('2'));
+      act(() => result.current.handlePillRemove('Ferralsols'));
 
       const updater = setDatasetFilters.mock.calls[0][0]; // see aboe for updater explanation
       const nextState = updater({ raster_filters: { soil_groups: [1, 2, 3] } });
       expect(nextState.raster_filters.soil_groups).toEqual([1, 3]);
+    });
+
+    it('shows one pill for values sharing a label, and removing it removes them all', () => {
+      const setDatasetFilters = jest.fn();
+      useAvailabilityMock.mockReturnValue(
+        buildAvailabilityMock({
+          setDatasetFilters,
+          allRasterCategories: [{ ...SOIL_GROUPS_CATEGORY, mappings: { '1': 'Forest', '2': 'Forest', '3': 'Water' } }],
+          datasetFilters: { raster_filters: { soil_groups: [1, 2, 3] } },
+          geometryFilterResults: { datasets: [{ id: 'ds-1' }], raster_filters: { soil_groups: [1, 2, 3] } },
+        }) as any,
+      );
+
+      const { result } = renderHook(() => useRasterFilters('soil_groups'));
+
+      expect(result.current.pillSelections).toEqual([
+        { id: 'Forest', label: 'Forest', disabled: false },
+        { id: 'Water', label: 'Water', disabled: false },
+      ]);
+
+      act(() => result.current.handlePillRemove('Forest'));
+
+      const updater = setDatasetFilters.mock.calls[0][0];
+      const nextState = updater({ raster_filters: { soil_groups: [1, 2, 3] } });
+      expect(nextState.raster_filters.soil_groups).toEqual([3]);
     });
   });
 });

@@ -33,7 +33,7 @@ export interface PublicRasterFilter {
   id: string;
   name: string;
   description: string;
-  mappings: Record<string, number> | null;
+  mappings: Record<string, string> | null;
   kind: string;
   resolution_m: number | null;
   active: boolean;
@@ -47,7 +47,7 @@ export interface AdminRasterFilter extends PublicRasterFilter {
   file_id: string | null;
   created_by: string | null;
   pixel_values: Record<string, number> | null;
-  suggested_mappings: Record<string, number> | null;
+  suggested_mappings: Record<string, string> | null;
   install: RasterFilterInstall;
 }
 
@@ -144,11 +144,12 @@ export default class RasterFilterService {
   };
 
   /**
-   * Replaces a Raster Filter's labels: `{ label: pixel value }`. Only an installed filter can be
-   * labelled, and only with values its raster holds. The CLI's filters have no recorded values, so
-   * theirs go unchecked. An empty object unlabels the filter, which disables it.
+   * Replaces a Raster Filter's labels: `{ pixel value: label }`, so several values may share a label
+   * (docs/adr/0068). Only an installed filter can be labelled, and only with values its raster holds.
+   * The CLI's filters have no recorded values, so theirs go unchecked. An empty object unlabels the
+   * filter, which disables it.
    */
-  putMappings = async (requestData: RequestData, id: string, mappings: Record<string, number>): Promise<AdminRasterFilter> => {
+  putMappings = async (requestData: RequestData, id: string, mappings: Record<string, string>): Promise<AdminRasterFilter> => {
     const repo = requestData.entityManager.getRepository(RasterFilterEntity);
     const entity = await this.findRasterFilter(requestData, id);
     const [install] = (await getInstallStates(requestData.entityManager, [id])).values();
@@ -159,13 +160,11 @@ export default class RasterFilterService {
       );
     }
 
-    const values = Object.values(mappings);
-    const repeated = values.filter((value, index) => values.indexOf(value) !== index);
-    if (repeated.length > 0) {
-      throw new ErrorResponse(
-        `Each pixel value takes one label, but ${[...new Set(repeated)].join(', ')} have more`,
-        StatusCodes.BAD_REQUEST,
-      );
+    const values = Object.keys(mappings);
+    // Canonical form only: '07' or '7.0' would never match a pixel value's key
+    const notWhole = values.filter(value => !Number.isSafeInteger(Number(value)) || String(Number(value)) !== value);
+    if (notWhole.length > 0) {
+      throw new ErrorResponse(`Pixel values must be whole numbers, but ${notWhole.join(', ')} are not`, StatusCodes.BAD_REQUEST);
     }
     if (entity.pixel_values) {
       const absent = values.filter(value => !(String(value) in entity.pixel_values!));
