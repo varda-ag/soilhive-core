@@ -60,7 +60,9 @@ describe('MapBasedFiltersTableStatusTemplate', () => {
 
   describe('when the filter is installed', () => {
     it('renders the toggle and no tag', () => {
-      render(<MapBasedFiltersTableStatusTemplate filter={makeFilter()} isActivationPending={false} onSetCategoryActive={onSetCategoryActive} />);
+      render(
+        <MapBasedFiltersTableStatusTemplate filter={makeFilter()} isActivationPending={false} onSetCategoryActive={onSetCategoryActive} />,
+      );
 
       expect(screen.getByTestId('mock-toggle-button')).toBeInTheDocument();
       expect(screen.queryByTestId('mock-tag')).not.toBeInTheDocument();
@@ -127,7 +129,9 @@ describe('MapBasedFiltersTableStatusTemplate', () => {
     });
 
     it('enables the toggle when no activation is pending', () => {
-      render(<MapBasedFiltersTableStatusTemplate filter={makeFilter()} isActivationPending={false} onSetCategoryActive={onSetCategoryActive} />);
+      render(
+        <MapBasedFiltersTableStatusTemplate filter={makeFilter()} isActivationPending={false} onSetCategoryActive={onSetCategoryActive} />,
+      );
 
       expect(screen.getByTestId('mock-toggle-button')).not.toBeDisabled();
     });
