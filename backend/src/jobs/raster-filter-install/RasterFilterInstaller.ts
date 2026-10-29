@@ -123,7 +123,11 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
     } catch (error) {
       throw new JobError('RFI_WARP_FAILED', params, getErrorMessage(error));
     }
-    const extractedInfo = await GdalCLI.gdalinfo(extracted);
+    // One read pass, far cheaper than loading an empty raster to find out. A tiny share prints as e.g. 2.5e-07, never 0
+    const extractedInfo = await GdalCLI.gdalinfo(extracted, { stats: true });
+    if (extractedInfo.bands?.[0]?.metadata?.['']?.['STATISTICS_VALID_PERCENT'] === '0') {
+      throw new JobError('RFI_NO_VALID_PIXELS', params);
+    }
     const resolutionM = geographicResolutionM(extractedInfo.geoTransform![1]!);
     // Only the extracted band is read from here on, and sources run to several GB of ephemeral storage
     if (sourceCopy) {

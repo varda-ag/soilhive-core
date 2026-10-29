@@ -207,7 +207,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   },
   RFI_NAME_TAKEN: {
     message: "The database already has a table named like map-based filter '{raster_filter_id}' ('{table}').",
-    actions: ['Delete the filter and create it again with a different id.'],
+    actions: ['Delete the filter and create it again: it gets a new id.'],
   },
   BL_RECORD_VALIDATION_FAILED: {
     message: "A record was rejected because field '{field}' {issue}.",

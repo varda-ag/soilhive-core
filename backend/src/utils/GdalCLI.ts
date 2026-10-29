@@ -81,8 +81,12 @@ export interface GdalInfoOutput {
 export type Envelope = [west: number, south: number, east: number, north: number];
 
 export class GdalCLI {
-  static async gdalinfo(filePath: string): Promise<GdalInfoOutput> {
-    const stdout = await GdalCLI.run('gdalinfo', ['-json', filePath]);
+  /**
+   * With `stats`, every pixel is read to fill each band's STATISTICS_* metadata, which GDAL also caches
+   * in a `.aux.xml` sidecar next to the file. An all-nodata band still exits 0, with VALID_PERCENT 0.
+   */
+  static async gdalinfo(filePath: string, { stats = false }: { stats?: boolean } = {}): Promise<GdalInfoOutput> {
+    const stdout = await GdalCLI.run('gdalinfo', ['-json', ...(stats ? ['-stats'] : []), filePath]);
     return JSON.parse(stdout) as GdalInfoOutput;
   }
 
