@@ -228,6 +228,7 @@ export interface RasterFilterCategory {
   active: boolean;
   mappings: Record<string, number> | null; // e.g., { "Artic": 1 }
   created_at: string;
+  created_by: string | null;
   updated_at: string;
   deleted_at: string | null;
 }
