@@ -1,7 +1,14 @@
 import React, { createContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { isNewTabModule, loadRemotes, partitionDuplicatePluginIds, partitionInvalidPlugins } from '../utilities/moduleFederation';
-import type { Plugin, RemotePlugin } from '../types/plugins';
+import {
+  isNewTabModule,
+  loadRemotes,
+  pairMapInfoCards,
+  partitionDuplicatePluginIds,
+  partitionInvalidMapInfoCards,
+  partitionInvalidPlugins,
+} from '../utilities/moduleFederation';
+import type { MapInfoCardEntry, Plugin, RemotePlugin } from '../types/plugins';
 import useTheme from '../hooks/useTheme';
 import useNotifications from '../hooks/useNotifications';
 import { useAuthContext } from '../auth/AuthContextProvider';
@@ -9,6 +16,8 @@ import { AuthModes } from '../auth/types';
 
 type RemotesContextType = {
   plugins: RemotePlugin[];
+  // In config order. Each card's plugin is in plugins, as a single-page plugin.
+  mapInfoCards: MapInfoCardEntry[];
   isLoadingRemotes: boolean;
 };
 
@@ -28,6 +37,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
   const { t } = useTranslation('common');
 
   const [plugins, setPlugins] = useState<RemotePlugin[]>([]);
+  const [mapInfoCards, setMapInfoCards] = useState<MapInfoCardEntry[]>([]);
   const [isLoadingModules, setIsLoadingModules] = useState(true);
 
   // Guards against re-loading the same config (e.g. React Strict Mode double-invoke
@@ -43,7 +53,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
     const load = async () => {
       try {
-        const { loaded, failed } = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        const { loaded, failed, cards, failedCards } = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
 
         // Report remotes that couldn't be loaded at all (e.g. unreachable
         // server/url) separately from the missing-fields notification below:
@@ -57,7 +67,18 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
           });
         });
 
-        const { valid, invalid } = partitionInvalidPlugins(loaded);
+        failedCards.forEach(url => {
+          showNotification({
+            id: `remote-card-load-failed-${url}`,
+            title: t('plugins.card_load_failed.title'),
+            message: t('plugins.card_load_failed.message', { url }),
+            type: 'error',
+          });
+        });
+
+        const { valid, invalid: invalidPlugins } = partitionInvalidPlugins(loaded);
+        const { valid: validCards, invalid: invalidCards } = partitionInvalidMapInfoCards(cards);
+        const invalid = [...invalidPlugins, ...invalidCards];
         // Report modules missing required exports via a notification, rather than
         // throwing, so a single misconfigured plugin doesn't take down the rest of
         // the app. Runs before dedup below, since that keys a Set on pluginId and
@@ -95,6 +116,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
         // authMode is fixed for the page's lifetime, so this never changes.
         const available = authMode === AuthModes.NONE ? unique.filter(plugin => !plugin.requiresAuth || isNewTabModule(plugin)) : unique;
         setPlugins(available);
+        setMapInfoCards(pairMapInfoCards(validCards, available));
       } finally {
         setIsLoadingModules(false);
       }
@@ -104,7 +126,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
   // Memoized: every plugin component reads it through usePluginApi
   const isLoadingRemotes = isLoadingThemeConfig || isLoadingModules;
-  const value = useMemo(() => ({ plugins, isLoadingRemotes }), [plugins, isLoadingRemotes]);
+  const value = useMemo(() => ({ plugins, mapInfoCards, isLoadingRemotes }), [plugins, mapInfoCards, isLoadingRemotes]);
 
   return <RemotesContext.Provider value={value}>{children}</RemotesContext.Provider>;
 };

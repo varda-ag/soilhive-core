@@ -63,3 +63,9 @@ export interface MapInfoCardPlugin extends RemotePlugin {
   type: PluginType.MAP_INFO_CARD;
   Page: React.ComponentType<{ context: PluginContext }>;
 }
+
+// A loaded map info card, with the route of its plugin's routed page
+export interface MapInfoCardEntry {
+  card: MapInfoCardPlugin;
+  route: string;
+}
