@@ -22,7 +22,7 @@ A new version of a filter's data is a new filter, with a new `id`: an installed 
 - **Categorical**: the chosen band holds whole-number classes, in a type of 32 bits or less. Continuous rasters (floating-point values) cannot be installed yet.
 - **Nodata**: unless the raster is already in EPSG:4326, its band must declare a nodata value that is not one of its classes.
 - At most `MAX_UPLOAD_SIZE_MB` (5000 MB by default).
-- Optionally, its own labels: a raster attribute table, or category names. `POST /files` shows them per band as `category_labels`. Formats that keep them inside the file (ERDAS Imagine `.img`, and GeoTIFF attribute tables) carry them through the upload; GeoTIFF category names live in a `.aux.xml` sidecar and are lost.
+- Optionally, its own labels: a raster attribute table, or category names. `POST /files` shows them per band as `category_labels`. Only formats that keep them inside the file, such as ERDAS Imagine `.img`, carry them through the upload. A GeoTIFF keeps both in a `.tif.aux.xml` sidecar, which the upload leaves behind, so label it yourself in step 4.
 
 ## What the install does to your raster
 
