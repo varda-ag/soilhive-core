@@ -300,10 +300,12 @@ async function loadRemotes(
   const cards: RemotePlugin[] = [];
   const failedCards: string[] = [];
   cardModules.forEach((module, index) => {
+    const { url } = withCard[index];
     if (module) {
       cards.push(module);
-    } else {
-      failedCards.push(withCard[index].url);
+    } else if (!failed.includes(url)) {
+      // A remote that failed as a whole is already reported in failed: no second toast for its card
+      failedCards.push(url);
     }
   });
 

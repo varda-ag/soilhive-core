@@ -263,6 +263,15 @@ describe('loadRemotes', () => {
     });
   });
 
+  it('does not report a card failure for a remote that failed to load at all', async () => {
+    const url = 'https://remote.example/mf-manifest.json';
+    loadRemote.mockRejectedValue(new Error('network error'));
+
+    const result = await loadRemotes([{ ...toConfig(url), hasMapInfoCard: true }]);
+
+    expect(result).toEqual({ loaded: [], failed: [url], cards: [], failedCards: [] });
+  });
+
   it('ignores disabled remotes entirely', async () => {
     const disabledUrl = 'https://disabled-remote.example/mf-manifest.json';
     loadRemote.mockResolvedValue(singlePage);
