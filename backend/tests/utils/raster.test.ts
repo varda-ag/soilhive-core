@@ -320,6 +320,36 @@ describe('categoryLabels', () => {
     expect(categoryLabels({})).toBeUndefined();
     expect(categoryLabels(undefined)).toBeUndefined();
   });
+
+  describe('CLASSES metadata', () => {
+    const classes = (labels: unknown) => ({ '': { CLASSES: typeof labels === 'string' ? labels : JSON.stringify(labels) } });
+
+    it("reads a single-band file's CLASSES", () => {
+      const band = {};
+      expect(categoryLabels(band, { bands: [band], metadata: classes({ 1: 'Clay', 2: 'Silty Clay' }) })).toEqual({
+        '1': 'Clay',
+        '2': 'Silty Clay',
+      });
+    });
+
+    it("prefers the band's own CLASSES, and ignores the file's when it has several bands", () => {
+      const band = { metadata: classes({ 1: 'Band clay' }) };
+      expect(categoryLabels(band, { bands: [band, {}], metadata: classes({ 1: 'File clay' }) })).toEqual({ '1': 'Band clay' });
+      expect(categoryLabels({}, { bands: [{}, {}], metadata: classes({ 1: 'File clay' }) })).toBeUndefined();
+    });
+
+    it('comes after category names', () => {
+      const band = { categories: ['', 'Named'], metadata: classes({ 1: 'Classes' }) };
+      expect(categoryLabels(band)).toEqual({ '1': 'Named' });
+    });
+
+    it('skips blank labels and keys that are not whole numbers, and is undefined for malformed JSON', () => {
+      const band = { metadata: classes({ 1: 'Clay', 2: ' ', 2.5: 'Half', '': 'None', x: 'Text', 3: 7 }) };
+      expect(categoryLabels(band)).toEqual({ '1': 'Clay' });
+      expect(categoryLabels({ metadata: classes('{"1": "Clay"') })).toBeUndefined();
+      expect(categoryLabels({ metadata: classes(['Clay']) })).toBeUndefined();
+    });
+  });
 });
 
 describe('rasterFilterId', () => {

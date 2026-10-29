@@ -2921,8 +2921,9 @@ components:
           additionalProperties:
             type: string
           description: >-
-            Pixel value → label, read from the band's raster attribute table, else its category names.
-            Absent when the band carries neither.
+            Pixel value → label, read from the band's raster attribute table, else its category names, else a
+            CLASSES metadata item holding that JSON (the file's own counts for a single-band file only). Absent
+            when the band carries none.
       required:
         - band_number
         - data_type
@@ -4026,8 +4027,9 @@ components:
           additionalProperties:
             type: string
           description: >-
-            Privileged callers only. The labels the uploaded raster carried (its attribute table or category
-            names) for values it holds, as a starting point for PUT mappings. Never applied by themselves.
+            Privileged callers only. The labels the uploaded raster carried (its attribute table, category
+            names or CLASSES metadata) for values it holds, as a starting point for PUT mappings. Never applied
+            by themselves.
         install:
           $ref: '#/components/schemas/RasterFilterInstall'
 

@@ -153,6 +153,27 @@ describe('processRasterFilterInstall', () => {
     expect(filter.mappings).toBeNull();
   });
 
+  it("suggests a GeoTIFF's CLASSES metadata, which it keeps inside the file", async () => {
+    const labelled = makeRaster('classes.tif', [
+      '-ot',
+      'Byte',
+      '-scale',
+      '0',
+      '1000000000',
+      '7',
+      '7',
+      '-a_nodata',
+      '255',
+      '-mo',
+      'CLASSES={"7":"Seven","9":"Nine"}',
+    ]);
+    await addFilterWithSource(labelled);
+    await processRasterFilterInstall(getJob());
+
+    const filter = await (await getDataSource()).getRepository(RasterFilterEntity).findOneByOrFail({ id: FILTER_ID });
+    expect(filter.suggested_mappings).toEqual({ '7': 'Seven' });
+  });
+
   it('reprojects a projected raster, filling outside its footprint with its nodata', async () => {
     const projected = makeRaster('projected.tif', ['-t_srs', 'EPSG:3857'], 'gdalwarp');
     await addFilterWithSource(projected);

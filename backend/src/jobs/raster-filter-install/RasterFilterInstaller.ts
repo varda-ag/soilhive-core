@@ -153,7 +153,7 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
       throw new JobError('RFI_NO_VALID_PIXELS', params);
     }
     // Read from the source, not the File's metadata, which predates them on older uploads
-    const suggestedMappings = suggestedLabels(categoryLabels(info.bands?.[band - 1]), pixelValues);
+    const suggestedMappings = suggestedLabels(categoryLabels(info.bands?.[band - 1], info), pixelValues);
 
     await reportProgress(VALUE_COUNT_CEILING, `Finishing map-based filter '${id}'...`);
     await entityManager.transaction(async em => {

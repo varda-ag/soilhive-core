@@ -32,7 +32,10 @@ A filter is a raster, its labels, and a name.
 - **Categorical**: the chosen band holds whole-number classes, in a type of 32 bits or less. Continuous rasters (floating-point values) cannot be installed.
 - **Nodata**: unless the raster is already in EPSG:4326, its band must declare a nodata value that is not one of its classes.
 - At most `MAX_UPLOAD_SIZE_MB` (5000 MB by default).
-- Optionally, its own labels: a raster attribute table, or category names. `POST /files` shows them per band as `category_labels`. Only formats that keep them inside the file, such as ERDAS Imagine `.img`, carry them through the upload. A GeoTIFF keeps both in a `.tif.aux.xml` sidecar, which the upload leaves behind, so label it yourself.
+- Optionally, its own labels: a raster attribute table, category names, or a `CLASSES` metadata item holding the [labels JSON](#the-labels), as SoilHive's raster exports write it. `POST /files` shows them per band as `category_labels`. Only labels kept inside the file survive the upload:
+  - ERDAS Imagine `.img` keeps all three inside.
+  - A GeoTIFF keeps its attribute table and category names in a `.tif.aux.xml` sidecar, which the upload leaves behind, but keeps `CLASSES` inside. Add it with `gdal_edit.py -mo 'CLASSES={"1":"Clay","2":"Silty Clay"}' filter.tif`.
+  - A `CLASSES` set on the file rather than on a band only counts for a single-band file.
 
 ### The labels
 

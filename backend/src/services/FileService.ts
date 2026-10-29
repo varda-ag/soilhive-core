@@ -634,7 +634,7 @@ export default class FileService {
         ...(band.max !== undefined && { max_value: band.max }),
         ...(band.noDataValue !== undefined && { no_data_value: band.noDataValue }),
         ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => ov.size) }),
-        ...withCategoryLabels(band),
+        ...withCategoryLabels(band, gdalInfo),
       }));
 
       const wkt = gdalInfo.coordinateSystem?.wkt;
@@ -915,7 +915,7 @@ export default class FileService {
 
 // Shown on the upload so an admin can tell which band a Raster Filter's labels are in. The install
 // reads them again itself, since the File it consumes may predate this.
-const withCategoryLabels = (band: GdalInfoBand): { category_labels?: Record<string, string> } => {
-  const labels = categoryLabels(band);
+const withCategoryLabels = (band: GdalInfoBand, info: GdalInfoOutput): { category_labels?: Record<string, string> } => {
+  const labels = categoryLabels(band, info);
   return labels ? { category_labels: labels } : {};
 };

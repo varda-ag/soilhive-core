@@ -203,11 +203,19 @@ const RAT_MIN_MAX = 5;
 
 /**
  * The class labels a band carries, as `{ pixel value: label }`: from its raster attribute table, else
- * from its category names. Undefined when it has neither, or none that name a whole-number value.
- * A value that repeats keeps its first label; several values may share one.
+ * its category names, else a `CLASSES` metadata item (see classesPairs). Undefined when it has none
+ * that name a whole-number value. A value that repeats keeps its first label; several values may
+ * share one.
  */
-export function categoryLabels(band: GdalInfoBand | undefined): Record<string, string> | undefined {
-  const pairs = band?.rat ? ratPairs(band.rat) : (band?.categories ?? []).map((label, value): [unknown, number] => [label, value]);
+export function categoryLabels(band: GdalInfoBand | undefined, info?: GdalInfoOutput): Record<string, string> | undefined {
+  return (
+    toLabels(band?.rat ? ratPairs(band.rat) : []) ??
+    toLabels((band?.categories ?? []).map((label, value): [unknown, number] => [label, value])) ??
+    toLabels(classesPairs(band, info))
+  );
+}
+
+function toLabels(pairs: Array<[unknown, number]>): Record<string, string> | undefined {
   const labels: Record<string, string> = {};
   for (const [label, value] of pairs) {
     const name = typeof label === 'string' ? label.trim() : '';
@@ -215,6 +223,24 @@ export function categoryLabels(band: GdalInfoBand | undefined): Record<string, s
     labels[String(value)] = name;
   }
   return Object.keys(labels).length > 0 ? labels : undefined;
+}
+
+/**
+ * A `CLASSES` metadata item holding `{ "pixel value": "label" }` JSON, as SoilHive's raster exports
+ * write it. A GeoTIFF keeps it inside the file, unlike its attribute table. The band's own item wins;
+ * the dataset's counts only in a single-band file, as it names no band. Malformed JSON is ignored.
+ */
+function classesPairs(band: GdalInfoBand | undefined, info: GdalInfoOutput | undefined): Array<[unknown, number]> {
+  const raw = band?.metadata?.['']?.['CLASSES'] ?? (info?.bands?.length === 1 ? info.metadata?.['']?.['CLASSES'] : undefined);
+  if (!raw) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+  return Object.entries(parsed).map(([value, label]): [unknown, number] => [label, value.trim() ? Number(value) : NaN]);
 }
 
 function ratPairs(rat: NonNullable<GdalInfoBand['rat']>): Array<[unknown, number]> {
