@@ -37,10 +37,10 @@ jest.mock('components/Table/Table', () => ({
 }));
 
 jest.mock('components/AdminPortal/MapBasedFiltersTable/MapBasedFiltersTableStatusTemplate/MapBasedFiltersTableStatusTemplate', () => ({
-  MapBasedFiltersTableStatusTemplate: ({ filter, isLoading, onSetCategoryActive }: any) => (
+  MapBasedFiltersTableStatusTemplate: ({ filter, isActivationPending, onSetCategoryActive }: any) => (
     <button
       data-testid={`status-${filter.id}`}
-      data-is-loading={String(isLoading)}
+      data-is-activation-pending={String(isActivationPending)}
       onClick={() => onSetCategoryActive(filter.id, !filter.active)}
     />
   ),
@@ -77,7 +77,7 @@ const filters = [
 
 const defaultProps = {
   filters,
-  isLoading: false,
+  isActivationPending: false,
   onEdit: jest.fn(),
   onDelete: jest.fn(),
   onSetCategoryActive: jest.fn(),
@@ -138,10 +138,10 @@ describe('MapBasedFiltersTable', () => {
   });
 
   describe('status column', () => {
-    it('passes isLoading to the status template', () => {
-      render(<MapBasedFiltersTable {...defaultProps} isLoading />);
+    it('passes isActivationPending to the status template', () => {
+      render(<MapBasedFiltersTable {...defaultProps} isActivationPending />);
 
-      expect(screen.getByTestId('status-land_cover')).toHaveAttribute('data-is-loading', 'true');
+      expect(screen.getByTestId('status-land_cover')).toHaveAttribute('data-is-activation-pending', 'true');
     });
 
     it('passes onSetCategoryActive to the status template', () => {

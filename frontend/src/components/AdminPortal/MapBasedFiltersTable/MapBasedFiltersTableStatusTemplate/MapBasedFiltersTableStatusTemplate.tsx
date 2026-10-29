@@ -7,11 +7,11 @@ import styles from './MapBasedFiltersTableStatusTemplate.module.scss';
 
 interface Props {
   filter: RasterFilterCategory;
-  isLoading: boolean;
+  isActivationPending: boolean;
   onSetCategoryActive: (rasterFilterId: string, active: boolean) => void;
 }
 
-export function MapBasedFiltersTableStatusTemplate({ filter, isLoading, onSetCategoryActive }: Props) {
+export function MapBasedFiltersTableStatusTemplate({ filter, isActivationPending, onSetCategoryActive }: Props) {
   const { t } = useTranslation('admin');
 
   return (
@@ -19,7 +19,11 @@ export function MapBasedFiltersTableStatusTemplate({ filter, isLoading, onSetCat
       {!filter.enabled && <Tag text={t(`filters.list.not_installed`)} className={styles.Tag} />}
       {filter.enabled && (
         <div className={styles.ToggleWrapper}>
-          <ToggleButton checked={filter.active} onChange={checked => onSetCategoryActive(filter.id, checked)} disabled={isLoading} />
+          <ToggleButton
+            checked={filter.active}
+            onChange={checked => onSetCategoryActive(filter.id, checked)}
+            disabled={isActivationPending}
+          />
           <span className={styles.ActiveLabel}>{filter.active ? t('filters.list.deactivate') : t('filters.list.activate')}</span>
         </div>
       )}

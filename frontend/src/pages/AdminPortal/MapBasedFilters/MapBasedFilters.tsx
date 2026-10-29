@@ -14,7 +14,7 @@ const POLLING_MS = 2000;
 export function MapBasedFilters() {
   const navigate = useNavigate();
   const { t } = useTranslation('admin');
-  const { allCategories: allRasterCategories, isLoading, setCategoryActive } = useRaster(POLLING_MS);
+  const { allCategories: allRasterCategories, isLoading, isActivationPending, setCategoryActive } = useRaster(POLLING_MS);
 
   return (
     <div className={styles.MapBasedFilters}>
@@ -43,13 +43,13 @@ export function MapBasedFilters() {
         {!isLoading && (
           <>
             <div className={styles.Actions}>
-              <Button onClick={() => navigate(`${ADMIN_PATHS.FILTERS}/new`)}>
+              <Button onClick={() => navigate(`${ADMIN_PATHS.FILTERS_NEW}`)}>
                 <PlusIcon /> {t('filters.list.add_button_text')}
               </Button>
             </div>
             <MapBasedFiltersTable
               filters={allRasterCategories || []}
-              isLoading={isLoading}
+              isActivationPending={isActivationPending}
               onEdit={() => console.log('EDIT')}
               onDelete={() => console.log('DELETE')}
               onSetCategoryActive={setCategoryActive}

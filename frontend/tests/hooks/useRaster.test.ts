@@ -133,13 +133,22 @@ describe('useRaster', () => {
     expect(capturedConfig.select(null)).toEqual([]);
   });
 
-  it('returns isLoading true while a mutation is pending even after the query loaded', () => {
+  it('returns isActivationPending true while a mutation is pending, without affecting isLoading', () => {
     useQueryMock.mockReturnValue({ data: MOCK_CATEGORIES, isLoading: false } as any);
     mockMutation(true);
 
     const { result } = renderHook(() => useRaster());
 
-    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isActivationPending).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('returns isActivationPending false when no mutation is pending', () => {
+    useQueryMock.mockReturnValue({ data: MOCK_CATEGORIES, isLoading: false } as any);
+
+    const { result } = renderHook(() => useRaster());
+
+    expect(result.current.isActivationPending).toBe(false);
   });
 
   it('setCategoryActive triggers the mutation with the raster filter id and active flag', () => {

@@ -37,7 +37,8 @@ export function useRaster(polling?: number) {
 
   return {
     allCategories,
-    isLoading: isLoading || isPending,
+    isLoading: isLoading,
+    isActivationPending: isPending,
     isError,
     setCategoryActive,
   };

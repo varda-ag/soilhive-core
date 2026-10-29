@@ -45,6 +45,7 @@ describe('MapBasedFilters page', () => {
       allCategories: mockCategories,
       setCategoryActive,
       isLoading: false,
+      isActivationPending: false,
       ...overrides,
     });
 
@@ -124,7 +125,13 @@ describe('MapBasedFilters page', () => {
 
       expect(screen.getByTestId('mock-filters-table')).toHaveAttribute('data-count', '3');
       expect(capturedTableProps.filters).toBe(mockCategories);
-      expect(capturedTableProps.isLoading).toBe(false);
+    });
+
+    it('passes isActivationPending to the table', () => {
+      mockRaster({ isActivationPending: true });
+      render(<MapBasedFilters />);
+
+      expect(capturedTableProps.isActivationPending).toBe(true);
     });
 
     it('passes an empty list to the table when there are no categories', () => {

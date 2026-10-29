@@ -19,13 +19,13 @@ const statusSortValue = (filter: RasterFilterCategory) =>
 
 interface Props {
   filters: RasterFilterCategory[];
-  isLoading: boolean;
+  isActivationPending: boolean;
   onEdit: (id: string) => void;
   onDelete: (filter: RasterFilterCategory) => void;
   onSetCategoryActive: (rasterFilterId: string, active: boolean) => void;
 }
 
-export function MapBasedFiltersTable({ filters, isLoading, onEdit, onDelete, onSetCategoryActive }: Props) {
+export function MapBasedFiltersTable({ filters, isActivationPending, onEdit, onDelete, onSetCategoryActive }: Props) {
   const { t } = useTranslation('admin');
 
   const statusSortFunction = useCallback((event: ColumnSortEvent) => {
@@ -34,20 +34,17 @@ export function MapBasedFiltersTable({ filters, isLoading, onEdit, onDelete, onS
     });
   }, []);
 
-  const nameBodyTemplate = useCallback(
-    (filter: RasterFilterCategory) => (
-      <div className={styles.NameCell}>
-        <span className={styles.NameCellName}>{filter.name}</span>
-      </div>
-    ),
-    [],
-  );
+  const nameBodyTemplate = useCallback((filter: RasterFilterCategory) => <div className={styles.NameCell}>{filter.name}</div>, []);
 
   const statusBodyTemplate = useCallback(
     (filter: RasterFilterCategory) => (
-      <MapBasedFiltersTableStatusTemplate filter={filter} isLoading={isLoading} onSetCategoryActive={onSetCategoryActive} />
+      <MapBasedFiltersTableStatusTemplate
+        filter={filter}
+        isActivationPending={isActivationPending}
+        onSetCategoryActive={onSetCategoryActive}
+      />
     ),
-    [isLoading, onSetCategoryActive],
+    [isActivationPending, onSetCategoryActive],
   );
 
   const actionsBodyTemplate = useCallback(
