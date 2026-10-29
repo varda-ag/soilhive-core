@@ -12,7 +12,7 @@ The frontend uses [Module Federation](https://module-federation.io/) to support 
 | **Plugin config** | An entry in the host's theme config (`ThemeConfig.plugins`) that registers a remote's manifest URL and access rules |
 | **PluginContext** | The typed contract (`frontend-plugin-types`) passed as a `context` prop to a remote's page component, giving it access to host data and hooks |
 | **pluginId** | A required, plugin-authored named export (like `name`/`route`/`type`/`Page`) that uniquely identifies the plugin — used both to detect duplicate registrations and to namespace `context.usePluginConfig` |
-| **Map info card** | A `RemotePlugin` capability (`type: 'map-info-card'`) that contributes content into the map's native selection card instead of a routed page.
+| **Map info card** | A `RemotePlugin` capability (`type: 'map-info-card'`) that adds content to the map's Area Information card. A remote exposes it as a second module, `./mapInfoCard`, next to its routed page (see [Adding a map info card](#5-optional-add-a-map-info-card) and [ADR 0066](../adr/0066-plugin-dual-capability-via-second-mf-expose.md)) |
 
 The host discovers remotes through its theme configuration (see [Configuring remotes](#configuring-remotes)) and loads them via `src/utilities/moduleFederation.ts` and `src/contexts/RemotesContext.tsx`.
 
@@ -22,8 +22,8 @@ The host discovers remotes through its theme configuration (see [Configuring rem
 
 Loading is split across two files:
 
-1. `src/utilities/moduleFederation.ts` creates the MF runtime instance (`mf`) once, at module load, with no remotes registered yet — it's a singleton and must never be recreated. It exposes `loadRemotes(configs)`, which registers and loads a given list of remotes on demand, returning the resolved modules (a remote that fails to load resolves to `null` and is filtered out). It also exposes `partitionDuplicatePluginIds(modules)`, a pure helper that splits resolved modules into `unique` (first plugin seen for each `pluginId`) and `duplicates` (every later plugin reusing an id already taken).
-2. `src/contexts/RemotesContext.tsx` (`RemotesProvider`) calls `loadRemotes(themeConfig.plugins)` once the theme config has finished loading, guarded so it only runs once, then calls `partitionDuplicatePluginIds` on the result: it shows an error notification (via `useNotifications`) for each duplicate and exposes only the deduplicated list through `useRemotes()` as `{ plugins, isLoadingRemotes }`.
+1. `src/utilities/moduleFederation.ts` creates the MF runtime instance (`mf`) once, at module load, with no remotes registered yet — it's a singleton and must never be recreated. It exposes `loadRemotes(configs)`, which registers and loads a given list of remotes on demand, returning `{ loaded, failed, cards, failedCards }`: the resolved page modules, the urls that failed to load, and, for each config with `hasMapInfoCard: true`, the module loaded from `${url}/mapInfoCard` (or its url in `failedCards`). It also exposes `partitionDuplicatePluginIds(modules)`, a pure helper that splits resolved modules into `unique` (first plugin seen for each `pluginId`) and `duplicates` (every later plugin reusing an id already taken).
+2. `src/contexts/RemotesContext.tsx` (`RemotesProvider`) calls `loadRemotes(themeConfig.plugins)` once the theme config has finished loading, guarded so it only runs once, then calls `partitionDuplicatePluginIds` on the result: it shows an error notification (via `useNotifications`) for each duplicate and exposes only the deduplicated list through `useRemotes()` as `{ plugins, mapInfoCards, isLoadingRemotes }`. Card modules skip the duplicate check, since a card shares its `pluginId` with its page. `pairMapInfoCards` keeps a card only if a `single-page` plugin with the same `pluginId` is in the final `plugins` list, and stores it with that page's `route` in `mapInfoCards`.
 
 This used to run at module-evaluation time via top-level await against a hardcoded remote list. It now runs inside `RemotesProvider`'s effect because the remote list itself is no longer hardcoded — it comes from the theme config (see below).
 
@@ -41,6 +41,7 @@ Remotes are **not** hardcoded in the frontend source. Each one is an entry in th
 | `enabled` | Whether the host should load this remote at all |
 | `mustBeLoggedIn` | Restricts the plugin to signed-in users, on top of the plugin's own `requiresAuth` |
 | `enableACL` / `acl` | Restricts the plugin to users in the listed ACL groups. Not enforced yet |
+| `hasMapInfoCard` | Optional. `true` if the remote also exposes `./mapInfoCard`; the host then loads it and shows it in the map's Area Information card. Without it, the host never requests that module |
 
 The default theme config ships with `plugins: []` — no remotes registered — so a fresh environment shows no plugin pages until one is added. Nothing seeds a plugin entry automatically: running `frontend-plugin-example` locally (`module_example`, served at `http://localhost:3333/mf-manifest.json`) only makes the remote reachable — to actually see it in the host, a dev still has to add a matching entry to `ThemeConfig.plugins` directly (there's no UI for this yet) with `enabled: true`.
 
@@ -111,6 +112,24 @@ There's no file in this repo to edit, and (currently) no Admin console UI either
 ### 4. Start the remote dev server
 
 The remote must be served before the host loads it. Run the remote's dev server on its configured port (e.g. `localhost:3333`) before or alongside `pnpm dev` in the host.
+
+### 5. (Optional) Add a map info card
+
+A `single-page` plugin can also add content to the map's Area Information card, between the area values and the "Download GeoJSON" link. Expose a second module from the same build:
+
+```ts
+exposes: {
+  '.': './src/MyPage.tsx',
+  './mapInfoCard': './src/MyCard.tsx',
+},
+```
+
+`./src/MyCard.tsx` exports `pluginId` (the **same** id as the page module), `name`, `type = 'map-info-card'` and `Page: React.FC<{ context: PluginContext }>`. Then set `hasMapInfoCard: true` on the plugin's config row. The card's `context` adds two fields to the page context:
+
+- `mapSelectionFilterId`: the id of a stored, geometry-only Filter of the selected area. Read it with `context.useFilter`.
+- `navigateToOwnPage(subPath?)`: opens a path relative to the plugin's route, e.g. `navigateToOwnPage('new?filterId=abc')` opens `/my-plugin-page/new?filterId=abc`. The host refuses a path outside the route, such as `'../admin'`.
+
+The host shows a card only while its page plugin is available. A card that throws renders nothing; a card that fails to load shows a notification, and the page stays available. See [ADR 0066](../adr/0066-plugin-dual-capability-via-second-mf-expose.md).
 
 ---
 
