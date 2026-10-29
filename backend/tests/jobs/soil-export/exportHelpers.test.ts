@@ -297,7 +297,7 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
       expect(match).not.toBeNull();
       return parseInt(match![1], 10);
     }
-    
+
     const payload = makePayload({ dataset_ids: ['dataset-alpha'] });
 
     it('adds a page with the table for the exported raster layers', async () => {
