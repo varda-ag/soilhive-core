@@ -117,39 +117,39 @@ GeoTIFF packages are being published and their download links are listed here as
 - <details>
   <summary>Mappings</summary>
 
-  | Category | Value |
-  | -------- | -------- |
-  | Tropical lowland semi-arid | 1 |
-  | Tropical lowland sub-humid | 2 |
-  | Tropical lowland humid | 3 |
-  | Tropical highland semi-arid | 4 |
-  | Tropical highland sub-humid | 5 |
-  | Tropical highland humid | 6 |
-  | Subtropical warm semi-arid | 7 |
-  | Subtropical warm sub-humid | 8 |
-  | Subtropical warm humid | 9 |
-  | Subtropical moderately cool semi-arid | 10 |
-  | Subtropical moderately cool sub-humid | 11 |
-  | Subtropical moderately cool humid | 12 |
-  | Subtropical cool semi-arid | 13 |
-  | Subtropical cool sub-humid | 14 |
-  | Subtropical cool humid | 15 |
-  | Temperate moderate dry | 16 |
-  | Temperate moderate moist | 17 |
-  | Temperate moderate wet | 18 |
-  | Temperate cool dry | 19 |
-  | Temperate cool moist | 20 |
-  | Temperate cool wet | 21 |
-  | Boreal Cold no permafrost dry | 22 |
-  | Boreal Cold no permafrost moist | 23 |
-  | Boreal Cold no permafrost wet | 24 |
-  | Dominantly very steep terrain | 25 |
-  | Land with severe soil terrain limitations | 26 |
-  | Land with ample irrigated soils | 27 |
-  | Dominantly hydromorphic soil | 28 |
-  | Desert Arid climate | 29 |
-  | Boreal Cold with permafrost | 30 |
-  | Arctic Very cold climate | 31 |
+  | Value | Category |
+  | ----- | -------- |
+  | 1 | Tropical lowland semi-arid |
+  | 2 | Tropical lowland sub-humid |
+  | 3 | Tropical lowland humid |
+  | 4 | Tropical highland semi-arid |
+  | 5 | Tropical highland sub-humid |
+  | 6 | Tropical highland humid |
+  | 7 | Subtropical warm semi-arid |
+  | 8 | Subtropical warm sub-humid |
+  | 9 | Subtropical warm humid |
+  | 10 | Subtropical moderately cool semi-arid |
+  | 11 | Subtropical moderately cool sub-humid |
+  | 12 | Subtropical moderately cool humid |
+  | 13 | Subtropical cool semi-arid |
+  | 14 | Subtropical cool sub-humid |
+  | 15 | Subtropical cool humid |
+  | 16 | Temperate moderate dry |
+  | 17 | Temperate moderate moist |
+  | 18 | Temperate moderate wet |
+  | 19 | Temperate cool dry |
+  | 20 | Temperate cool moist |
+  | 21 | Temperate cool wet |
+  | 22 | Boreal Cold no permafrost dry |
+  | 23 | Boreal Cold no permafrost moist |
+  | 24 | Boreal Cold no permafrost wet |
+  | 25 | Dominantly very steep terrain |
+  | 26 | Land with severe soil terrain limitations |
+  | 27 | Land with ample irrigated soils |
+  | 28 | Dominantly hydromorphic soil |
+  | 29 | Desert Arid climate |
+  | 30 | Boreal Cold with permafrost |
+  | 31 | Arctic Very cold climate |
 
   </details>
 
@@ -162,41 +162,41 @@ GeoTIFF packages are being published and their download links are listed here as
 - <details>
   <summary>Mappings</summary>
 
-  | Category | Value |
-  | -------- | -------- |
-  | Tropics lowland; semi-arid | 1 |
-  | Tropics lowland; sub-humid | 2 |
-  | Tropics lowland; humid | 3 |
-  | Tropics highland; semi-arid | 4 |
-  | Tropics highland; sub-humid | 5 |
-  | Tropics highland; humid | 6 |
-  | Sub-tropics warm; semi-arid | 7 |
-  | Sub-tropics warm; sub-humid | 8 |
-  | Sub-tropics warm; humid | 9 |
-  | Sub-tropics moderately cool; semi-arid | 10 |
-  | Sub-tropics moderately cool; sub-humid | 11 |
-  | Sub-tropics moderately cool; humid | 12 |
-  | Sub-tropics cool; semi-arid | 13 |
-  | Sub-tropics cool; sub-humid | 14 |
-  | Sub-tropics cool; humid | 15 |
-  | Temperate moderate; dry | 16 |
-  | Temperate moderate; moist | 17 |
-  | Temperate moderate; wet | 18 |
-  | Temperate cool; dry | 19 |
-  | Temperate cool; moist | 20 |
-  | Temperate cool; wet | 21 |
-  | Cold no permafrost; dry | 22 |
-  | Cold no permafrost; moist | 23 |
-  | Cold no permafrost; wet | 24 |
-  | Dominantly very steep terrain | 25 |
-  | Land with severe soil/terrain limitations | 26 |
-  | Land with ample irrigated soils | 27 |
-  | Dominantly hydromorphic soils | 28 |
-  | Desert/Arid climate | 29 |
-  | Boreal/Cold climate | 30 |
-  | Arctic/Very cold climate | 31 |
-  | Dominantly built-up land | 32 |
-  | Dominantly water | 33 |
+  | Value | Category |
+  | ----- | -------- |
+  | 1 | Tropics lowland; semi-arid |
+  | 2 | Tropics lowland; sub-humid |
+  | 3 | Tropics lowland; humid |
+  | 4 | Tropics highland; semi-arid |
+  | 5 | Tropics highland; sub-humid |
+  | 6 | Tropics highland; humid |
+  | 7 | Sub-tropics warm; semi-arid |
+  | 8 | Sub-tropics warm; sub-humid |
+  | 9 | Sub-tropics warm; humid |
+  | 10 | Sub-tropics moderately cool; semi-arid |
+  | 11 | Sub-tropics moderately cool; sub-humid |
+  | 12 | Sub-tropics moderately cool; humid |
+  | 13 | Sub-tropics cool; semi-arid |
+  | 14 | Sub-tropics cool; sub-humid |
+  | 15 | Sub-tropics cool; humid |
+  | 16 | Temperate moderate; dry |
+  | 17 | Temperate moderate; moist |
+  | 18 | Temperate moderate; wet |
+  | 19 | Temperate cool; dry |
+  | 20 | Temperate cool; moist |
+  | 21 | Temperate cool; wet |
+  | 22 | Cold no permafrost; dry |
+  | 23 | Cold no permafrost; moist |
+  | 24 | Cold no permafrost; wet |
+  | 25 | Dominantly very steep terrain |
+  | 26 | Land with severe soil/terrain limitations |
+  | 27 | Land with ample irrigated soils |
+  | 28 | Dominantly hydromorphic soils |
+  | 29 | Desert/Arid climate |
+  | 30 | Boreal/Cold climate |
+  | 31 | Arctic/Very cold climate |
+  | 32 | Dominantly built-up land |
+  | 33 | Dominantly water |
 
   Value 255 marks no data: leave it unlabelled.
 
@@ -211,31 +211,31 @@ GeoTIFF packages are being published and their download links are listed here as
 - <details>
   <summary>Mappings</summary>
 
-  | Category | Value |
-  | -------- | -------- |
-  | Shrubs | 20 |
-  | Unknown | 0 |
-  | Oceans seas | 200 |
-  | Snow and ice | 70 |
-  | Moss and lichen | 100 |
-  | Urban / built up | 50 |
-  | Herbaceous wetland | 90 |
-  | Open forest mixed | 125 |
-  | Closed forest mixed | 115 |
-  | Herbaceous vegetation | 30 |
-  | Permanent water bodies | 80 |
-  | Bare / sparse vegetation | 60 |
-  | Open forest deciduous broad leaf | 124 |
-  | Open forest evergreen broad leaf | 122 |
-  | Open forest deciduous needle leaf | 123 |
-  | Open forest evergreen needle leaf | 121 |
-  | Closed forest deciduous broad leaf | 114 |
-  | Closed forest evergreen broad leaf | 112 |
-  | Closed forest deciduous needle leaf | 113 |
-  | Closed forest evergreen needle leaf | 111 |
-  | Cultivated and managed vegetation / agriculture | 40 |
-  | Open forest not matching any of the other definitions | 126 |
-  | Closed forest not matching any of the other definitions | 116 |
+  | Value | Category |
+  | ----- | -------- |
+  | 0 | Unknown |
+  | 20 | Shrubs |
+  | 30 | Herbaceous vegetation |
+  | 40 | Cultivated and managed vegetation / agriculture |
+  | 50 | Urban / built up |
+  | 60 | Bare / sparse vegetation |
+  | 70 | Snow and ice |
+  | 80 | Permanent water bodies |
+  | 90 | Herbaceous wetland |
+  | 100 | Moss and lichen |
+  | 111 | Closed forest evergreen needle leaf |
+  | 112 | Closed forest evergreen broad leaf |
+  | 113 | Closed forest deciduous needle leaf |
+  | 114 | Closed forest deciduous broad leaf |
+  | 115 | Closed forest mixed |
+  | 116 | Closed forest not matching any of the other definitions |
+  | 121 | Open forest evergreen needle leaf |
+  | 122 | Open forest evergreen broad leaf |
+  | 123 | Open forest deciduous needle leaf |
+  | 124 | Open forest deciduous broad leaf |
+  | 125 | Open forest mixed |
+  | 126 | Open forest not matching any of the other definitions |
+  | 200 | Oceans seas |
 
   </details>
 
@@ -249,16 +249,16 @@ GeoTIFF packages are being published and their download links are listed here as
 - <details>
   <summary>Mappings</summary>
 
-  | Category | Value |
-  | -------- | -------- |
-  | Water | 1 |
-  | Trees | 2 |
-  | Flooded Vegetation | 4 |
-  | Crops | 5 |
-  | Built Area | 7 |
-  | Bare Ground | 8 |
-  | Snow/Ice | 9 |
-  | Rangeland | 11 |
+  | Value | Category |
+  | ----- | -------- |
+  | 1 | Water |
+  | 2 | Trees |
+  | 4 | Flooded Vegetation |
+  | 5 | Crops |
+  | 7 | Built Area |
+  | 8 | Bare Ground |
+  | 9 | Snow/Ice |
+  | 11 | Rangeland |
 
   </details>
 
@@ -277,40 +277,40 @@ GeoTIFF packages are being published and their download links are listed here as
 - <details>
   <summary>Mappings</summary>
 
-  | Category | Value |
-  | -------- | -------- |
-  | Acrisols | 6567 |
-  | Alisols | 6576 |
-  | Andosols | 6578 |
-  | Arenosols | 6582 |
-  | Anthrosols | 6584 |
-  | Chernozems | 6772 |
-  | Calcisols | 6776 |
-  | Cambisols | 6777 |
-  | Cryosols | 6782 |
-  | Fluvisols | 7076 |
-  | Ferralsols | 7082 |
-  | Glaciers | 7171 |
-  | Gleysols | 7176 |
-  | Gypsisols | 7189 |
-  | Histosols | 7283 |
-  | Kastanozems | 7583 |
-  | Leptosols | 7680 |
-  | Luvisols | 7686 |
-  | Lixisols | 7688 |
-  | Nitisols | 7884 |
-  | Phaeozem | 8072 |
-  | Planosols | 8076 |
-  | Plinthosols | 8084 |
-  | Podzols | 8090 |
-  | Regosols | 8271 |
-  | Retisols | 8284 |
-  | Solonchaks | 8367 |
-  | Solonetz | 8378 |
-  | Stagnosols | 8384 |
-  | Technosols | 8467 |
-  | Umbrisols | 8577 |
-  | Vertisols | 8682 |
+  | Value | Category |
+  | ----- | -------- |
+  | 6567 | Acrisols |
+  | 6576 | Alisols |
+  | 6578 | Andosols |
+  | 6582 | Arenosols |
+  | 6584 | Anthrosols |
+  | 6772 | Chernozems |
+  | 6776 | Calcisols |
+  | 6777 | Cambisols |
+  | 6782 | Cryosols |
+  | 7076 | Fluvisols |
+  | 7082 | Ferralsols |
+  | 7171 | Glaciers |
+  | 7176 | Gleysols |
+  | 7189 | Gypsisols |
+  | 7283 | Histosols |
+  | 7583 | Kastanozems |
+  | 7680 | Leptosols |
+  | 7686 | Luvisols |
+  | 7688 | Lixisols |
+  | 7884 | Nitisols |
+  | 8072 | Phaeozem |
+  | 8076 | Planosols |
+  | 8084 | Plinthosols |
+  | 8090 | Podzols |
+  | 8271 | Regosols |
+  | 8284 | Retisols |
+  | 8367 | Solonchaks |
+  | 8378 | Solonetz |
+  | 8384 | Stagnosols |
+  | 8467 | Technosols |
+  | 8577 | Umbrisols |
+  | 8682 | Vertisols |
 
   </details>
 
