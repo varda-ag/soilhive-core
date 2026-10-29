@@ -58,7 +58,7 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
   const reportProgress = progressReporter(jobId);
   const staging = stagingTableName(jobId);
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), 'raster-filter-install-'));
-  let tempZipExtractPath: string | null = null;
+  let sourceCopy: string | null = null;
 
   try {
     await reportProgress(0, `Installing map-based filter '${id}'...`);
@@ -72,7 +72,7 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
     }
 
     let sourcePath: string;
-    ({ sourcePath, tempZipExtractPath } = await localSource(file, workDir).catch(error => {
+    ({ sourcePath, sourceCopy } = await localSource(file, workDir).catch(error => {
       throw new JobError('RFI_FILE_NOT_FOUND', { raster_filter_id: id }, getErrorMessage(error));
     }));
     const params = { raster_filter_id: id, file_name: file.name, band: String(band) };
@@ -125,6 +125,11 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
     }
     const extractedInfo = await GdalCLI.gdalinfo(extracted);
     const resolutionM = geographicResolutionM(extractedInfo.geoTransform![1]!);
+    // Only the extracted band is read from here on, and sources run to several GB of ephemeral storage
+    if (sourceCopy) {
+      await fs.rm(sourceCopy, { recursive: true, force: true });
+      sourceCopy = null;
+    }
 
     await reportProgress(EXTRACT_CEILING, `Writing map-based filter '${id}' to the database...`);
     await loadRasterTable(extracted, schema, staging).catch(error => {
@@ -173,8 +178,8 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
     throw error;
   } finally {
     await fs.rm(workDir, { recursive: true, force: true });
-    if (tempZipExtractPath) {
-      await fs.rm(tempZipExtractPath, { recursive: true, force: true });
+    if (sourceCopy) {
+      await fs.rm(sourceCopy, { recursive: true, force: true });
     }
   }
 }
@@ -208,18 +213,20 @@ function checkSource(info: GdalInfoOutput, params: Record<string, string>, band:
 
 /**
  * A path GDAL reads the File from. Downloaded from S3 rather than read through /vsis3, as the raster
- * loader does: every pixel is read, and a download avoids GDAL's own S3 setup.
+ * loader does: every pixel is read, and a download avoids GDAL's own S3 setup. `sourceCopy` is the
+ * temporary copy to delete once read: null when the source is the File itself, on local storage,
+ * which a failed install must keep (docs/adr/0066).
  */
-async function localSource(file: FileEntity, workDir: string): Promise<{ sourcePath: string; tempZipExtractPath: string | null }> {
+async function localSource(file: FileEntity, workDir: string): Promise<{ sourcePath: string; sourceCopy: string | null }> {
   if (ConfigService.getStorageConfig().storageMode === StorageModes.S3 && !file.file_path.toLowerCase().endsWith('.zip')) {
     const sourcePath = path.join(workDir, path.basename(file.file_path));
     // Piping to avoid OOM
     const stream = await FileService.getStorageEngine().read(file.file_path);
     await pipeline(stream as Readable, createWriteStream(sourcePath));
-    return { sourcePath, tempZipExtractPath: null };
+    return { sourcePath, sourceCopy: sourcePath };
   }
   const { mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(file.file_path);
-  return { sourcePath: mainFilePath, tempZipExtractPath };
+  return { sourcePath: mainFilePath, sourceCopy: tempZipExtractPath };
 }
 
 /** The source's labels for the values the installed raster holds, or null when none of them is labelled. */
