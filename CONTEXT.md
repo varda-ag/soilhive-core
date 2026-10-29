@@ -437,6 +437,6 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 - "active" is used in two unrelated senses in the raster filtering code: the persisted `active` column on `raster_filters` (admin-controlled catalog availability — see **Raster Filter**), and query-time variables/comments like `hasActiveFilters` in `FilteringMasks.ts` (whether the current Filter's `raster_filters` criterion has non-empty selected values for a given raster table). Toggling a Raster Filter's `active` flag has no effect on the query-time check, and vice versa. In domain discussions, say "active Raster Filter" for the catalog flag and "selected raster filter values" for the query-time notion.
 
-- "slug" was used for a Raster Filter's id. Resolved: a Raster Filter has no slug. Its id is the name of its backing table, chosen by the admin when the Raster Filter is created and never changed.
+- "slug" was used for a Raster Filter's id. Resolved: a Raster Filter has no slug. Its id is the name of its backing table, derived from its name when the Raster Filter is created, then never changed (a rename leaves it alone) and never reused, even after a delete.
 
 - "georef" was used both for a File's four corner points and for the File being placeable on a map. Resolved: the points are its **Georeference**; the File is *georeferenced* only when it also has a CRS. A raster with a CRS but no geotransform is not georeferenced, and supplying a CRS cannot make it so.

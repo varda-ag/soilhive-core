@@ -14,13 +14,10 @@ import { JobQueues } from '../types/enums';
 import { getEntity } from '../utils/slugs';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
-import { rasterFilterTables } from '../utils/raster';
+import { rasterFilterId, rasterFilterTables } from '../utils/raster';
 import { assertNoUnfinishedInstall, getInstallStates, takenRasterFilterNames } from '../data-layer/RasterFilterInstalls';
 import { getActiveRasterFilters, withEnabled } from '../data-layer/EnabledRasterFilters';
 import JobService from './JobService';
-
-// The id is the base table's name, and the longest overview's (o_32_<id>) must fit Postgres' 63 characters
-const RASTER_FILTER_ID_PATTERN = /^[a-z][a-z0-9_]{0,57}$/;
 
 // Seconds before an install job becomes visible to workers, so the POST that enqueued it has committed
 const INSTALL_START_AFTER_SECONDS = 5;
@@ -80,32 +77,14 @@ export default class RasterFilterService {
 
   /**
    * Creates a Raster Filter and enqueues its Installation from an uploaded raster File, which the
-   * install consumes (docs/adr/0066). Labels come later, through putMappings.
+   * install consumes (docs/adr/0066). Its id is derived from its name and never reissued
+   * (docs/adr/0069). Labels come later, through putMappings.
    */
   createRasterFilter = async (requestData: RequestData, input: CreateRasterFilterInput): Promise<AdminRasterFilter> => {
-    const { id, name, description, kind } = input;
-    if (!RASTER_FILTER_ID_PATTERN.test(id)) {
-      throw new ErrorResponse(
-        `Raster filter id '${id}' must start with a lowercase letter and hold only lowercase letters, digits and underscores, 58 characters at most`,
-        StatusCodes.BAD_REQUEST,
-      );
-    }
-    const repo = requestData.entityManager.getRepository(RasterFilterEntity);
-    if (await repo.findOneBy({ id })) {
-      throw new ErrorResponse(`Raster filter '${id}' already exists`, StatusCodes.CONFLICT);
-    }
-    const taken = await takenRasterFilterNames(requestData.entityManager, id);
-    if (taken.length > 0) {
-      throw new ErrorResponse(
-        `Raster filter id '${id}' collides with existing database objects: ${taken.join(', ')}`,
-        StatusCodes.CONFLICT,
-      );
-    }
-
+    const { name, description, kind } = input;
     const { file, band } = await this.resolveSourceFile(requestData, input.file_id, input.band);
 
-    const entity = repo.create({
-      id,
+    const id = await this.insertUnderFreeId(requestData, {
       name,
       description,
       kind,
@@ -114,7 +93,6 @@ export default class RasterFilterService {
       active: false,
       mappings: null,
     });
-    await repo.save(entity);
 
     await new JobService().createJob(
       requestData,
@@ -125,7 +103,7 @@ export default class RasterFilterService {
     return (await this.getRasterFilter(requestData, id)) as AdminRasterFilter;
   };
 
-  /** Updates the admin-editable fields. The id is the table name, so it never changes. */
+  /** Updates the admin-editable fields. The id is the table name, so it never changes, even when the name does. */
   patchRasterFilter = async (requestData: RequestData, id: string, input: PatchRasterFilterInput): Promise<AdminRasterFilter> => {
     const repo = requestData.entityManager.getRepository(RasterFilterEntity);
     const entity = await this.findRasterFilter(requestData, id);
@@ -181,7 +159,7 @@ export default class RasterFilterService {
   };
 
   /**
-   * Drops a Raster Filter's tables and deletes it. Refused while it is active, so no node is still
+   * Drops a Raster Filter's tables and soft-deletes it. Refused while it is active, so no node is still
    * querying its tables, and while an install is unfinished. Filters saved with its values keep them:
    * they are ignored once it is no longer enabled. The source File of a failed install is left for
    * orphan cleanup.
@@ -207,8 +185,11 @@ export default class RasterFilterService {
       }
       throw error;
     }
-    // Hard: the id is free again for a new Raster Filter
-    await entityManager.getRepository(RasterFilterEntity).delete({ id });
+    // Soft, so the id is never reissued and saved Filters never select a new Raster Filter's pixels
+    // (docs/adr/0069). The File is let go, or orphan cleanup would skip it for good.
+    const repo = entityManager.getRepository(RasterFilterEntity);
+    await repo.update({ id }, { file_id: null });
+    await repo.softDelete({ id });
     await bumpCacheEpoch();
   };
 
@@ -219,6 +200,32 @@ export default class RasterFilterService {
   /** `enabled`: the backing raster table exists and there are labels to select. */
   static decorateWithEnable = async (requestData: RequestData, input: RasterFilterEntity[]): Promise<RasterFilterWithEnabled[]> =>
     withEnabled(requestData.entityManager, input);
+
+  /**
+   * Inserts a Raster Filter under the first id derived from its name that no Raster Filter, deleted
+   * ones included, has had, and whose tables would collide with nothing in the schema.
+   */
+  private insertUnderFreeId = async (
+    requestData: RequestData,
+    values: Pick<RasterFilterEntity, 'name' | 'description' | 'kind' | 'file_id' | 'created_by' | 'active' | 'mappings'>,
+  ): Promise<string> => {
+    const { entityManager } = requestData;
+    for (let n = 1; ; n++) {
+      const id = rasterFilterId(values.name, n);
+      if ((await takenRasterFilterNames(entityManager, id)).length > 0) continue;
+      // Skipped rather than failed on a taken id, so a concurrent POST of the same name moves on to the next one
+      const { raw } = await entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(RasterFilterEntity)
+        .values({ ...values, id })
+        .orIgnore()
+        .returning('id')
+        .updateEntity(false)
+        .execute();
+      if (raw.length > 0) return id;
+    }
+  };
 
   private findRasterFilter = async (requestData: RequestData, id: string): Promise<RasterFilterEntity> => {
     const entity = await requestData.entityManager.getRepository(RasterFilterEntity).findOneBy({ id });

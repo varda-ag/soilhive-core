@@ -7,14 +7,14 @@ A map-based filter is a raster classification layer (land cover, soil groups...)
 1. **Upload the raster** with `POST /files` (multipart). Note the `id` it returns.
 2. **Create the filter** with `POST /raster-filters`:
    ```json
-   { "id": "land_cover_2024", "name": "Land Cover 2024", "description": "...", "file_id": "<file id>", "band": 1, "kind": "categorical" }
+   { "name": "Land Cover 2024", "description": "...", "file_id": "<file id>", "band": 1, "kind": "categorical" }
    ```
-   `id` names the filter's database table, so it can never change: lowercase letters, digits and underscores, starting with a letter, at most 58 characters. `band` is the one band installed, chosen from the upload's `metadata.raster_bands`; the others are discarded. It can be left out for a single-band raster.
+   The response gives the filter its `id`, derived from the name (`land_cover_2024`), with `_2`, `_3`... added when it is taken. The id names the filter's database table, so it never changes, even when the filter is renamed. `band` is the one band installed, chosen from the upload's `metadata.raster_bands`; the others are discarded. It can be left out for a single-band raster.
 3. **Wait for the install.** `GET /raster-filters/{id}` reports `install.status`: `queued`, `installing` (with `progress_percentage`), then `installed` or `failed`. A failure lists its causes and remedies in `install.errors`.
 4. **Label it** with `PUT /raster-filters/{id}/mappings`, a `{ "pixel value": "label" }` object such as `{ "1": "Water", "2": "Trees" }`. Several pixel values may share a label: users then select them together. `pixel_values` on the filter lists the values its raster holds, with their pixel counts. When the raster carried its own labels (a raster attribute table or category names), `suggested_mappings` holds them, for the values it holds, ready to send as the body. A filter is **enabled** once it is installed and labelled.
 5. **Activate it** with `PATCH /raster-filters/{id}` and `{ "active": true }`, or with its toggle in the Admin console.
 
-A new version of a filter's data is a new filter, with a new `id`: an installed filter cannot be reinstalled.
+A new version of a filter's data is a new filter, with a new `id`: an installed filter cannot be reinstalled. Name it after the version (`Land Cover 2025`) so its id says which one it is.
 
 ## Preparing the raster
 
@@ -43,7 +43,7 @@ Turning a filter off does **not** delete its data. Users see a filter only when 
 
 ## Deleting a filter
 
-Deactivate it, then call `DELETE /raster-filters/{id}`. This drops its tables, and its `id` can be used again. Filters users saved with its classes keep them, but they no longer apply.
+Deactivate it, then call `DELETE /raster-filters/{id}`. This drops its tables. Filters users saved with its classes keep them, but they no longer apply. Its `id` is never used again, so those classes can never select another filter's pixels: a new filter of the same name gets `<id>_2`.
 
 ## Available filters
 

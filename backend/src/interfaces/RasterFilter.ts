@@ -53,7 +53,7 @@ export interface RasterFilterInstall {
 }
 
 export interface CreateRasterFilterInput {
-  id: string;
+  // Also gives the Raster Filter its id, once
   name: string;
   description: string;
   // A File's public id (its slug)

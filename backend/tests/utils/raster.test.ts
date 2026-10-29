@@ -9,6 +9,7 @@ import {
   isMetricProjectedCrs,
   nodataFromImage,
   parseGdalNodata,
+  rasterFilterId,
   selectOverviewTable,
 } from '../../src/utils/raster';
 import { GdalCLI } from '../../src/utils/GdalCLI';
@@ -318,5 +319,28 @@ describe('categoryLabels', () => {
   it('is undefined for a band without labels', () => {
     expect(categoryLabels({})).toBeUndefined();
     expect(categoryLabels(undefined)).toBeUndefined();
+  });
+});
+
+describe('rasterFilterId', () => {
+  it.each([
+    ['Land Cover 2024', 'land_cover_2024'],
+    ['Zones agroécologiques (v5)', 'zones_agroecologiques_v5'],
+    ['  Soil -- groups  ', 'soil_groups'],
+    ['2024 Land Cover', 'rf_2024_land_cover'],
+    ['Почвы', 'rf'],
+  ])('derives %s as %s', (name, id) => {
+    expect(rasterFilterId(name)).toBe(id);
+  });
+
+  it('suffixes from the second try on', () => {
+    expect(rasterFilterId('Land Cover', 2)).toBe('land_cover_2');
+    expect(rasterFilterId('Почвы', 3)).toBe('rf_3');
+  });
+
+  it('fits the overview tables, suffix included, without a dangling underscore', () => {
+    expect(rasterFilterId('a'.repeat(70))).toBe('a'.repeat(58));
+    expect(rasterFilterId('a'.repeat(70), 12)).toBe(`${'a'.repeat(55)}_12`);
+    expect(rasterFilterId(`${'a'.repeat(57)} b`)).toBe('a'.repeat(57));
   });
 });

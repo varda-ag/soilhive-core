@@ -240,6 +240,25 @@ const DEFAULT_RASTER_FILTER_RESOLUTION_M = 100;
 /** A Raster Filter's base table and its overview tables. */
 export const rasterFilterTables = (table: string): string[] => [table, ...RASTER_FILTER_OVERVIEW_FACTORS.map(f => `o_${f}_${table}`)];
 
+// The id is the base table's name, and the longest overview's (o_32_<id>) must fit Postgres' 63 characters
+const RASTER_FILTER_ID_MAX_LENGTH = 58;
+
+/**
+ * The nth id to try for a Raster Filter named `name`: the name in snake_case ASCII, prefixed with
+ * `rf_` unless it starts with a letter, and suffixed with `_<n>` from the second try on.
+ */
+export const rasterFilterId = (name: string, n = 1): string => {
+  const words = name
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  const base = /^[a-z]/.test(words) ? words : `rf_${words}`;
+  const suffix = n > 1 ? `_${n}` : '';
+  return `${base.slice(0, RASTER_FILTER_ID_MAX_LENGTH - suffix.length).replace(/_+$/, '')}${suffix}`;
+};
+
 /** A geographic raster's resolution_m: the ground width of one pixel at the equator. */
 export const geographicResolutionM = (pixelWidthDegrees: number): number => Math.round(Math.abs(pixelWidthDegrees) * 111320);
 

@@ -2546,9 +2546,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: >-
-            The id is taken, by a raster filter or by a database object, or the file is already used by a
-            dataset or another raster filter
+          description: The file is already used by a dataset or another raster filter
           content:
             application/json:
               schema:
@@ -2611,7 +2609,8 @@ paths:
       summary: Delete a raster filter and drop its tables
       description: >-
         Refused while the raster filter is active, so deactivate it first, and while its installation is
-        queued or running. Filters saved with its values keep them, but they no longer apply.
+        queued or running. Filters saved with its values keep them, but they no longer apply. Its id is
+        never reissued: a new raster filter of the same name gets a suffixed one.
       tags:
         - raster-filters
       security:
@@ -3971,7 +3970,7 @@ components:
       properties:
         id:
           type: string
-          description: The name of the raster filter's table
+          description: The name of the raster filter's table, derived from its name when it was created
         name:
           type: string
         description:
@@ -4077,21 +4076,18 @@ components:
       type: object
       additionalProperties: false
       required:
-        - id
         - name
         - description
         - file_id
         - kind
       properties:
-        id:
-          type: string
-          pattern: '^[a-z][a-z0-9_]{0,57}$'
-          description: >-
-            Becomes the name of the raster filter's table and the key saved filters select its values under,
-            so it can never change. It must not collide with a table already in the database.
         name:
           type: string
           minLength: 1
+          description: >-
+            Also gives the raster filter its id, once: the name in snake_case, prefixed with `rf_` unless it
+            starts with a letter, and suffixed with `_2`, `_3`... when taken. The id never follows a rename and
+            is never reissued after a DELETE.
         description:
           type: string
         file_id:

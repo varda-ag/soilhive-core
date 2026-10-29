@@ -142,9 +142,9 @@ describe('Testing /raster-filters routes', () => {
   });
 
   describe('POST /raster-filters', () => {
+    // Named so its id is NEW_ID
     const payload = (fileId: string, overrides: Record<string, unknown> = {}) => ({
-      id: NEW_ID,
-      name: 'New filter',
+      name: 'Test new filter',
       description: 'A test filter',
       file_id: fileId,
       band: 1,
@@ -158,7 +158,7 @@ describe('Testing /raster-filters routes', () => {
       expect(res.statusCode).toBe(201);
       expect(res.body).toMatchObject({
         id: NEW_ID,
-        name: 'New filter',
+        name: 'Test new filter',
         active: false,
         enabled: false,
         kind: 'categorical',
@@ -176,8 +176,7 @@ describe('Testing /raster-filters routes', () => {
     });
 
     it.each([
-      ['an id that is not a table name', { id: 'Not-A-Table' }],
-      ['an id too long for its overview tables', { id: `a${'b'.repeat(58)}` }],
+      ['an id, which comes from the name', { id: NEW_ID }],
       ['a continuous kind', { kind: 'continuous' }],
       ['mappings, which are labelled once installed', { mappings: { '1': 'Forest' } }],
       ['breaks, which are not supported yet', { breaks: [1, 2] }],
@@ -222,25 +221,27 @@ describe('Testing /raster-filters routes', () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it('refuses an id an existing raster filter has', async () => {
+    it('suffixes an id a raster filter already has', async () => {
       const file = await addRasterFile('taken_id.tif');
       const res = await request(app)
         .post('/raster-filters')
         .set(dataAdminAuthHeader)
-        .send(payload(file.slug, { id: 'land_cover' }));
-      expect(res.statusCode).toBe(409);
+        .send(payload(file.slug, { name: 'Land cover' }));
+      expect(res.statusCode).toBe(201);
+      expect(res.body.id).toBe('land_cover_2');
     });
 
-    it.each([['files'], [`o_8_${NEW_ID}`]])('refuses an id whose tables would collide with %s', async (existing: string) => {
-      const dataSource = await getDataSource();
+    it.each([
+      ['files', 'Files', 'files_2'],
+      [`o_8_${NEW_ID}`, 'Test new filter', `${NEW_ID}_2`],
+    ])('suffixes an id whose tables would collide with %s', async (existing: string, name: string, id: string) => {
       if (existing !== 'files') {
-        await dataSource.query(`CREATE TABLE "${existing}" (id int)`);
+        await (await getDataSource()).query(`CREATE TABLE "${existing}" (id int)`);
       }
       const file = await addRasterFile('collision.tif');
-      const id = existing === 'files' ? 'files' : NEW_ID;
-      const res = await request(app).post('/raster-filters').set(dataAdminAuthHeader).send(payload(file.slug, { id }));
-      expect(res.statusCode).toBe(409);
-      expect(res.body.detail).toContain(existing);
+      const res = await request(app).post('/raster-filters').set(dataAdminAuthHeader).send(payload(file.slug, { name }));
+      expect(res.statusCode).toBe(201);
+      expect(res.body.id).toBe(id);
     });
 
     it('refuses a file a dataset uses, since the install deletes it', async () => {
@@ -259,7 +260,7 @@ describe('Testing /raster-filters routes', () => {
       const res = await request(app)
         .post('/raster-filters')
         .set(dataAdminAuthHeader)
-        .send(payload(file.slug, { id: 'test_other_filter' }));
+        .send(payload(file.slug, { name: 'Test other filter' }));
       expect(res.statusCode).toBe(409);
     });
 
@@ -379,17 +380,28 @@ describe('Testing /raster-filters routes', () => {
       await (await getDataSource()).getRepository(RasterFilterEntity).save({ id: NEW_ID, name: 'New', description: '' });
     });
 
-    it('drops the tables and deletes the raster filter', async () => {
+    it('drops the tables and soft-deletes the raster filter', async () => {
       const dataSource = await getDataSource();
       for (const table of rasterFilterTables(NEW_ID)) {
         await dataSource.query(`CREATE TABLE "${table}" (rid int)`);
       }
       expect((await del(NEW_ID)).statusCode).toBe(204);
-      expect(await dataSource.getRepository(RasterFilterEntity).findOneBy({ id: NEW_ID })).toBeNull();
+      expect((await request(app).get(`/raster-filters/${NEW_ID}`).set(dataAdminAuthHeader)).statusCode).toBe(404);
+      const row = await dataSource.getRepository(RasterFilterEntity).findOne({ where: { id: NEW_ID }, withDeleted: true });
+      expect(row?.deleted_at).not.toBeNull();
       const [{ count }] = await dataSource.query(`SELECT count(*)::int AS count FROM pg_class WHERE relname = ANY($1)`, [
         rasterFilterTables(NEW_ID),
       ]);
       expect(count).toBe(0);
+    });
+
+    it('lets go of the source file of a failed install, for orphan cleanup', async () => {
+      const dataSource = await getDataSource();
+      const file = await addRasterFile('failed_install.tif');
+      await dataSource.getRepository(RasterFilterEntity).update({ id: NEW_ID }, { file_id: file.id });
+      expect((await del(NEW_ID)).statusCode).toBe(204);
+      const row = await dataSource.getRepository(RasterFilterEntity).findOne({ where: { id: NEW_ID }, withDeleted: true });
+      expect(row?.file_id).toBeNull();
     });
 
     it('deletes a raster filter that was never installed', async () => {
@@ -410,14 +422,15 @@ describe('Testing /raster-filters routes', () => {
       expect((await del(NEW_ID)).statusCode).toBe(409);
     });
 
-    it('frees the id for a new raster filter', async () => {
+    it('never reissues the id, so saved Filters cannot select a new raster filter', async () => {
       await del(NEW_ID);
       const file = await addRasterFile('reused_id.tif');
       const res = await request(app)
         .post('/raster-filters')
         .set(dataAdminAuthHeader)
-        .send({ id: NEW_ID, name: 'Again', description: '', file_id: file.slug, band: 1, kind: 'categorical' });
+        .send({ name: 'Test new filter', description: '', file_id: file.slug, band: 1, kind: 'categorical' });
       expect(res.statusCode).toBe(201);
+      expect(res.body.id).toBe(`${NEW_ID}_2`);
     });
 
     it('requires the data-admin or super-admin scope', async () => {
@@ -430,7 +443,7 @@ describe('Testing /raster-filters routes', () => {
     await request(app)
       .post('/raster-filters')
       .set(dataAdminAuthHeader)
-      .send({ id: NEW_ID, name: 'New', description: '', file_id: file.slug, band: 1, kind: 'categorical' });
+      .send({ name: 'Test new filter', description: '', file_id: file.slug, band: 1, kind: 'categorical' });
     const res = await request(app).delete(`/files/${file.slug}`).set(dataAdminAuthHeader);
     expect(res.statusCode).toBe(409);
   });
@@ -440,7 +453,7 @@ describe('Testing /raster-filters routes', () => {
     const created = await request(app)
       .post('/raster-filters')
       .set(dataAdminAuthHeader)
-      .send({ id: NEW_ID, name: 'New', description: '', file_id: file.slug, band: 1, kind: 'categorical' });
+      .send({ name: 'Test new filter', description: '', file_id: file.slug, band: 1, kind: 'categorical' });
     expect(created.statusCode).toBe(201);
     const dataset = await addDataset('dataset-wanting-the-file', [0, 0, 1, 1]);
 
