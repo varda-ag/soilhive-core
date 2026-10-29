@@ -76,10 +76,11 @@ export function partitionInvalidMapInfoCards(modules: RemotePlugin[]): {
 }
 
 // A card shows only next to its plugin's routed page, which its button opens. Cards are kept out
-// of partitionDuplicatePluginIds, since a card shares its pluginId with that page.
+// of partitionDuplicatePluginIds, since a card shares its pluginId with that page. Matching the
+// remote too drops the card of a remote whose page lost the dedup to another remote's.
 export function pairMapInfoCards(cards: MapInfoCardPlugin[], plugins: RemotePlugin[]): MapInfoCardEntry[] {
   return cards.flatMap(card => {
-    const page = plugins.find(plugin => plugin.pluginId === card.pluginId);
+    const page = plugins.find(plugin => plugin.pluginId === card.pluginId && plugin.remoteUrl === card.remoteUrl);
     return page && isSinglePageModule(page) ? [{ card, route: page.route }] : [];
   });
 }
@@ -302,7 +303,7 @@ async function loadRemotes(
   cardModules.forEach((module, index) => {
     const { url } = withCard[index];
     if (module) {
-      cards.push(module);
+      cards.push({ ...module, remoteUrl: toAbsoluteUrl(url) });
     } else if (!failed.includes(url)) {
       // A remote that failed as a whole is already reported in failed: no second toast for its card
       failedCards.push(url);

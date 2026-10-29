@@ -149,6 +149,14 @@ describe('pairMapInfoCards', () => {
     expect(pairMapInfoCards([card], [newTab])).toEqual([]);
   });
 
+  it("pairs a card only with its own remote's page when two remotes share a pluginId", () => {
+    const pageA = { ...singlePage, remoteUrl: 'https://a.example/mf-manifest.json' };
+    const cardA = { ...card, remoteUrl: pageA.remoteUrl };
+    const cardB = { ...card, remoteUrl: 'https://b.example/mf-manifest.json' };
+
+    expect(pairMapInfoCards([cardA, cardB], [pageA])).toEqual([{ card: cardA, route: '/single' }]);
+  });
+
   it('drops a card whose plugin is not a single-page plugin', () => {
     const tabCard = { ...mapInfoCard, pluginId: newTab.pluginId } as MapInfoCardPlugin;
 
@@ -231,7 +239,7 @@ describe('loadRemotes', () => {
     expect(result).toEqual({
       loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: url }],
       failed: [],
-      cards: [mapInfoCard],
+      cards: [{ ...mapInfoCard, remoteUrl: url }],
       failedCards: [],
     });
   });
