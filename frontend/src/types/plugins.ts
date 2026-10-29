@@ -1,5 +1,4 @@
 import type React from 'react';
-import type { MapSelection } from '../contexts';
 import type { PluginContext } from 'frontend-plugin-types';
 
 export type { PluginContext };
@@ -10,6 +9,8 @@ export interface Plugin {
   mustBeLoggedIn: boolean;
   enableACL: boolean;
   acl: string[];
+  // True if the remote also exposes './mapInfoCard'. The host loads that module only when this is set.
+  hasMapInfoCard?: boolean;
 }
 
 export enum PluginType {
@@ -57,15 +58,8 @@ export interface NewTabPlugin extends RemotePlugin {
   targetUrl: string;
 }
 
-export interface MapInfoCardProps {
-  hasMenuItem: false;
-  selection: MapSelection;
-  locationName?: string;
-  context: PluginContext;
-}
-
-// A plugin that replaces the info card on map selection
+// Content a plugin adds to the map's area info card, loaded from its './mapInfoCard' expose
 export interface MapInfoCardPlugin extends RemotePlugin {
   type: PluginType.MAP_INFO_CARD;
-  Page: React.ComponentType<MapInfoCardProps>;
+  Page: React.ComponentType<{ context: PluginContext }>;
 }

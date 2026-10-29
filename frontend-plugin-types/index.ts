@@ -107,4 +107,10 @@ export interface PluginContext {
   // for this pluginId, never the user's own token; an anonymous visitor's carry none. Never toasts: a
   // failed call rejects with a PluginApiError for the plugin to handle.
   usePluginApi: (pluginId: string, options?: PluginApiClientOptions) => PluginApi;
+  // Map info card only. Opens a path under the plugin's own route, e.g. 'new?filterId=a'; the host
+  // refuses a path outside it. Undefined on the plugin's routed page.
+  navigateToOwnPage?: (subPath?: string) => void;
+  // Map info card only. A stored geometry-only Filter of the map selection; undefined while it is
+  // saved or when nothing is selected.
+  mapSelectionFilterId?: string;
 }
