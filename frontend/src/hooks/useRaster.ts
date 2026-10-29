@@ -3,7 +3,7 @@ import { BACKEND_BASE_URL } from '../utilities/environmentVariables';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { RasterFilterCategory } from 'types/backend';
 
-export function useRaster() {
+export function useRaster(polling?: number) {
   const { request } = useRequest<RasterFilterCategory[]>();
   const queryClient = useQueryClient();
 
@@ -20,6 +20,7 @@ export function useRaster() {
         method: 'GET',
       }),
     select: categories => [...(categories ?? [])].sort((a, b) => a.name.localeCompare(b.name)),
+    refetchInterval: polling || false,
   });
 
   const { mutate: mutateActive, isPending } = useMutation({

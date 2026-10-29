@@ -22,6 +22,7 @@ import { DatasetsSettingsPage } from '../pages/AdminPortal/DatasetsSettingsPage/
 import { DatasetsEditRedirect } from '../pages/AdminPortal/DatasetsEditRedirect';
 import { IngestionFlowProvider } from '../contexts/IngestionFlowContext';
 import { IngestionFlowGuard } from '../guards/IngestionFlowGuard';
+import { CreateFilter } from 'pages/AdminPortal/CreateFilter/CreateFilter';
 
 function DatasetsRoutes() {
   const { t } = useTranslation('admin');
@@ -183,6 +184,15 @@ export function AdminPortalModule() {
                 <>
                   <PageTitle title={t('page_titles.filters')} />
                   <MapBasedFilters />
+                </>
+              }
+            />
+            <Route
+              path={`${ADMIN_ROUTES.FILTERS}/new`}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.filters')} />
+                  <CreateFilter />
                 </>
               }
             />
