@@ -8,7 +8,7 @@ import FileService from '../../services/FileService';
 import FilterService from '../../services/FilterService';
 import RasterFilterService from '../../services/RasterFilterService';
 import SoilPropertyService from '../../services/SoilPropertyService';
-import { generateExportPdf } from './pdfGenerator';
+import { generateExportPdf, RasterLayerPdfInfo } from './pdfGenerator';
 import { GroupedRecords, soilSampleToExportRecord, VectorFileFormat, RasterFileFormat } from './types';
 import { getEntities } from '../../utils/slugs';
 import DatasetEntity from '../../entities/Dataset';
@@ -110,7 +110,13 @@ async function getFilterString(requestData: RequestData, filterEntity: FilterCri
   return parts.length > 0 ? parts.join('\n') : null;
 }
 
-export async function createReadmeFile(requestData: RequestData, tempDir: string, payload: ExportJobParameters): Promise<void> {
+/** `rasterLayers` are the Raster Layers the Export Bundle holds, for the readme's layer table. */
+export async function createReadmeFile(
+  requestData: RequestData,
+  tempDir: string,
+  payload: ExportJobParameters,
+  rasterLayers: RasterLayerPdfInfo[] = [],
+): Promise<void> {
   const readmePath = path.join(tempDir, 'Readme.pdf');
 
   const logo = await FileService.getLogo(requestData.entityManager.getRepository(JsonStorage));
@@ -143,6 +149,7 @@ export async function createReadmeFile(requestData: RequestData, tempDir: string
     termsUrl: payload.public_terms_url,
     hasVector,
     hasRaster,
+    rasterLayers,
   });
 }
 

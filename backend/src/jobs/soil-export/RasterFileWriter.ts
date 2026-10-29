@@ -116,10 +116,16 @@ export class RasterFileWriter {
    * An axis-aligned rectangle over an EPSG:4326 layer touches every pixel of its window, so that case
    * is a plain crop natively in GDAL (cropToWindow), unless the layer declares a nodata value the
    * File's own marker doesn't cover. Any other AOI is written tile by tile (writeTouchedTiles).
-   * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}_{target_crs}
+   * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}_{target_crs},
+   * unless `layerName` gives the name (buildLayerNames, for layers that would share one).
    * Returns whether a file was written — `false` when the AOI touches no valid pixel.
    */
-  async writeLayer(layer: FilteredRasterLayer, aoi: Polygon | MultiPolygon, targetCrs?: number): Promise<boolean> {
+  async writeLayer(
+    layer: FilteredRasterLayer,
+    aoi: Polygon | MultiPolygon,
+    targetCrs?: number,
+    layerName: string = this.buildLayerName(layer, targetCrs),
+  ): Promise<boolean> {
     const sourceTiff = await openTiff(layer.path);
     try {
       const sourceImage = await sourceTiff.getImage(0);
@@ -137,9 +143,9 @@ export class RasterFileWriter {
       const fileMarkerCoversDeclared = layer.nodata_value == null || nodataPredicate([band.fileNodata], band.float32)(layer.nodata_value);
 
       if (isAxisAlignedBboxPolygon(aoi) && isWgs84(crs) && fileMarkerCoversDeclared) {
-        return await this.cropToWindow(layer, window, targetCrs);
+        return await this.cropToWindow(layer, window, layerName, targetCrs);
       }
-      return await this.writeTouchedTiles(layer, sourceImage, band, grid, sweep, window, crs, targetCrs);
+      return await this.writeTouchedTiles(layer, sourceImage, band, grid, sweep, window, crs, layerName, targetCrs);
     } finally {
       try {
         await sourceTiff.close();
@@ -153,8 +159,7 @@ export class RasterFileWriter {
    * Crops the source to a pixel window with gdal_translate -srcwin. Returns `false`, with the file
    * removed, when its Band Statistics show no valid pixel (all nodata).
    */
-  private async cropToWindow(layer: FilteredRasterLayer, window: PixelWindow, targetCrs?: number): Promise<boolean> {
-    const layerName = this.buildLayerName(layer, targetCrs);
+  private async cropToWindow(layer: FilteredRasterLayer, window: PixelWindow, layerName: string, targetCrs?: number): Promise<boolean> {
     fs.mkdirSync(path.dirname(this.outputDir), { recursive: true });
 
     const { mainFilePath } = await FileService.getMainFilePath(layer.path);
@@ -233,6 +238,7 @@ export class RasterFileWriter {
     sweep: AllTouchedSweep,
     window: PixelWindow,
     sourceCrs: string,
+    layerName: string,
     targetCrs?: number,
   ): Promise<boolean> {
     const outW = window.colLast - window.colFirst + 1;
@@ -242,7 +248,6 @@ export class RasterFileWriter {
 
     const nodataFill = Number.isNaN(band.fileNodata) ? Number.NaN : band.fileNodata;
     const nodataStr = formatGdalNodata(band.fileNodata);
-    const layerName = this.buildLayerName(layer, targetCrs);
 
     fs.mkdirSync(this.outputDir, { recursive: true });
 
@@ -478,8 +483,31 @@ ${sources}
     }
     const lmPart = layer.laboratory_method !== null ? `_${sanitizeField(layer.laboratory_method)}` : '';
     const suPart = layer.standard_unit !== null ? `_${sanitizeField(layer.standard_unit)}` : '';
-    const crsPart = targetCrs ?? layer.epsg ?? (layer.wkt ? 'custom' : 4326);
-    return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${lmPart}${suPart}${depthPart}${datePart}_${crsPart}`;
+    return `${sanitizeField(layer.dataset_name)}_${sanitizeField(layer.soil_property_name)}${lmPart}${suPart}${depthPart}${datePart}_${this.crsLabel(layer, targetCrs)}`;
+  }
+
+  /**
+   * The file name of each layer, by id. Layers that share every part of buildLayerName (dataset,
+   * soil property, laboratory method, unit, depths, dates and CRS: several Bands or Files of the
+   * same kind) would overwrite each other's file, so each of them gets a `_{i}` suffix, numbered
+   * from 1 in the order given. A name no other layer shares is left as it is.
+   */
+  buildLayerNames(layers: FilteredRasterLayer[], targetCrs?: number): Map<string, string> {
+    const byName = new Map<string, FilteredRasterLayer[]>();
+    for (const layer of layers) {
+      const name = this.buildLayerName(layer, targetCrs);
+      byName.set(name, [...(byName.get(name) ?? []), layer]);
+    }
+    const names = new Map<string, string>();
+    for (const [name, group] of byName) {
+      group.forEach((layer, i) => names.set(layer.id, group.length > 1 ? `${name}_${i + 1}` : name));
+    }
+    return names;
+  }
+
+  /** The CRS a layer's output is in, as its name and the readme spell it: an EPSG code, or `custom`. */
+  crsLabel(layer: FilteredRasterLayer, targetCrs?: number): string {
+    return String(targetCrs ?? layer.epsg ?? (layer.wkt ? 'custom' : 4326));
   }
 
   /**

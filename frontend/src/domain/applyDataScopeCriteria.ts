@@ -1,3 +1,4 @@
+import type { DatasetFrontendFilters } from 'types/availability';
 import type { FilterCriteria, GISDataType } from 'types/backend';
 import { DATA_ACCESS_ITEMS, DATA_TYPE_ITEMS } from '../configuration/filters';
 
@@ -29,3 +30,23 @@ export const applyDataScopeCriteria = (prevFilters: FilterCriteria, name: string
   }
   return prevFilters;
 };
+
+/**
+ * Returns the criteria without the data-scope keys (`data_types`, `visibility`), so the
+ * coverage filter stays the same when only the "Data type" / "Data access" selection
+ * changes. Keys are deleted, not set to undefined, for the same Object.keys reason as above.
+ */
+export const withoutDataScopeCriteria = (criteria: FilterCriteria): FilterCriteria => {
+  const next = { ...criteria };
+  delete next.data_types;
+  delete next.visibility;
+  return next;
+};
+
+/**
+ * Browser-side counterpart of the data-scope criteria, for lists fetched without them.
+ * An empty selection, or a dataset without the field, matches everything.
+ */
+export const matchesDataScope = (dataType: string | undefined, visibility: string | undefined, filters: DatasetFrontendFilters) =>
+  (!dataType || !filters.type.length || filters.type.includes(dataType)) &&
+  (!visibility || !filters.visibility.length || filters.visibility.includes(visibility));

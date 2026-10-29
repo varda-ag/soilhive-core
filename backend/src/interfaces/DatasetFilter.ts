@@ -62,6 +62,7 @@ export interface FilteredRasterLayer {
   wkt?: string;
   band: number; // 1-based band within "path": a file may contain several bands/layers
   nodata_value?: number | null; // raster_layers.nodata_value: an int column, so null or rounded for a Float32 sentinel
+  description?: string | null; // the prose of raster_layers.description (stored wrapped, docs/adr/0019)
   is_categorical: boolean;
   min_depth: number | null;
   max_depth: number | null;
