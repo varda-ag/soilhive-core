@@ -5,7 +5,9 @@ const BASE_ORIGIN = 'http://host.invalid';
  * The app path for subPath, resolved relative to the plugin route (e.g. 'dashboards', as in
  * Routes.tsx). Returns undefined when it resolves outside that route, e.g. '../admin'.
  */
-export function resolveOwnPagePath(route: string, subPath = ''): string | undefined {
+export function resolveOwnPagePath(rawRoute: string, subPath = ''): string | undefined {
+  // A leading slash would make '//route/' read as a host name.
+  const route = rawRoute.replace(/^\/+/, '');
   const base = new URL(`/${route}/`, BASE_ORIGIN);
   const target = new URL(subPath, base);
   if (target.origin !== base.origin || !target.pathname.startsWith(base.pathname)) {

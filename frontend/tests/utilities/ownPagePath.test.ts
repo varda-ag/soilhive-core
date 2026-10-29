@@ -19,4 +19,10 @@ describe('resolveOwnPagePath', () => {
       expect(resolveOwnPagePath('dashboards', subPath)).toBeUndefined();
     },
   );
+
+  it.each(['/dashboards', '//dashboards'])('strips the leading slashes of route %p', route => {
+    expect(resolveOwnPagePath(route, 'new')).toBe('/dashboards/new');
+    expect(resolveOwnPagePath(route, undefined)).toBe('/dashboards');
+    expect(resolveOwnPagePath(route, '../admin')).toBeUndefined();
+  });
 });
