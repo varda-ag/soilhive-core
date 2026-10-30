@@ -597,6 +597,8 @@ paths:
         Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
         A bulk-load, raster-load or bulk-delete job is refused with 409 while its dataset already has one of
         those queued or running, and its dataset_id is stored as the dataset's current id.
+        An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
+        within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
       tags:
         - jobs
       security:
@@ -628,6 +630,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Job'
+        '400':
+          description: Invalid request, or an export over its limits; `detail` names the limit and what to change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '401':
