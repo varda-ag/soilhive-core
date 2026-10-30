@@ -210,12 +210,12 @@ describe('Testing /jobs routes', () => {
     expect(statusRes.body.status).toBe('completed');
   });
 
-  it('POST /jobs rejects a raster load job carrying delete_source_files', async () => {
+  it('POST /jobs rejects a raster load job carrying an unknown property', async () => {
     const token = await getDataAdminToken();
 
     const res = await request(app)
       .post('/jobs')
-      .send({ type: 'raster-load', dataset_id: 'test-dataset', delete_source_files: true })
+      .send({ type: 'raster-load', dataset_id: 'test-dataset', delete_raw_table: true })
       .set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(400);
   });
