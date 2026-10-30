@@ -104,11 +104,11 @@ CC BY 4.0 allows any use, commercial included, as long as the source is credited
 
 ## Available filters
 
-GeoTIFF packages are being published and their download links are listed here as they become available. Each filter's labels below, keyed by value.
+Each filter has a GeoTIFF package under https://static.soilhive.ag/map-based-filters/. Each package carries its labels as `CLASSES` metadata, so the install suggests them in `suggested_mappings`. They are listed below, keyed by value.
 
 ### Agroecological zones v4
 
-- **Package**: https://static.soilhive.ag/map-based-filters/agroecological_zones_v4.tif (49 MB). 30 arc-seconds (about 1 km), EPSG:4326, nodata 0.
+- **Package**: https://static.soilhive.ag/map-based-filters/agroecological_zones_v4.tif (16 MB). 30 arc-seconds (about 1 km), EPSG:4326, nodata 0.
 - **Source**: FAO & IIASA, [Global Agro-Ecological Zones v4](https://www.fao.org/gaez/gaezv4/en), the [Simplified AEZ (Global - ~1 km - 33 classes)](https://data.apps.fao.org/catalog/iso/0bb7237a-6740-4ea3-b2a1-e26b1647e4e0) layer. Data from the [GAEZ v4 data portal](https://gaez-v4-data.fao.org/data/).
 - **Licence**: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), per FAO's data catalogue.
 - **Attribution**: FAO & IIASA. Simplified AEZ (Global - ~1 km - 33 classes), Global Agro-Ecological Zoning version 4 (GAEZ v4), 2021. Licence: CC BY-SA 4.0.
@@ -154,7 +154,7 @@ GeoTIFF packages are being published and their download links are listed here as
 
 ### Agroecological zones v5
 
-- **Package**: not yet published (37 MB).
+- **Package**: https://static.soilhive.ag/map-based-filters/agroecological_zones_v5.tif (33 MB). 30 arc-seconds (about 1 km), EPSG:4326, nodata 255.
 - **Source**: FAO & IIASA, Global Agro-Ecological Zoning v5 (April 2025), the *Agro-ecological Zones* layer of [Land and Water Resources - GAEZ v5](https://data.apps.fao.org/catalog/dataset/land-and-water-resources-gaez-v-5).
 - **Licence**: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), per FAO's data catalogue.
 - **Attribution**: FAO & IIASA. Global Agro-Ecological Zoning version 5 (GAEZ v5), Land and Water Resources. Licence: CC BY 4.0.
@@ -203,7 +203,7 @@ GeoTIFF packages are being published and their download links are listed here as
 
 ### Land Cover 2019
 
-- **Package**: not yet published (3.6 GB).
+- **Package**: https://static.soilhive.ag/map-based-filters/land_cover_2019.tif (2.1 GB). 3.6 arc-seconds (about 100 m), EPSG:4326, nodata 255.
 - **Source**: Copernicus Global Land Service, Land Cover 100 m, collection 3, epoch 2019 (V3.0.1): 23 classes at 100 m. [doi:10.5281/zenodo.3939050](https://doi.org/10.5281/zenodo.3939050).
 - **Licence**: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 - **Attribution**: Buchhorn, M., Smets, B., Bertels, L., De Roo, B., Lesiv, M., Tsendbazar, N.-E., Herold, M., Fritz, S. (2020). Copernicus Global Land Service: Land Cover 100m: collection 3: epoch 2019: Globe (V3.0.1). Zenodo. https://doi.org/10.5281/zenodo.3939050
@@ -222,25 +222,25 @@ GeoTIFF packages are being published and their download links are listed here as
   | 80 | Permanent water bodies |
   | 90 | Herbaceous wetland |
   | 100 | Moss and lichen |
-  | 111 | Closed forest evergreen needle leaf |
-  | 112 | Closed forest evergreen broad leaf |
-  | 113 | Closed forest deciduous needle leaf |
-  | 114 | Closed forest deciduous broad leaf |
-  | 115 | Closed forest mixed |
-  | 116 | Closed forest not matching any of the other definitions |
-  | 121 | Open forest evergreen needle leaf |
-  | 122 | Open forest evergreen broad leaf |
-  | 123 | Open forest deciduous needle leaf |
-  | 124 | Open forest deciduous broad leaf |
-  | 125 | Open forest mixed |
-  | 126 | Open forest not matching any of the other definitions |
-  | 200 | Oceans seas |
+  | 111 | Closed forest, evergreen needle leaf |
+  | 112 | Closed forest, evergreen broad leaf |
+  | 113 | Closed forest, deciduous needle leaf |
+  | 114 | Closed forest, deciduous broad leaf |
+  | 115 | Closed forest, mixed |
+  | 116 | Closed forest, not matching any of the other definitions |
+  | 121 | Open forest, evergreen needle leaf |
+  | 122 | Open forest, evergreen broad leaf |
+  | 123 | Open forest, deciduous needle leaf |
+  | 124 | Open forest, deciduous broad leaf |
+  | 125 | Open forest, mixed |
+  | 126 | Open forest, not matching any of the other definitions |
+  | 200 | Oceans, seas |
 
   </details>
 
 ### Land Cover 2024
 
-- **Package**: not yet published (2.6 GB).
+- **Package**: https://static.soilhive.ag/map-based-filters/land_cover_2024.tif (1.3 GB). 3.6 arc-seconds (about 100 m, coarser than the 10 m source), EPSG:4326, nodata 0.
 - **Source**: Impact Observatory, Microsoft and Esri, [10m Annual Land Use Land Cover (9-class)](https://registry.opendata.aws/io-lulc/), the 2024 map (released June 2025). Documentation: [Impact Observatory global maps](https://www.impactobservatory.com/global_maps).
 - **Licence**: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
 - **Attribution**: Impact Observatory, Microsoft and Esri. 10m Annual Land Use Land Cover (9-class), 2024. Licence: CC BY 4.0. https://registry.opendata.aws/io-lulc
@@ -263,7 +263,7 @@ GeoTIFF packages are being published and their download links are listed here as
 
 ### Soil Groups
 
-- **Package**: https://static.soilhive.ag/map-based-filters/soil_groups.tif (25 MB). 30 arc-seconds (about 1 km), nodata 0.
+- **Package**: https://static.soilhive.ag/map-based-filters/soil_groups.tif (25 MB). 30 arc-seconds (about 1 km), EPSG:4326, nodata 0.
 - **Source**: FAO & IIASA, [Harmonized World Soil Database v2.0](https://www.fao.org/soils-portal/data-hub/soil-maps-and-databases/harmonized-world-soil-database-v20/en/) (2023): the dominant soil group of each mapping unit, as WRB 2022 reference soil groups.
 - **Pixel values**: each group's two-letter WRB code, with each letter replaced by its ASCII code. `AC` (Acrisols) is 65 and 67, so 6567.
 - **Licence**: unclear for v2.0.
