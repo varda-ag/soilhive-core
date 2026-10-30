@@ -41,7 +41,7 @@ components:
             Optional spatial file whose geometries each become one aggregation area. Must
             be a vector file with a known EPSG code and only polygon or multipolygon
             geometries; a multipolygon counts as one area. The number of geometries is
-            capped by server configuration.
+            capped by server configuration. A file mapped to a Dataset is not found.
         dataset_ids:
           type: array
           items:

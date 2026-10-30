@@ -1,6 +1,10 @@
 # Unpublished Datasets are absent from `/soil-data` too
 
-**Status:** Accepted — amends ADR 0034
+**Status:** Accepted — amends ADR 0034; amended by ADR 0071, ADR 0073
+
+> **Note:** the status filter now resolves old slugs to current ones (ADR 0071). An old slug was
+> dropped as unknown, which let an Export skip its `download` check. An Export naming an absent
+> Dataset is now refused with 404 at submission instead of failing in the job (ADR 0073).
 
 `GET /soil-data` now ignores every slug whose Dataset is not `PUBLISHED`, unless the caller is a
 Privileged caller. ADR 0034 left this path open on purpose ("Published means listed, not

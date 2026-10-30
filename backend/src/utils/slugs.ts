@@ -2,7 +2,7 @@ import { EntityTarget, In } from 'typeorm';
 import { StatusCodes } from 'http-status-codes';
 import SlugHistoryEntity from '../entities/SlugHistory';
 import DatasetEntity from '../entities/Dataset';
-import { EntityType } from '../types/data';
+import { EntityType, IngestionStatus } from '../types/data';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from './error';
 import { datasetExistsFor } from './auth';
@@ -159,18 +159,44 @@ export const getEntitySlugs = async (requestData: RequestData, slug: string): Pr
   return results.map(sh => sh.slug);
 };
 
+export type ExistingDataset = Pick<DatasetEntity, 'slug' | 'visibility'>;
+
 /**
- * The slugs among `slugs` whose Dataset exists for the caller (docs/adr/0057), in their given order.
- * Current slugs only, as the soil data queries match them. Uncached, so a status change takes effect at once.
+ * The Datasets among `slugs` that exist for the caller (docs/adr/0057), by current slug, in their
+ * given order and once each. An old slug resolves through slug history, so it is never checked
+ * less than the current one (docs/adr/0071). Uncached, so a status change takes effect at once.
+ * With `requireAll`, an absent Dataset is a 404 instead of being left out (docs/adr/0073).
  */
-export const existingDatasetSlugs = async (requestData: RequestData, slugs: string[]): Promise<string[]> => {
+export const existingDatasets = async (
+  requestData: RequestData,
+  slugs: string[],
+  { requireAll = false }: { requireAll?: boolean } = {},
+): Promise<ExistingDataset[]> => {
   if (slugs.length === 0) {
     return [];
   }
-  const datasets = await requestData.entityManager.getRepository(DatasetEntity).find({
-    select: { slug: true, status: true },
-    where: { slug: In(slugs) },
-  });
-  const existing = new Set(datasets.filter(d => datasetExistsFor(requestData.token, d.status)).map(d => d.slug));
-  return slugs.filter(slug => existing.has(slug));
+  // slug_history holds current slugs too (the slug trigger writes every one), so one join covers both.
+  const rows: (ExistingDataset & { named: string; status: IngestionStatus })[] = await requestData.entityManager.query(
+    `SELECT sh.slug AS named, d.slug, d.status, d.visibility
+     FROM slug_history sh
+     JOIN datasets d ON d.id = sh.entity_id AND d.deleted_at IS NULL
+     WHERE sh.slug = ANY($1::text[])`,
+    [slugs],
+  );
+  const rowByNamedSlug = new Map(rows.map(row => [row.named, row]));
+  const existing = new Map<string, ExistingDataset>();
+  for (const slug of slugs) {
+    const row = rowByNamedSlug.get(slug);
+    if (!row || !datasetExistsFor(requestData.token, row.status)) {
+      if (requireAll) {
+        // getEntity's message, so an unpublished Dataset reads exactly as an unknown one
+        throw new ErrorResponse(`Resource '${slug}' not found`, StatusCodes.NOT_FOUND);
+      }
+      continue;
+    }
+    if (!existing.has(row.slug)) {
+      existing.set(row.slug, { slug: row.slug, visibility: row.visibility });
+    }
+  }
+  return [...existing.values()];
 };

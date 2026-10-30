@@ -17,6 +17,7 @@ import * as RasterUtilsModule from '../../src/utils/raster';
 import { GISDataType, IngestionStatus } from '../../src/types/data';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
 import { getDataSource } from '../../src/utils/data-source';
+import DatasetEntity from '../../src/entities/Dataset';
 
 // addRasterData ingests through the real pipeline — at the production MIN_TILES=256 floor that's 60s+ per call even for
 // these tiny fixtures.
@@ -629,6 +630,31 @@ describe('Testing /soil-data routes', () => {
         .query({ datasets: dataset.slug, limit: 100 });
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body).toHaveLength(2);
+    });
+  });
+
+  describe('Datasets named by an old slug (docs/adr/0071)', () => {
+    const addRenamedDataset = async (id: number, visibility: 'public' | 'private') => {
+      const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id, soilPropertyNames: [`ph_${id}`], featureCount: 2 });
+      const repo = (await getDataSource()).getRepository(DatasetEntity);
+      await repo.update({ id: dataset.id }, { name: `${dataset.name} renamed`, visibility });
+      const renamed = await repo.findOneByOrFail({ id: dataset.id });
+      expect(renamed.slug).not.toBe(dataset.slug);
+      return { oldSlug: dataset.slug, currentSlug: renamed.slug };
+    };
+
+    it('return its rows, under the current slug', async () => {
+      const { oldSlug, currentSlug } = await addRenamedDataset(1015, 'public');
+      const res = await request(app).get('/soil-data').query({ datasets: oldSlug, limit: 100 });
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toHaveLength(2);
+      expect(res.body.every((row: any) => row.dataset_id === currentSlug)).toBe(true);
+    });
+
+    it('are refused when private, as by the current slug', async () => {
+      const { oldSlug } = await addRenamedDataset(1016, 'private');
+      const res = await request(app).get('/soil-data').query({ datasets: oldSlug, limit: 100 });
+      expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
   });
 

@@ -8,7 +8,6 @@ import FileEntity from '../../entities/File';
 import { BulkLoadJob } from '../../interfaces/Job';
 import { SoilRecord } from '../../interfaces/Record';
 import { RequestData } from '../../interfaces/RequestData';
-import { Token } from '../../interfaces/Token';
 import DataMappingService from '../../services/DataMappingService';
 import DatasetFileMappingService from '../../services/DatasetFileMappingService';
 import DatasetService from '../../services/DatasetService';
@@ -25,8 +24,8 @@ import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { hideDatasetForLoad, statusAfterLoad } from '../LoadStatus';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
-import EntitlementService from '../../services/EntitlementService';
-import { EVERYONE, INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../constants/constants';
+import { jobRequestData } from '../jobRequestData';
+import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../constants/constants';
 import { createCursor, encodeCursor } from '../../utils/cursor';
 import { progressReporter } from '../../services/PgBoss';
 import { DataCleaningConfig } from '../../interfaces/DataMapping';
@@ -43,15 +42,10 @@ interface StagedFile {
 
 export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { created_by } = job as unknown as BulkLoadJob;
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
   await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
-  const entitlementService = new EntitlementService();
-  const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
-  // getDataset hides Datasets that are not PUBLISHED from a non-privileged caller, and this job runs on one by definition
-  const token = { sub: data.created_by, isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin } as Token;
-  const requestData = { entityManager, token, entitlements };
+  const requestData = await jobRequestData(entityManager, data);
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
   const previousStatus = dataset.status;

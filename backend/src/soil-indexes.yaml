@@ -32,7 +32,8 @@ components:
           type: string
           description: >-
             Optional spatial file whose geometries each become one aggregation area. Must be a
-            vector file with a known EPSG code and only polygon or multipolygon geometries.
+            vector file with a known EPSG code and only polygon or multipolygon geometries. A file
+            mapped to a Dataset is not found.
         label_field:
           type: string
           description: Optional field of file_id whose value labels each aggregation area.

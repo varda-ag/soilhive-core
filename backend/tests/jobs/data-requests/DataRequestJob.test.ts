@@ -46,6 +46,7 @@ import {
   addObservations,
   addSoilProperty,
   addVocabulary,
+  linkMapping,
 } from '../../../src/utils/mock';
 import ProcedureEntity from '../../../src/entities/Procedure';
 import SoilPropertyEntity from '../../../src/entities/SoilProperty';
@@ -241,6 +242,17 @@ describe('processDataRequest', () => {
       await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'RUN_FILE_NOT_SPATIAL' });
     });
 
+    // Its units and labels would publish the Dataset's data (docs/adr/0072)
+    it('answers a file mapped to a Dataset as not found', async () => {
+      await seedDataset('mapped-file', [1]);
+      const filterId = await createFilter([getPolygonFromBbox([-1, -1, 5, 5])]);
+      const file = await addVectorFileWithGeometries('mapped-file', featureCollection([{ geometry: UNIT_A }]), { epsg: 4326 });
+      await linkMapping(file, {});
+
+      const { job } = await createActiveJob({ filter_id: filterId, file_id: file.slug });
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'RUN_FILE_NOT_FOUND' });
+    });
+
     it('keeps a MultiPolygon as a single unit', async () => {
       await seedDataset('multipolygon', [1, 2]);
       const filterId = await createFilter([getPolygonFromBbox([-1, -1, 5, 5])]);
@@ -290,6 +302,19 @@ describe('processDataRequest', () => {
       const { dataset } = await seedDataset('named-hidden-ds', [1]);
       const entityManager = await getEntityManager();
       await entityManager.query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({ filter_id: filterId, dataset_ids: [dataset.slug] });
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_DATASET_NOT_ENTITLED' });
+    });
+
+    it('selects a dataset named by an old slug (docs/adr/0071)', async () => {
+      const { dataset } = await seedDataset('named-old-slug-ds', [1]);
+      const entityManager = await getEntityManager();
+      // Private and ungranted, so being selected is what fails the run: an unmatched slug would not
+      await entityManager.query(`UPDATE datasets SET visibility = 'private', name = 'named-old-slug-ds-renamed' WHERE id = $1`, [
+        dataset.id,
+      ]);
 
       const filterId = await createFilter([UNIT_A]);
       const { job } = await createActiveJob({ filter_id: filterId, dataset_ids: [dataset.slug] });
@@ -567,7 +592,7 @@ describe('processDataRequest', () => {
     });
 
     it('completes a run naming those datasets explicitly, rather than refusing what enqueue allowed', async () => {
-      // Named datasets are gated twice — enforceEntitlements at enqueue time, then again
+      // Named datasets are gated twice — enforceDatasetEntitlements at enqueue time, then again
       // in the processor. If the two gates resolve identity differently the API returns
       // 201 and the job then dies with DR_DATASET_NOT_ENTITLED, which is exactly what a
       // sub-keyed processor did.

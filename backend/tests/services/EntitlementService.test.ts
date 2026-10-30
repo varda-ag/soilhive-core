@@ -203,7 +203,7 @@ describe('EntitlementService', () => {
 
       const entitlements = await service.getUserEntitlements(requestData, 'user8@example.com');
 
-      expect(entitlements.datasets?.['shared-key']).toEqual([Capability.PREVIEW, Capability.DOWNLOAD]);
+      expect(entitlements.datasets?.['shared-key']).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]);
       expect(externalCapabilities).toEqual([Capability.PREVIEW]);
     });
   });
@@ -280,8 +280,7 @@ describe('EntitlementService', () => {
 
   it('treats a subject id of "__proto__" as an ordinary grantee instead of hijacking the result map', async () => {
     // A subject id can legitimately be "__proto__" (e.g. a non-admin WRITE holder adding it as an
-    // extra grantee in a follow-up PUT — see EntitlementService.ts's assertCanWriteConfigEntitlement
-    // doc comment). entitiesToEntitlements's `acc[id] = capabilities` is a plain assignment, which on
+    // extra grantee in a follow-up PUT). entitiesToEntitlements's `acc[id] = capabilities` is a plain assignment, which on
     // a plain {} would silently repoint the accumulator's own prototype instead of storing an entry.
     await entityManager.query(`
       INSERT INTO entitlements (id, data) VALUES ('__proto__', '{"datasets": {"dataset-2": ["read"]}}')
@@ -733,67 +732,122 @@ describe('EntitlementService', () => {
     });
   });
 
-  describe('canReadConfig', () => {
+  describe('canConfig', () => {
     const configKey = 'test-config-key';
-
-    it('returns false for a non-privileged caller with no capability for the config', () => {
-      expect(service.canReadConfig(requestData, configKey)).toBe(false);
-    });
-
-    it('returns true for a non-privileged caller holding READ for the config', () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
-      expect(service.canReadConfig(rd, configKey)).toBe(true);
-    });
-
-    it('returns true for a non-privileged caller holding WRITE for the config', () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
-      expect(service.canReadConfig(rd, configKey)).toBe(true);
-    });
-
-    it('returns false for a non-privileged caller holding an unrelated capability only', () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [] } } };
-      expect(service.canReadConfig(rd, configKey)).toBe(false);
-    });
-
-    it.each([
+    const privilegedTokens = [
       { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
       { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
       { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
-    ])('returns true for a privileged caller regardless of capability', additionalData => {
-      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
-      expect(service.canReadConfig(rd, configKey)).toBe(true);
+    ];
+
+    describe('READ', () => {
+      it('returns false for a non-privileged caller with no capability for the config', () => {
+        expect(service.canConfig(requestData, configKey, Capability.READ)).toBe(false);
+      });
+
+      it('returns true for a non-privileged caller holding READ for the config', () => {
+        const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+        expect(service.canConfig(rd, configKey, Capability.READ)).toBe(true);
+      });
+
+      it('returns true for a non-privileged caller holding WRITE for the config', () => {
+        const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+        expect(service.canConfig(rd, configKey, Capability.READ)).toBe(true);
+      });
+
+      it('returns false for a non-privileged caller holding an unrelated capability only', () => {
+        const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [] } } };
+        expect(service.canConfig(rd, configKey, Capability.READ)).toBe(false);
+      });
+
+      it.each(privilegedTokens)('returns true for a privileged caller regardless of capability', additionalData => {
+        const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+        expect(service.canConfig(rd, configKey, Capability.READ)).toBe(true);
+      });
+    });
+
+    describe('WRITE', () => {
+      const pluginConfigKey = 'plugin:my-plugin:settings';
+
+      it('returns false for a non-privileged caller with no existing WRITE grant, even for a fresh plugin: id (no self-service first access)', () => {
+        expect(service.canConfig(requestData, pluginConfigKey, Capability.WRITE)).toBe(false);
+      });
+
+      it('returns true for a non-privileged caller holding an existing WRITE grant on a plugin: id', () => {
+        const rd = { ...requestData, entitlements: { datasets: {}, configs: { [pluginConfigKey]: [Capability.WRITE] } } };
+        expect(service.canConfig(rd, pluginConfigKey, Capability.WRITE)).toBe(true);
+      });
+
+      it('returns false for a non-privileged caller holding READ only', () => {
+        const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
+        expect(service.canConfig(rd, configKey, Capability.WRITE)).toBe(false);
+      });
+
+      it('returns false for a non-privileged caller with no grant on a non-plugin config id, even with no row yet', () => {
+        expect(service.canConfig(requestData, configKey, Capability.WRITE)).toBe(false);
+      });
+
+      it('returns false for a non-privileged caller without WRITE once the config already has any grant', async () => {
+        await entityManager.query(`
+          INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+        `);
+
+        expect(service.canConfig(requestData, configKey, Capability.WRITE)).toBe(false);
+      });
+
+      it('returns true for a caller holding WRITE for the config even though other grants already exist', async () => {
+        await entityManager.query(`
+          INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+        `);
+        const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
+
+        expect(service.canConfig(rd, configKey, Capability.WRITE)).toBe(true);
+      });
+
+      it('returns false for a non-privileged caller on an existing config with no grants yet', async () => {
+        await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
+
+        expect(service.canConfig(requestData, configKey, Capability.WRITE)).toBe(false);
+      });
+
+      it('returns true for a privileged caller on an existing config with no grants yet', async () => {
+        await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
+        const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
+
+        expect(service.canConfig(rd, configKey, Capability.WRITE)).toBe(true);
+      });
+
+      it('returns false for a non-privileged caller on a plugin config id whose value was soft-deleted, even with no grant', async () => {
+        const jsonStorageRepo = entityManager.getRepository('JsonStorage');
+        await jsonStorageRepo.save({ id: pluginConfigKey, data: { some: 'value' } });
+        await jsonStorageRepo.softDelete({ id: pluginConfigKey });
+
+        expect(service.canConfig(requestData, pluginConfigKey, Capability.WRITE)).toBe(false);
+      });
+
+      it.each(privilegedTokens)('returns true for a privileged caller regardless of existing grants', async additionalData => {
+        await entityManager.query(`
+          INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
+        `);
+        const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
+
+        expect(service.canConfig(rd, configKey, Capability.WRITE)).toBe(true);
+      });
     });
   });
 
-  describe('assertCanReadConfigEntitlement', () => {
+  describe('assertConfig', () => {
     const configKey = 'test-config-key';
 
-    it('rejects a non-privileged caller with no capability for the config', async () => {
-      await expect(service.assertCanReadConfigEntitlement(requestData, configKey)).rejects.toMatchObject({ status: 403 });
+    it.each([Capability.READ, Capability.WRITE])('throws a 403 naming %s and the config when the gate denies it', capability => {
+      expect(() => service.assertConfig(requestData, configKey, capability)).toThrow(
+        expect.objectContaining({ status: 403, message: `User does not have ${capability} entitlement for config ${configKey}` }),
+      );
     });
 
-    it('allows a non-privileged caller holding READ for the config', async () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
-      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
-    });
-
-    it('allows a non-privileged caller holding WRITE for the config', async () => {
+    it('returns when the gate allows it', () => {
       const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
-      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
-    });
-
-    it('rejects a non-privileged caller holding an unrelated capability only', async () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [] } } };
-      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).rejects.toMatchObject({ status: 403 });
-    });
-
-    it.each([
-      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
-    ])('allows a privileged caller regardless of capability', async additionalData => {
-      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
-      await expect(service.assertCanReadConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
+      expect(() => service.assertConfig(rd, configKey, Capability.WRITE)).not.toThrow();
     });
   });
 
@@ -860,110 +914,6 @@ describe('EntitlementService', () => {
       };
 
       await expect(service.getConfigEntitlement(rd, configKey)).resolves.toEqual({ [EVERYONE]: [Capability.READ] });
-    });
-  });
-
-  describe('canWriteConfig', () => {
-    const configKey = 'test-config-key';
-
-    it('returns false for a non-privileged caller with no existing WRITE grant, even for a fresh plugin: id', () => {
-      expect(service.canWriteConfig(requestData, 'plugin:my-plugin:settings')).toBe(false);
-    });
-
-    it('returns true for a non-privileged caller holding an existing WRITE grant', () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
-      expect(service.canWriteConfig(rd, configKey)).toBe(true);
-    });
-
-    it('returns false for a non-privileged caller holding READ only', () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.READ] } } };
-      expect(service.canWriteConfig(rd, configKey)).toBe(false);
-    });
-
-    it.each([
-      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
-    ])('returns true for a privileged caller regardless of existing grants', additionalData => {
-      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
-      expect(service.canWriteConfig(rd, configKey)).toBe(true);
-    });
-  });
-
-  describe('assertCanWriteConfigEntitlement', () => {
-    const configKey = 'test-config-key';
-
-    it('rejects a non-privileged caller with no existing WRITE grant, even for a fresh plugin: id (no more self-service first access)', async () => {
-      await expect(service.assertCanWriteConfigEntitlement(requestData, 'plugin:my-plugin:settings')).rejects.toMatchObject({
-        status: 403,
-      });
-    });
-
-    it('allows a non-privileged caller holding an existing WRITE grant on a plugin: id', async () => {
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { 'plugin:my-plugin:settings': [Capability.WRITE] } } };
-      await expect(service.assertCanWriteConfigEntitlement(rd, 'plugin:my-plugin:settings')).resolves.toBeUndefined();
-    });
-
-    it('rejects a non-privileged caller with no grant on a non-plugin config id, even with no row yet', async () => {
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({
-        status: 403,
-      });
-    });
-
-    it('rejects a non-privileged caller without WRITE once the config already has any grant', async () => {
-      await entityManager.query(`
-        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
-      `);
-
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({
-        status: 403,
-      });
-    });
-
-    it('allows a caller holding WRITE for the config even though other grants already exist', async () => {
-      await entityManager.query(`
-        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
-      `);
-      const rd = { ...requestData, entitlements: { datasets: {}, configs: { [configKey]: [Capability.WRITE] } } };
-
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
-    });
-
-    it('rejects a non-privileged caller on an existing config with no grants yet', async () => {
-      await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
-
-      await expect(service.assertCanWriteConfigEntitlement(requestData, configKey)).rejects.toMatchObject({
-        status: 403,
-      });
-    });
-
-    it('allows a privileged caller on an existing config with no grants yet', async () => {
-      await entityManager.getRepository('JsonStorage').save({ id: configKey, data: { some: 'value' } });
-      const rd = { ...requestData, token: { ...mockToken, isSuperAdmin: true } };
-
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
-    });
-
-    it('rejects a non-privileged caller on a plugin config id whose value was soft-deleted, even with no grant', async () => {
-      const pluginConfigKey = 'plugin:acme:widget';
-      const jsonStorageRepo = entityManager.getRepository('JsonStorage');
-      await jsonStorageRepo.save({ id: pluginConfigKey, data: { some: 'value' } });
-      await jsonStorageRepo.softDelete({ id: pluginConfigKey });
-
-      await expect(service.assertCanWriteConfigEntitlement(requestData, pluginConfigKey)).rejects.toMatchObject({ status: 403 });
-    });
-
-    it.each([
-      { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
-      { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
-    ])('allows a privileged caller regardless of existing grants', async additionalData => {
-      await entityManager.query(`
-        INSERT INTO entitlements (id, data) VALUES ('config-other@example.com', '{"configs": {"${configKey}": ["read"]}}')
-      `);
-      const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
-
-      await expect(service.assertCanWriteConfigEntitlement(rd, configKey)).resolves.toBeUndefined();
     });
   });
 
@@ -1089,56 +1039,55 @@ describe('EntitlementService', () => {
     });
   });
 
-  describe('enforceEntitlements', () => {
+  describe('config keys colliding with a renamed Dataset slug', () => {
+    // Prerequisites:
+    // - "dataset-1" fixture is renamed to "dataset-1-renamed" in the top-level beforeEach,
+    // - entitlements are under the historical slug.
+    // The tests verifies that the configs scope is not affected by that rename,
+    // even though the two slugs happen to collide with two config keys.
     beforeEach(async () => {
-      // Make dataset-1 public, dataset-2 and dataset-3 remain private (default)
-      await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-1' }, { visibility: 'public' });
+      await entityManager.query(`
+        INSERT INTO entitlements (id, data) VALUES
+        ('config-user9@example.com', '{"configs": {"dataset-1-renamed": ["download"]}}')
+      `);
     });
 
-    it('should not throw when all requested slugs do not exist', async () => {
-      await expect(
-        service.enforceEntitlements(requestData, EntitlementScope.DATASETS, ['non-existent'], Capability.DOWNLOAD),
-      ).resolves.toBeUndefined();
+    it('does not return another config item grants', async () => {
+      const grants = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1');
+      // Nobody holds a grant on config `dataset-1`.
+      expect(grants).toEqual({});
     });
 
-    it('should not throw when all matching datasets are public', async () => {
-      await expect(
-        service.enforceEntitlements(requestData, EntitlementScope.DATASETS, ['dataset-1'], Capability.DOWNLOAD),
-      ).resolves.toBeUndefined();
-    });
+    it('does not wipe another config item grants on write', async () => {
+      await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1', {
+        'config-user1@example.com': [Capability.READ],
+      });
 
-    it('should not throw for a mix of public and private when user has capability for private ones', async () => {
-      const rd = { ...requestData, entitlements: { datasets: { 'dataset-2': [Capability.DOWNLOAD] }, configs: {} } };
-      await expect(
-        service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-1', 'dataset-2'], Capability.DOWNLOAD),
-      ).resolves.toBeUndefined();
+      // Asserted against the raw row on purpose: reading back through
+      // getEntityEntitlements('dataset-1-renamed') expands the same way and would
+      // mask the wipe by surfacing the grant just written under 'dataset-1'.
+      const [row] = await entityManager.query(`SELECT data->'configs' AS configs FROM entitlements WHERE id = 'config-user9@example.com'`);
+      expect(row.configs).toEqual({ 'dataset-1-renamed': ['download'] });
     });
+  });
 
-    it('should not throw when user has the required capability for a private dataset', async () => {
+  describe('enforceDatasetEntitlements', () => {
+    it('returns a private Dataset the user has the capability for', async () => {
       const rd = { ...requestData, entitlements: { datasets: { 'dataset-2': [Capability.PREVIEW] }, configs: {} } };
-      await expect(service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-2'], Capability.PREVIEW)).resolves.toBeUndefined();
+      await expect(service.enforceDatasetEntitlements(rd, ['dataset-2'], Capability.PREVIEW)).resolves.toEqual(['dataset-2']);
     });
 
-    it('should throw 403 when user has no entitlements for a private dataset', async () => {
-      await expect(
-        service.enforceEntitlements(requestData, EntitlementScope.DATASETS, ['dataset-2'], Capability.DOWNLOAD),
-      ).rejects.toMatchObject({
+    it('throws 403 naming the capability and the Dataset when the user holds another capability only', async () => {
+      const rd = { ...requestData, entitlements: { datasets: { 'dataset-2': [Capability.PREVIEW] }, configs: {} } };
+      await expect(service.enforceDatasetEntitlements(rd, ['dataset-2'], Capability.DOWNLOAD)).rejects.toMatchObject({
         status: 403,
+        message: 'User does not have download entitlement for datasets dataset-2',
       });
     });
 
-    it('should throw 403 when user has entitlements for a private dataset but not the required capability', async () => {
-      const rd = { ...requestData, entitlements: { datasets: { 'dataset-2': [Capability.PREVIEW] }, configs: {} } };
-      await expect(service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-2'], Capability.DOWNLOAD)).rejects.toMatchObject({
-        status: 403,
-      });
-    });
-
-    it('should throw 403 on the first private dataset the user lacks access to', async () => {
+    it('throws 403 when any one of the Datasets is not granted', async () => {
       const rd = { ...requestData, entitlements: { datasets: { 'dataset-2': [Capability.DOWNLOAD] }, configs: {} } };
-      await expect(
-        service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-2', 'dataset-3'], Capability.DOWNLOAD),
-      ).rejects.toMatchObject({
+      await expect(service.enforceDatasetEntitlements(rd, ['dataset-2', 'dataset-3'], Capability.DOWNLOAD)).rejects.toMatchObject({
         status: 403,
       });
     });
@@ -1147,64 +1096,45 @@ describe('EntitlementService', () => {
       { isInternalRequest: true, isDataAdmin: false, isSuperAdmin: false },
       { isInternalRequest: false, isDataAdmin: true, isSuperAdmin: false },
       { isInternalRequest: false, isDataAdmin: false, isSuperAdmin: true },
-    ])('should not throw for internal requests or admins', async additionalData => {
+    ])('needs no grant for internal requests or admins', async additionalData => {
       const rd = { ...requestData, token: { ...mockToken, ...additionalData }, entitlements: {} };
-      await expect(
-        service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-2', 'dataset-3'], Capability.DOWNLOAD),
-      ).resolves.toBeUndefined();
+      await expect(service.enforceDatasetEntitlements(rd, ['dataset-2', 'dataset-3'], Capability.DOWNLOAD)).resolves.toEqual([
+        'dataset-2',
+        'dataset-3',
+      ]);
     });
 
-    describe('configs scope', () => {
-      it('has no public bypass: throws 403 even though no entity is "public"', async () => {
+    describe('on a public Dataset', () => {
+      beforeEach(async () => {
+        // dataset-2 and dataset-3 stay private
+        await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-1-renamed' }, { visibility: 'public' });
+      });
+
+      it('needs no grant', async () => {
+        await expect(service.enforceDatasetEntitlements(requestData, ['dataset-1-renamed'], Capability.DOWNLOAD)).resolves.toEqual([
+          'dataset-1-renamed',
+        ]);
+      });
+
+      it('needs no grant when named by an old slug (docs/adr/0071)', async () => {
+        await expect(service.enforceDatasetEntitlements(requestData, ['dataset-1'], Capability.DOWNLOAD)).resolves.toEqual([
+          'dataset-1-renamed',
+        ]);
+      });
+
+      it('still checks the private Datasets named with it', async () => {
         await expect(
-          service.enforceEntitlements(requestData, EntitlementScope.CONFIGS, ['dashboard_1'], Capability.READ),
-        ).rejects.toMatchObject({
-          status: 403,
-        });
-      });
+          service.enforceDatasetEntitlements(requestData, ['dataset-1-renamed', 'dataset-2'], Capability.DOWNLOAD),
+        ).rejects.toMatchObject({ status: 403 });
 
-      it('does not throw when the user has the required capability for the config key', async () => {
-        const rd = { ...requestData, entitlements: { datasets: {}, configs: { dashboard_1: [Capability.READ] } } };
-        await expect(service.enforceEntitlements(rd, EntitlementScope.CONFIGS, ['dashboard_1'], Capability.READ)).resolves.toBeUndefined();
-      });
-
-      describe('slug-history collision', () => {
-        // Prerequisites:
-        // - "dataset-1" fixture is renamed to "dataset-1-renamed" in the top-level beforeEach,
-        // - entitlements are under the historical slug.
-        // The tests verifies that the configs scope is not affected by that rename,
-        // even though the two slugs happen to collide with two config keys.
-        beforeEach(async () => {
-          await entityManager.query(`
-            INSERT INTO entitlements (id, data) VALUES
-            ('config-user9@example.com', '{"configs": {"dataset-1-renamed": ["download"]}}')
-          `);
-        });
-
-        it('does not return another config item grants', async () => {
-          const grants = await service.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1');
-          // Nobody holds a grant on config `dataset-1`.
-          expect(grants).toEqual({});
-        });
-
-        it('does not wipe another config item grants on write', async () => {
-          await service.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, 'dataset-1', {
-            'config-user1@example.com': [Capability.READ],
-          });
-
-          // Asserted against the raw row on purpose: reading back through
-          // getEntityEntitlements('dataset-1-renamed') expands the same way and would
-          // mask the wipe by surfacing the grant just written under 'dataset-1'.
-          const [row] = await entityManager.query(
-            `SELECT data->'configs' AS configs FROM entitlements WHERE id = 'config-user9@example.com'`,
-          );
-          expect(row.configs).toEqual({ 'dataset-1-renamed': ['download'] });
-        });
+        const rd = { ...requestData, entitlements: { datasets: { 'dataset-2': [Capability.DOWNLOAD] }, configs: {} } };
+        await expect(service.enforceDatasetEntitlements(rd, ['dataset-1-renamed', 'dataset-2'], Capability.DOWNLOAD)).resolves.toEqual([
+          'dataset-1-renamed',
+          'dataset-2',
+        ]);
       });
     });
-  });
 
-  describe('enforceDatasetEntitlements', () => {
     it('returns the existing slugs in their requested order, dropping unknown ones', async () => {
       const grants = { 'dataset-2': [Capability.PREVIEW], 'dataset-3': [Capability.PREVIEW] };
       const rd = { ...requestData, entitlements: { datasets: grants, configs: {} } };
@@ -1224,10 +1154,67 @@ describe('EntitlementService', () => {
       await expect(service.enforceDatasetEntitlements(requestData, ['dataset-2'], Capability.DOWNLOAD)).resolves.toEqual([]);
     });
 
+    describe('with requireAll (docs/adr/0073)', () => {
+      const grants = { 'dataset-2': [Capability.DOWNLOAD] };
+
+      it('throws 404 on an unknown slug instead of dropping it', async () => {
+        const rd = { ...requestData, entitlements: { datasets: grants, configs: {} } };
+        await expect(
+          service.enforceDatasetEntitlements(rd, ['dataset-2', 'non-existent'], Capability.DOWNLOAD, { requireAll: true }),
+        ).rejects.toMatchObject({ status: 404, message: "Resource 'non-existent' not found" });
+      });
+
+      it('throws the same 404 on an unpublished Dataset, even one the user is granted', async () => {
+        await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-2' }, { status: IngestionStatus.LOADED });
+        const rd = { ...requestData, entitlements: { datasets: grants, configs: {} } };
+        await expect(
+          service.enforceDatasetEntitlements(rd, ['dataset-2'], Capability.DOWNLOAD, { requireAll: true }),
+        ).rejects.toMatchObject({
+          status: 404,
+          message: "Resource 'dataset-2' not found",
+        });
+      });
+
+      it('returns the current slugs when every Dataset exists', async () => {
+        const rd = { ...requestData, entitlements: { datasets: { 'dataset-1-renamed': [Capability.DOWNLOAD], ...grants }, configs: {} } };
+        await expect(
+          service.enforceDatasetEntitlements(rd, ['dataset-1', 'dataset-2'], Capability.DOWNLOAD, { requireAll: true }),
+        ).resolves.toEqual(['dataset-1-renamed', 'dataset-2']);
+      });
+    });
+
     it('keeps an unpublished Dataset for a privileged caller', async () => {
       await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-2' }, { status: IngestionStatus.LOADED });
       const rd = { ...requestData, token: { ...mockToken, isDataAdmin: true } };
       await expect(service.enforceDatasetEntitlements(rd, ['dataset-2'], Capability.DOWNLOAD)).resolves.toEqual(['dataset-2']);
+    });
+
+    // 'dataset-1' is dataset-1-renamed's old slug (see the top-level beforeEach), docs/adr/0071.
+    describe('named by an old slug', () => {
+      it('returns the current slug', async () => {
+        const rd = { ...requestData, entitlements: { datasets: { 'dataset-1-renamed': [Capability.PREVIEW] }, configs: {} } };
+        await expect(service.enforceDatasetEntitlements(rd, ['dataset-1'], Capability.PREVIEW)).resolves.toEqual(['dataset-1-renamed']);
+      });
+
+      it('returns a Dataset named by its old and its current slug once, where it was first named', async () => {
+        const grants = { 'dataset-1-renamed': [Capability.PREVIEW], 'dataset-2': [Capability.PREVIEW] };
+        const rd = { ...requestData, entitlements: { datasets: grants, configs: {} } };
+        await expect(
+          service.enforceDatasetEntitlements(rd, ['dataset-1', 'dataset-2', 'dataset-1-renamed'], Capability.PREVIEW),
+        ).resolves.toEqual(['dataset-1-renamed', 'dataset-2']);
+      });
+
+      it('throws 403 on a private Dataset the user may preview but not download', async () => {
+        const rd = { ...requestData, entitlements: { datasets: { 'dataset-1-renamed': [Capability.PREVIEW] }, configs: {} } };
+        await expect(service.enforceDatasetEntitlements(rd, ['dataset-1'], Capability.DOWNLOAD)).rejects.toMatchObject({
+          status: 403,
+        });
+      });
+
+      it('drops an unpublished Dataset instead of throwing 403', async () => {
+        await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-1-renamed' }, { status: IngestionStatus.LOADED });
+        await expect(service.enforceDatasetEntitlements(requestData, ['dataset-1'], Capability.DOWNLOAD)).resolves.toEqual([]);
+      });
     });
   });
 });

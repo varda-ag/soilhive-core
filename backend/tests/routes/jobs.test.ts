@@ -89,21 +89,79 @@ describe('Testing /jobs routes', () => {
     expect(res.body.detail ?? '').not.toContain('require the data-admin or super-admin scope');
   });
 
-  it('POST /jobs export answers a private Dataset that is not Published as an unknown one, with no 403 (docs/adr/0057)', async () => {
+  it('POST /jobs export refuses a private Dataset that is not Published with the 404 of an unknown one (docs/adr/0057, 0073)', async () => {
     const exportSpy = jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
     const dataset = await addDataset('unpublished-export-ds', [0, 0, 2, 2]);
     const entityManager = await getEntityManager();
     await entityManager.query(`UPDATE datasets SET visibility = 'private', status = 'LOADED' WHERE id = $1`, [dataset.id]);
-    const submit = () =>
+    const submit = (slug: string) =>
       request(app)
         .post('/jobs')
+        .send({ type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv'], dataset_ids: [slug] });
+
+    const unpublished = await submit(dataset.slug);
+    expect(unpublished.statusCode).toBe(404);
+    expect(unpublished.body.detail).toBe(`Resource '${dataset.slug}' not found`);
+    const unknown = await submit('no-such-dataset');
+    expect(unknown.statusCode).toBe(404);
+    expect(unknown.body.detail).toBe(`Resource 'no-such-dataset' not found`);
+
+    // Once Published, the same submission is refused for the missing grant
+    await entityManager.query(`UPDATE datasets SET status = 'PUBLISHED' WHERE id = $1`, [dataset.id]);
+    expect((await submit(dataset.slug)).statusCode).toBe(403);
+    exportSpy.mockRestore();
+  });
+
+  // Queued without them, an absent Dataset published before the job runs would skip the download check (docs/adr/0073)
+  it('POST /jobs export refuses the whole Export when one named Dataset is absent', async () => {
+    const exportSpy = jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
+    const dataset = await addDataset('present-export-ds', [0, 0, 2, 2]);
+
+    const res = await request(app)
+      .post('/jobs')
+      .send({ type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv'], dataset_ids: [dataset.slug, 'no-such-dataset'] });
+
+    expect(res.statusCode).toBe(404);
+    expect(exportSpy).not.toHaveBeenCalled();
+    exportSpy.mockRestore();
+  });
+
+  it('GET /errors/datasets is for data admins only: it covers Datasets that are not Published', async () => {
+    expect((await request(app).get('/errors/datasets')).statusCode).toBe(401);
+    const userToken = getUserToken('plain-user-id', 'plain-user@example.com');
+    expect((await request(app).get('/errors/datasets').set('Authorization', `Bearer ${userToken}`)).statusCode).toBe(403);
+    const adminToken = await getDataAdminToken();
+    expect((await request(app).get('/errors/datasets').set('Authorization', `Bearer ${adminToken}`)).statusCode).toBe(200);
+  });
+
+  it('POST /jobs export checks download on a private Dataset named by an old slug (docs/adr/0071)', async () => {
+    const exportSpy = jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
+    const dataset = await addDataset('old-slug-export-ds', [0, 0, 2, 2]);
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE datasets SET visibility = 'private', name = 'old-slug-export-ds-renamed' WHERE id = $1`, [
+      dataset.id,
+    ]);
+    const [{ slug: currentSlug }] = await entityManager.query(`SELECT slug FROM datasets WHERE id = $1`, [dataset.id]);
+    expect(currentSlug).not.toBe(dataset.slug);
+    await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2), ($3, $4)`, [
+      'preview-only@example.com',
+      JSON.stringify({ datasets: { [currentSlug]: ['preview'] } }),
+      'downloader@example.com',
+      JSON.stringify({ datasets: { [currentSlug]: ['preview', 'download'] } }),
+    ]);
+    const submit = (email: string) =>
+      request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${getUserToken(`${email}-sub`, email)}`)
         .send({ type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv'], dataset_ids: [dataset.slug] });
 
-    expect((await submit()).statusCode).toBe(201);
+    // The job would read the vector rows under preview alone, so this is the only download check they get
+    const refused = await submit('preview-only@example.com');
+    expect(refused.statusCode).toBe(403);
+    expect(refused.body.detail).toContain('download');
 
-    // Once Published, the same submission is refused: the 201 above is not for want of an entitlement check
-    await entityManager.query(`UPDATE datasets SET status = 'PUBLISHED' WHERE id = $1`, [dataset.id]);
-    expect((await submit()).statusCode).toBe(403);
+    // The 403 is for the missing grant, not the old slug
+    expect((await submit('downloader@example.com')).statusCode).toBe(201);
     exportSpy.mockRestore();
   });
 
@@ -136,7 +194,7 @@ describe('Testing /jobs routes', () => {
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
     const exportRes = await request(app)
       .post('/jobs')
-      .send({ type: 'export', filter_id: mockId, formats: ['csv'], dataset_ids: ['fake_dataset'] });
+      .send({ type: 'export', filter_id: mockId, formats: ['csv'], dataset_ids: ['test-dataset'] });
     expect(exportRes.statusCode).toBe(201);
     expect(exportRes.body).toHaveProperty('id');
 
@@ -310,6 +368,8 @@ describe('Testing /jobs routes', () => {
   it('POST /jobs extract with "anonymous: true" and no auth token allows get without token', async () => {
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
 
+    const dataset = await addDataset('anonymous-export-ds', [0, 0, 1, 1]);
+
     // 1. Create anonymous job
     const exportRes = await request(app)
       .post('/jobs')
@@ -317,7 +377,7 @@ describe('Testing /jobs routes', () => {
         type: 'export',
         filter_id: mockId,
         formats: ['csv'],
-        dataset_ids: ['fake_dataset'],
+        dataset_ids: [dataset.slug],
         anonymous: true,
       });
     expect(exportRes.statusCode).toBe(201);
@@ -332,6 +392,8 @@ describe('Testing /jobs routes', () => {
   it('POST /jobs extract with "anonymous: true" and auth token allows get without token', async () => {
     const mockId = '960ee487-a6bd-4da8-8ef0-da6ef23d0e80';
 
+    const dataset = await addDataset('anonymous-export-ds', [0, 0, 1, 1]);
+
     // Create anonymous job
     const exportRes = await request(app)
       .post('/jobs')
@@ -339,7 +401,7 @@ describe('Testing /jobs routes', () => {
         type: 'export',
         filter_id: mockId,
         formats: ['csv'],
-        dataset_ids: ['fake_dataset'],
+        dataset_ids: [dataset.slug],
         anonymous: true,
       });
     expect(exportRes.statusCode).toBe(201);

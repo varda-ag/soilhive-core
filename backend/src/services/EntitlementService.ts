@@ -1,4 +1,3 @@
-import { assert } from 'console';
 import { createHash } from 'node:crypto';
 import { StatusCodes } from 'http-status-codes';
 import { LRUCache } from 'lru-cache';
@@ -11,24 +10,27 @@ import { Capability } from '../types/enums';
 import { isCacheBypassed } from '../utils/cache-bypass';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
-import { existingDatasetSlugs, getEntitySlugs } from '../utils/slugs';
-import { getSubject, isPrivilegedCaller } from '../utils/auth';
+import { existingDatasets, getEntitySlugs } from '../utils/slugs';
+import { datasetCapabilities, getSubject, isPrivilegedCaller } from '../utils/auth';
 import { getEntitlementsCacheTtlMs } from '../utils/utils';
-import DatasetEntity from '../entities/Dataset';
 import { JsonStorage } from '../entities/JsonStorage';
 
-// Object.create(null), not {}: a key here can legitimately be "__proto__" (see the comment in
-// getUserEntitlements for why that's dangerous on a plain object).
-const emptyEntitlements = (): Entitlements => ({ datasets: Object.create(null), configs: Object.create(null) });
+/**
+ * An empty grants map. Null-prototype because a key can legitimately be "__proto__": on a plain
+ * `{}` it reads back Object.prototype, and assigning it repoints the prototype instead of storing.
+ */
+const grantsMap = (): CapabilityGrants => Object.create(null);
+
+const emptyEntitlements = (): Entitlements => ({ datasets: grantsMap(), configs: grantsMap() });
 
 /**
  * A copy of `entitlements` that is safe to mutate: each scope and each capability list is new.
- * Not `structuredClone` or a spread into `{}`: both drop the null prototype (see emptyEntitlements).
+ * Not `structuredClone` or a spread into `{}`: both drop the null prototype (see grantsMap).
  */
 const copyEntitlements = (entitlements: Entitlements): Entitlements => {
   const copy: Entitlements = {};
   for (const [scope, grants = {}] of Object.entries(entitlements)) {
-    const scoped: CapabilityGrants = Object.create(null);
+    const scoped = grantsMap();
     for (const [key, capabilities] of Object.entries(grants)) {
       scoped[key] = [...capabilities];
     }
@@ -54,23 +56,12 @@ export const resetEntitlementsCache = (): void => {
   inFlightEntitlements.clear();
 };
 
-/**
- * Scopes whose keys are entity slugs, and so carry an identity that survives a rename.
- *
- * `CONFIGS` keys are freeform ids chosen by the caller of `PUT /configs/{configId}`, with no entity
- * behind them. Resolving one through `slug_history` would alias it to every slug some unrelated
- * entity has ever held, so a config id that happens to equal a renamed dataset's old slug would
- * read, and delete, the grants of the config id equal to its new one. `getUserEntitlements` draws
- * this same line for the same reason; this is the single place both paths take it from.
- */
-const ENTITY_BACKED_SCOPES: ReadonlySet<EntitlementScope> = new Set([EntitlementScope.DATASETS]);
-
 /** Whether `scope` is a Config Kind (a filtered view over `configs`, see `selectByScope`) rather than a storage namespace. */
 const isConfigKind = (scope: RequestScope): scope is ConfigKind => Object.values<string>(ConfigKind).includes(scope);
 
-/** De-duplicated union, for two grants that land on the same slug after `expandAcrossSlugHistory`. */
+/** De-duplicated, sorted union of two capability lists. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
-  Array.from(new Set([...(existing ?? []), ...(Array.isArray(incoming) ? incoming : [])])).sort();
+  Array.from(new Set([...(existing ?? []), ...incoming])).sort();
 
 /** One entry of the external provider's reply: a plain object whose own values are all capability lists. */
 const isEntitlementsEntry = (entry: unknown): entry is CapabilityGrants =>
@@ -95,17 +86,13 @@ const isEntitlementsEntry = (entry: unknown): entry is CapabilityGrants =>
  * match it is untrusted: log it and discard the whole reply, the same "degrade to local-only"
  * behavior already used for a failed fetch, rather than guessing at a shape nobody has agreed to.
  * Returns `undefined` for a discarded reply, so it is not cached as if it were a valid empty one.
- *
- * Merges into `Object.create(null)`, not `{}` — same "__proto__" key risk as `getUserEntitlements`,
- * except `Object.assign` would actually pull it off (unlike `JSON.parse`), since it writes each
- * key through a normal assignment rather than defining it.
  */
 const parseExternalEntitlements = (body: unknown): CapabilityGrants | undefined => {
   if (!Array.isArray(body) || !body.every(isEntitlementsEntry)) {
     log.error('External entitlements endpoint replied in an unexpected shape, discarding its response', { body: JSON.stringify(body) });
     return undefined;
   }
-  return Object.assign(Object.create(null), ...body);
+  return Object.assign(grantsMap(), ...body);
 };
 
 /** The config gates' one rule: `write` implies `read`. */
@@ -114,48 +101,38 @@ const grantsConfig = (capabilities: Capability[] | undefined, capability: Capabi
     ? (capabilities?.includes(Capability.WRITE) ?? false)
     : Boolean(capabilities?.some(granted => granted === Capability.READ || granted === Capability.WRITE));
 
+/** The config gates' 403. */
+export const configForbidden = (key: string, capability: Capability.READ | Capability.WRITE): ErrorResponse =>
+  new ErrorResponse(`User does not have ${capability} entitlement for config ${key}`, StatusCodes.FORBIDDEN);
+
 export default class EntitlementService {
-  // Object.create(null): a subject id can legitimately be "__proto__" — same risk as
-  // getUserEntitlements's merge loop, but here `acc[id] = ...` is a plain assignment, so it
-  // would silently repoint acc's prototype rather than crash.
   private entitiesToEntitlements = (entities: EntitlementsEntity[], scope: EntitlementScope, slugs: string[]): CapabilityGrants => {
-    return entities.reduce(
-      (acc, { id, data }) => {
-        const scopedData = data[scope] ?? {};
-        const key = slugs.find(k => k in scopedData);
-        assert(key, 'Key should be found in data');
-        const capabilities = scopedData[key!]!;
-        if (!Array.isArray(capabilities)) {
-          log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
-          return acc;
-        }
-        acc[id] = capabilities;
+    return entities.reduce((acc, { id, data }) => {
+      const scopedData = data[scope] ?? {};
+      const key = slugs.find(k => k in scopedData);
+      const capabilities = key === undefined ? undefined : scopedData[key];
+      if (!Array.isArray(capabilities)) {
+        log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
         return acc;
-      },
-      Object.create(null) as CapabilityGrants,
-    );
+      }
+      acc[id] = capabilities;
+      return acc;
+    }, grantsMap());
   };
 
   /**
-   * All the keys an entitlement to this entity may be stored under: every slug the entity has
-   * ever had, since entitlements are written with whatever slug was current at the time. Reads
-   * and deletes must resolve identity the same way, or a rename leaves keys that are still
-   * honoured on read but missed on delete — hence the single helper (see ADR 0027).
-   *
-   * Only for scopes keyed by entity slug. A key in any other scope is an opaque id and is its own
-   * only spelling, so it is returned as given without consulting `slug_history` at all.
+   * All the keys a grant on this entity may be stored under. A Dataset grant is written under
+   * whatever slug was current at the time, so that is every slug the Dataset has held; reads and
+   * deletes must resolve it alike (see ADR 0027). A config id is its own only key: resolving it
+   * through slug history would alias it to every slug an unrelated entity has held.
    */
   private resolveSlugs = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<string[]> => {
-    if (!ENTITY_BACKED_SCOPES.has(scope)) {
+    if (scope !== EntitlementScope.DATASETS) {
       return [slug];
     }
     const slugs = await getEntitySlugs(requestData, slug);
-    if (slugs.length === 0) {
-      // This handles entitlements for "non-entities" (e.g.: "spatial_filter")
-      // that do not have a slug in the system
-      slugs.push(slug);
-    }
-    return slugs;
+    // A key with no entity behind it (e.g. "spatial_filter") is its own only key too
+    return slugs.length > 0 ? slugs : [slug];
   };
 
   getEntityEntitlements = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<CapabilityGrants> => {
@@ -246,9 +223,9 @@ export default class EntitlementService {
   /**
    * `GET /entitlements?scope=`: the grants held, sliced to `scope`. A Privileged caller also gets
    * READ and WRITE on every (non-deleted) config row for a config scope (`configs` or a Config Kind): it
-   * bypasses the config gates (`canReadConfig`/`canWriteConfig`) but holds no grants, so its
-   * grants alone would list nothing. Not part of `getUserEntitlements`, which also fills
-   * `requestData.entitlements` on every request, where no gate would read the result.
+   * bypasses the config gates (`canConfig`) but holds no grants, so its grants alone would list
+   * nothing. Not part of `getUserEntitlements`, which also fills `requestData.entitlements` on every
+   * request, where no gate would read the result.
    */
   getVisibleEntitlements = async (requestData: RequestData, scope: RequestScope): Promise<CapabilityGrants> => {
     const grants = await this.getUserEntitlements(requestData, getSubject(requestData));
@@ -260,7 +237,7 @@ export default class EntitlementService {
 
   private addReadWriteOnEveryConfig = async (requestData: RequestData, entitlements: Entitlements): Promise<Entitlements> => {
     const rows = await requestData.entityManager.getRepository(JsonStorage).find({ select: { id: true } });
-    const configs: CapabilityGrants = Object.assign(Object.create(null), entitlements.configs);
+    const configs: CapabilityGrants = Object.assign(grantsMap(), entitlements.configs);
     for (const { id } of rows) {
       configs[id] = mergeCapabilities(configs[id], [Capability.READ, Capability.WRITE]);
     }
@@ -271,16 +248,12 @@ export default class EntitlementService {
     // Local DB entitlements are added on top of external entitlements
     const externalEntitlements = await this.callEntitlementsEndpoint(requestData);
     const repo = requestData.entityManager.getRepository(EntitlementsEntity);
-    const rows = (await repo.find({ where: { id: In([EVERYONE, id]) } })).sort((a, _) => (a.id === EVERYONE ? -1 : 1));
+    const rows = await repo.find({ where: { id: In([EVERYONE, id]) } });
     // Seeded fresh, not with the external result: the merge never writes into an object it was given.
-    const merged = [externalEntitlements, ...rows.map(row => row.data)].reduce((acc, data) => {
+    const merged = emptyEntitlements();
+    for (const data of [externalEntitlements, ...rows.map(row => row.data)]) {
       for (const scope of Object.values(EntitlementScope)) {
-        // Object.create(null), not {}: a stored key can legitimately be "__proto__". On a plain
-        // {}, target["__proto__"] reads back Object.prototype (truthy, not iterable) instead of
-        // undefined, so the init check below is skipped and the spread on the next line crashes.
-        // A null-prototype target has no such built-in property, so "__proto__" behaves like any
-        // other key that hasn't been set yet.
-        const target = (acc[scope] ??= Object.create(null));
+        const target = (merged[scope] ??= grantsMap());
         const scopedData = data[scope] ?? {};
         for (const key in scopedData) {
           const capabilities = scopedData[key]!;
@@ -288,18 +261,12 @@ export default class EntitlementService {
             log.warn(`Skipping malformed entitlement grant for ${scope}.${key}: not an array`);
             continue;
           }
-          if (!target[key]) {
-            target[key] = [];
-          }
-          target[key] = Array.from(new Set([...target[key], ...capabilities]));
+          target[key] = mergeCapabilities(target[key], capabilities);
         }
       }
-      return acc;
-    }, emptyEntitlements());
+    }
 
-    // Only ENTITY_BACKED_SCOPES need slug-history expansion (today: datasets). `configs` keys are
-    // freeform, with no entity behind them, so they pass through untouched — this is the seam a
-    // future entity-backed scope would join, in step with that constant and `resolveSlugs`.
+    // Only Dataset keys are slugs; config keys are freeform ids and pass through (see resolveSlugs).
     return {
       datasets: await this.expandAcrossSlugHistory(requestData, merged.datasets ?? {}),
       configs: merged.configs ?? {},
@@ -353,9 +320,7 @@ export default class EntitlementService {
     }
 
     const matchedInputSlugs = new Set(rows.map(row => row.input_slug));
-    // Object.create(null): same "__proto__" risk as entitiesToEntitlements — `expanded[slug] = ...`
-    // below is a plain assignment, which would otherwise hijack the prototype instead of storing it.
-    const expanded: CapabilityGrants = Object.create(null);
+    const expanded = grantsMap();
 
     // Unmatched keys (e.g. spatial_filter) pass through unchanged.
     for (const slug of slugs) {
@@ -443,24 +408,18 @@ export default class EntitlementService {
     }
   };
 
-  /** Boolean core of the read gate (see ADR 0037). Synchronous, no DB access — lets `ConfigService.getConfigs` filter with a plain `.filter()`. */
-  canReadConfig = (requestData: RequestData, key: string): boolean => {
-    if (isPrivilegedCaller(requestData.token)) {
-      return true;
-    }
-    return grantsConfig(requestData.entitlements[EntitlementScope.CONFIGS]?.[key], Capability.READ);
-  };
+  /**
+   * The config gates (see ADR 0037), over the grants loaded for the request. Synchronous, no DB
+   * access, so `ConfigService.getConfigs` can filter with it.
+   */
+  canConfig = (requestData: RequestData, key: string, capability: Capability.READ | Capability.WRITE): boolean =>
+    isPrivilegedCaller(requestData.token) || grantsConfig(requestData.entitlements[EntitlementScope.CONFIGS]?.[key], capability);
 
-  /** Read gate for `GET /configs/{configId}(/entitlements)` and `GET /configs` (see ADR 0037). */
-  assertCanReadConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
-    if (!this.canReadConfig(requestData, key)) {
-      throw new ErrorResponse(`User does not have read entitlement for config ${key}`, StatusCodes.FORBIDDEN);
+  assertConfig = (requestData: RequestData, key: string, capability: Capability.READ | Capability.WRITE): void => {
+    if (!this.canConfig(requestData, key, capability)) {
+      throw configForbidden(key, capability);
     }
   };
-
-  /** Boolean core of the write gate (see ADR 0037). `ConfigService.putConfig` calls this directly to branch into first-access bootstrap on `false`. */
-  canWriteConfig = (requestData: RequestData, key: string): boolean =>
-    isPrivilegedCaller(requestData.token) || grantsConfig(requestData.entitlements[EntitlementScope.CONFIGS]?.[key], Capability.WRITE);
 
   /**
    * The same gates for one key, on a route that loads no entitlements (docs/adr/0041). Reads only
@@ -479,13 +438,6 @@ export default class EntitlementService {
     // A non-array grant is malformed and skipped, as getUserEntitlements skips it.
     const capabilities = rows.flatMap(row => (Array.isArray(row.capabilities) ? (row.capabilities as Capability[]) : []));
     return grantsConfig(capabilities, capability);
-  };
-
-  /** Write gate for `PUT /configs/{configId}/entitlements` and `DELETE /configs/{configId}` (see ADR 0037). */
-  assertCanWriteConfigEntitlement = async (requestData: RequestData, key: string): Promise<void> => {
-    if (!this.canWriteConfig(requestData, key)) {
-      throw new ErrorResponse(`User does not have write entitlement for config ${key}`, StatusCodes.FORBIDDEN);
-    }
   };
 
   /**
@@ -527,7 +479,7 @@ export default class EntitlementService {
    * running first — the gate has no other production caller to enforce that ordering itself.
    */
   setConfigEntitlement = async (requestData: RequestData, key: string, entitlements: CapabilityGrants): Promise<CapabilityGrants> => {
-    await this.assertCanWriteConfigEntitlement(requestData, key);
+    this.assertConfig(requestData, key, Capability.WRITE);
     return this.setEntityEntitlements(requestData, EntitlementScope.CONFIGS, key, entitlements);
   };
 
@@ -545,12 +497,9 @@ export default class EntitlementService {
    * being individually named vs. covered by `EVERYONE`).
    */
   getConfigEntitlement = async (requestData: RequestData, key: string): Promise<CapabilityGrants> => {
-    await this.assertCanReadConfigEntitlement(requestData, key);
+    this.assertConfig(requestData, key, Capability.READ);
     const grants = await this.getEntityEntitlements(requestData, EntitlementScope.CONFIGS, key);
-
-    const callerCapabilities = requestData.entitlements[EntitlementScope.CONFIGS]?.[key];
-    const canSeeFullGrantList = isPrivilegedCaller(requestData.token) || callerCapabilities?.includes(Capability.WRITE);
-    if (canSeeFullGrantList) {
+    if (this.canConfig(requestData, key, Capability.WRITE)) {
       return grants;
     }
 
@@ -558,41 +507,23 @@ export default class EntitlementService {
     return Object.fromEntries(Object.entries(grants).filter(([grantee]) => grantee === subject || grantee === EVERYONE));
   };
 
-  async enforceEntitlements(requestData: RequestData, scope: EntitlementScope, keys: string[], capability: Capability): Promise<void> {
-    if (isPrivilegedCaller(requestData.token)) {
-      // Internal requests and admins bypass entitlements checks
-      return;
-    }
-
-    // The "public bypasses entitlements" rule only exists for datasets (a Dataset property);
-    // there is no analogous concept — and so no analogous bypass — for `configs`.
-    let keysToCheck = keys;
-    if (scope === EntitlementScope.DATASETS) {
-      const repo = requestData.entityManager.getRepository(DatasetEntity);
-      const results = await repo.find({
-        select: { slug: true, visibility: true },
-        where: { slug: In(keys) },
-      });
-      keysToCheck = results.filter(r => r.visibility === 'private').map(r => r.slug);
-    }
-
-    const scopedEntitlements = requestData.entitlements[scope] ?? {};
-    for (const key of keysToCheck) {
-      if (!scopedEntitlements[key] || !scopedEntitlements[key]!.includes(capability)) {
-        throw new ErrorResponse(`User does not have ${capability} entitlement for ${scope} ${key}`, StatusCodes.FORBIDDEN);
-      }
-    }
-  }
-
   /**
-   * The requested Dataset slugs that exist for the caller (docs/adr/0057), once `capability` is enforced on them.
-   * Filters before enforcing: a 403 on an unpublished private Dataset would confirm that it exists.
+   * The current slugs of the requested Datasets that exist for the caller (docs/adr/0057), once
+   * `capability` is checked on each. Filters first: a 403 on an unpublished private Dataset would
+   * confirm that it exists. Checks every Dataset it found, so no slug skips the check (docs/adr/0071).
+   * With `requireAll`, an absent Dataset is a 404 instead of being left out (docs/adr/0073).
    */
-  async enforceDatasetEntitlements(requestData: RequestData, slugs: string[], capability: Capability): Promise<string[]> {
-    const existing = await existingDatasetSlugs(requestData, slugs);
-    if (existing.length > 0) {
-      await this.enforceEntitlements(requestData, EntitlementScope.DATASETS, existing, capability);
+  async enforceDatasetEntitlements(
+    requestData: RequestData,
+    slugs: string[],
+    capability: Capability.PREVIEW | Capability.DOWNLOAD,
+    options: { requireAll?: boolean } = {},
+  ): Promise<string[]> {
+    const datasets = await existingDatasets(requestData, slugs, options);
+    const denied = datasets.find(dataset => !datasetCapabilities(requestData, dataset).includes(capability));
+    if (denied) {
+      throw new ErrorResponse(`User does not have ${capability} entitlement for datasets ${denied.slug}`, StatusCodes.FORBIDDEN);
     }
-    return existing;
+    return datasets.map(dataset => dataset.slug);
   }
 }
