@@ -228,6 +228,7 @@ export interface RasterFilterCategory {
   active: boolean;
   mappings: Record<string, string> | null; // pixel value → label, e.g. { "1": "Artic" }. Several values may share a label
   created_at: string;
+  created_by: string | null;
   updated_at: string;
   deleted_at: string | null;
 }

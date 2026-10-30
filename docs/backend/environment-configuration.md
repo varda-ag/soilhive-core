@@ -54,6 +54,9 @@ Minting is limited, per process, to 30 tokens a minute per Subject and plugin, a
 
 More information is available in `pg-boss` website.
 
+`export` only:
+- `EXPORT_LIMITS_CHECK_TIMEOUT_MS` (default `5000`): how long `POST /jobs` counts an Export's Observations and Raster Layers to refuse one over its limits. Past it the Export is enqueued and the job judges it (ADR 0070).
+
 The `data-requests` and `soil-indexes` jobs ignore `JOB_LOCAL_CONCURRENCY` and set their own:
 - `DATA_REQUESTS_CONCURRENCY` (default `5`): `data-requests` jobs per node. **Read this together with `DATA_REQUESTS_WORK_MEM`** — each concurrent job asks Postgres for that much sort memory, several times over, so raising one without lowering the other multiplies the database's memory use. Per node: nothing sets a pg-boss group key, so `JOB_GROUP_CONCURRENCY` does not bound the total across pods.
 - `DATA_REQUESTS_WORK_MEM` (default `128MB`): `work_mem` for the data-request aggregation queries. Lower values spill to disk sooner but let more jobs run at once.

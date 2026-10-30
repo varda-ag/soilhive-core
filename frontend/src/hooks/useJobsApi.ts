@@ -69,10 +69,11 @@ export function useFetchJob() {
   );
 }
 
-export function useCreateJobMutation() {
+export function useCreateJobMutation({ showErrorNotification }: { showErrorNotification?: boolean } = {}) {
   return useApiMutation<{ id: string }, unknown>({
     endpoint: `/${REST_END_POINTS.JOBS}`,
     method: 'POST',
+    showErrorNotification,
   });
 }
 

@@ -17,12 +17,13 @@ import {
   addAssetToRasterLayer,
   addRasterLayerAsset,
 } from '../../../src/utils/mock';
-import { initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
-import { getExportBatchSize, sanitizeField, sleep } from '../../../src/utils/utils';
+import { getPgBoss, initPgBoss, stopPgBoss } from '../../../src/services/PgBoss';
+import { getExportBatchSize, getExportXlsxMaxRecords, sanitizeField, sleep } from '../../../src/utils/utils';
 import { RasterFileFormat, VectorFileFormat } from '../../../src/jobs/soil-export/types';
 import { StatusCodes } from 'http-status-codes';
 import { SoilDataSample } from '../../../src/interfaces/SoilDataSample';
 import * as exportHelpers from '../../../src/jobs/soil-export/exportHelpers';
+import * as submissionCheck from '../../../src/jobs/soil-export/submissionCheck';
 import DatasetEntity from '../../../src/entities/Dataset';
 import RasterLayerEntity from '../../../src/entities/RasterLayer';
 import FileEntity from '../../../src/entities/File';
@@ -128,18 +129,27 @@ const aoi = {
 const authorized = (req: request.Test, token?: string) => (token ? req.set('Authorization', `Bearer ${token}`) : req);
 
 // Returns the job once it has completed or failed
-async function runExport(datasetIds: string[], formats: string[], token?: string, geometry: object = aoi): Promise<any> {
+async function submitExport(datasetIds: string[], formats: string[], token?: string, geometry: object = aoi) {
   const filterResponse = await request(app)
     .post('/data-filters')
     .send({ geometries: [geometry], parameters: {} });
   expect(filterResponse.statusCode).toBe(StatusCodes.CREATED);
 
-  const exportJobResponse = await authorized(request(app).post('/jobs'), token).send({
+  return authorized(request(app).post('/jobs'), token).send({
     type: 'export',
     filter_id: filterResponse.body.id,
     dataset_ids: datasetIds,
     formats,
   });
+}
+
+const setExportLimits = async (exportLimits: object) => {
+  const dataSource = await getDataSource();
+  await dataSource.getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits } });
+};
+
+async function runExport(datasetIds: string[], formats: string[], token?: string, geometry: object = aoi): Promise<any> {
+  const exportJobResponse = await submitExport(datasetIds, formats, token, geometry);
   expect(exportJobResponse.statusCode).toBe(StatusCodes.CREATED);
 
   for (let attempts = 0; attempts < 120; attempts++) {
@@ -1403,10 +1413,10 @@ describe('Soil Export Job Integration Test', () => {
   });
 
   describe('Export Limits', () => {
-    const setExportLimits = async (exportLimits: object) => {
-      const dataSource = await getDataSource();
-      await dataSource.getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits } });
-    };
+    // The job alone judges them, as when submission runs out of time to count (docs/adr/0070)
+    beforeEach(() => {
+      jest.spyOn(submissionCheck, 'checkExportLimitsAtSubmission').mockResolvedValue();
+    });
 
     afterEach(() => {
       jest.restoreAllMocks();
@@ -1474,6 +1484,99 @@ describe('Soil Export Job Integration Test', () => {
       const dataSource = await getDataSource();
       const [{ km2 }] = await dataSource.query('SELECT ST_Area(ST_GeomFromGeoJSON($1)::geography) / 1e6 AS km2', [JSON.stringify(aoi)]);
       expect(job.data.aoi_area_km2).toBeCloseTo(km2);
+    });
+  });
+
+  describe('Export Limits at submission (docs/adr/0070)', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+      delete process.env.EXPORT_LIMITS_CHECK_TIMEOUT_MS;
+    });
+
+    it('refuses an Export over the area limit without counting or queueing it', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxAreaM2: 1_000_000, maxObservations: 500 });
+      const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount');
+      const sendSpy = jest.spyOn(getPgBoss(), 'send');
+
+      const response = await submitExport(['limits-vector'], [VectorFileFormat.CSV]);
+
+      expect(response.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.detail).toContain('more than the 1 km² allowed per export. Draw a smaller area of interest.');
+      expect(getTotalRecordsCountSpy).not.toHaveBeenCalled();
+      expect(sendSpy).not.toHaveBeenCalled();
+    });
+
+    it('refuses an Export over the Observation limit with the message its job would fail with', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxObservations: 500 });
+      jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(1000);
+
+      const response = await submitExport(['limits-vector'], [VectorFileFormat.CSV]);
+
+      expect(response.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.detail).toBe(
+        'Your selection contains 1,000 records, more than the 500 allowed per export. Narrow the area of interest or the selected datasets.',
+      );
+    });
+
+    it('refuses an Export over the raster layer limit', async () => {
+      await addDataset('limits-raster', [0, 0, 1, 1], GISDataType.RASTER);
+      await setExportLimits({ maxRasterLayers: 2 });
+      jest.spyOn(exportHelpers, 'getTotalLayersCount').mockResolvedValue(3);
+
+      const response = await submitExport(['limits-raster'], [RasterFileFormat.TIFF]);
+
+      expect(response.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.detail).toContain('Your selection contains 3 raster layers, more than the 2 allowed per export.');
+    });
+
+    it('refuses an XLSX Export over the record cap with no Export Limits set', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockResolvedValue(getExportXlsxMaxRecords() + 1);
+
+      const response = await submitExport(['limits-vector'], [VectorFileFormat.XLSX]);
+
+      expect(response.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(response.body.detail).toContain('Excel limit');
+    });
+
+    it('queues the Export when the counts run out of time, and leaves it to the job', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxObservations: 500 });
+      process.env.EXPORT_LIMITS_CHECK_TIMEOUT_MS = '50';
+      jest.spyOn(exportHelpers, 'getTotalRecordsCount').mockImplementation(async () => {
+        await sleep(500);
+        return 1000;
+      });
+      const warnSpy = jest.spyOn(log, 'warn');
+
+      const job = await runExport(['limits-vector'], [VectorFileFormat.CSV]);
+
+      expect(warnSpy).toHaveBeenCalledWith('Export Limits not judged at submission in time; the job will judge them', expect.anything());
+      expect(job.status).toBe('failed');
+      expect(job.data.errors[0].code).toBe('EX_OBSERVATION_LIMIT_EXCEEDED');
+    });
+
+    it('counts nothing at submission when no count-based limit applies', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxAreaM2: 1e12 });
+      const getTotalRecordsCountSpy = jest.spyOn(exportHelpers, 'getTotalRecordsCount');
+
+      await runExport(['limits-vector'], [VectorFileFormat.CSV]);
+
+      // Once, by the job
+      expect(getTotalRecordsCountSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets an administrator through when exemptAdmins is set', async () => {
+      await addDataset('limits-vector', [0, 0, 1, 1]);
+      await setExportLimits({ maxAreaM2: 1, exemptAdmins: true });
+
+      const job = await runExport(['limits-vector'], [VectorFileFormat.CSV], await getDataAdminToken());
+
+      // Not refused for its area: the job ran and found nothing to export
+      expect(job.data.errors[0].code).toBe('EX_NO_DATA');
     });
   });
 

@@ -18,7 +18,13 @@ import {
   computeCombinedProgress,
 } from './exportHelpers';
 import { getPgBoss, PG_BOSS_SCHEMA, updateJobState } from '../../services/PgBoss';
-import { assertWithinAreaLimit, assertWithinObservationLimit, assertWithinRasterLayerLimit, getExportLimits } from './exportLimits';
+import {
+  assertWithinAreaLimit,
+  assertWithinObservationLimit,
+  assertWithinRasterLayerLimit,
+  assertWithinXlsxRecordCap,
+  getExportLimits,
+} from './exportLimits';
 import { GeoFileWriter } from './GeoFileWriter';
 import { RasterFileWriter } from './RasterFileWriter';
 import { RasterLayerPdfInfo } from './pdfGenerator';
@@ -40,7 +46,7 @@ import DatasetService from '../../services/DatasetService';
 import FilterService from '../../services/FilterService';
 import FileService from '../../services/FileService';
 import { GISDataType } from '../../types/data';
-import { getExportBatchSize, getExportXlsxMaxRecords } from '../../utils/utils';
+import { getExportBatchSize } from '../../utils/utils';
 import { JobError } from '../../errors/JobError';
 import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
 import { RasterLayerAssetFile } from '../../interfaces/RasterLayer';
@@ -94,17 +100,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     const total_records_estimate = vectorRequested ? await getTotalRecordsCount(requestData, vectorData) : 0;
     assertWithinObservationLimit(exportLimits, total_records_estimate);
 
-    // The XLSX size limit is enforced here rather than at enqueue time because this is the first
-    // moment the record count is known without paying for it twice: JobService would have to run
-    // the same spatial count — which carries a 60s statement timeout — inside the HTTP request.
     // Checked before anything is written, so an over-sized request costs one count and no GDAL.
-    const xlsxMaxRecords = getExportXlsxMaxRecords();
-    if (vectorFormat === VectorFileFormat.XLSX && total_records_estimate > xlsxMaxRecords) {
-      throw new JobError('EX_XLSX_TOO_MANY_RECORDS', {
-        record_count: total_records_estimate.toLocaleString('en-US'),
-        max_records: xlsxMaxRecords.toLocaleString('en-US'),
-      });
-    }
+    // Submission checks the same limits only when it can count in time (docs/adr/0070), so this stays the authority.
+    assertWithinXlsxRecordCap(vectorFormat, total_records_estimate);
 
     // Filter geometries' area for raster report tracking
     const aoi_area_km2 = rasterRequested && filter ? filter.area / 1e6 : null;
