@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import {
   Map,
   NavigationControl,
@@ -175,12 +175,20 @@ function SoilhiveSimpleMap({
     }
   }
 
+  const geometryBbox = useMemo(() => calculateBoundingBox(geometryFeature), [geometryFeature]);
+  // With a single copy of the world, MapLibre cuts a geometry past ±180° in two and keeps the camera
+  // within ±180°, so only one crossing the antimeridian gets world copies to be drawn in one piece
+  const crossesAntimeridian = !!geometryBbox && (geometryBbox[0] < -180 || geometryBbox[2] > 180);
+
   const fitBoundsToGeometryFeature = useCallback(() => {
-    const bbox = calculateBoundingBox(geometryFeature);
-    if (!bbox) return;
+    if (!geometryBbox) return;
     // Only when set: maplibre's own default would be overwritten by undefined
-    mapRef.current?.fitBounds(bbox, { padding: 40, animate: false, ...(fitBoundsMaxZoom !== undefined && { maxZoom: fitBoundsMaxZoom }) });
-  }, [geometryFeature, fitBoundsMaxZoom]);
+    mapRef.current?.fitBounds(geometryBbox, {
+      padding: 40,
+      animate: false,
+      ...(fitBoundsMaxZoom !== undefined && { maxZoom: fitBoundsMaxZoom }),
+    });
+  }, [geometryBbox, fitBoundsMaxZoom]);
 
   useEffect(() => {
     if (selectedFeature) {
@@ -217,7 +225,7 @@ function SoilhiveSimpleMap({
         dragPan={dragPan}
         minZoom={minZoom}
         maxZoom={maxZoom}
-        renderWorldCopies={false}
+        renderWorldCopies={crossesAntimeridian}
         dragRotate={false}
         mapStyle={mapStyle}
         // Read when the map is created: a later change has no effect.

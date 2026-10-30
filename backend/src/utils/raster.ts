@@ -6,7 +6,8 @@ import * as turf from '@turf/turf';
 import FileService from '../services/FileService';
 import ConfigService from '../services/ConfigService';
 import { StorageModes } from '../types/enums';
-import { GdalCLI, type Envelope, type GdalInfoOutput } from './GdalCLI';
+import { GdalCLI, type Envelope } from './GdalCLI';
+import { isGeographicCrs, wgs84Envelope } from './georeference';
 import { log } from './logger';
 
 export interface RasterMeta {
@@ -18,9 +19,6 @@ export interface RasterMeta {
 }
 
 const RESOLUTION_UNAVAILABLE = -1;
-
-// Points per side of the lattice sampled across a raster whose corners don't all reproject
-const ENVELOPE_SAMPLES_PER_SIDE = 21;
 
 /**
  * Opens a GeoTIFF for reading, handling S3 (presigned URL) and local file paths.
@@ -66,15 +64,6 @@ function haversineDistanceMeters([lon1, lat1]: [number, number], [lon2, lat2]: [
   return 2 * earthRadiusM * Math.asin(Math.sqrt(a));
 }
 
-// A CRS's WKT is identified by its outermost keyword: PROJCRS/PROJCS for projected, GEOGCRS/GEOGCS
-// for geographic. A projected CRS's WKT2 form wraps a BASEGEOGCRS definition, whose keyword contains
-// "GEOGCRS" as a substring, so the projected check must run first.
-export function isGeographicCrs(wkt?: string): boolean {
-  if (!wkt) return true;
-  if (/PROJCRS\[|PROJCS\[/.test(wkt)) return false;
-  return /GEOGCRS\[|GEOGCS\[/.test(wkt);
-}
-
 // The unit a projected CRS's coordinates are in. WKT2 states it on each AXIS (or once after them
 // all) following CS[...]; WKT1 states it as PROJCS's own UNIT, after PROJECTION and its PARAMETERs.
 // Every unit before those — the ellipsoid's, a conversion parameter's — measures something else,
@@ -88,40 +77,6 @@ const AXIS_UNIT = /(?:\bCS\[|\bPROJECTION\[)[\s\S]*?\b(?:LENGTHUNIT|UNIT)\["([^"
 export function isMetricProjectedCrs(wkt?: string): boolean {
   const match = wkt ? AXIS_UNIT.exec(wkt) : null;
   return !!match && /^met(?:re|er)$/i.test(match[1]!) && Number(match[2]) === 1;
-}
-
-/**
- * The raster's extent in EPSG:4326, given its native extent in its own CRS's units.
- *
- * raster_layers.bbox is always stored in EPSG:4326, so a raster kept in its native CRS has its
- * extent reprojected here — the same way computeRasterFootprints reprojects footprint geometries
- * — rather than storing native-CRS coordinates mislabeled as degrees.
- *
- * A lattice of points across the raster is sampled, keeping the envelope of the ones that
- * reproject, rather than gdalinfo's wgs84Extent, which holds the four corners alone. A projected
- * raster's edges curve in EPSG:4326 (an Alaska Albers raster's top edge bulges ~4° north of its
- * top corners), and an interrupted projection (Goode Homolosine) can leave corners in the gaps
- * between its lobes or off the globe. Throws when no point reprojects: such a raster has no ground
- * to place. The envelope has west > east when the raster crosses the antimeridian.
- */
-export async function wgs84Envelope(info: GdalInfoOutput, xMin: number, yMin: number, xMax: number, yMax: number): Promise<Envelope> {
-  const wkt = info.coordinateSystem?.wkt;
-  const epsg = GdalCLI.extractEpsgFromWkt(wkt);
-  // A projected CRS always needs reprojecting, whether or not it has a registered EPSG code
-  if (isGeographicCrs(wkt) && (epsg === undefined || epsg === 4326)) {
-    return [Math.min(xMin, xMax), Math.min(yMin, yMax), Math.max(xMin, xMax), Math.max(yMin, yMax)];
-  }
-
-  const n = ENVELOPE_SAMPLES_PER_SIDE;
-  const lattice = Array.from({ length: n * n }, (_, k): [number, number] => [
-    xMin + ((xMax - xMin) * Math.floor(k / n)) / (n - 1),
-    yMin + ((yMax - yMin) * (k % n)) / (n - 1),
-  ]);
-  const reprojected = (await GdalCLI.transformPoints(wkt!, lattice)).filter(point => point.every(Number.isFinite));
-  if (reprojected.length === 0) {
-    throw new Error("No point across the raster's extent reprojects to EPSG:4326");
-  }
-  return GdalCLI.lonLatEnvelope(reprojected);
 }
 
 /** An envelope's width in degrees of longitude, across the antimeridian when it crosses it. */
@@ -180,8 +135,9 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
 
   // raster_layers.bbox is a single Polygon that queries test with &&, so a raster crossing the
   // antimeridian is stored as the whole band of longitude it lies in: a Polygon spanning ±180° by
-  // its west and east edges would instead cover every longitude but the raster's own.
-  const [west, south, east, north] = await wgs84Envelope(info, xMin, yMin, xMax, yMax);
+  // its west and east edges would instead cover every longitude but the raster's own. Its true
+  // edges are the File's bbox_wgs84.
+  const [west, south, east, north] = await wgs84Envelope(wkt, xMin, yMin, xMax, yMax);
   const bbox: Polygon = turf.bboxPolygon(west > east ? [-180, south, 180, north] : [west, south, east, north]).geometry;
   const epsg = GdalCLI.extractEpsgFromWkt(wkt);
 

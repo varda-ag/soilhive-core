@@ -2812,6 +2812,16 @@ components:
           $ref: '#/components/schemas/Georeference'
         georeference_wgs84:
           $ref: '#/components/schemas/GeoreferenceWgs84'
+        bbox_wgs84:
+          type: array
+          description: >-
+            The raster's bounding box, [west, south, east, north] in EPSG:4326, with west > east when it
+            crosses the antimeridian. Absent while the CRS is unknown, when no point of the raster
+            reprojects, and on files uploaded before it existed.
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
         size:
           type: array
           description: '[width, height] in pixels'
@@ -3359,11 +3369,27 @@ components:
           type: object
           nullable: true
           description: >-
-            The Dataset's bounding box in EPSG:4326, as a GeoJSON Polygon. For a raster Dataset with a
-            Raster Layer crossing the antimeridian, it spans the whole band of longitude (-180 to 180)
-            between that layer's south and north edges, not only the longitudes the data covers.
+            The rectangle the Dataset's data lies within, in EPSG:4326, as a GeoJSON Polygon. For a
+            raster Dataset with a Raster Layer crossing the antimeridian, it spans the whole band of
+            longitude (-180 to 180) between that layer's south and north edges, not only the longitudes
+            the data covers. To show the Dataset on a map, use bbox.
           # TODO: this triggers an OpenApiValidator bug
           # $ref: "../src/GeoJSON-OAS3.yaml#/components/schemas/Polygon"
+        bbox:
+          type: array
+          nullable: true
+          readOnly: true
+          description: >-
+            The Dataset's bounding box, [west, south, east, north] in EPSG:4326, with west > east when
+            it crosses the antimeridian (RFC 7946). Null exactly when spatial_extent is. Returned by GET
+            /datasets and GET /datasets/{datasetId}. For a raster Dataset, the narrowest box around its
+            raster files, which may cross the antimeridian even when none of them does; files uploaded
+            before this field existed count as the band spatial_extent spans. For any other Dataset,
+            spatial_extent's own corners: it never crosses the antimeridian.
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
         n_observations:
           type: string
           nullable: true

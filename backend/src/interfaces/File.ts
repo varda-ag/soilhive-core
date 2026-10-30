@@ -1,5 +1,6 @@
 import type { IngestionStatus } from '../types/data';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
+import type { Envelope } from '../utils/GdalCLI';
 
 export interface File {
   id: string;
@@ -40,6 +41,7 @@ export interface RasterFileMetadata extends GeoreferenceMetadata {
   driver?: string;
   epsg?: number;
   wkt?: string;
+  bbox_wgs84?: Envelope; // Its Bounding box. Absent while the CRS is unknown, when no point reprojects, and on files probed before it existed
   size: [number, number]; // [width, height] in pixels
   band_count: number;
   raster_bands: RasterBandMetadata[];

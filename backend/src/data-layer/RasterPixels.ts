@@ -3,7 +3,8 @@ import type { GeoTIFFImage } from 'geotiff';
 import type { MultiPolygon, Point, Polygon, Position } from 'geojson';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
-import { isGeographicCrs, nodataFromImage, openTiff } from '../utils/raster';
+import { nodataFromImage, openTiff } from '../utils/raster';
+import { isGeographicCrs } from '../utils/georeference';
 import { log } from '../utils/logger';
 import { getErrorMessage } from '../utils/error';
 

@@ -138,7 +138,15 @@ _Avoid_: Manual CRS, custom CRS (a raster's CRS that has no EPSG code)
 
 **Georeference**:
 The four corner points that place a Spatial File on the ground, in the File's own CRS: a raster's four pixel-grid corners, or the corners of a vector file's extent. A File either has one or does not; a raster with no geotransform has none, whatever its pixel dimensions. A File is **georeferenced** only when it has both a Georeference and a CRS.
-_Avoid_: Extent (a Dataset's `spatial_extent`), bbox (two points, not four), footprint (a Raster Layer's valid-data outline)
+_Avoid_: Extent (a Dataset's **Spatial extent**), bbox (a **Bounding box**: two points in EPSG:4326, not four in the File's CRS), footprint (a Raster Layer's valid-data outline)
+
+**Spatial extent** (`spatial_extent`):
+The rectangle on a flat longitude/latitude plane that a **Dataset**'s data lies within, and what a query tests the Dataset's location against. Never narrower than the data, so for data crossing the antimeridian it spans the whole band of longitude between its south and north edges.
+_Avoid_: Bounding box (the edges on the globe), geographical extent (a free-text field), coverage, footprint
+
+**Bounding box** (`bbox`):
+The narrowest west, south, east and north edges on the globe around a **Dataset**'s data or a georeferenced raster **File**, west greater than east when that box crosses the antimeridian, even if no single File does. What a map shows; never used to select data.
+_Avoid_: Spatial extent (what queries test), Georeference (four corners in the File's own CRS), bounds, envelope
 
 **Bulk Load**:
 The Dataset-scoped operation that turns a Dataset's staged files into Features, Layers, DatasetLayers and Observations. Operates on point and polygonal Datasets. Scoped to exactly one Dataset; the files it consumes are whichever staged files that Dataset has.
@@ -153,7 +161,7 @@ The operation that takes one Band of a *single* Cloud Optimized GeoTIFF and regi
 _Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion or normalization (a Raster Load step: a deviating file is normalized once, before any of its Bands is ingested — ADR 0025), "ingesting a file" (a Raster Ingest consumes a Band, not a whole file)
 
 **Raster Layer**:
-The catalog record for one Band of one raster File within a Dataset, carrying that Band's soil property, depth range, reference period, resolution, nodata marker, bounding box and footprints. The raster counterpart of a DatasetLayer, and identified by the pair (File, Band) — a File and Band together have at most one Raster Layer. Unlike a Layer, a Raster Layer holds no Observations: its measurements stay in the File's pixels, which is why the File must survive the Raster Load.
+The catalog record for one Band of one raster File within a Dataset, carrying that Band's soil property, depth range, reference period, resolution, nodata marker, **Spatial extent** and footprints. The raster counterpart of a DatasetLayer, and identified by the pair (File, Band) — a File and Band together have at most one Raster Layer. Unlike a Layer, a Raster Layer holds no Observations: its measurements stay in the File's pixels, which is why the File must survive the Raster Load.
 _Avoid_: Layer (the soil data depth/date slice), Band (the pixel plane a Raster Layer points at), raster dataset (a Dataset, not a Raster Layer)
 
 **Dataset File Mapping**:
@@ -433,5 +441,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - `docs/frontend/module-federation.md` describes Plugin loading as a hardcoded, top-level-await `loadRemotesConfig()` and registration by `path`. The actual code (`src/utilities/moduleFederation.ts`, `src/contexts/RemotesContext.tsx`) loads Plugins on demand via `loadRemotes(configs)`, sourced from the backend-driven `themeConfig.plugins`, and registers by `route` — the doc is stale. `frontend/remotes.json` is dead leftover configuration from before this change (unreferenced by any code, and its port doesn't match the example Plugin's actual dev port) — do not treat it as a source of truth for anything.
 
 - "active" is used in two unrelated senses in the raster filtering code: the persisted `active` column on `raster_filters` (admin-controlled catalog availability — see **Raster Filter**), and query-time variables/comments like `hasActiveFilters` in `FilteringMasks.ts` (whether the current Filter's `raster_filters` criterion has non-empty selected values for a given raster table). Toggling a Raster Filter's `active` flag has no effect on the query-time check, and vice versa. In domain discussions, say "active Raster Filter" for the catalog flag and "selected raster filter values" for the query-time notion.
+
+- **"Extent" names three Dataset fields.** `spatial_extent` is the **Spatial extent** queries test, `bbox` is the **Bounding box** maps show, and `geographical_extent` is free text set by data admins. The first two differ only when the Bounding box crosses the antimeridian. A Raster Layer's `bbox` column is its **Spatial extent**, despite the name; the raster **File** holds the **Bounding box**. Never say "extent" bare.
 
 - "georef" was used both for a File's four corner points and for the File being placeable on a map. Resolved: the points are its **Georeference**; the File is *georeferenced* only when it also has a CRS. A raster with a CRS but no geotransform is not georeferenced, and supplying a CRS cannot make it so.

@@ -17,6 +17,7 @@ const datasetFileMappingService = new DatasetFileMappingService();
 export const getDatasets = async (req: Request, res: Response) => {
   const data = await datasetService.getDatasets(req.customData);
   await datasetService.decorateWithQueuedJobs(req.customData, data);
+  await datasetService.decorateWithBbox(req.customData, data);
   res.json(idToSlug(data));
 };
 
@@ -31,6 +32,7 @@ export const getDataset = async (req: Request, res: Response) => {
   }
 
   await datasetService.decorateWithQueuedJobs(req.customData, [data]);
+  await datasetService.decorateWithBbox(req.customData, [data]);
   res.json(idToSlug(data));
 };
 

@@ -6,7 +6,8 @@ import path from 'path';
 import FileService from '../services/FileService';
 import { GdalCLI } from '../utils/GdalCLI';
 import { log, timed } from '../utils/logger';
-import { envelopeWidthDeg, wgs84Envelope } from '../utils/raster';
+import { envelopeWidthDeg } from '../utils/raster';
+import { wgs84Envelope } from '../utils/georeference';
 
 const MAX_TILES = (256 * 256) / 16;
 // Exported so tests can override it directly.
@@ -145,7 +146,7 @@ export async function streamRasterFootprints(
       // constant as if it were one.
       const rasterWidthNative = xMax - xMin;
       const rasterHeightNative = yMax - yMin;
-      const envelope = await wgs84Envelope(info, xMin, yMin, xMax, yMax);
+      const envelope = await wgs84Envelope(info.coordinateSystem?.wkt, xMin, yMin, xMax, yMax);
       const [, south, , north] = envelope;
 
       const nativePixelSize = Math.abs(pixWFull);

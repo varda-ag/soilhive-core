@@ -302,6 +302,47 @@ export class GdalCLI {
     return [west, south, east, north];
   }
 
+  /**
+   * The narrowest envelope covering every one of `envelopes` (at least one). Their longitude spans
+   * are joined round the circle, so the result crosses the antimeridian whenever that is narrower,
+   * even if none of them crosses it on its own (the US and Guam).
+   */
+  static envelopeUnion(envelopes: Envelope[]): Envelope {
+    // Each span cut at ±180°, so every piece runs west to east within it
+    const pieces: [number, number][] = [];
+    for (const [west, , east] of envelopes) {
+      if ((west > east ? east + 360 - west : east - west) >= 360) pieces.push([-180, 180]);
+      else if (west > east) pieces.push([west, 180], [-180, east]);
+      else pieces.push([west, east]);
+    }
+    pieces.sort((a, b) => a[0] - b[0]);
+    const covered: [number, number][] = [];
+    for (const [start, end] of pieces) {
+      const last = covered[covered.length - 1];
+      if (last && start <= last[1]) last[1] = Math.max(last[1], end);
+      else covered.push([start, end]);
+    }
+    // As in lonLatEnvelope: the widest stretch no span covers, the one across ±180° first
+    let widestGap = covered[0]![0] + 360 - covered[covered.length - 1]![1];
+    let west = covered[0]![0];
+    let east = covered[covered.length - 1]![1];
+    for (let i = 1; i < covered.length; i++) {
+      const gap = covered[i]![0] - covered[i - 1]![1];
+      if (gap > widestGap) {
+        widestGap = gap;
+        west = covered[i]![0];
+        east = covered[i - 1]![1];
+      }
+    }
+    if (west !== east) {
+      if (east === -180) east = 180;
+      if (west === 180) west = -180;
+    }
+    const south = Math.min(...envelopes.map(([, s]) => s));
+    const north = Math.max(...envelopes.map(([, , , n]) => n));
+    return [west, south, east, north];
+  }
+
   // The CRS's own EPSG code is a depth-1 ID["EPSG", n] (a direct child of the outer PROJCRS[/
   // GEOGCRS[). A custom/unregistered projection has no depth-1 ID at all
   static extractEpsgFromWkt(wkt?: string): number | undefined {
