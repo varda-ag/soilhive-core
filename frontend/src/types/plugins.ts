@@ -1,5 +1,4 @@
 import type React from 'react';
-import type { MapSelection } from '../contexts';
 import type { PluginContext } from 'frontend-plugin-types';
 
 export type { PluginContext };
@@ -40,6 +39,11 @@ export interface RemotePlugin {
   remoteUrl?: string;
   // Specialized plugins below pin the exact component props.
   Page?: React.ComponentType<any>;
+  // Set by a page module whose remote also exposes './mapInfoCard' (ADR 0066)
+  hasMapInfoCard?: boolean;
+  // The Page of that './mapInfoCard' module, attached by loadRemotes, never from the module.
+  // Missing on a plugin that sets hasMapInfoCard when its card did not load.
+  MapInfoCard?: React.ComponentType<{ context: PluginContext }>;
 }
 
 // A plugin that opens into a routable application page
@@ -57,15 +61,8 @@ export interface NewTabPlugin extends RemotePlugin {
   targetUrl: string;
 }
 
-export interface MapInfoCardProps {
-  hasMenuItem: false;
-  selection: MapSelection;
-  locationName?: string;
-  context: PluginContext;
-}
-
-// A plugin that replaces the info card on map selection
+// Content a plugin adds to the map's area info card, loaded from its './mapInfoCard' expose
 export interface MapInfoCardPlugin extends RemotePlugin {
   type: PluginType.MAP_INFO_CARD;
-  Page: React.ComponentType<MapInfoCardProps>;
+  Page: React.ComponentType<{ context: PluginContext }>;
 }
