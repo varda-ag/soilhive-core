@@ -3,12 +3,15 @@ import { area } from '@turf/turf';
 
 import { AreaInfoContent } from 'components/Map/AreaInfo/AreaInfoContent/AreaInfoContent';
 import { downloadFile } from '../../../../../src/utilities/download';
+import { useMapInfoCardsHook } from 'hooks/useMapInfoCardsHook';
 import type { MapSelection } from '../../../../../src/contexts/AvailabilityMapContext';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
   Trans: ({ i18nKey }: { i18nKey: string }) => <span>{i18nKey}</span>,
 }));
+
+jest.mock('hooks/useMapInfoCardsHook', () => ({ useMapInfoCardsHook: jest.fn() }));
 
 jest.mock('@turf/turf', () => ({
   area: jest.fn(),
@@ -48,6 +51,7 @@ describe('AreaInfoContent', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (useMapInfoCardsHook as jest.Mock).mockReturnValue({ cards: [] });
     global.URL.createObjectURL = createObjectURL;
     global.URL.revokeObjectURL = revokeObjectURL;
   });
@@ -123,5 +127,45 @@ describe('AreaInfoContent', () => {
     fireEvent.click(screen.getByTestId('download-button'));
 
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+  });
+
+  describe('plugin cards', () => {
+    const context = { metadataUrl: jest.fn() };
+
+    it('renders each card between the area and the download link', () => {
+      (area as jest.Mock).mockReturnValue(5_000_000);
+      const Card = () => <div>plugin card</div>;
+      (useMapInfoCardsHook as jest.Mock).mockReturnValue({ cards: [{ key: 'a', Page: Card, context }] });
+
+      render(<AreaInfoContent selection={selectionWithFeature} />);
+
+      const areaValue = screen.getByText('5.00');
+      const card = screen.getByText('plugin card');
+      const link = screen.getByTestId('download-button');
+      expect(areaValue.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(card.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(useMapInfoCardsHook).toHaveBeenCalledWith(selectionWithFeature);
+    });
+
+    it('renders nothing for a card that throws, and keeps the rest of the card', () => {
+      const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const Broken = () => {
+        throw new Error('plugin bug');
+      };
+      const Card = () => <div>plugin card</div>;
+      (useMapInfoCardsHook as jest.Mock).mockReturnValue({
+        cards: [
+          { key: 'broken', Page: Broken, context },
+          { key: 'ok', Page: Card, context },
+        ],
+      });
+
+      render(<AreaInfoContent selection={emptySelection} />);
+
+      expect(screen.queryByText('plugin bug')).not.toBeInTheDocument();
+      expect(screen.getByText('plugin card')).toBeInTheDocument();
+      expect(screen.getByTestId('download-button')).toBeInTheDocument();
+      error.mockRestore();
+    });
   });
 });

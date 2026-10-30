@@ -8,6 +8,8 @@ import GridIcon from 'assets/icons/small-view-grid-icon.svg?react';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 
 import { Button } from 'components/UI';
+import ErrorBoundary from 'components/ErrorBoundary';
+import { useMapInfoCardsHook } from 'hooks/useMapInfoCardsHook';
 import { downloadFile } from '../../../../utilities/download';
 import type { MapSelection } from '../../../../contexts/AvailabilityMapContext';
 
@@ -20,6 +22,7 @@ interface Props {
 
 export function AreaInfoContent({ selection, locationName }: Props) {
   const { t } = useTranslation('availability');
+  const { cards } = useMapInfoCardsHook(selection);
 
   const onDownloadGeoJSON = useCallback(() => {
     const blob = new Blob([JSON.stringify(selection, null, 2)], { type: 'application/geo+json' });
@@ -70,6 +73,12 @@ export function AreaInfoContent({ selection, locationName }: Props) {
           </div>
         )}
       </div>
+      {cards.map(({ key, Page, context }) => (
+        // A plugin bug renders nothing instead of breaking the map page.
+        <ErrorBoundary key={key}>
+          <Page context={context} />
+        </ErrorBoundary>
+      ))}
       <div className={styles.AreaInfoFooter}>
         <Button type="tertiary" size="tiny" onClick={onDownloadGeoJSON}>
           <DownloadIcon />
