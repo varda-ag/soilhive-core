@@ -10,7 +10,7 @@ import { sleep } from '../../src/utils/utils';
 import { getDataAdminToken, getUserToken } from '../helper';
 import { EVERYONE } from '../../src/constants/constants';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
-import { addCategory, addDataset, addSoilProperty } from '../../src/utils/mock';
+import { addCategory, addDataset, addFile, addSoilProperty, linkMapping } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
 import SoilPropertyEntity from '../../src/entities/SoilProperty';
 
@@ -144,6 +144,23 @@ describe('Testing /data-requests routes', () => {
       const res = await submit(await descriptive(filterId, { label_field: 'field_name' }));
       expect(res.statusCode).toBe(400);
       expect(res.body.detail).toContain('label_field requires file_id');
+    });
+
+    // Its units and labels would publish the Dataset's data (docs/adr/0072)
+    it('answers a file mapped to a Dataset as not found', async () => {
+      const filterId = await createFilter([polygon]);
+      const file = await addFile('dr-mapped.geojson');
+      const body = await descriptive(filterId, { file_id: file.slug, label_field: 'field_name' });
+
+      // Unmapped, the same file gets past the lookup and fails on its missing metadata
+      const unmapped = await submit(body);
+      expect(unmapped.statusCode).toBe(400);
+      expect(unmapped.body.detail).toContain('has no vector metadata');
+
+      await linkMapping(file, {});
+      const mapped = await submit(body);
+      expect(mapped.statusCode).toBe(404);
+      expect(mapped.body.detail).toBe(`Resource '${file.slug}' not found`);
     });
 
     it('rejects a named dataset the caller cannot preview with 403', async () => {

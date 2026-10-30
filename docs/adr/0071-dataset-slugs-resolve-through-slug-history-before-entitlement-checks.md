@@ -2,7 +2,7 @@
 
 **Status:** Accepted — amends ADR 0057
 
-An Export naming a renamed private Dataset by an old slug skipped the `download` check: the existence filter matched current slugs only, so it dropped the slug, and the job then resolved it through slug history and read the vector rows under `preview` alone. The existence filter (`existingDatasetSlugs`) now resolves slug history and returns current slugs, deduplicated, in the order given. `enforceEntitlements` fails closed on Datasets: only a key known to be a public Dataset skips the check. The data-request run resolves `dataset_ids` the same way.
+An Export naming a renamed private Dataset by an old slug skipped the `download` check: the existence filter matched current slugs only, so it dropped the slug, and the job then resolved it through slug history and read the vector rows under `preview` alone. The existence filter (`existingDatasets`) now resolves slug history and returns the Datasets by current slug, deduplicated, in the order given. The check then runs on each Dataset found, not on the slugs as given, so no slug can skip it. The data-request run resolves `dataset_ids` the same way.
 
 ## Considered options
 
@@ -13,6 +13,5 @@ An Export naming a renamed private Dataset by an old slug skipped the `download`
 ## Consequences
 
 - `GET /soil-data` returns rows for an old slug instead of none.
-- `enforceEntitlements` answers 403 for an unknown Dataset key. No caller passes one; it no longer tells an unknown slug from a private one.
 - A data request naming an old slug has `preview` checked at submission and no longer drops that Dataset from the run.
 - The Export Limits pre-check (ADR 0070) counts Datasets named by an old slug.

@@ -3,19 +3,19 @@ import { ErrorResponse } from './error';
 import { RequestData } from '../interfaces/RequestData';
 import { Token } from '../interfaces/Token';
 import { IngestionStatus } from '../types/data';
+import { Capability } from '../types/enums';
 
 /**
  * Whether the caller acts under a privileged token scope — internal-request, data-admin or
  * super-admin (see the **Privileged caller** term in CONTEXT.md).
  *
  * This is the system's single notion of privilege and it grants two distinct powers: the
- * Entitlement bypass (EntitlementService.enforceEntitlements) and the ability to see Datasets
+ * Entitlement bypass (datasetCapabilities, EntitlementService.canConfig) and the ability to see Datasets
  * that are not PUBLISHED (DatasetService.getDatasets, datasetExistsFor). They are collapsed on purpose
  * — a second, subtly different predicate is exactly the drift that ADR 0022 documents — so add
  * new privileged behaviour here rather than re-deriving the booleans at the call site.
  *
- * Background jobs build `Token` by hand, so a processor that forgets to carry the submitter's
- * isDataAdmin/isSuperAdmin through from its job payload silently becomes non-privileged.
+ * Job processors get their token from jobRequestData, which carries the submitter's flags.
  */
 export const isPrivilegedCaller = (token?: Token): boolean => {
   return Boolean(token?.isInternalRequest || token?.isDataAdmin || token?.isSuperAdmin);
@@ -28,6 +28,15 @@ export const isPrivilegedCaller = (token?: Token): boolean => {
 export const datasetExistsFor = (token: Token | undefined, status: IngestionStatus): boolean => {
   return status === IngestionStatus.PUBLISHED || isPrivilegedCaller(token);
 };
+
+/**
+ * What the caller may do with a Dataset: preview and download if it is public or the caller is
+ * privileged, else what is granted on its current slug.
+ */
+export const datasetCapabilities = (requestData: RequestData, dataset: { slug: string; visibility: 'public' | 'private' }): Capability[] =>
+  dataset.visibility === 'public' || isPrivilegedCaller(requestData.token)
+    ? [Capability.PREVIEW, Capability.DOWNLOAD]
+    : (requestData.entitlements.datasets?.[dataset.slug] ?? []);
 
 /**
  * Returns the authenticated user's id (the token `sub` claim), throwing a 401 if it is absent.

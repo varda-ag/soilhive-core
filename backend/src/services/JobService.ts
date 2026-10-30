@@ -65,10 +65,13 @@ export default class JobService {
 
     // Checking entitlements
     if (data.type === JobQueues.EXPORT) {
+      // Every named Dataset must exist now: the job reads vector rows under preview alone, so one
+      // published after this check would never have download checked (docs/adr/0073)
       const datasetSlugs = await entitlementService.enforceDatasetEntitlements(
         requestData,
         (data as ExportJob).dataset_ids,
         Capability.DOWNLOAD,
+        { requireAll: true },
       );
       await this.checkExportLimits(requestData, data as ExportJob, datasetSlugs);
     }
@@ -246,7 +249,7 @@ export default class JobService {
       if (!data.file_id) {
         throw new ErrorResponse('Parameter label_field requires file_id', StatusCodes.BAD_REQUEST);
       }
-      const file = await new FileService().getFile(requestData, data.file_id);
+      const file = await new FileService().getUnmappedFile(requestData, data.file_id);
       const metadata = file.metadata;
       if (!metadata || metadata.is_raster) {
         throw new ErrorResponse(`File '${data.file_id}' has no vector metadata to take label_field from`, StatusCodes.BAD_REQUEST);

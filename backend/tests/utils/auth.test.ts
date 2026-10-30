@@ -1,7 +1,8 @@
 import { describe, it, expect } from '@jest/globals';
 import { StatusCodes } from 'http-status-codes';
 import { EntityManager } from 'typeorm';
-import { requireSub, getSubject } from '../../src/utils/auth';
+import { datasetCapabilities, requireSub, getSubject } from '../../src/utils/auth';
+import { Capability } from '../../src/types/enums';
 import { ErrorResponse } from '../../src/utils/error';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
@@ -115,5 +116,31 @@ describe('getSubject', () => {
   it('should throw a 401 ErrorResponse when the token is missing', () => {
     const requestData = buildRequestData();
     expect(() => getSubject(requestData)).toThrow(ErrorResponse);
+  });
+});
+
+describe('datasetCapabilities', () => {
+  const grants = { datasets: { 'granted-dataset': [Capability.PREVIEW] } };
+
+  it('gives preview and download on a public Dataset without a grant', () => {
+    const requestData = buildRequestData({ sub: 'auth|123' });
+    expect(datasetCapabilities(requestData, { slug: 'some-dataset', visibility: 'public' })).toEqual([
+      Capability.PREVIEW,
+      Capability.DOWNLOAD,
+    ]);
+  });
+
+  it('gives the grants held on a private Dataset', () => {
+    const requestData = { ...buildRequestData({ sub: 'auth|123' }), entitlements: grants };
+    expect(datasetCapabilities(requestData, { slug: 'granted-dataset', visibility: 'private' })).toEqual([Capability.PREVIEW]);
+    expect(datasetCapabilities(requestData, { slug: 'other-dataset', visibility: 'private' })).toEqual([]);
+  });
+
+  it('gives a privileged caller preview and download on a private Dataset without a grant', () => {
+    const requestData = buildRequestData({ sub: 'auth|123', isDataAdmin: true });
+    expect(datasetCapabilities(requestData, { slug: 'other-dataset', visibility: 'private' })).toEqual([
+      Capability.PREVIEW,
+      Capability.DOWNLOAD,
+    ]);
   });
 });

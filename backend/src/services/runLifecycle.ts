@@ -73,9 +73,7 @@ export const assertCanAttach = async (requestData: RequestData, configId: string
   if (!row) {
     throw new ErrorResponse(`Config '${configId}' not found: save it before attaching ${attached} to it`, StatusCodes.NOT_FOUND);
   }
-  if (!entitlementService.canWriteConfig(requestData, configId)) {
-    throw new ErrorResponse(`User does not have write entitlement for config ${configId}`, StatusCodes.FORBIDDEN);
-  }
+  entitlementService.assertConfig(requestData, configId, Capability.WRITE);
 };
 
 /** An attached resource is gated by its config item; an unattached one by nothing but its id. */

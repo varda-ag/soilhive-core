@@ -23,7 +23,7 @@ import { timed } from '../utils/logger';
 import { CACHE_TTL_SPATIAL_MS, cachedQuery } from '../utils/query-cache';
 import { runCancelableQuery } from '../utils/cancelable-query';
 import { classLabel } from '../utils/soilPropertyClasses';
-import { existingDatasetSlugs } from '../utils/slugs';
+import { existingDatasets } from '../utils/slugs';
 
 const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const rasterFilterService = new RasterFilterService();
@@ -699,7 +699,7 @@ export default class SoilDataStorage {
   };
 
   getSoilDataCount = async (requestData: RequestData, filter: DataFilter, requestedSlugs: string[]): Promise<number> => {
-    const datasetSlugs = await existingDatasetSlugs(requestData, requestedSlugs);
+    const datasetSlugs = (await existingDatasets(requestData, requestedSlugs)).map(d => d.slug);
     if (datasetSlugs.length === 0) {
       return 0;
     }

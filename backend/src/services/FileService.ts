@@ -170,6 +170,19 @@ export default class FileService {
   };
 
   /**
+   * A File a Run may take Aggregation Units from: one no Dataset maps. A mapped File holds a
+   * Dataset's data, so it is answered as unknown (docs/adr/0072).
+   */
+  getUnmappedFile = async (requestData: RequestData, slug: string): Promise<FileEntity> => {
+    const file = await this.getFile(requestData, slug);
+    const mappings = requestData.entityManager.getRepository(DatasetFileMappingEntity);
+    if (await mappings.exists({ where: { file_id: file.id }, withDeleted: true })) {
+      throw new ErrorResponse(`Resource '${slug}' not found`, StatusCodes.NOT_FOUND);
+    }
+    return file;
+  };
+
+  /**
    * Creates a File row for an already-uploaded blob.
    *
    * `spatial: false` uploads a non-spatial File: GDAL is never invoked, so `metadata` stays NULL

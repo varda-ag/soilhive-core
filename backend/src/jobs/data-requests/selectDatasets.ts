@@ -1,18 +1,17 @@
 import { DataRequestJob } from '../../interfaces/Job';
 import { DataFilter } from '../../interfaces/DatasetFilter';
-import EntitlementService from '../../services/EntitlementService';
 import FilterService from '../../services/FilterService';
 import SoilPropertyService from '../../services/SoilPropertyService';
 import SoilPropertyEntity from '../../entities/SoilProperty';
 import { RequestData } from '../../interfaces/RequestData';
 import { Capability, VariableType } from '../../types/enums';
-import { EntitlementScope } from '../../types/Entitlements';
 import { GISDataType } from '../../types/data';
 import { JobError } from '../../errors/JobError';
 import { RunContext } from '../runs/runContext';
 import { StagedVariable } from '../../data-layer/DataRequests';
 import { soilIndexRunExists, soilIndexRunType } from '../../data-layer/SoilIndex';
-import { existingDatasetSlugs } from '../../utils/slugs';
+import { existingDatasets } from '../../utils/slugs';
+import { datasetCapabilities } from '../../utils/auth';
 import { SoilIndexVariableHeader, SoilPropertyVariableHeader } from './types';
 
 /** The source Filter's criteria over the Aggregation Units. */
@@ -26,25 +25,21 @@ export const effectiveFilterOf = (ctx: RunContext): DataFilter => ({
 export const selectPermittedDatasets = async (ctx: RunContext, data: DataRequestJob): Promise<string[]> => {
   const { requestData, derivedFilterId } = ctx;
   const { filter_id, dataset_ids } = data;
-  const entitlementService = new EntitlementService();
 
   const candidates = await new FilterService().getDatasets(requestData, derivedFilterId ?? filter_id);
   // Named by current slug, so an old slug still matches its candidate (docs/adr/0071).
-  const named = dataset_ids && dataset_ids.length > 0 ? await existingDatasetSlugs(requestData, dataset_ids) : null;
+  const named = dataset_ids && dataset_ids.length > 0 ? (await existingDatasets(requestData, dataset_ids)).map(d => d.slug) : null;
   const requested = named ? candidates.filter(d => named.includes(d.id)) : candidates;
 
   const vectorDatasets = requested.filter(dataset => dataset.data_type !== GISDataType.RASTER);
   const permitted: string[] = [];
   for (const dataset of vectorDatasets) {
-    try {
-      await entitlementService.enforceEntitlements(requestData, EntitlementScope.DATASETS, [dataset.id], Capability.PREVIEW);
+    if (datasetCapabilities(requestData, { slug: dataset.id, visibility: dataset.visibility }).includes(Capability.PREVIEW)) {
       permitted.push(dataset.id);
-    } catch {
-      // Named datasets are rejected at enqueue time, so anything unentitled here came
-      // from implicit selection and is skipped rather than failing the whole run.
-      if (dataset_ids && dataset_ids.length > 0) {
-        throw new JobError('DR_DATASET_NOT_ENTITLED', { dataset_id: dataset.id });
-      }
+    } else if (named) {
+      // Named datasets were checked at enqueue time, so one unentitled here fails the run; an
+      // implicitly selected one is skipped.
+      throw new JobError('DR_DATASET_NOT_ENTITLED', { dataset_id: dataset.id });
     }
   }
   return permitted;
