@@ -99,10 +99,6 @@
             "title": "Plugin unavailable",
             "message": "The plugin at \"{{url}}\" could not be loaded. It has been disabled."
         },
-        "card_load_failed": {
-            "title": "Plugin map card unavailable",
-            "message": "The map card of the plugin at \"{{url}}\" could not be loaded. The plugin page still works."
-        },
         "render_error": {
             "title": "Plugin error",
             "message": "\"{{name}}\" ran into a problem and couldn't be displayed.",

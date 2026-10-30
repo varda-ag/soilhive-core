@@ -105,8 +105,9 @@ export function partitionDuplicatePluginIds(modules: RemotePlugin[]): { unique: 
   return { unique, duplicates };
 }
 
-// Populated by fallbackPlugin's errorLoadRemote below, keyed by remote url
-// (the `id` passed to mf.loadRemote). Lets loadRemotes tell "remote failed to
+// Populated by fallbackPlugin's errorLoadRemote below, keyed by the `id` passed to
+// mf.loadRemote: a remote url, or `${url}/mapInfoCard` for a card, whose expose may
+// be missing. loadRemoteModule removes the id again. Lets loadRemotes tell "remote failed to
 // load" apart from "remote loaded but its module content is invalid": the MF
 // runtime resolves loadRemote() successfully with the fallback object below
 // rather than rejecting, so the failure would otherwise be indistinguishable
@@ -250,20 +251,18 @@ async function loadRemoteModule(id: string): Promise<RemotePlugin | null> {
 
 /**
  * Register and load the given remotes, returning the modules that loaded
- * successfully and the urls of the ones that didn't. A remote flagged with
- * hasMapInfoCard also loads its './mapInfoCard' module into cards; a failed
- * card load is reported in failedCards and does not drop the page.
+ * successfully and the urls of the ones that didn't. For each remote whose page
+ * loaded, also try its './mapInfoCard' module and keep it in cards when it loads.
+ * A plugin declares its card only by exposing that module, so a failed card load
+ * is indistinguishable from "no card" and is not reported.
  *
  * This was previously done at module-init time via top-level await; it now runs
  * on demand so the remotes config can be fetched from the configuration service
  * at runtime (see RemotesProvider).
  */
-async function loadRemotes(
-  configs: Plugin[],
-): Promise<{ loaded: RemotePlugin[]; failed: string[]; cards: RemotePlugin[]; failedCards: string[] }> {
+async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[]; failed: string[]; cards: RemotePlugin[] }> {
   const enabled = configs.filter(remote => remote.enabled);
-  if (enabled.length === 0) return { loaded: [], failed: [], cards: [], failedCards: [] };
-  const withCard = enabled.filter(remote => remote.hasMapInfoCard);
+  if (enabled.length === 0) return { loaded: [], failed: [], cards: [] };
 
   mf.registerRemotes(enabled.map(({ url: name, url: entry }) => ({ name, entry })));
 
@@ -275,42 +274,34 @@ async function loadRemotes(
   let remoteModules: (RemotePlugin | null)[];
   let cardModules: (RemotePlugin | null)[];
   try {
-    // MF resolves `${url}/mapInfoCard` to the remote registered under url, by string prefix.
-    [remoteModules, cardModules] = await Promise.all([
-      Promise.all(enabled.map(remote => loadRemoteModule(remote.url))),
-      Promise.all(withCard.map(remote => loadRemoteModule(`${remote.url}/${MAP_INFO_CARD_EXPOSE}`))),
-    ]);
+    remoteModules = await Promise.all(enabled.map(remote => loadRemoteModule(remote.url)));
+    // MF resolves `${url}/mapInfoCard` to the remote registered under url, by string prefix. The
+    // remote entry is already loaded for the page, so a remote without the expose costs no request.
+    cardModules = await Promise.all(
+      enabled.map((remote, index) => (remoteModules[index] ? loadRemoteModule(`${remote.url}/${MAP_INFO_CARD_EXPOSE}`) : null)),
+    );
   } finally {
     unmuteConsole();
   }
 
   const loaded: RemotePlugin[] = [];
   const failed: string[] = [];
+  const cards: RemotePlugin[] = [];
   remoteModules.forEach((module, index) => {
     const { url } = enabled[index];
     if (!module) {
       failed.push(url);
-    } else {
-      // Copied rather than mutated: a loaded module is an ES module namespace,
-      // which is not extensible. Any truthy value gates, so a malformed flag
-      // fails closed. remoteUrl comes last so a module can't supply its own.
-      loaded.push({ ...module, requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn, remoteUrl: toAbsoluteUrl(url) });
+      return;
     }
+    // Copied rather than mutated: a loaded module is an ES module namespace,
+    // which is not extensible. Any truthy value gates, so a malformed flag
+    // fails closed. remoteUrl comes last so a module can't supply its own.
+    loaded.push({ ...module, requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn, remoteUrl: toAbsoluteUrl(url) });
+    const card = cardModules[index];
+    if (card) cards.push({ ...card, remoteUrl: toAbsoluteUrl(url) });
   });
 
-  const cards: RemotePlugin[] = [];
-  const failedCards: string[] = [];
-  cardModules.forEach((module, index) => {
-    const { url } = withCard[index];
-    if (module) {
-      cards.push({ ...module, remoteUrl: toAbsoluteUrl(url) });
-    } else if (!failed.includes(url)) {
-      // A remote that failed as a whole is already reported in failed: no second toast for its card
-      failedCards.push(url);
-    }
-  });
-
-  return { loaded, failed, cards, failedCards };
+  return { loaded, failed, cards };
 }
 
 export { mf, loadRemotes, store };

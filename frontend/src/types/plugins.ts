@@ -9,8 +9,6 @@ export interface Plugin {
   mustBeLoggedIn: boolean;
   enableACL: boolean;
   acl: string[];
-  // True if the remote also exposes './mapInfoCard'. The host loads that module only when this is set.
-  hasMapInfoCard?: boolean;
 }
 
 export enum PluginType {

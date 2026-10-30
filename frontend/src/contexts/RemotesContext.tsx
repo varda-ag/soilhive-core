@@ -53,7 +53,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
     const load = async () => {
       try {
-        const { loaded, failed, cards, failedCards } = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        const { loaded, failed, cards } = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
 
         // Report remotes that couldn't be loaded at all (e.g. unreachable
         // server/url) separately from the missing-fields notification below:
@@ -63,15 +63,6 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
             id: `remote-load-failed-${url}`,
             title: t('plugins.load_failed.title'),
             message: t('plugins.load_failed.message', { url }),
-            type: 'error',
-          });
-        });
-
-        failedCards.forEach(url => {
-          showNotification({
-            id: `remote-card-load-failed-${url}`,
-            title: t('plugins.card_load_failed.title'),
-            message: t('plugins.card_load_failed.message', { url }),
             type: 'error',
           });
         });

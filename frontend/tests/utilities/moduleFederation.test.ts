@@ -2,7 +2,8 @@
 // host at module load; these tests only exercise the pure plugin type guards.
 const loadRemote = jest.fn();
 jest.mock('@module-federation/enhanced/runtime', () => ({
-  createInstance: jest.fn(() => ({
+  createInstance: jest.fn((options: { plugins: unknown[] }) => ({
+    plugins: options.plugins,
     registerShared: jest.fn(),
     registerRemotes: jest.fn(),
     loadRemote,
@@ -17,8 +18,13 @@ import {
   loadRemotes,
   partitionDuplicatePluginIds,
   partitionInvalidPlugins,
+  mf,
 } from 'utilities/moduleFederation';
 import { PluginType, type MapInfoCardPlugin, type Plugin, type RemotePlugin } from '../../src/types/plugins';
+
+// The MF runtime calls this hook for a remote or expose that fails to load (see fallbackPlugin).
+const fallbackPlugin = (mf as unknown as { plugins: { errorLoadRemote: (args: { id: string; lifecycle: string }) => Promise<unknown> }[] })
+  .plugins[0];
 
 const Page = () => null;
 
@@ -185,7 +191,6 @@ describe('loadRemotes', () => {
       loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: okUrl }],
       failed: [badUrl],
       cards: [],
-      failedCards: [],
     });
   });
 
@@ -216,7 +221,10 @@ describe('loadRemotes', () => {
     const realError = console.error;
     const realWarn = console.warn;
     const resolvers: ((module: RemotePlugin) => void)[] = [];
-    loadRemote.mockImplementation(() => new Promise(resolve => resolvers.push(resolve)));
+    // Only the page loads are held open; each card load then fails at once.
+    loadRemote.mockImplementation((id: string) =>
+      id.endsWith('/mapInfoCard') ? Promise.reject(new Error('no such expose')) : new Promise(resolve => resolvers.push(resolve)),
+    );
 
     const first = loadRemotes([toConfig('https://first.example/mf-manifest.json')]);
     const second = loadRemotes([toConfig('https://second.example/mf-manifest.json')]);
@@ -229,55 +237,60 @@ describe('loadRemotes', () => {
     expect(console.warn).toBe(realWarn);
   });
 
-  it('also loads the map info card of a remote flagged with hasMapInfoCard', async () => {
+  it('loads the map info card of every remote whose page loaded, with no flag in its config', async () => {
     const url = 'https://remote.example/mf-manifest.json';
     loadRemote.mockImplementation((id: string) => Promise.resolve(id === `${url}/mapInfoCard` ? mapInfoCard : singlePage));
 
-    const result = await loadRemotes([{ ...toConfig(url), hasMapInfoCard: true }]);
+    const result = await loadRemotes([toConfig(url)]);
 
     expect(loadRemote).toHaveBeenCalledWith(`${url}/mapInfoCard`);
     expect(result).toEqual({
       loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: url }],
       failed: [],
       cards: [{ ...mapInfoCard, remoteUrl: url }],
-      failedCards: [],
     });
   });
 
-  it('does not load a map info card for a remote without hasMapInfoCard', async () => {
-    const url = 'https://remote.example/mf-manifest.json';
-    loadRemote.mockResolvedValue(singlePage);
-
-    const result = await loadRemotes([toConfig(url)]);
-
-    expect(loadRemote).toHaveBeenCalledTimes(1);
-    expect(loadRemote).toHaveBeenCalledWith(url);
-    expect(result.cards).toEqual([]);
-  });
-
-  it('keeps the page when only the map info card fails to load', async () => {
+  it('keeps the page and reports nothing when the map info card fails to load', async () => {
     const url = 'https://remote.example/mf-manifest.json';
     loadRemote.mockImplementation((id: string) =>
       id === `${url}/mapInfoCard` ? Promise.reject(new Error('no such expose')) : Promise.resolve(singlePage),
     );
 
-    const result = await loadRemotes([{ ...toConfig(url), hasMapInfoCard: true }]);
+    const result = await loadRemotes([toConfig(url)]);
 
-    expect(result).toEqual({
-      loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: url }],
-      failed: [],
-      cards: [],
-      failedCards: [url],
-    });
+    expect(result).toEqual({ loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: url }], failed: [], cards: [] });
   });
 
-  it('does not report a card failure for a remote that failed to load at all', async () => {
+  it('treats a card the fallback plugin served as missing, without leaking its id into later loads', async () => {
+    const url = 'https://remote.example/mf-manifest.json';
+    const cardId = `${url}/mapInfoCard`;
+    // The real MF runtime: a missing expose throws inside loadRemote, which emits errorLoadRemote
+    // and resolves with the fallback instead of rejecting.
+    loadRemote.mockImplementation(async (id: string) => {
+      if (id !== cardId) return singlePage;
+      return fallbackPlugin.errorLoadRemote({ id, lifecycle: 'onLoad' });
+    });
+
+    const missing = await loadRemotes([toConfig(url)]);
+
+    expect(missing).toEqual({ loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: url }], failed: [], cards: [] });
+
+    loadRemote.mockImplementation((id: string) => Promise.resolve(id === cardId ? mapInfoCard : singlePage));
+
+    const later = await loadRemotes([toConfig(url)]);
+
+    expect(later.cards).toEqual([{ ...mapInfoCard, remoteUrl: url }]);
+  });
+
+  it('does not attempt the map info card of a remote whose page failed to load', async () => {
     const url = 'https://remote.example/mf-manifest.json';
     loadRemote.mockRejectedValue(new Error('network error'));
 
-    const result = await loadRemotes([{ ...toConfig(url), hasMapInfoCard: true }]);
+    const result = await loadRemotes([toConfig(url)]);
 
-    expect(result).toEqual({ loaded: [], failed: [url], cards: [], failedCards: [] });
+    expect(loadRemote).not.toHaveBeenCalledWith(`${url}/mapInfoCard`);
+    expect(result).toEqual({ loaded: [], failed: [url], cards: [] });
   });
 
   it('ignores disabled remotes entirely', async () => {
@@ -286,7 +299,7 @@ describe('loadRemotes', () => {
 
     const result = await loadRemotes([{ ...toConfig(disabledUrl), enabled: false }]);
 
-    expect(result).toEqual({ loaded: [], failed: [], cards: [], failedCards: [] });
+    expect(result).toEqual({ loaded: [], failed: [], cards: [] });
     expect(loadRemote).not.toHaveBeenCalled();
   });
 });
