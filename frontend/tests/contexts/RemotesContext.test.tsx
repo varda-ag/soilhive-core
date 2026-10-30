@@ -41,13 +41,18 @@ const Page = () => null;
 const pluginA: RemotePlugin = { pluginId: 'dup', name: 'Plugin A', type: PluginType.SINGLE_PAGE, route: '/a', hasMenuItem: true, Page };
 const pluginB: RemotePlugin = { pluginId: 'dup', name: 'Plugin B', type: PluginType.SINGLE_PAGE, route: '/b', hasMenuItem: true, Page };
 
-const card: RemotePlugin = { pluginId: 'dup', name: 'Plugin A card', type: PluginType.MAP_INFO_CARD, Page };
+const CardPage = () => null;
 
 const CardsConsumer = () => {
-  const { mapInfoCards, isLoadingRemotes } = useRemotes();
+  const { plugins, isLoadingRemotes } = useRemotes();
   return (
     <div data-testid="cards">
-      {isLoadingRemotes ? 'loading' : mapInfoCards.map(({ card: { name }, route }) => `${name}@${route}`).join(',')}
+      {isLoadingRemotes
+        ? 'loading'
+        : plugins
+            .filter(plugin => plugin.MapInfoCard)
+            .map(({ name, route }) => `${name}@${route}`)
+            .join(',')}
     </div>
   );
 };
@@ -68,7 +73,7 @@ describe('RemotesProvider', () => {
   });
 
   it('keeps the first plugin loaded for a pluginId and reports every later duplicate', async () => {
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, pluginB], failed: [], cards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, pluginB], failed: [], failedCards: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -85,7 +90,7 @@ describe('RemotesProvider', () => {
   });
 
   it('does not notify when every loaded plugin has a distinct pluginId', async () => {
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, { ...pluginB, pluginId: 'not-a-dup' }], failed: [], cards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, { ...pluginB, pluginId: 'not-a-dup' }], failed: [], failedCards: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -100,7 +105,7 @@ describe('RemotesProvider', () => {
 
   it('excludes a plugin missing a required field and reports it via notification', async () => {
     const malformed: RemotePlugin = { ...pluginB, pluginId: 'not-a-dup', route: undefined as unknown as string };
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, malformed], failed: [], cards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, malformed], failed: [], failedCards: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -118,7 +123,7 @@ describe('RemotesProvider', () => {
 
   it('notifies about a remote that failed to load without treating it as an invalid plugin', async () => {
     const failedUrl = 'https://bad-remote.example/mf-manifest.json';
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [failedUrl], cards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [failedUrl], failedCards: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -143,7 +148,7 @@ describe('RemotesProvider', () => {
         { ...pluginB, pluginId: 'open' },
       ],
       failed: [],
-      cards: [],
+      failedCards: [],
     });
 
     const { findByTestId } = render(
@@ -172,7 +177,7 @@ describe('RemotesProvider', () => {
         { ...pluginA, requiresAuth: true },
       ],
       failed: [],
-      cards: [],
+      failedCards: [],
     });
 
     const { findByTestId } = render(
@@ -191,7 +196,7 @@ describe('RemotesProvider', () => {
         { ...pluginB, pluginId: 'open' },
       ],
       failed: [],
-      cards: [],
+      failedCards: [],
     });
 
     const { findByTestId } = render(
@@ -206,7 +211,7 @@ describe('RemotesProvider', () => {
   it('finishes loading under Strict Mode when the theme config is already cached', async () => {
     // The theme is loaded on the very first render, as after a password login remounts the app,
     // so the load starts inside Strict Mode's simulated mount/unmount/mount cycle.
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [], cards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [], failedCards: [] });
 
     const { findByTestId } = render(
       <StrictMode>
@@ -228,34 +233,52 @@ describe('RemotesProvider', () => {
         </RemotesProvider>,
       );
 
-    it('pairs a card with its routed page without reporting a duplicate pluginId', async () => {
-      loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [], cards: [card] });
+    it('reports a declared card that failed to load', async () => {
+      const url = 'https://remote.example/mf-manifest.json';
+      loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [], failedCards: [url] });
 
       const { findByTestId } = renderCards();
 
-      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe('Plugin A card@/a'));
-      expect(showNotification).not.toHaveBeenCalled();
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
+      expect(showNotification).toHaveBeenCalledTimes(1);
+      expect(showNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ id: `remote-card-load-failed-${url}`, type: 'error', message: expect.stringContaining(url) }),
+      );
+    });
+
+    it('drops the card of a duplicate plugin with its page', async () => {
+      loadRemotesMock.mockResolvedValue({
+        loaded: [pluginA, { ...pluginB, MapInfoCard: CardPage }],
+        failed: [],
+        failedCards: [],
+      });
+
+      const { findByTestId } = renderCards();
+
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
+      expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'duplicate-plugin-id-dup' }));
     });
 
     it('drops a card whose page was dropped on a deployment with no sign-in', async () => {
       useAuthContextMock.mockReturnValue({ authMode: 'none' });
-      loadRemotesMock.mockResolvedValue({ loaded: [{ ...pluginA, requiresAuth: true }], failed: [], cards: [card] });
+      loadRemotesMock.mockResolvedValue({
+        loaded: [{ ...pluginA, requiresAuth: true, MapInfoCard: CardPage }],
+        failed: [],
+        failedCards: [],
+      });
 
       const { findByTestId } = renderCards();
 
       await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
     });
 
-    it('reports a card module of the wrong type as invalid and drops it', async () => {
-      const wrongType: RemotePlugin = { ...card, type: PluginType.SINGLE_PAGE, route: '/x' };
-      loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [], cards: [wrongType] });
+    it('keeps a card with its plugin', async () => {
+      loadRemotesMock.mockResolvedValue({ loaded: [{ ...pluginA, MapInfoCard: CardPage }], failed: [], failedCards: [] });
 
       const { findByTestId } = renderCards();
 
-      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
-      expect(showNotification).toHaveBeenCalledWith(
-        expect.objectContaining({ id: 'invalid-plugin-Plugin A card', type: 'error', message: expect.stringContaining('type') }),
-      );
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe('Plugin A@/a'));
+      expect(showNotification).not.toHaveBeenCalled();
     });
   });
 });

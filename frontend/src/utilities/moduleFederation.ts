@@ -6,7 +6,6 @@ import * as ReactI18next from 'react-i18next';
 import * as ReactRouter from 'react-router';
 import {
   PluginType,
-  type MapInfoCardEntry,
   type MapInfoCardPlugin,
   type NewTabPlugin,
   type Plugin,
@@ -18,6 +17,9 @@ export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePl
   module.type === PluginType.SINGLE_PAGE && !!module.route && !!module.Page;
 
 export const isNewTabModule = (module: RemotePlugin): module is NewTabPlugin => module.type === PluginType.NEW_TAB && !!module.targetUrl;
+
+const isMapInfoCardModule = (module: RemotePlugin | null): module is MapInfoCardPlugin =>
+  module?.type === PluginType.MAP_INFO_CARD && !!module.Page;
 
 const REQUIRED_FIELDS_BY_TYPE: Record<PluginType, (keyof RemotePlugin)[]> = {
   [PluginType.SINGLE_PAGE]: ['route', 'Page'],
@@ -56,33 +58,6 @@ export function partitionInvalidPlugins(modules: RemotePlugin[]): {
     }
   }
   return { valid, invalid };
-}
-
-// Same as partitionInvalidPlugins, for modules loaded from './mapInfoCard': any other type is invalid.
-export function partitionInvalidMapInfoCards(modules: RemotePlugin[]): {
-  valid: MapInfoCardPlugin[];
-  invalid: { module: RemotePlugin; missingFields: string[] }[];
-} {
-  const { valid, invalid } = partitionInvalidPlugins(modules);
-  const cards: MapInfoCardPlugin[] = [];
-  for (const module of valid) {
-    if (module.type === PluginType.MAP_INFO_CARD) {
-      cards.push(module as MapInfoCardPlugin);
-    } else {
-      invalid.push({ module, missingFields: ['type'] });
-    }
-  }
-  return { valid: cards, invalid };
-}
-
-// A card shows only next to its plugin's routed page, which its button opens. Cards are kept out
-// of partitionDuplicatePluginIds, since a card shares its pluginId with that page. Matching the
-// remote too drops the card of a remote whose page lost the dedup to another remote's.
-export function pairMapInfoCards(cards: MapInfoCardPlugin[], plugins: RemotePlugin[]): MapInfoCardEntry[] {
-  return cards.flatMap(card => {
-    const page = plugins.find(plugin => plugin.pluginId === card.pluginId && plugin.remoteUrl === card.remoteUrl);
-    return page && isSinglePageModule(page) ? [{ card, route: page.route }] : [];
-  });
 }
 
 // Splits out modules whose pluginId collides with an earlier one. The first-seen
@@ -251,18 +226,19 @@ async function loadRemoteModule(id: string): Promise<RemotePlugin | null> {
 
 /**
  * Register and load the given remotes, returning the modules that loaded
- * successfully and the urls of the ones that didn't. For each remote whose page
- * loaded, also try its './mapInfoCard' module and keep it in cards when it loads.
- * A plugin declares its card only by exposing that module, so a failed card load
- * is indistinguishable from "no card" and is not reported.
+ * successfully and the urls of the ones that didn't. A page module that sets
+ * hasMapInfoCard declares a './mapInfoCard' expose: its Page is attached to the
+ * plugin as MapInfoCard. A declared card that fails to load, or is not a
+ * map-info-card module with a Page, leaves the plugin without a card and its url
+ * in failedCards.
  *
  * This was previously done at module-init time via top-level await; it now runs
  * on demand so the remotes config can be fetched from the configuration service
  * at runtime (see RemotesProvider).
  */
-async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[]; failed: string[]; cards: RemotePlugin[] }> {
+async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[]; failed: string[]; failedCards: string[] }> {
   const enabled = configs.filter(remote => remote.enabled);
-  if (enabled.length === 0) return { loaded: [], failed: [], cards: [] };
+  if (enabled.length === 0) return { loaded: [], failed: [], failedCards: [] };
 
   mf.registerRemotes(enabled.map(({ url: name, url: entry }) => ({ name, entry })));
 
@@ -275,10 +251,11 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
   let cardModules: (RemotePlugin | null)[];
   try {
     remoteModules = await Promise.all(enabled.map(remote => loadRemoteModule(remote.url)));
-    // MF resolves `${url}/mapInfoCard` to the remote registered under url, by string prefix. The
-    // remote entry is already loaded for the page, so a remote without the expose costs no request.
+    // MF resolves `${url}/mapInfoCard` to the remote registered under url, by string prefix.
     cardModules = await Promise.all(
-      enabled.map((remote, index) => (remoteModules[index] ? loadRemoteModule(`${remote.url}/${MAP_INFO_CARD_EXPOSE}`) : null)),
+      enabled.map((remote, index) =>
+        remoteModules[index]?.hasMapInfoCard ? loadRemoteModule(`${remote.url}/${MAP_INFO_CARD_EXPOSE}`) : null,
+      ),
     );
   } finally {
     unmuteConsole();
@@ -286,22 +263,27 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
 
   const loaded: RemotePlugin[] = [];
   const failed: string[] = [];
-  const cards: RemotePlugin[] = [];
+  const failedCards: string[] = [];
   remoteModules.forEach((module, index) => {
     const { url } = enabled[index];
     if (!module) {
       failed.push(url);
       return;
     }
+    const card = cardModules[index];
+    if (module.hasMapInfoCard && !isMapInfoCardModule(card)) failedCards.push(url);
     // Copied rather than mutated: a loaded module is an ES module namespace,
     // which is not extensible. Any truthy value gates, so a malformed flag
-    // fails closed. remoteUrl comes last so a module can't supply its own.
-    loaded.push({ ...module, requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn, remoteUrl: toAbsoluteUrl(url) });
-    const card = cardModules[index];
-    if (card) cards.push({ ...card, remoteUrl: toAbsoluteUrl(url) });
+    // fails closed. remoteUrl and MapInfoCard come last so a module can't supply its own.
+    loaded.push({
+      ...module,
+      requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn,
+      remoteUrl: toAbsoluteUrl(url),
+      MapInfoCard: isMapInfoCardModule(card) ? card.Page : undefined,
+    });
   });
 
-  return { loaded, failed, cards };
+  return { loaded, failed, failedCards };
 }
 
 export { mf, loadRemotes, store };

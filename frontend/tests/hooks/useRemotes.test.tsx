@@ -25,7 +25,6 @@ const singlePageModule: SinglePagePlugin = {
 
 const contextValue = {
   plugins: [singlePageModule],
-  mapInfoCards: [],
   isLoadingRemotes: false,
 };
 

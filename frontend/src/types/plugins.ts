@@ -39,6 +39,10 @@ export interface RemotePlugin {
   remoteUrl?: string;
   // Specialized plugins below pin the exact component props.
   Page?: React.ComponentType<any>;
+  // Set by a page module whose remote also exposes './mapInfoCard' (ADR 0066)
+  hasMapInfoCard?: boolean;
+  // The Page of that './mapInfoCard' module, attached by loadRemotes, never from the module
+  MapInfoCard?: React.ComponentType<{ context: PluginContext }>;
 }
 
 // A plugin that opens into a routable application page
@@ -60,10 +64,4 @@ export interface NewTabPlugin extends RemotePlugin {
 export interface MapInfoCardPlugin extends RemotePlugin {
   type: PluginType.MAP_INFO_CARD;
   Page: React.ComponentType<{ context: PluginContext }>;
-}
-
-// A loaded map info card, with the route of its plugin's routed page
-export interface MapInfoCardEntry {
-  card: MapInfoCardPlugin;
-  route: string;
 }

@@ -4,7 +4,7 @@ import { useMapInfoCardsHook } from 'hooks/useMapInfoCardsHook';
 import useRemotes from 'hooks/useRemotes';
 import { usePluginContext } from 'hooks/usePluginContext';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
-import { PluginType, type MapInfoCardEntry, type MapInfoCardPlugin } from '../../src/types/plugins';
+import { PluginType, type RemotePlugin } from '../../src/types/plugins';
 import type { MapSelection } from '../../src/contexts/AvailabilityMapContext';
 
 jest.mock('react-router', () => ({ useNavigate: jest.fn() }));
@@ -17,8 +17,15 @@ const useDataFilterQueryMock = useDataFilterQuery as jest.Mock;
 const navigate = jest.fn();
 
 const Page = () => null;
-const card: MapInfoCardPlugin = { pluginId: 'soilhive-dashboards-page', name: 'Dashboards', type: PluginType.MAP_INFO_CARD, Page };
-const entry: MapInfoCardEntry = { card, route: 'dashboards' };
+const plugin: RemotePlugin = {
+  pluginId: 'soilhive-dashboards-page',
+  name: 'Dashboards',
+  type: PluginType.SINGLE_PAGE,
+  hasMenuItem: true,
+  route: 'dashboards',
+  Page: () => null,
+  MapInfoCard: Page,
+};
 const baseContext = { metadataUrl: jest.fn() };
 
 const polygon = {
@@ -43,7 +50,7 @@ describe('useMapInfoCardsHook', () => {
     jest.clearAllMocks();
     (useNavigate as jest.Mock).mockReturnValue(navigate);
     (usePluginContext as jest.Mock).mockReturnValue(baseContext);
-    useRemotesMock.mockReturnValue({ mapInfoCards: [entry] });
+    useRemotesMock.mockReturnValue({ plugins: [plugin] });
     useDataFilterQueryMock.mockReturnValue({ filterId: 'filter-1' });
   });
 
@@ -87,8 +94,23 @@ describe('useMapInfoCardsHook', () => {
     warn.mockRestore();
   });
 
+  it('gives no card to a plugin without a MapInfoCard or without a routed page', () => {
+    const newTab: RemotePlugin = {
+      pluginId: 'tab',
+      name: 'Tab',
+      type: PluginType.NEW_TAB,
+      targetUrl: 'https://example.com',
+      MapInfoCard: Page,
+    };
+    useRemotesMock.mockReturnValue({ plugins: [{ ...plugin, MapInfoCard: undefined }, newTab] });
+
+    const { result } = renderHook(() => useMapInfoCardsHook(selection));
+
+    expect(result.current.cards).toEqual([]);
+  });
+
   it('does not save a filter when there are no cards', () => {
-    useRemotesMock.mockReturnValue({ mapInfoCards: [] });
+    useRemotesMock.mockReturnValue({ plugins: [] });
 
     const { result } = renderHook(() => useMapInfoCardsHook(selection));
 

@@ -54,7 +54,7 @@ const fetchCall = (index = 0) => {
 
 const wrapperWith = (plugins: RemotePlugin[]) =>
   function RemotesWrapper({ children }: { children: React.ReactNode }) {
-    return <RemotesContext.Provider value={{ plugins, mapInfoCards: [], isLoadingRemotes: false }}>{children}</RemotesContext.Provider>;
+    return <RemotesContext.Provider value={{ plugins, isLoadingRemotes: false }}>{children}</RemotesContext.Provider>;
   };
 
 const renderApi = (options?: PluginApiClientOptions, plugins = [remote('zones', REMOTE_URL)]) =>
