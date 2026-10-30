@@ -46,7 +46,8 @@ export default class JobService {
       data.type === JobQueues.BULK_LOAD ||
       data.type === JobQueues.RASTER_LOAD ||
       data.type === JobQueues.FILE_TO_DB ||
-      data.type === JobQueues.BULK_DELETE
+      data.type === JobQueues.BULK_DELETE ||
+      data.type === JobQueues.RASTER_FILTER_INSTALL
     ) {
       if (!sub) {
         throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);

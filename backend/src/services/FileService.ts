@@ -9,11 +9,12 @@ import { FileStorage } from '@flystorage/file-storage';
 import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
-import { GdalCLI, OgrInfoLayer, GdalInfoOutput } from '../utils/GdalCLI';
+import { GdalCLI, OgrInfoLayer, GdalInfoOutput, GdalInfoBand } from '../utils/GdalCLI';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath } from '../interfaces/File';
 import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
+import { categoryLabels } from '../utils/raster';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
@@ -31,6 +32,7 @@ import { log } from '../utils/logger';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import RasterFilterEntity from '../entities/RasterFilter';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
@@ -235,6 +237,14 @@ export default class FileService {
 
   deleteFile = async (requestData: RequestData, slug: string): Promise<void> => {
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+    // The install deletes it once done, and a failed one keeps it for a retry (docs/adr/0066)
+    const rasterFilter = await requestData.entityManager.getRepository(RasterFilterEntity).findOneBy({ file_id: file.id });
+    if (rasterFilter) {
+      throw new ErrorResponse(
+        `File '${slug}' is the source of raster filter '${rasterFilter.id}': delete the raster filter instead`,
+        StatusCodes.CONFLICT,
+      );
+    }
     await requestData.entityManager.getRepository(FileEntity).softRemove(file);
     // Raster filter queries join on files (f.deleted_at IS NULL); see docs/adr/0008.
     await bumpCacheEpoch();
@@ -624,6 +634,7 @@ export default class FileService {
         ...(band.max !== undefined && { max_value: band.max }),
         ...(band.noDataValue !== undefined && { no_data_value: band.noDataValue }),
         ...(band.overviews !== undefined && { overviews: band.overviews.map(ov => ov.size) }),
+        ...withCategoryLabels(band, gdalInfo),
       }));
 
       const wkt = gdalInfo.coordinateSystem?.wkt;
@@ -901,3 +912,10 @@ export default class FileService {
     return parseInt(result[0].count, 10);
   }
 }
+
+// Shown on the upload so an admin can tell which band a Raster Filter's labels are in. The install
+// reads them again itself, since the File it consumes may predate this.
+const withCategoryLabels = (band: GdalInfoBand, info: GdalInfoOutput): { category_labels?: Record<string, string> } => {
+  const labels = categoryLabels(band, info);
+  return labels ? { category_labels: labels } : {};
+};

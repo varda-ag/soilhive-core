@@ -97,7 +97,7 @@ const rasterCategories: PluginRasterFilterCategory[] = [
     description: 'Mock raster category',
     enabled: true,
     active: false,
-    mappings: { Artic: 1 },
+    mappings: { '1': 'Artic' },
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     deleted_at: null,

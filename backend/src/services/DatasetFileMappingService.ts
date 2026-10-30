@@ -9,6 +9,7 @@ import DataMappingEntity from '../entities/DataMapping';
 import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../entities/File';
+import RasterFilterEntity from '../entities/RasterFilter';
 import { log } from '../utils/logger';
 
 /**
@@ -113,7 +114,7 @@ export default class DatasetFileMappingService {
     };
 
     if (payload.fileID !== undefined) {
-      const file = await getEntity(requestData, FileEntity, EntityType.FILE, payload.fileID);
+      const file = await this.getMappableFile(requestData, payload.fileID);
       values.file_id = file.id;
     }
 
@@ -155,7 +156,7 @@ export default class DatasetFileMappingService {
     };
 
     if (payload.fileID !== undefined) {
-      const file = await getEntity(requestData, FileEntity, EntityType.FILE, payload.fileID);
+      const file = await this.getMappableFile(requestData, payload.fileID);
       updateValues.file_id = file.id;
     }
 
@@ -176,6 +177,22 @@ export default class DatasetFileMappingService {
 
     const row = result.raw[0] as DatasetFileMappingEntity;
     return repo.create(row);
+  };
+
+  /**
+   * The File a mapping points at. A Raster Filter's source is refused: its installation deletes it
+   * (docs/adr/0066).
+   */
+  private getMappableFile = async (requestData: RequestData, slug: string): Promise<FileEntity> => {
+    const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+    const rasterFilter = await requestData.entityManager.getRepository(RasterFilterEntity).findOneBy({ file_id: file.id });
+    if (rasterFilter) {
+      throw new ErrorResponse(
+        `File '${slug}' is the source of raster filter '${rasterFilter.id}', whose installation deletes it`,
+        StatusCodes.CONFLICT,
+      );
+    }
+    return file;
   };
 
   /**

@@ -1,10 +1,8 @@
-import fs from 'fs';
 import { InvalidArgumentError, program } from 'commander';
 import { getDataSource, isDBAvailable } from './data-source';
-import { replaceExtension, sleep } from './utils';
+import { sleep } from './utils';
 import { addSyntheticData, syntheticDataOptions } from '../utils/mock';
 import { randomInt } from 'crypto';
-import { dbRestore } from './db-restore';
 import { log } from './logger';
 import { refreshDaiStats } from '../data-layer/DaiStats';
 import { bumpCacheEpoch } from './cache-epoch';
@@ -16,7 +14,6 @@ export const setupCLI = async () => {
     .allowExcessArguments(true)
     .option('--create-data <number>', 'Create synthetic data given feature count', validInt)
     .option('--bbox <minx,miny,maxx,maxy>', 'Synthetic data bounds')
-    .option('--load-raster-filter <file.dump>', 'Load raster filter')
     .option('--refresh-dai-stats', 'Fully rebuild the precomputed DAI stats (feature_dai_stats)')
     .option('--sync-vocabularies', 'Upsert licenses and unit_conversions from backend/docs/data-model/*.csv')
     .option('--dry-run', 'With --sync-vocabularies, report counts without writing to the DB')
@@ -31,16 +28,6 @@ export const setupCLI = async () => {
     const spatial_extent = options['bbox'].split(',').map(Number);
     await createSyntheticData(options['createData'], spatial_extent);
     process.exit();
-  }
-  if (options['loadRasterFilter']) {
-    log.info('Loading raster filter:', options);
-    try {
-      await loadRasterFilter(options['loadRasterFilter']);
-    } catch (e) {
-      log.error(`Load raster filter error: ${e}`);
-    } finally {
-      process.exit();
-    }
   }
   if (options['refreshDaiStats']) {
     log.info('Rebuilding DAI stats');
@@ -115,15 +102,4 @@ async function refreshAllDaiStats() {
   });
   // Cached /dai responses on all nodes were computed from the old rollup
   await bumpCacheEpoch();
-}
-
-async function loadRasterFilter(file: string) {
-  if (!fs.existsSync(file)) {
-    throw new Error(`File ${file} not found`);
-  }
-  const mappings = replaceExtension(file, 'mappings');
-  if (!fs.existsSync(mappings)) {
-    throw new Error(`File ${mappings} not found`);
-  }
-  await dbRestore(file, mappings);
 }

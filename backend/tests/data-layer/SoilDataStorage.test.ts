@@ -788,6 +788,50 @@ describe('SoilDataStorage class', () => {
       },
     );
 
+    // Postgres truncates names past 63 characters, so CTEs named after these tables (clipped_<id>) collided
+    it('filters by two raster filters whose long ids share their first 55 characters', async () => {
+      const entityManager = await getEntityManager();
+      const ids = ['v1', 'v2'].map(version => `copernicus_global_land_cover_100m_collection3_discrete_${version}`);
+      try {
+        for (const id of ids) {
+          await entityManager.query(`CREATE TABLE "${id}" (LIKE land_cover INCLUDING ALL)`);
+          await entityManager.query(`INSERT INTO "${id}" SELECT * FROM land_cover`);
+          await entityManager.query(
+            `INSERT INTO raster_filters (id, name, description, mappings, active)
+             SELECT $1, name, description, mappings, true FROM raster_filters WHERE id = 'land_cover'`,
+            [id],
+          );
+        }
+        resetEnabledRasterFilterTablesCache();
+        await addSyntheticData({
+          ...syntheticDataOptions,
+          depthLayers: 1,
+          featureCoordinates: [[-80.7811, -33.7413]],
+          spatial_extent: [-81, -34, -80, -33],
+        });
+        const bboxQuery = getPolygonFromBbox([-80.7812, -33.7414, -80.781, -33.7412]);
+        const filter = await makeFilter(entityManager, bboxQuery, { raster_filters: Object.fromEntries(ids.map(id => [id, [30]])) });
+
+        // buildRasterSql
+        expect(await new SoilDataStorage().filterVector(entityManager, filter)).toHaveLength(1);
+
+        // getVectorMaskCtes: copies of land_cover, so together they mask as land_cover alone does
+        const maskArea = async (maskFilter: typeof filter) => {
+          const ctes = await getVectorMaskCtes(entityManager, maskFilter);
+          const [{ geom }] = await entityManager.query(`WITH ${renderCtes(ctes, '$1')} SELECT ST_AsGeoJSON(geom)::json AS geom FROM aoi`, [
+            maskFilter.geometryIds,
+          ]);
+          return turf.area(geom);
+        };
+        const landCoverOnly = await makeFilter(entityManager, bboxQuery, { raster_filters: { land_cover: [30] } });
+        expect(await maskArea(filter)).toBeCloseTo(await maskArea(landCoverOnly));
+      } finally {
+        for (const id of ids) {
+          await entityManager.query(`DROP TABLE IF EXISTS "${id}"`);
+        }
+      }
+    });
+
     it.each([
       [[-81, -34, -80, -33], 1, [0, 90, 20, 60, 112, 30, 80, 126, 200, 116], [6777]],
       [[-82, -35, -81, -32], 1, [200], []],
@@ -1283,7 +1327,14 @@ describe('getEnabledRasterFilterTables', () => {
 
   it('reads on the pool manager', async () => {
     const tables = await getEnabledRasterFilterTables(await getEntityManager());
-    expect(tables.sort()).toEqual(['land_cover', 'soil_groups']);
+    expect(tables.map(t => t.id).sort()).toEqual(['land_cover', 'soil_groups']);
+  });
+
+  it('carries each filter resolution for the overview choice', async () => {
+    await (await getEntityManager()).query("UPDATE raster_filters SET resolution_m = 928 WHERE id = 'soil_groups'");
+    const tables = await getEnabledRasterFilterTables(await getEntityManager());
+    expect(tables.find(t => t.id === 'soil_groups')).toEqual({ id: 'soil_groups', resolutionM: 928 });
+    expect(tables.find(t => t.id === 'land_cover')).toEqual({ id: 'land_cover', resolutionM: null });
   });
 
   // An uncommitted change is visible only on the transaction's own connection, so this fails if
@@ -1294,7 +1345,7 @@ describe('getEnabledRasterFilterTables', () => {
     await queryRunner.startTransaction();
     try {
       await queryRunner.query("UPDATE raster_filters SET active = false WHERE id = 'land_cover'");
-      expect(await getEnabledRasterFilterTables(queryRunner.manager)).toEqual(['soil_groups']);
+      expect((await getEnabledRasterFilterTables(queryRunner.manager)).map(t => t.id)).toEqual(['soil_groups']);
     } finally {
       await queryRunner.rollbackTransaction();
       await queryRunner.release();

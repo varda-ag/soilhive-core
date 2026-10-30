@@ -40,8 +40,9 @@ export const getDBPassword = async () => {
   return process.env.POSTGRES_PASSWORD ?? getAuthToken();
 };
 
+// Certificate downloaded from: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+export const SSL_ROOT_CERT_PATH = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
+
 export const getSSL = () => {
-  // Certificate downloaded from: https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
-  const bundleFile = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
-  return { ca: readFileSync(bundleFile, 'utf8') };
+  return { ca: readFileSync(SSL_ROOT_CERT_PATH, 'utf8') };
 };
