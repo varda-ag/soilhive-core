@@ -5,6 +5,8 @@ import { JobError } from '../../errors/JobError';
 import { DataFilter } from '../../interfaces/DatasetFilter';
 import { CommonJobData } from '../../interfaces/Job';
 import { log } from '../../utils/logger';
+import { getExportXlsxMaxRecords } from '../../utils/utils';
+import { VectorFileFormat } from './types';
 
 // Stored as `exportLimits` in the theme config (docs/adr/0055). null means not limited.
 export interface ExportLimits {
@@ -86,5 +88,13 @@ export function assertWithinRasterLayerLimit(limits: ExportLimits, layerCount: n
 export function assertWithinObservationLimit(limits: ExportLimits, recordCount: number): void {
   if (limits.maxObservations !== null && recordCount > limits.maxObservations) {
     throw new JobError('EX_OBSERVATION_LIMIT_EXCEEDED', { record_count: count(recordCount), max_records: count(limits.maxObservations) });
+  }
+}
+
+// Not an Export Limit: set by the deployment, for the one format that holds its output in memory (docs/adr/0035).
+export function assertWithinXlsxRecordCap(vectorFormat: VectorFileFormat | null, recordCount: number): void {
+  const maxRecords = getExportXlsxMaxRecords();
+  if (vectorFormat === VectorFileFormat.XLSX && recordCount > maxRecords) {
+    throw new JobError('EX_XLSX_TOO_MANY_RECORDS', { record_count: count(recordCount), max_records: count(maxRecords) });
   }
 }
