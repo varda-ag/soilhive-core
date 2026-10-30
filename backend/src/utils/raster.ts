@@ -276,7 +276,7 @@ const RASTER_FILTER_ID_MAX_LENGTH = 58;
 export const rasterFilterId = (name: string, n = 1): string => {
   const words = name
     .normalize('NFKD')
-    .replace(/[̀-ͯ]/g, '')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_|_$/g, '');
