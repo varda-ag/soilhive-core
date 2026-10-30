@@ -566,7 +566,7 @@ Your plugin can add content, for example a button, to the host map's Area Inform
 
 1. Expose a second module from your `module-federation.config.ts`: `'./mapInfoCard': './src/MyCard.tsx'`.
 2. In that file, export `pluginId` (the same id as your page module), `name`, `type = 'map-info-card'` and `Page`. `Page` receives `{ context: PluginContext }`, as your routed page does.
-3. Ask the operator to set `hasMapInfoCard: true` on your plugin's config row. Without it, the host never loads the module.
+3. That is all: the host tries `./mapInfoCard` for every plugin whose page loaded, so the operator configures nothing. A card that fails to load is dropped without a notification, so check that your card appears.
 
 In the card, `context` has two more fields. Both are `undefined` on your routed page:
 
