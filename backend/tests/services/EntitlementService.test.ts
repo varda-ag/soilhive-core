@@ -1091,26 +1091,35 @@ describe('EntitlementService', () => {
 
   describe('enforceEntitlements', () => {
     beforeEach(async () => {
-      // Make dataset-1 public, dataset-2 and dataset-3 remain private (default)
-      await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-1' }, { visibility: 'public' });
+      // Make dataset-1 public by its current slug, dataset-2 and dataset-3 remain private (default)
+      await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-1-renamed' }, { visibility: 'public' });
     });
 
-    it('should not throw when all requested slugs do not exist', async () => {
+    it('throws 403 when a requested slug is no Dataset at all: it fails closed (docs/adr/0071)', async () => {
       await expect(
         service.enforceEntitlements(requestData, EntitlementScope.DATASETS, ['non-existent'], Capability.DOWNLOAD),
-      ).resolves.toBeUndefined();
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it('requires the grant for an old slug, even of a public Dataset (docs/adr/0071)', async () => {
+      await expect(
+        service.enforceEntitlements(requestData, EntitlementScope.DATASETS, ['dataset-1'], Capability.DOWNLOAD),
+      ).rejects.toMatchObject({ status: 403 });
+
+      const rd = { ...requestData, entitlements: { datasets: { 'dataset-1': [Capability.DOWNLOAD] }, configs: {} } };
+      await expect(service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-1'], Capability.DOWNLOAD)).resolves.toBeUndefined();
     });
 
     it('should not throw when all matching datasets are public', async () => {
       await expect(
-        service.enforceEntitlements(requestData, EntitlementScope.DATASETS, ['dataset-1'], Capability.DOWNLOAD),
+        service.enforceEntitlements(requestData, EntitlementScope.DATASETS, ['dataset-1-renamed'], Capability.DOWNLOAD),
       ).resolves.toBeUndefined();
     });
 
     it('should not throw for a mix of public and private when user has capability for private ones', async () => {
       const rd = { ...requestData, entitlements: { datasets: { 'dataset-2': [Capability.DOWNLOAD] }, configs: {} } };
       await expect(
-        service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-1', 'dataset-2'], Capability.DOWNLOAD),
+        service.enforceEntitlements(rd, EntitlementScope.DATASETS, ['dataset-1-renamed', 'dataset-2'], Capability.DOWNLOAD),
       ).resolves.toBeUndefined();
     });
 
@@ -1228,6 +1237,34 @@ describe('EntitlementService', () => {
       await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-2' }, { status: IngestionStatus.LOADED });
       const rd = { ...requestData, token: { ...mockToken, isDataAdmin: true } };
       await expect(service.enforceDatasetEntitlements(rd, ['dataset-2'], Capability.DOWNLOAD)).resolves.toEqual(['dataset-2']);
+    });
+
+    // 'dataset-1' is dataset-1-renamed's old slug (see the top-level beforeEach), docs/adr/0071.
+    describe('named by an old slug', () => {
+      it('returns the current slug', async () => {
+        const rd = { ...requestData, entitlements: { datasets: { 'dataset-1-renamed': [Capability.PREVIEW] }, configs: {} } };
+        await expect(service.enforceDatasetEntitlements(rd, ['dataset-1'], Capability.PREVIEW)).resolves.toEqual(['dataset-1-renamed']);
+      });
+
+      it('returns a Dataset named by its old and its current slug once, where it was first named', async () => {
+        const grants = { 'dataset-1-renamed': [Capability.PREVIEW], 'dataset-2': [Capability.PREVIEW] };
+        const rd = { ...requestData, entitlements: { datasets: grants, configs: {} } };
+        await expect(
+          service.enforceDatasetEntitlements(rd, ['dataset-1', 'dataset-2', 'dataset-1-renamed'], Capability.PREVIEW),
+        ).resolves.toEqual(['dataset-1-renamed', 'dataset-2']);
+      });
+
+      it('throws 403 on a private Dataset the user may preview but not download', async () => {
+        const rd = { ...requestData, entitlements: { datasets: { 'dataset-1-renamed': [Capability.PREVIEW] }, configs: {} } };
+        await expect(service.enforceDatasetEntitlements(rd, ['dataset-1'], Capability.DOWNLOAD)).rejects.toMatchObject({
+          status: 403,
+        });
+      });
+
+      it('drops an unpublished Dataset instead of throwing 403', async () => {
+        await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-1-renamed' }, { status: IngestionStatus.LOADED });
+        await expect(service.enforceDatasetEntitlements(requestData, ['dataset-1'], Capability.DOWNLOAD)).resolves.toEqual([]);
+      });
     });
   });
 });

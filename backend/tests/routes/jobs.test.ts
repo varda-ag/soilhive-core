@@ -107,6 +107,37 @@ describe('Testing /jobs routes', () => {
     exportSpy.mockRestore();
   });
 
+  it('POST /jobs export checks download on a private Dataset named by an old slug (docs/adr/0071)', async () => {
+    const exportSpy = jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
+    const dataset = await addDataset('old-slug-export-ds', [0, 0, 2, 2]);
+    const entityManager = await getEntityManager();
+    await entityManager.query(`UPDATE datasets SET visibility = 'private', name = 'old-slug-export-ds-renamed' WHERE id = $1`, [
+      dataset.id,
+    ]);
+    const [{ slug: currentSlug }] = await entityManager.query(`SELECT slug FROM datasets WHERE id = $1`, [dataset.id]);
+    expect(currentSlug).not.toBe(dataset.slug);
+    await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2), ($3, $4)`, [
+      'preview-only@example.com',
+      JSON.stringify({ datasets: { [currentSlug]: ['preview'] } }),
+      'downloader@example.com',
+      JSON.stringify({ datasets: { [currentSlug]: ['preview', 'download'] } }),
+    ]);
+    const submit = (email: string) =>
+      request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${getUserToken(`${email}-sub`, email)}`)
+        .send({ type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv'], dataset_ids: [dataset.slug] });
+
+    // The job would read the vector rows under preview alone, so this is the only download check they get
+    const refused = await submit('preview-only@example.com');
+    expect(refused.statusCode).toBe(403);
+    expect(refused.body.detail).toContain('download');
+
+    // The 403 is for the missing grant, not the old slug
+    expect((await submit('downloader@example.com')).statusCode).toBe(201);
+    exportSpy.mockRestore();
+  });
+
   it('POST /jobs creates two jobs, GET endpoints return both', async () => {
     const token = await getDataAdminToken();
 

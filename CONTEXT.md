@@ -334,6 +334,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - On a map, a **Year Window** groups **Scored Geometries** and never merges them across years: a location scored in three years of one window appears three times, once per score
 - On a map zoomed out past where a Run's **Scored Geometries** can be drawn one by one, those of the same year are summarised per grid cell (mean, extremes, count) rather than drawn; the summary never spans two years
 - An **Entitlement** grants one **Capability** over one **Dataset** or config item to one **Subject** (or to `everyone`); a Subject's effective Entitlements are the union of its own and `everyone`'s
+- A **Dataset** named by any slug it has ever held is the same Dataset to every **Entitlement** check and every read of its data: an old slug never needs less than the current one, and reaches no less
 - Every caller is either a person or a **Machine caller**, and the kind decides which claim supplies its **Subject**; the kind is independent of whether the caller is **Privileged**, and a caller of unknown kind is treated as a person
 - A non-admin **Subject** may self-claim `write` on a plugin-owned config item's own Entitlements the first time it is accessed, granting only itself; every other Entitlement write requires an existing `write` grant or a **Privileged caller** (see ADR 0035)
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
