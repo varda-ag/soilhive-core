@@ -41,7 +41,8 @@ export interface RemotePlugin {
   Page?: React.ComponentType<any>;
   // Set by a page module whose remote also exposes './mapInfoCard' (ADR 0066)
   hasMapInfoCard?: boolean;
-  // The Page of that './mapInfoCard' module, attached by loadRemotes, never from the module
+  // The Page of that './mapInfoCard' module, attached by loadRemotes, never from the module.
+  // Missing on a plugin that sets hasMapInfoCard when its card did not load.
   MapInfoCard?: React.ComponentType<{ context: PluginContext }>;
 }
 

@@ -148,7 +148,6 @@ describe('loadRemotes', () => {
     expect(result).toEqual({
       loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: okUrl }],
       failed: [badUrl],
-      failedCards: [],
     });
   });
 
@@ -202,7 +201,7 @@ describe('loadRemotes', () => {
     const result = await loadRemotes([toConfig(url)]);
 
     expect(loadRemote).not.toHaveBeenCalledWith(`${url}/mapInfoCard`);
-    expect(result).toEqual({ loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: url }], failed: [], failedCards: [] });
+    expect(result).toEqual({ loaded: [{ ...singlePage, requiresAuth: false, remoteUrl: url }], failed: [] });
   });
 
   it('attaches the declared map info card to its own plugin', async () => {
@@ -217,11 +216,10 @@ describe('loadRemotes', () => {
     expect(result).toEqual({
       loaded: [{ ...flaggedPage, requiresAuth: false, remoteUrl: url, MapInfoCard: CardPage }],
       failed: [],
-      failedCards: [],
     });
   });
 
-  it('keeps the page without a card and reports the card when a declared card fails to load', async () => {
+  it('keeps the page without a card when a declared card fails to load', async () => {
     const url = 'https://remote.example/mf-manifest.json';
     loadRemote.mockImplementation((id: string) =>
       id === `${url}/mapInfoCard` ? Promise.reject(new Error('no such expose')) : Promise.resolve(flaggedPage),
@@ -229,19 +227,19 @@ describe('loadRemotes', () => {
 
     const result = await loadRemotes([toConfig(url)]);
 
-    expect(result).toEqual({ loaded: [{ ...flaggedPage, requiresAuth: false, remoteUrl: url }], failed: [], failedCards: [url] });
+    expect(result).toEqual({ loaded: [{ ...flaggedPage, requiresAuth: false, remoteUrl: url }], failed: [] });
   });
 
   it.each<[string, RemotePlugin]>([
     ['is of another type', singlePage],
     ['has no Page', { ...mapInfoCard, Page: undefined }],
-  ])('reports a declared card module that %s and keeps the page without it', async (_label, module) => {
+  ])('keeps the page without a declared card module that %s', async (_label, module) => {
     const url = 'https://remote.example/mf-manifest.json';
     loadRemote.mockImplementation((id: string) => Promise.resolve(id === `${url}/mapInfoCard` ? module : flaggedPage));
 
     const result = await loadRemotes([toConfig(url)]);
 
-    expect(result).toEqual({ loaded: [{ ...flaggedPage, requiresAuth: false, remoteUrl: url }], failed: [], failedCards: [url] });
+    expect(result).toEqual({ loaded: [{ ...flaggedPage, requiresAuth: false, remoteUrl: url }], failed: [] });
   });
 
   it('treats a card the fallback plugin served as failed, without leaking its id into later loads', async () => {
@@ -256,14 +254,31 @@ describe('loadRemotes', () => {
 
     const missing = await loadRemotes([toConfig(url)]);
 
-    expect(missing).toEqual({ loaded: [{ ...flaggedPage, requiresAuth: false, remoteUrl: url }], failed: [], failedCards: [url] });
+    expect(missing).toEqual({ loaded: [{ ...flaggedPage, requiresAuth: false, remoteUrl: url }], failed: [] });
 
     loadRemote.mockImplementation((id: string) => Promise.resolve(id === cardId ? mapInfoCard : flaggedPage));
 
     const later = await loadRemotes([toConfig(url)]);
 
     expect(later.loaded[0].MapInfoCard).toBe(Page);
-    expect(later.failedCards).toEqual([]);
+  });
+
+  it('starts the card of a remote as soon as its own page is in, without waiting for a slower remote', async () => {
+    const slowUrl = 'https://slow.example/mf-manifest.json';
+    const fastUrl = 'https://fast.example/mf-manifest.json';
+    let resolveSlow: (module: RemotePlugin) => void = () => {};
+    loadRemote.mockImplementation((id: string) => {
+      if (id === slowUrl) return new Promise(resolve => (resolveSlow = resolve));
+      return Promise.resolve(id === `${fastUrl}/mapInfoCard` ? mapInfoCard : flaggedPage);
+    });
+
+    const pending = loadRemotes([toConfig(slowUrl), toConfig(fastUrl)]);
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(loadRemote).toHaveBeenCalledWith(`${fastUrl}/mapInfoCard`);
+    resolveSlow(singlePage);
+    const result = await pending;
+    expect(result.loaded.map(plugin => plugin.MapInfoCard)).toEqual([undefined, Page]);
   });
 
   it('does not attempt the map info card of a remote whose page failed to load', async () => {
@@ -273,7 +288,7 @@ describe('loadRemotes', () => {
     const result = await loadRemotes([toConfig(url)]);
 
     expect(loadRemote).not.toHaveBeenCalledWith(`${url}/mapInfoCard`);
-    expect(result).toEqual({ loaded: [], failed: [url], failedCards: [] });
+    expect(result).toEqual({ loaded: [], failed: [url] });
   });
 
   it('ignores disabled remotes entirely', async () => {
@@ -282,7 +297,7 @@ describe('loadRemotes', () => {
 
     const result = await loadRemotes([{ ...toConfig(disabledUrl), enabled: false }]);
 
-    expect(result).toEqual({ loaded: [], failed: [], failedCards: [] });
+    expect(result).toEqual({ loaded: [], failed: [] });
     expect(loadRemote).not.toHaveBeenCalled();
   });
 });

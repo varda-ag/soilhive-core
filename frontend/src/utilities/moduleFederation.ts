@@ -229,16 +229,15 @@ async function loadRemoteModule(id: string): Promise<RemotePlugin | null> {
  * successfully and the urls of the ones that didn't. A page module that sets
  * hasMapInfoCard declares a './mapInfoCard' expose: its Page is attached to the
  * plugin as MapInfoCard. A declared card that fails to load, or is not a
- * map-info-card module with a Page, leaves the plugin without a card and its url
- * in failedCards.
+ * map-info-card module with a Page, leaves the plugin without a MapInfoCard.
  *
  * This was previously done at module-init time via top-level await; it now runs
  * on demand so the remotes config can be fetched from the configuration service
  * at runtime (see RemotesProvider).
  */
-async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[]; failed: string[]; failedCards: string[] }> {
+async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[]; failed: string[] }> {
   const enabled = configs.filter(remote => remote.enabled);
-  if (enabled.length === 0) return { loaded: [], failed: [], failedCards: [] };
+  if (enabled.length === 0) return { loaded: [], failed: [] };
 
   mf.registerRemotes(enabled.map(({ url: name, url: entry }) => ({ name, entry })));
 
@@ -247,15 +246,16 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
   // processError → warn() → logger.warn → console.warn) before rethrowing them.
   // The fallbackPlugin above ensures a silent <div /> is used instead.
   muteConsole();
-  let remoteModules: (RemotePlugin | null)[];
-  let cardModules: (RemotePlugin | null)[];
+  let remoteModules: (readonly [RemotePlugin | null, RemotePlugin | null])[];
   try {
-    remoteModules = await Promise.all(enabled.map(remote => loadRemoteModule(remote.url)));
+    // Each card starts as soon as its own page module is in, not after every remote's.
     // MF resolves `${url}/mapInfoCard` to the remote registered under url, by string prefix.
-    cardModules = await Promise.all(
-      enabled.map((remote, index) =>
-        remoteModules[index]?.hasMapInfoCard ? loadRemoteModule(`${remote.url}/${MAP_INFO_CARD_EXPOSE}`) : null,
-      ),
+    remoteModules = await Promise.all(
+      enabled.map(async ({ url }) => {
+        const module = await loadRemoteModule(url);
+        const card = module?.hasMapInfoCard ? await loadRemoteModule(`${url}/${MAP_INFO_CARD_EXPOSE}`) : null;
+        return [module, card] as const;
+      }),
     );
   } finally {
     unmuteConsole();
@@ -263,15 +263,12 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
 
   const loaded: RemotePlugin[] = [];
   const failed: string[] = [];
-  const failedCards: string[] = [];
-  remoteModules.forEach((module, index) => {
+  remoteModules.forEach(([module, card], index) => {
     const { url } = enabled[index];
     if (!module) {
       failed.push(url);
       return;
     }
-    const card = cardModules[index];
-    if (module.hasMapInfoCard && !isMapInfoCardModule(card)) failedCards.push(url);
     // Copied rather than mutated: a loaded module is an ES module namespace,
     // which is not extensible. Any truthy value gates, so a malformed flag
     // fails closed. remoteUrl and MapInfoCard come last so a module can't supply its own.
@@ -283,7 +280,7 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
     });
   });
 
-  return { loaded, failed, failedCards };
+  return { loaded, failed };
 }
 
 export { mf, loadRemotes, store };

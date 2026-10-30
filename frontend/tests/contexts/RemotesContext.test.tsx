@@ -73,7 +73,7 @@ describe('RemotesProvider', () => {
   });
 
   it('keeps the first plugin loaded for a pluginId and reports every later duplicate', async () => {
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, pluginB], failed: [], failedCards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, pluginB], failed: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -90,7 +90,7 @@ describe('RemotesProvider', () => {
   });
 
   it('does not notify when every loaded plugin has a distinct pluginId', async () => {
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, { ...pluginB, pluginId: 'not-a-dup' }], failed: [], failedCards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, { ...pluginB, pluginId: 'not-a-dup' }], failed: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -105,7 +105,7 @@ describe('RemotesProvider', () => {
 
   it('excludes a plugin missing a required field and reports it via notification', async () => {
     const malformed: RemotePlugin = { ...pluginB, pluginId: 'not-a-dup', route: undefined as unknown as string };
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, malformed], failed: [], failedCards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA, malformed], failed: [] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -123,7 +123,7 @@ describe('RemotesProvider', () => {
 
   it('notifies about a remote that failed to load without treating it as an invalid plugin', async () => {
     const failedUrl = 'https://bad-remote.example/mf-manifest.json';
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [failedUrl], failedCards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [failedUrl] });
 
     const { findByTestId } = render(
       <RemotesProvider>
@@ -148,7 +148,6 @@ describe('RemotesProvider', () => {
         { ...pluginB, pluginId: 'open' },
       ],
       failed: [],
-      failedCards: [],
     });
 
     const { findByTestId } = render(
@@ -177,7 +176,6 @@ describe('RemotesProvider', () => {
         { ...pluginA, requiresAuth: true },
       ],
       failed: [],
-      failedCards: [],
     });
 
     const { findByTestId } = render(
@@ -196,7 +194,6 @@ describe('RemotesProvider', () => {
         { ...pluginB, pluginId: 'open' },
       ],
       failed: [],
-      failedCards: [],
     });
 
     const { findByTestId } = render(
@@ -211,7 +208,7 @@ describe('RemotesProvider', () => {
   it('finishes loading under Strict Mode when the theme config is already cached', async () => {
     // The theme is loaded on the very first render, as after a password login remounts the app,
     // so the load starts inside Strict Mode's simulated mount/unmount/mount cycle.
-    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [], failedCards: [] });
+    loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [] });
 
     const { findByTestId } = render(
       <StrictMode>
@@ -235,7 +232,7 @@ describe('RemotesProvider', () => {
 
     it('reports a declared card that failed to load', async () => {
       const url = 'https://remote.example/mf-manifest.json';
-      loadRemotesMock.mockResolvedValue({ loaded: [pluginA], failed: [], failedCards: [url] });
+      loadRemotesMock.mockResolvedValue({ loaded: [{ ...pluginA, hasMapInfoCard: true, remoteUrl: url }], failed: [] });
 
       const { findByTestId } = renderCards();
 
@@ -246,11 +243,28 @@ describe('RemotesProvider', () => {
       );
     });
 
+    const failedCard = { hasMapInfoCard: true, remoteUrl: 'https://remote.example/mf-manifest.json' };
+
+    it.each<[string, RemotePlugin[], string]>([
+      ['is missing a required field', [{ ...pluginA, ...failedCard, route: undefined as unknown as string }], 'oidc'],
+      ['lost the dedup', [pluginA, { ...pluginB, ...failedCard }], 'oidc'],
+      ['needs a signed-in user on a deployment with no sign-in', [{ ...pluginA, ...failedCard, requiresAuth: true }], 'none'],
+    ])('does not report the failed card of a plugin that %s, since it has no page either', async (_label, loaded, authMode) => {
+      useAuthContextMock.mockReturnValue({ authMode });
+      loadRemotesMock.mockResolvedValue({ loaded, failed: [] });
+
+      const { findByTestId } = renderCards();
+
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
+      expect(showNotification).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.stringContaining('remote-card-load-failed-') }),
+      );
+    });
+
     it('drops the card of a duplicate plugin with its page', async () => {
       loadRemotesMock.mockResolvedValue({
         loaded: [pluginA, { ...pluginB, MapInfoCard: CardPage }],
         failed: [],
-        failedCards: [],
       });
 
       const { findByTestId } = renderCards();
@@ -264,7 +278,6 @@ describe('RemotesProvider', () => {
       loadRemotesMock.mockResolvedValue({
         loaded: [{ ...pluginA, requiresAuth: true, MapInfoCard: CardPage }],
         failed: [],
-        failedCards: [],
       });
 
       const { findByTestId } = renderCards();
@@ -273,7 +286,7 @@ describe('RemotesProvider', () => {
     });
 
     it('keeps a card with its plugin', async () => {
-      loadRemotesMock.mockResolvedValue({ loaded: [{ ...pluginA, MapInfoCard: CardPage }], failed: [], failedCards: [] });
+      loadRemotesMock.mockResolvedValue({ loaded: [{ ...pluginA, MapInfoCard: CardPage }], failed: [] });
 
       const { findByTestId } = renderCards();
 

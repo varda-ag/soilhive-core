@@ -43,7 +43,7 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
 
     const load = async () => {
       try {
-        const { loaded, failed, failedCards } = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
+        const { loaded, failed } = await loadRemotes(themeConfig.plugins ?? EMPTY_REMOTES);
 
         // Report remotes that couldn't be loaded at all (e.g. unreachable
         // server/url) separately from the missing-fields notification below:
@@ -53,16 +53,6 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
             id: `remote-load-failed-${url}`,
             title: t('plugins.load_failed.title'),
             message: t('plugins.load_failed.message', { url }),
-            type: 'error',
-          });
-        });
-
-        // A declared map card that did not load: the plugin is kept, without its card.
-        failedCards.forEach(url => {
-          showNotification({
-            id: `remote-card-load-failed-${url}`,
-            title: t('plugins.card_load_failed.title'),
-            message: t('plugins.card_load_failed.message', { url }),
             type: 'error',
           });
         });
@@ -104,6 +94,18 @@ export const RemotesProvider: React.FC<RemotesProviderProps> = ({ children }) =>
         // new-tab plugin is kept: its page is not the host's to gate.
         // authMode is fixed for the page's lifetime, so this never changes.
         const available = authMode === AuthModes.NONE ? unique.filter(plugin => !plugin.requiresAuth || isNewTabModule(plugin)) : unique;
+        // A declared map card that did not load. Checked only on the plugins kept above, since the
+        // notification says the page still works.
+        available
+          .filter(plugin => plugin.hasMapInfoCard && !plugin.MapInfoCard)
+          .forEach(({ remoteUrl }) => {
+            showNotification({
+              id: `remote-card-load-failed-${remoteUrl}`,
+              title: t('plugins.card_load_failed.title'),
+              message: t('plugins.card_load_failed.message', { url: remoteUrl }),
+              type: 'error',
+            });
+          });
         setPlugins(available);
       } finally {
         setIsLoadingModules(false);
