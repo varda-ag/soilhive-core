@@ -27,7 +27,9 @@ export function useMapInfoCardsHook(selection: MapSelection): { cards: MapInfoCa
   const navigate = useNavigate();
 
   const filter = useMemo(() => ({ geometries: selectionGeometries(selection), parameters: {} }), [selection]);
-  const { filterId } = useDataFilterQuery(filter, mapInfoCards.length > 0 && filter.geometries.length > 0);
+  // isLoading covers the debounce too, during which filterId still belongs to the previous selection
+  const { filterId, isLoading: isSavingFilter } = useDataFilterQuery(filter, mapInfoCards.length > 0 && filter.geometries.length > 0);
+  const mapSelectionFilterId = isSavingFilter ? undefined : filterId;
 
   const cards = useMemo(
     () =>
@@ -36,7 +38,7 @@ export function useMapInfoCardsHook(selection: MapSelection): { cards: MapInfoCa
         Page: card.Page,
         context: {
           ...pluginContext,
-          mapSelectionFilterId: filterId,
+          mapSelectionFilterId,
           navigateToOwnPage: (subPath?: string) => {
             const path = resolveOwnPagePath(route, subPath);
             if (path) {
@@ -47,7 +49,7 @@ export function useMapInfoCardsHook(selection: MapSelection): { cards: MapInfoCa
           },
         },
       })),
-    [mapInfoCards, pluginContext, filterId, navigate],
+    [mapInfoCards, pluginContext, mapSelectionFilterId, navigate],
   );
 
   return { cards };

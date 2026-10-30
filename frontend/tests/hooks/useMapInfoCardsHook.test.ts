@@ -60,6 +60,14 @@ describe('useMapInfoCardsHook', () => {
     expect(useDataFilterQueryMock).toHaveBeenCalledWith({ geometries: [polygon], parameters: {} }, true);
   });
 
+  it("hides the filter id while the selection's filter is saving, since it is still the previous selection's", () => {
+    useDataFilterQueryMock.mockReturnValue({ filterId: 'previous-filter', isLoading: true });
+
+    const { result } = renderHook(() => useMapInfoCardsHook(selection));
+
+    expect(result.current.cards[0].context.mapSelectionFilterId).toBeUndefined();
+  });
+
   it('navigates to a path under the plugin route', () => {
     const { result } = renderHook(() => useMapInfoCardsHook(selection));
 
