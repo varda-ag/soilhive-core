@@ -94,13 +94,13 @@ The filters below are third-party data, not covered by SoilHive's licence. Befor
 
 | Filter | Source | Licence |
 | ------ | ------ | ------- |
-| Agroecological zones v4 | FAO & IIASA, GAEZ v4 (2021) | None published for the data. FAO's terms allow private study, research and teaching; other uses need FAO's permission. |
+| Agroecological zones v4 | FAO & IIASA, GAEZ v4 (2021) | CC BY-SA 4.0 |
 | Agroecological zones v5 | FAO & IIASA, GAEZ v5 (2025) | CC BY 4.0 |
 | Land Cover 2019 | Copernicus Global Land Service, LC100 collection 3 (2020) | CC BY 4.0 |
 | Land Cover 2024 | Impact Observatory, Microsoft and Esri, 10m Annual LULC (2025) | CC BY 4.0 |
 | Soil Groups | FAO & IIASA, HWSD v2.0 (2023) | CC BY 4.0 in FAO's data catalogue, CC BY-NC-SA 3.0 in the v2.0 report |
 
-CC BY 4.0 allows any use, commercial included, as long as the source is credited. This summary reflects what the sources published in October 2026. It is not legal advice: licences change, so check each source's current terms. For permission to use FAO data, write to copyright@fao.org.
+CC BY 4.0 allows any use, commercial included, as long as the source is credited. CC BY-SA 4.0 also requires that material you adapt from the data and share, such as a modified raster, carries the same licence. This summary reflects what the sources published in October 2026. It is not legal advice: licences change, so check each source's current terms. For permission to use FAO data, write to copyright@fao.org.
 
 ## Available filters
 
@@ -109,14 +109,10 @@ GeoTIFF packages are being published and their download links are listed here as
 ### Agroecological zones v4
 
 - **Package**: https://static.soilhive.ag/map-based-filters/agroecological_zones_v4.tif (49 MB). 30 arc-seconds (about 1 km), EPSG:4326, nodata 0.
-- **Source**: FAO & IIASA, [Global Agro-Ecological Zones v4](https://www.fao.org/gaez/gaezv4/en), the 33-class agro-ecological zones. Data from the [GAEZ v4 data portal](https://gaez-v4-data.fao.org/data/).
-- **Licence**: no licence is published for GAEZ v4 data.
-  - FAO's [terms of use](https://www.fao.org/contact-us/terms/en/) allow private study, research and teaching, with acknowledgement of FAO as the source and copyright holder.
-  - Any other use, commercial use included, needs FAO's permission ([licence request form](https://www.fao.org/contact-us/licence-request/en/)).
-  - The GAEZ v4 model documentation is CC BY-NC-SA 3.0 IGO.
-  - For other uses, prefer v5.
-- **Attribution**: Source: © FAO, 2021. Global Agro-Ecological Zones v4 (FAO & IIASA).
-- **Unlabelled values**: the raster also holds classes 32 and 33, which the labels below leave out. Label them from the GAEZ v4 legend if your users need them.
+- **Source**: FAO & IIASA, [Global Agro-Ecological Zones v4](https://www.fao.org/gaez/gaezv4/en), the [Simplified AEZ (Global - ~1 km - 33 classes)](https://data.apps.fao.org/catalog/iso/0bb7237a-6740-4ea3-b2a1-e26b1647e4e0) layer. Data from the [GAEZ v4 data portal](https://gaez-v4-data.fao.org/data/).
+- **Licence**: [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), per FAO's data catalogue.
+- **Attribution**: FAO & IIASA. Simplified AEZ (Global - ~1 km - 33 classes), Global Agro-Ecological Zoning version 4 (GAEZ v4), 2021. Licence: CC BY-SA 4.0.
+- **Unlabelled values**: the raster also holds classes 32 and 33, which the labels below leave out. Label them from the legend in the catalogue record if your users need them.
 - <details>
   <summary>Mappings</summary>
 
