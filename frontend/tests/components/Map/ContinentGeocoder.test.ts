@@ -33,7 +33,9 @@ describe('continentLocalGeocoder', () => {
     expect(results).toHaveLength(1);
     expect(results[0].id).toBe('continent.Africa');
     expect(results[0].place_name).toBe('Africa');
-    expect(results[0].properties?.display_name).toBe('Africa'); // needed for locationName in the info card
+    expect(results[0].properties?.display_name).toBe('Africa');
+    // GeocoderControl hands SoilhiveMap original_feature, and SoilhiveMap reads the selection's locationName from there.
+    expect((results[0] as any).original_feature.properties.display_name).toBe('Africa');
     expect(results[0].geometry.type).toBe('Point'); // top-level geometry is always a centroid point
     expect((results[0] as any).original_geometry.type).toBe('MultiPolygon'); // the real continent boundary
   });

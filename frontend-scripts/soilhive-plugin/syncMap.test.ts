@@ -55,6 +55,18 @@ describe('rewriteMapFileImports', () => {
     ).toBe("import Icon from '../_shared/assets/icons/layers-icon.svg?react';\nimport useDevice from '../_shared/hooks/useDevice';");
   });
 
+  it('rewrites a bare assets/data/ alias to a relative Map/_shared/ path, for a file directly in Map/ (e.g. Map/ContinentGeocoder.ts)', () => {
+    expect(rewriteMapFileImports("import continents from 'assets/data/continents.json';")).toBe(
+      "import continents from './_shared/assets/data/continents.json';",
+    );
+  });
+
+  it('rewrites a bare assets/data/ alias with one extra ../ per subfolder level, for a file nested inside Map/', () => {
+    expect(rewriteMapFileImports("import continents from 'assets/data/continents.json';", 1)).toBe(
+      "import continents from '../_shared/assets/data/continents.json';",
+    );
+  });
+
   it('leaves npm package imports untouched', () => {
     const source = "import { Map } from 'react-map-gl/maplibre';";
     expect(rewriteMapFileImports(source)).toBe(source);
@@ -128,6 +140,15 @@ describe('syncMap', () => {
     }
   });
 
+  it('vendors the continent boundaries ContinentGeocoder.ts reads, nested under Map/_shared/assets/data/, and points its import there', () => {
+    syncMap(pluginPath);
+
+    expect(existsSync(join(pluginPath, 'Map', '_shared', 'assets', 'data', 'continents.json'))).toBe(true);
+    const continentGeocoder = readFileSync(join(pluginPath, 'Map', 'ContinentGeocoder.ts'), 'utf-8');
+    expect(continentGeocoder).not.toContain("'assets/data/");
+    expect(continentGeocoder).toContain("'./_shared/assets/data/continents.json'");
+  });
+
   it('rewrites double-relative imports inside a Map/ file that is not nested in a subfolder', () => {
     syncMap(pluginPath);
 
@@ -187,7 +208,7 @@ describe('syncMap', () => {
 });
 
 describe("drift detection: Map/'s actual cross-cutting imports match what syncMap vendors", () => {
-  const KNOWN_ALIAS_PREFIXES = ['assets/', 'hooks/'];
+  const KNOWN_ALIAS_PREFIXES = ['hooks/'];
   const EXCLUDED_SUBFOLDERS = ['AreaInfo', 'UploadPolygonModal', 'MapStyleSwitcher'];
   const VENDORED_ICONS = new Set([
     'arrow-down-icon.svg',
@@ -205,6 +226,7 @@ describe("drift detection: Map/'s actual cross-cutting imports match what syncMa
     'small-search-icon.svg',
     'small-upload-icon.svg',
   ]);
+  const VENDORED_DATA_FILES = new Set(['continents.json']);
   const VENDORED_DOUBLE_RELATIVE_TARGETS = new Set([
     'utilities/geo',
     'utilities/map',
@@ -264,6 +286,19 @@ describe("drift detection: Map/'s actual cross-cutting imports match what syncMa
 
         if (specifier.startsWith('assets/images/')) {
           missing.push(`${file}: unaccounted image import '${specifier}' — syncMap.ts has no image vendoring`);
+          continue;
+        }
+
+        if (specifier.startsWith('assets/data/')) {
+          const dataFile = specifier.replace('assets/data/', '');
+          if (!VENDORED_DATA_FILES.has(dataFile)) {
+            missing.push(`${file}: unaccounted data file '${dataFile}' — add it to MAP_DATA_FILES in syncMap.ts`);
+          }
+          continue;
+        }
+
+        if (specifier.startsWith('assets/')) {
+          missing.push(`${file}: unaccounted asset import '${specifier}' — syncMap.ts only vendors assets/icons/ and assets/data/`);
           continue;
         }
 
