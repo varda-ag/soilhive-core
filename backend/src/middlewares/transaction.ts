@@ -11,6 +11,12 @@ const skipSoilIndexTiles = /^(\/api\/v1)?\/soil-indexes\/[^/]+\/(tiles|scores)(\
 // Key sets and Plugin token mints never read the database (docs/adr/0065)
 const skipTokenRoutes = /^(\/api\/v1)?\/(\.well-known\/|plugins\/[^/]+\/token$)/;
 
+// Multipart uploads stream the file to storage before their first query, and POST /files then probes
+// it with GDAL: minutes for a large file, longer than idle_in_transaction_session_timeout. They run on
+// the pool's default manager instead, so no connection is held meanwhile; createFile opens a short
+// transaction of its own for the insert.
+const skipUploadRoutes = /^(\/api\/v1)?\/(files|frontend\/logo)\/?$/;
+
 export const transactionMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   // Every request gets a disconnect signal, not just endpoints that currently borrow pooled
   // connections (see runCancelableQuery/ADR 0036): it costs one extra `res.on('close', ...)`
@@ -29,6 +35,12 @@ export const transactionMiddleware = async (req: Request, res: Response, next: N
   }
 
   const dataSource = await getDataSource();
+
+  if (req.method === 'POST' && skipUploadRoutes.test(req.path)) {
+    req.customData = req.customData || ({ entityManager: dataSource.manager, signal } as typeof req.customData);
+    return next();
+  }
+
   const queryRunner = dataSource.createQueryRunner();
   await queryRunner.connect();
 

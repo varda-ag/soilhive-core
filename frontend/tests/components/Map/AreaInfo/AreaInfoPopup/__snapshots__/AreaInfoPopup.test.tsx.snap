@@ -3,6 +3,7 @@
 exports[`AreaInfoPopup renders the popup 1`] = `
 <div>
   <div
+    data-anchor="top-left"
     data-latitude="56.78"
     data-longitude="12.34"
     data-testid="popup"

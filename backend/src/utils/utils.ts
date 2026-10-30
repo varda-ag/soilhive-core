@@ -218,6 +218,13 @@ export const getExportXlsxMaxRecords = (): number => {
   return Number(process.env.EXPORT_XLSX_MAX_RECORDS) || 300_000;
 };
 
+/**
+ * How long POST /jobs waits for an Export's limit counts before enqueueing it unchecked. See docs/adr/0070.
+ */
+export const getExportLimitsCheckTimeoutMs = (): number => {
+  return Number(process.env.EXPORT_LIMITS_CHECK_TIMEOUT_MS) || 5000;
+};
+
 export const getJobLocalConcurrency = (): number => {
   return Number(process.env.JOB_LOCAL_CONCURRENCY) || 3;
 };

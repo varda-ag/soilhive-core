@@ -325,6 +325,40 @@ describe('useDownloads', () => {
     expect(addStoredJobId).toHaveBeenCalledWith(jobId, null);
   });
 
+  it('notifies with the refusal and tracks nothing when an Export is refused', async () => {
+    const refusal = 'Your selection contains 1,000 records, more than the 500 allowed per export.';
+    createMutateAsync.mockRejectedValue({ status: 400, message: refusal });
+
+    const { result } = renderHook(() => useDownloads(), { wrapper });
+
+    let id: string | null = 'unset';
+    await act(async () => {
+      id = await result.current.startDownload(PAYLOAD);
+    });
+
+    expect(id).toBeNull();
+    expect(useCreateJobMutation).toHaveBeenCalledWith({ showErrorNotification: false });
+    expect(showNotification).toHaveBeenCalledWith({ id: 'downloads-not-started', title: 'Download not started', message: refusal });
+    expect(addStoredJobId).not.toHaveBeenCalled();
+    expect(result.current.downloads).toEqual([]);
+  });
+
+  it('notifies without a message of its own when the request never reached the backend', async () => {
+    createMutateAsync.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    const { result } = renderHook(() => useDownloads(), { wrapper });
+
+    await act(async () => {
+      await result.current.startDownload(PAYLOAD);
+    });
+
+    expect(showNotification).toHaveBeenCalledWith({
+      id: 'downloads-not-started',
+      title: 'Download not started',
+      message: 'Please try again later',
+    });
+  });
+
   it('deletes the job ID from the storage when a download is cancelled', async () => {
     const jobId = 'job-123';
     createMutateAsync.mockResolvedValue({ id: jobId });

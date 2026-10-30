@@ -21,7 +21,8 @@ export type DownloadsItem = {
 
 type DownloadsContextType = {
   downloads: DownloadsItem[];
-  startDownload: (payload: { filter_id: string; dataset_ids: string[]; formats: string[] }) => void;
+  // Resolves to the Export's id, or null when it was not started
+  startDownload: (payload: { filter_id: string; dataset_ids: string[]; formats: string[] }) => Promise<string | null>;
   cancelDownload: (id: string) => void;
   downloadBundle: (id: string) => Promise<void>;
   removeDownload: (id: string) => void;
@@ -49,7 +50,8 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
   const [isOpened, setIsOpened] = useState(false);
   // Only Exports started in this tab download or toast on their own, so other tabs and reloads never repeat it.
   const startedHereRef = useRef<Set<string>>(new Set());
-  const createJob = useCreateJobMutation();
+  // startDownload words its own notification: the default one would title a refusal "Network error"
+  const createJob = useCreateJobMutation({ showErrorNotification: false });
   const cancelJob = useCancelJobMutation();
   const fetchJob = useFetchJob();
   const { t } = useTranslation('download');
@@ -108,14 +110,26 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
       payload.dataset_ids.forEach(id => {
         public_metadata_urls[id] = metadataUrl(id);
       });
-      const res = await createJob.mutateAsync({
-        ...payload,
-        type: 'export',
-        anonymous: true,
-        public_homepage_url: appBaseUrl(),
-        public_terms_url: appUrl(TERMS_OF_USE_ROUTE),
-        public_metadata_urls,
-      });
+      let res: { id: string };
+      try {
+        res = await createJob.mutateAsync({
+          ...payload,
+          type: 'export',
+          anonymous: true,
+          public_homepage_url: appBaseUrl(),
+          public_terms_url: appUrl(TERMS_OF_USE_ROUTE),
+          public_metadata_urls,
+        });
+      } catch (error) {
+        // An Export over its limits is refused with a message saying which, and what to change
+        const { status, message } = error as { status?: number; message?: string };
+        showNotification({
+          id: 'downloads-not-started',
+          title: t('downloads_status.not_started_title'),
+          message: status && message ? message : t('downloads_status.download_failed_message'),
+        });
+        return null;
+      }
 
       startedHereRef.current.add(res.id);
       setJobsIds(prev => [...prev, res.id]);
@@ -124,7 +138,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
       return res.id;
     },
-    [createJob, userId],
+    [createJob, userId, showNotification, t],
   );
 
   const cancelDownload = useCallback(

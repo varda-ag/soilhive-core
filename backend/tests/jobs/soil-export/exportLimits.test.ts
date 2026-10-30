@@ -4,12 +4,15 @@ import {
   assertWithinAreaLimit,
   assertWithinObservationLimit,
   assertWithinRasterLayerLimit,
+  assertWithinXlsxRecordCap,
   ExportLimits,
   getExportLimits,
   NO_EXPORT_LIMITS,
   parseExportLimits,
 } from '../../../src/jobs/soil-export/exportLimits';
+import { VectorFileFormat } from '../../../src/jobs/soil-export/types';
 import { DataFilter } from '../../../src/interfaces/DatasetFilter';
+import { getExportXlsxMaxRecords } from '../../../src/utils/utils';
 
 const limits = (overrides: Partial<ExportLimits>): ExportLimits => ({ ...NO_EXPORT_LIMITS, ...overrides });
 
@@ -150,5 +153,24 @@ describe('count limits', () => {
 
   it('are independent of each other', () => {
     expect(() => assertWithinObservationLimit(limits({ maxRasterLayers: 1 }), 10_000_000)).not.toThrow();
+  });
+});
+
+describe('assertWithinXlsxRecordCap', () => {
+  it('passes at the cap', () => {
+    expect(() => assertWithinXlsxRecordCap(VectorFileFormat.XLSX, getExportXlsxMaxRecords())).not.toThrow();
+  });
+
+  it('fails an XLSX above the cap, naming both counts', () => {
+    const max = getExportXlsxMaxRecords();
+    expect(thrownBy(() => assertWithinXlsxRecordCap(VectorFileFormat.XLSX, max + 1))).toMatchObject({
+      code: 'EX_XLSX_TOO_MANY_RECORDS',
+      params: { record_count: (max + 1).toLocaleString('en-US'), max_records: max.toLocaleString('en-US') },
+    });
+  });
+
+  it('passes every other format', () => {
+    expect(() => assertWithinXlsxRecordCap(VectorFileFormat.CSV, 10_000_000)).not.toThrow();
+    expect(() => assertWithinXlsxRecordCap(null, 10_000_000)).not.toThrow();
   });
 });

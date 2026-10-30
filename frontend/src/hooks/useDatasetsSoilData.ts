@@ -50,6 +50,8 @@ export function useDatasetsSoilData() {
   const [dataFormatErrors, setDataFormatErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const existingFileIds = useRef<Set<string>>(new Set());
+  // Saved files the user removed: deleted on save, so leaving without saving keeps them
+  const pendingRemovalIds = useRef<Set<string>>(new Set());
   // Tracks the format established by the first uploaded/loaded file.
   // undefined = no files yet; true = raster; false = vector
   const establishedIsRasterRef = useRef<boolean | undefined>(undefined);
@@ -106,12 +108,6 @@ export function useDatasetsSoilData() {
 
   const { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles: handleFilesUpload } = useFileUpload(onFileUploaded);
 
-  // A file needs a CRS: an EPSG code, chosen or detected. Also block while an upload is still in flight.
-  const isContinueEnabled =
-    uploadingFiles.length === 0 &&
-    annotatedFiles.length > 0 &&
-    annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.suppliedCrs || !!f.hasCustomCrs) && !f.error);
-
   const handleFiles = useCallback(
     (files: FileList | File[] | null) => {
       setDataFormatErrors([]);
@@ -161,11 +157,20 @@ export function useDatasetsSoilData() {
     enabled: !!datasetId,
   });
 
+  // A file needs a CRS: an EPSG code, chosen or detected. Also block while an upload is still in flight.
+  // Previous saves too: an empty list is fine to save, but not before the saved files have loaded,
+  // or it would save that empty list and reset the dataset's raster type
+  const isPreviousEnabled =
+    existingFiles !== undefined &&
+    uploadingFiles.length === 0 &&
+    annotatedFiles.every(f => (!!f.crs || !!f.inferredCrs || !!f.suppliedCrs || !!f.hasCustomCrs) && !f.error);
+  const isContinueEnabled = isPreviousEnabled && annotatedFiles.length > 0;
+
   useEffect(() => {
     if (!existingFiles) return;
     existingFileIds.current = new Set(existingFiles.filter(f => f !== null).map(f => f.id)); // keep track of files that already exist in the backend
     const mapped = existingFiles
-      .filter(f => f !== null)
+      .filter(f => f !== null && !pendingRemovalIds.current.has(f.id))
       .map(f => {
         const savedCrs = f.metadata?.epsg ? `EPSG:${f.metadata.epsg}` : undefined;
         const isSupplied = f.metadata?.crs_source === 'supplied';
@@ -191,7 +196,11 @@ export function useDatasetsSoilData() {
 
   const removeFile = useCallback(
     async (id: string) => {
-      await deleteFileAndMapping(id);
+      if (existingFileIds.current.has(id)) {
+        pendingRemovalIds.current.add(id);
+      } else {
+        await deleteFileAndMapping(id);
+      }
       setSoilDataFiles(prev => {
         const wasFirst = prev[0]?.id === id;
         const newFiles = prev.filter(f => f.id !== id);
@@ -207,19 +216,31 @@ export function useDatasetsSoilData() {
   );
 
   const clearAll = useCallback(async () => {
-    const toDeleteIds = soilDataFiles.map(f => f.id).filter(Boolean) as string[];
+    const ids = soilDataFiles.map(f => f.id).filter(Boolean) as string[];
+    const savedIds = ids.filter(id => existingFileIds.current.has(id));
+    const toDeleteIds = ids.filter(id => !existingFileIds.current.has(id));
+    savedIds.forEach(id => pendingRemovalIds.current.add(id));
     const results = await Promise.allSettled(toDeleteIds.map(id => deleteFileAndMapping(id)));
     const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled'); // only remove from UI if successfully deleted from backend to avoid mismatch
-    setSoilDataFiles(prev => prev.filter(f => !deletedIds.includes(f.id)));
+    const removedIds = [...savedIds, ...deletedIds];
+    setSoilDataFiles(prev => prev.filter(f => !removedIds.includes(f.id)));
     setDataFormatErrors([]);
-    if (deletedIds.length >= soilDataFiles.length) {
+    if (removedIds.length >= soilDataFiles.length) {
       establishedIsRasterRef.current = undefined;
       setIsRaster(undefined);
     }
   }, [soilDataFiles, deleteFileAndMapping, setIsRaster]);
 
+  // Resolves false if a removal fails: it stays pending, nothing else is saved, and the next save retries it
   const handleSave = useCallback(async () => {
-    if (!datasetId) return;
+    if (!datasetId) return false;
+    const removals = [...pendingRemovalIds.current];
+    const removalResults = await Promise.allSettled(removals.map(id => deleteFileAndMapping(id)));
+    removals.forEach((id, i) => {
+      if (removalResults[i]!.status === 'fulfilled') pendingRemovalIds.current.delete(id);
+    });
+    if (pendingRemovalIds.current.size > 0) return false;
+
     resetChanges();
     const newFiles = soilDataFiles.filter(f => !existingFileIds.current.has(f.id));
 
@@ -249,7 +270,17 @@ export function useDatasetsSoilData() {
     // renders the correct raster/default variant immediately on navigation instead of showing stale data
     // until its own background refetch resolves.
     queryClient.setQueryData(['dataset', datasetId], updatedDataset);
-  }, [datasetId, soilDataFiles, createFileMapping, request, queryClient, resetChanges, isRaster, updateDataset]);
+    return true;
+  }, [datasetId, deleteFileAndMapping, soilDataFiles, createFileMapping, request, queryClient, resetChanges, isRaster, updateDataset]);
+
+  const saveAndNavigate = async (path: string) => {
+    setIsSaving(true);
+    try {
+      if (await handleSave()) navigate(path);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const datasetName = useMemo(() => {
     return dataset?.name || '';
@@ -263,6 +294,7 @@ export function useDatasetsSoilData() {
     uploadErrors: [...uploadErrors, ...dataFormatErrors],
     uploadProgress,
     crsOptions,
+    isPreviousEnabled,
     isContinueEnabled,
     isLoadingFiles: isLoadingFiles,
     handleFiles,
@@ -270,25 +302,9 @@ export function useDatasetsSoilData() {
     handleCrsSelect,
     removeFile,
     clearAll,
-    handlePrevious: () => navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`),
     isSaving,
-    handleSaveAndContinueLater: async () => {
-      setIsSaving(true);
-      try {
-        await handleSave();
-        navigate(ADMIN_PATHS.DATASETS);
-      } finally {
-        setIsSaving(false);
-      }
-    },
-    handleContinue: async () => {
-      setIsSaving(true);
-      try {
-        await handleSave();
-        navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`);
-      } finally {
-        setIsSaving(false);
-      }
-    },
+    handlePrevious: () => saveAndNavigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`),
+    handleSaveAndContinueLater: () => saveAndNavigate(ADMIN_PATHS.DATASETS),
+    handleContinue: () => saveAndNavigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/mappings`),
   };
 }

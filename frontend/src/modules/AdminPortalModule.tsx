@@ -11,7 +11,7 @@ import {
   NotificationBanner,
   PrivacyPolicy,
 } from '../pages/AdminPortal';
-import { ADMIN_ROOT, ADMIN_ROUTES } from '../configuration/admin';
+import { ADMIN_ROOT, ADMIN_ROUTES, FILTERS_ROUTES } from '../configuration/admin';
 import { ADMIN_PORTAL_DATA_MENU, ADMIN_PORTAL_UI_MENU, useEntitlements } from 'hooks/useEntitlementsHook';
 import { DatasetsGeneralInfoStep } from '../pages/AdminPortal/DatasetsGeneralInfoStep/DatasetsGeneralInfoStep';
 import { DatasetsPublicationStepsLayout } from '../layouts/DatasetsPublicationStepsLayout/DatasetsPublicationStepsLayout';
@@ -22,6 +22,7 @@ import { DatasetsSettingsPage } from '../pages/AdminPortal/DatasetsSettingsPage/
 import { DatasetsEditRedirect } from '../pages/AdminPortal/DatasetsEditRedirect';
 import { IngestionFlowProvider } from '../contexts/IngestionFlowContext';
 import { IngestionFlowGuard } from '../guards/IngestionFlowGuard';
+import { CreateFilter } from 'pages/AdminPortal/CreateFilter/CreateFilter';
 
 function DatasetsRoutes() {
   const { t } = useTranslation('admin');
@@ -183,6 +184,15 @@ export function AdminPortalModule() {
                 <>
                   <PageTitle title={t('page_titles.filters')} />
                   <MapBasedFilters />
+                </>
+              }
+            />
+            <Route
+              path={`${ADMIN_ROUTES.FILTERS}/${FILTERS_ROUTES.NEW}`}
+              element={
+                <>
+                  <PageTitle title={t('page_titles.filters')} />
+                  <CreateFilter />
                 </>
               }
             />

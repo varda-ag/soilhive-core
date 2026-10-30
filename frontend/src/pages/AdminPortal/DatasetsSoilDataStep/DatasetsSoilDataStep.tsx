@@ -24,6 +24,7 @@ export function DatasetsSoilDataStep() {
     uploadingFiles,
     uploadErrors,
     uploadProgress,
+    isPreviousEnabled,
     isContinueEnabled,
     isSaving,
     handleFiles,
@@ -96,7 +97,7 @@ export function DatasetsSoilDataStep() {
       </div>
 
       <div className={styles.Footer}>
-        <Button type="secondary" size="small" onClick={handlePrevious}>
+        <Button type="secondary" size="small" onClick={handlePrevious} isDisabled={!isPreviousEnabled || isSaving}>
           {t('datasets.actions.previous')}
         </Button>
 

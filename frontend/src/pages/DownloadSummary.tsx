@@ -84,6 +84,7 @@ function DownloadSummary() {
   const [selectedFormat, setSelectedFormat] = useState<string>(SCENARIO_FORMATS.vector.defaultFormat);
   const [showUpdatedMessage, setShowUpdatedMessage] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const activeFormatOptions = SCENARIO_FORMATS[scenario].options;
 
@@ -105,17 +106,22 @@ function DownloadSummary() {
     }
   };
 
-  const onDownloadButtonClick = () => {
-    if (filterId) {
-      const option = activeFormatOptions.find(o => o.id === selectedFormat)!;
-      startDownload({
-        filter_id: filterId,
-        dataset_ids: selectedDatasets.map(dataset => dataset.id),
-        formats: option.formats,
-      });
-      setIsOpened(true);
-      navigate('/');
+  // Waits for the Export to start: one over its limits is refused, and the selection stays here to change
+  const onDownloadButtonClick = async () => {
+    if (!filterId) return;
+    const option = activeFormatOptions.find(o => o.id === selectedFormat)!;
+    setIsStarting(true);
+    const id = await startDownload({
+      filter_id: filterId,
+      dataset_ids: selectedDatasets.map(dataset => dataset.id),
+      formats: option.formats,
+    });
+    if (!id) {
+      setIsStarting(false);
+      return;
     }
+    setIsOpened(true);
+    navigate('/');
   };
 
   const licensesCell = ({ licenses }: DownloadSummaryDataset) => {
@@ -268,11 +274,11 @@ function DownloadSummary() {
               size="medium"
               type="primary"
               className={styles.DownloadButton}
-              isDisabled={isMobileDevice || isLoading || !termsAgreed || selectedDatasets.length === 0}
+              isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0}
               onClick={onDownloadButtonClick}
             >
               <DownloadIcon />
-              {t('download_summary.download_button')}
+              {isStarting ? t('download_summary.starting_download') : t('download_summary.download_button')}
             </Button>
           </div>
         </div>

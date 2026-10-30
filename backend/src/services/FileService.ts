@@ -193,9 +193,12 @@ export default class FileService {
     });
 
     try {
-      const saved = await repo.save(file);
-      const reloaded = await repo.findOneBy({ id: saved.id });
-      return reloaded!;
+      // A transaction of its own: POST /files runs without the request transaction (see transactionMiddleware)
+      return await requestData.entityManager.transaction(async em => {
+        const saved = await em.save(file);
+        const reloaded = await em.findOneBy(FileEntity, { id: saved.id });
+        return reloaded!;
+      });
     } catch (error: any) {
       if (error.code === '23505') {
         // unique violation

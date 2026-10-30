@@ -1,4 +1,4 @@
-ARG NODE_VERSION=24-alpine3.22@sha256:191c9f0080fcbbc6547a85dc0ff7988072214a355aabdc1d2ec55a7dae5eea8a
+ARG NODE_VERSION=24-alpine3.23@sha256:9b69af715c7f9d038150b54ccccbaeffa9064bbc93e2904c29591ca097316af1
 
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION} AS base
 
@@ -66,6 +66,14 @@ RUN npm run build
 RUN chown -R nodejs:nodejs /app
 
 # ========================================
+# raster2pgsql Stage
+# ========================================
+# Alpine ships raster2pgsql only in postgis, which pulls a whole PostgreSQL server
+FROM public.ecr.aws/docker/library/node:${NODE_VERSION} AS raster2pgsql
+
+RUN apk add --no-cache postgis
+
+# ========================================
 # Final Stage
 # ========================================
 FROM public.ecr.aws/docker/library/node:${NODE_VERSION}
@@ -84,7 +92,11 @@ ENV NODE_ENV=production \
     NPM_CONFIG_LOGLEVEL=silent
 
 # gdal-driver-libkml replaces GDAL built-in driver to support ExtendedData fields and .kmz
-RUN apk add --no-cache gdal gdal-tools gdal-driver-pg gdal-driver-libkml
+# postgresql17-client provides psql to run raster2pgsql output
+RUN apk add --no-cache gdal gdal-tools gdal-driver-pg gdal-driver-libkml postgresql17-client
+
+# Links only GDAL, GEOS and PROJ, all installed above
+COPY --from=raster2pgsql /usr/bin/raster2pgsql /usr/bin/raster2pgsql
 
 # Copy production dependencies from deps stage
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules

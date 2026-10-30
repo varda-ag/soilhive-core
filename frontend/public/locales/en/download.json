@@ -58,6 +58,7 @@
         "terms_label_prefix": "I have read and agree to the platform’s",
         "terms_link": "Terms of use",
         "download_button": "Download data",
+        "starting_download": "Starting download...",
         "download_format_updated": "Download format updated",
         "loading": "Loading...",
         "download_format": "Download Format",
@@ -81,6 +82,7 @@
         "clear_finished": "Clear finished",
         "download_failed_title": "Download failed",
         "download_failed_message": "Please try again later",
+        "not_started_title": "Download not started",
         "unavailable_title": "Export no longer available",
         "unavailable_message": "This export has expired. Please export the data again."
     }

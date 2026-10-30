@@ -63,6 +63,15 @@ describe('useDataFilterQuery', () => {
     expect(result.current.selectedFilters).toEqual(MOCK_STORED_FILTER);
   });
 
+  it('returns loading state while the debounce is pending, though data is still the previous filter', () => {
+    useDebounceMock.mockImplementation(() => ({ value: { filters: MOCK_FILTERS, enabled: true }, isPending: true }));
+    useApiQueryMock.mockReturnValue({ data: MOCK_STORED_FILTER, isLoading: false } as any);
+
+    const { result } = renderHook(() => useDataFilterQuery(MOCK_FILTERS));
+
+    expect(result.current.isLoading).toBe(true);
+  });
+
   it('returns isError when the request fails', () => {
     useApiQueryMock.mockReturnValue({ data: undefined, isLoading: false, isError: true } as any);
 

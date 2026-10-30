@@ -5,6 +5,7 @@ import * as path from 'path';
 import { Readable } from 'stream';
 import { createReadmeFile, validateFileFormats } from '../../../src/jobs/soil-export/exportHelpers';
 import * as pdfGenerator from '../../../src/jobs/soil-export/pdfGenerator';
+import { RasterLayerPdfInfo } from '../../../src/jobs/soil-export/pdfGenerator';
 import FileService from '../../../src/services/FileService';
 import RasterFilterService from '../../../src/services/RasterFilterService';
 import SoilPropertyService from '../../../src/services/SoilPropertyService';
@@ -106,6 +107,20 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+const makeRasterLayerPdfInfo = (layer_name: string): RasterLayerPdfInfo => ({
+  layer_name,
+  description: 'Predicted mean, from the SoilGrids 2.0 model',
+  dataset_name: 'SoilGrids 250m',
+  soil_property_name: 'pH',
+  min_depth: 0,
+  max_depth: 5,
+  reference_period_start: '2020',
+  reference_period_stop: null,
+  laboratory_method: 'pH in water',
+  standard_unit: 'pH',
+  crs: '4326',
+});
+
 describe('createReadmeFile', () => {
   it('creates Readme.pdf in tempDir', async () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'readme-test-'));
@@ -156,6 +171,16 @@ describe('createReadmeFile', () => {
     const exportDate: Date = (generateExportPdfSpy.mock.calls[0][0] as any).exportDate;
     expect(exportDate.getTime()).toBeGreaterThanOrEqual(before);
     expect(exportDate.getTime()).toBeLessThanOrEqual(after);
+  });
+
+  it('passes the exported raster layers on to the readme, and none by default', async () => {
+    const rasterLayers = [makeRasterLayerPdfInfo('SoilGrids250m_pH_4326_1'), makeRasterLayerPdfInfo('SoilGrids250m_pH_4326_2')];
+
+    await createReadmeFile(makeRequestData(), '/tmp', makePayload(), rasterLayers);
+    await createReadmeFile(makeRequestData(), '/tmp', makePayload());
+
+    expect((generateExportPdfSpy.mock.calls[0][0] as any).rasterLayers).toEqual(rasterLayers);
+    expect((generateExportPdfSpy.mock.calls[1][0] as any).rasterLayers).toEqual([]);
   });
 
   it('propagates errors from generateExportPdf', async () => {
@@ -257,6 +282,33 @@ describe('createReadmeFile E2E (real pdfkit, no generateExportPdf mock)', () => 
       });
       await createReadmeFile(requestData, tempDir, makePayload());
       expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(4);
+    });
+  });
+
+  describe('raster layers table', () => {
+    const rasterRequestData = () =>
+      makeRequestData({ datasets: [{ slug: 'dataset-alpha', name: 'Dataset Alpha', gis_datatype: 'raster' }] });
+
+    function pageCount(pdfPath: string): number {
+      const match = fs
+        .readFileSync(pdfPath)
+        .toString('latin1')
+        .match(/\/Count\s+(\d+)/);
+      expect(match).not.toBeNull();
+      return parseInt(match![1], 10);
+    }
+
+    const payload = makePayload({ dataset_ids: ['dataset-alpha'] });
+
+    it('adds a page with the table for the exported raster layers', async () => {
+      await createReadmeFile(rasterRequestData(), tempDir, payload, [makeRasterLayerPdfInfo('SoilGrids250m_pH_4326')]);
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBe(4);
+    });
+
+    it('continues the table onto further pages when it outgrows one', async () => {
+      const rasterLayers = Array.from({ length: 150 }, (_, i) => makeRasterLayerPdfInfo(`SoilGrids250m_pH_0-5cm_2020_4326_${i + 1}`));
+      await createReadmeFile(rasterRequestData(), tempDir, payload, rasterLayers);
+      expect(pageCount(path.join(tempDir, 'Readme.pdf'))).toBeGreaterThan(4);
     });
   });
 });

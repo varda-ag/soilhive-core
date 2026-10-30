@@ -18,9 +18,16 @@ import {
   computeCombinedProgress,
 } from './exportHelpers';
 import { getPgBoss, PG_BOSS_SCHEMA, updateJobState } from '../../services/PgBoss';
-import { assertWithinAreaLimit, assertWithinObservationLimit, assertWithinRasterLayerLimit, getExportLimits } from './exportLimits';
+import {
+  assertWithinAreaLimit,
+  assertWithinObservationLimit,
+  assertWithinRasterLayerLimit,
+  assertWithinXlsxRecordCap,
+  getExportLimits,
+} from './exportLimits';
 import { GeoFileWriter } from './GeoFileWriter';
 import { RasterFileWriter } from './RasterFileWriter';
+import { RasterLayerPdfInfo } from './pdfGenerator';
 import {
   cleanupTempFiles,
   cleanupTempZip,
@@ -39,11 +46,14 @@ import DatasetService from '../../services/DatasetService';
 import FilterService from '../../services/FilterService';
 import FileService from '../../services/FileService';
 import { GISDataType } from '../../types/data';
-import { getExportBatchSize, getExportXlsxMaxRecords } from '../../utils/utils';
+import { getExportBatchSize } from '../../utils/utils';
 import { JobError } from '../../errors/JobError';
 import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
 import { RasterLayerAssetFile } from '../../interfaces/RasterLayer';
 import { getErrorMessage } from '../../utils/error';
+
+/** What the vector or the raster half of an Export produced; raster_layers feeds the readme's layer table. */
+type ExportPartResult = Partial<ExportOutputs> & { raster_layers?: RasterLayerPdfInfo[] };
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
@@ -90,17 +100,9 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     const total_records_estimate = vectorRequested ? await getTotalRecordsCount(requestData, vectorData) : 0;
     assertWithinObservationLimit(exportLimits, total_records_estimate);
 
-    // The XLSX size limit is enforced here rather than at enqueue time because this is the first
-    // moment the record count is known without paying for it twice: JobService would have to run
-    // the same spatial count — which carries a 60s statement timeout — inside the HTTP request.
     // Checked before anything is written, so an over-sized request costs one count and no GDAL.
-    const xlsxMaxRecords = getExportXlsxMaxRecords();
-    if (vectorFormat === VectorFileFormat.XLSX && total_records_estimate > xlsxMaxRecords) {
-      throw new JobError('EX_XLSX_TOO_MANY_RECORDS', {
-        record_count: total_records_estimate.toLocaleString('en-US'),
-        max_records: xlsxMaxRecords.toLocaleString('en-US'),
-      });
-    }
+    // Submission checks the same limits only when it can count in time (docs/adr/0070), so this stays the authority.
+    assertWithinXlsxRecordCap(vectorFormat, total_records_estimate);
 
     // Filter geometries' area for raster report tracking
     const aoi_area_km2 = rasterRequested && filter ? filter.area / 1e6 : null;
@@ -120,9 +122,7 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
       throwNoData(jobId, data, 'estimate', 0, 0);
     }
 
-    await createReadmeFile(requestData, tempDir, data);
-
-    const downloadPromises: Promise<Partial<ExportOutputs>>[] = [];
+    const downloadPromises: Promise<ExportPartResult>[] = [];
 
     if (vectorRequested && vectorFormat) {
       downloadPromises.push(exportVectorData(jobId, requestData, vectorData, vectorFormat, tempDir, target_crs));
@@ -145,6 +145,14 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
     if (totalRecordsProcessed === 0 && totalLayersProcessed === 0) {
       throwNoData(jobId, data, 'processed', total_records_estimate, total_layers_estimate);
     }
+
+    // Written once the data is, so that its layer table lists the Raster Layers actually exported
+    await createReadmeFile(
+      requestData,
+      tempDir,
+      data,
+      results.flatMap(r => r.raster_layers ?? []),
+    );
 
     const needsFileMerge =
       (vectorRequested && rasterRequested && vectorFormat === rasterFormat) ||
@@ -186,7 +194,7 @@ async function exportVectorData(
   fileFormat: VectorFileFormat,
   tempDir: string,
   targetCrs?: number,
-): Promise<Partial<ExportOutputs>> {
+): Promise<ExportPartResult> {
   if (!data.dataset_ids?.length) return { total_records_processed: 0 };
 
   const writer = new GeoFileWriter(fileFormat, targetCrs);
@@ -264,7 +272,7 @@ async function exportRasterData(
   fileFormat: RasterFileFormat,
   tempDir: string,
   targetCrs?: number,
-): Promise<Partial<ExportOutputs>> {
+): Promise<ExportPartResult> {
   if (!data.dataset_ids?.length) return { total_layers_processed: 0 };
 
   // aoi is the one GET /soil-data samples raster rows against (the Filter's geometries, intersected
@@ -280,15 +288,20 @@ async function exportRasterData(
   );
 
   const writer = new RasterFileWriter(fileFormat, tempDir);
+  // Named for every candidate up front, so that layers sharing a name are numbered the same way
+  // whichever of them end up holding data
+  const layerNames = writer.buildLayerNames(layers, targetCrs);
   // file_id → local path of the first written copy of a Raster Layer Asset. A File referenced by
   // several layers is read from storage once and copied locally into each layer's own subfolder.
   const assetPathCache = new Map<string, string>();
+  const rasterLayers: RasterLayerPdfInfo[] = [];
   let totalLayersProcessed = 0;
 
   for (const layer of layers) {
     if (await isJobCancelled(jobId)) break;
 
-    const wrote = await writer.writeLayer(layer, aoi, targetCrs);
+    const layerName = layerNames.get(layer.id)!;
+    const wrote = await writer.writeLayer(layer, aoi, targetCrs, layerName);
     if (!wrote) {
       log.warn('Raster layer produced no output: no valid pixel within the area of interest', {
         jobId,
@@ -299,8 +312,21 @@ async function exportRasterData(
     }
 
     totalLayersProcessed++;
+    rasterLayers.push({
+      layer_name: layerName,
+      description: layer.description ?? null,
+      dataset_name: layer.dataset_name,
+      soil_property_name: layer.soil_property_name,
+      min_depth: layer.min_depth,
+      max_depth: layer.max_depth,
+      reference_period_start: layer.reference_period_start,
+      reference_period_stop: layer.reference_period_stop,
+      laboratory_method: layer.laboratory_method,
+      standard_unit: layer.standard_unit,
+      crs: writer.crsLabel(layer, targetCrs),
+    });
 
-    await writeRasterLayerAssets(writer, layer, targetCrs, assetsByLayerId.get(layer.id) ?? [], assetPathCache, jobId);
+    await writeRasterLayerAssets(writer, layer, layerName, assetsByLayerId.get(layer.id) ?? [], assetPathCache, jobId);
 
     const stored_data = await getJobData(jobId);
     const progress_percentage = computeCombinedProgress(
@@ -322,7 +348,7 @@ async function exportRasterData(
     });
   }
 
-  return { total_layers_processed: totalLayersProcessed };
+  return { total_layers_processed: totalLayersProcessed, raster_layers: rasterLayers };
 }
 
 /**
@@ -336,14 +362,13 @@ async function exportRasterData(
 async function writeRasterLayerAssets(
   writer: RasterFileWriter,
   layer: FilteredRasterLayer,
-  targetCrs: number | undefined,
+  layerName: string,
   assets: RasterLayerAssetFile[],
   assetPathCache: Map<string, string>,
   jobId: string,
 ): Promise<void> {
   if (assets.length === 0) return;
 
-  const layerName = writer.buildLayerName(layer, targetCrs);
   for (const asset of assets) {
     const cachedPath = assetPathCache.get(asset.file_id);
     if (cachedPath) {

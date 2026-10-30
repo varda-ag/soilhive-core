@@ -113,6 +113,32 @@ describe('useDatasetsSoilData', () => {
     (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset' } });
   });
 
+  // --- isPreviousEnabled ---------------------------------------------------
+
+  describe('isPreviousEnabled', () => {
+    it('is true when there are no files, since an empty list can be saved', () => {
+      buildDefaultMocks();
+      const { result } = renderHook(() => useDatasetsSoilData());
+      expect(result.current.isPreviousEnabled).toBe(true);
+    });
+
+    it('is false until the saved files have loaded, so it cannot save an empty list over them', () => {
+      buildDefaultMocks();
+      useApiQueryMock.mockImplementation(({ endpoint }: { endpoint: string }) =>
+        endpoint === '/epsg' ? ({ data: [], isLoading: false } as any) : ({ data: undefined, isLoading: true } as any),
+      );
+      const { result } = renderHook(() => useDatasetsSoilData());
+      expect(result.current.isPreviousEnabled).toBe(false);
+    });
+
+    it('is false when a file is missing a crs', async () => {
+      buildDefaultMocks({ existingFiles: [{ id: '1', name: 'a.csv', metadata: {} }] });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+      expect(result.current.isPreviousEnabled).toBe(false);
+    });
+  });
+
   // --- isContinueEnabled ---------------------------------------------------
 
   describe('isContinueEnabled', () => {
@@ -485,6 +511,123 @@ describe('useDatasetsSoilData', () => {
         expect(result.current.soilDataFiles[0].id).toBe('2');
       });
     });
+
+    it('hides saved files without deleting them until save', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping, existingFiles: [{ id: 'saved', name: 'a.csv', metadata: { epsg: 4326 } }] });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      act(() => {
+        const { useFileUpload } = jest.requireMock('hooks/useFileUpload');
+        useFileUpload.mock.calls[0][0](buildSoilDataFile('uploaded', 'b.csv'));
+      });
+      await act(async () => {
+        await result.current.clearAll();
+      });
+
+      expect(result.current.soilDataFiles).toHaveLength(0);
+      expect(deleteFileAndMapping).toHaveBeenCalledTimes(1);
+      expect(deleteFileAndMapping).toHaveBeenCalledWith('uploaded');
+
+      await act(async () => {
+        await result.current.handleSaveAndContinueLater();
+      });
+
+      expect(deleteFileAndMapping).toHaveBeenCalledWith('saved');
+    });
+  });
+
+  // --- removing saved files -----------------------------------------------
+
+  describe('removeFile — saved files', () => {
+    const existingFiles = [{ id: 'saved', name: 'a.csv', metadata: { epsg: 4326 } }];
+
+    afterEach(() => {
+      useNavigateMock.mockImplementation(() => jest.fn());
+    });
+
+    it('hides a saved file without deleting it, so leaving without saving keeps it', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping, existingFiles });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.removeFile('saved');
+      });
+
+      expect(result.current.soilDataFiles).toHaveLength(0);
+      expect(deleteFileAndMapping).not.toHaveBeenCalled();
+    });
+
+    it('deletes a file uploaded in this visit at once', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping, existingFiles });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      act(() => {
+        const { useFileUpload } = jest.requireMock('hooks/useFileUpload');
+        useFileUpload.mock.calls[0][0](buildSoilDataFile('uploaded', 'b.csv'));
+      });
+      await act(async () => {
+        await result.current.removeFile('uploaded');
+      });
+
+      expect(deleteFileAndMapping).toHaveBeenCalledWith('uploaded');
+    });
+
+    it('deletes the removed file on save, then navigates', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping, existingFiles });
+      const navigateSpy = jest.fn();
+      useNavigateMock.mockReturnValue(navigateSpy);
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.removeFile('saved');
+      });
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      expect(deleteFileAndMapping).toHaveBeenCalledWith('saved');
+      expect(navigateSpy).toHaveBeenCalledWith(expect.stringContaining('/mappings'));
+    });
+
+    it('saves nothing else and stays on the step when the deletion fails, then retries it on the next save', async () => {
+      const deleteFileAndMapping = jest.fn().mockRejectedValueOnce(new Error('dataset has a job queued')).mockResolvedValueOnce(undefined);
+      buildDefaultMocks({ deleteFileAndMapping, existingFiles });
+      const updateDataset = jest.fn();
+      useUpdateDatasetMutationMock.mockReturnValue({ mutateAsync: updateDataset } as any);
+      const navigateSpy = jest.fn();
+      useNavigateMock.mockReturnValue(navigateSpy);
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.removeFile('saved');
+      });
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      expect(updateDataset).not.toHaveBeenCalled();
+      expect(mockResetChanges).not.toHaveBeenCalled();
+      expect(navigateSpy).not.toHaveBeenCalled();
+      expect(result.current.soilDataFiles).toHaveLength(0);
+      expect(result.current.isSaving).toBe(false);
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      expect(deleteFileAndMapping).toHaveBeenCalledTimes(2);
+      expect(updateDataset).toHaveBeenCalled();
+      expect(navigateSpy).toHaveBeenCalledWith(expect.stringContaining('/mappings'));
+    });
   });
 
   // --- isRaster / data format validation ------------------------------------
@@ -809,6 +952,21 @@ describe('useDatasetsSoilData', () => {
       const { result } = renderHook(() => useDatasetsSoilData());
       await act(async () => result.current.handleSaveAndContinueLater());
       expect(mockResetChanges).toHaveBeenCalledTimes(1);
+    });
+
+    it('handlePrevious saves, then navigates to the general-info step', async () => {
+      buildDefaultMocks();
+      const updateDataset = jest.fn();
+      useUpdateDatasetMutationMock.mockReturnValue({ mutateAsync: updateDataset } as any);
+      const navigateSpy = jest.fn();
+      useNavigateMock.mockReturnValue(navigateSpy);
+      const { result } = renderHook(() => useDatasetsSoilData());
+
+      await act(async () => result.current.handlePrevious());
+
+      expect(updateDataset).toHaveBeenCalled();
+      expect(navigateSpy).toHaveBeenCalledWith(expect.stringContaining('/general-info'));
+      useNavigateMock.mockImplementation(() => jest.fn());
     });
   });
 

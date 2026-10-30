@@ -18,6 +18,8 @@ import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/DatasetJobs';
 import { getEntity } from '../utils/slugs';
+import { JobError } from '../errors/JobError';
+import { checkExportLimitsAtSubmission } from '../jobs/soil-export/submissionCheck';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
 
@@ -63,7 +65,12 @@ export default class JobService {
 
     // Checking entitlements
     if (data.type === JobQueues.EXPORT) {
-      await entitlementService.enforceDatasetEntitlements(requestData, (data as ExportJob).dataset_ids, Capability.DOWNLOAD);
+      const datasetSlugs = await entitlementService.enforceDatasetEntitlements(
+        requestData,
+        (data as ExportJob).dataset_ids,
+        Capability.DOWNLOAD,
+      );
+      await this.checkExportLimits(requestData, data as ExportJob, datasetSlugs);
     }
 
     if (data.type === JobQueues.DATA_REQUESTS) {
@@ -106,6 +113,20 @@ export default class JobService {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
     data.dataset_id = dataset.slug;
     await assertNoUnfinishedJob(requestData.entityManager, dataset);
+  };
+
+  /**
+   * Refuses an Export over its limits with the message its job would fail with, so nothing is
+   * queued and the caller can change the request (docs/adr/0070).
+   */
+  private checkExportLimits = async (requestData: RequestData, data: ExportJob, datasetSlugs: string[]): Promise<void> => {
+    try {
+      await checkExportLimitsAtSubmission(requestData, data, datasetSlugs);
+    } catch (error) {
+      if (!JobError.isJobError(error)) throw error;
+      const { message, actions } = translateJobError(error.code, error.params);
+      throw new ErrorResponse([message, ...actions].join(' '), StatusCodes.BAD_REQUEST);
+    }
   };
 
   /**
