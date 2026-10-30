@@ -28,6 +28,36 @@
             flex-shrink: 0;
             color: var(--color-neutral-dark-400);
         }
+
+        > .SearchInput {
+            min-width: 0;
+            padding: 0;
+            border: none;
+            outline: none;
+            background: transparent;
+            font-family: inherit;
+            font-weight: inherit;
+            caret-color: var(--color-cta-default-solid);
+            cursor: text;
+
+            &::placeholder {
+                color: var(--color-neutral-dark-400);
+            }
+
+            // Focused, the field shows the selected option as its placeholder, as it shows it when closed.
+            &.ShowsSelection::placeholder {
+                color: var(--color-neutral-black);
+            }
+
+            &:disabled {
+                cursor: not-allowed;
+            }
+        }
+    }
+
+    // Above the search input, which takes the whole width, so that a click on it opens or closes the menu.
+    &.Searchable > .DropdownInput > .ArrowIcon {
+        z-index: 2;
     }
 
 
@@ -68,7 +98,8 @@
     &.ReadOnly {
         background: var(--color-neutral-dark-300);
 
-        > .DropdownInput > .SelectedOption.Placeholder {
+        > .DropdownInput > .SelectedOption.Placeholder,
+        > .DropdownInput > .SearchInput::placeholder {
             color: var(--color-neutral-dark-200);
         }
 
@@ -126,4 +157,31 @@
 
 .FullWidthMenu {
     width: 100% !important;
+}
+
+.Hidden {
+    display: none;
+}
+
+.NoMatches {
+    background: var(--color-neutral-white);
+    border-radius: 0.25rem;
+    color: var(--color-neutral-dark-500);
+    line-height: var(--line-height-lg);
+
+    // As tall as one option of the Menu.
+    &.Medium {
+        padding: 1.26rem 1.25rem;
+        font-size: var(--font-size-md);
+    }
+
+    &.Small {
+        padding: 0.75rem 1rem;
+        font-size: var(--font-size-md);
+    }
+
+    &.Tiny {
+        padding: 0.5rem 0.75rem;
+        font-size: var(--font-size-sm);
+    }
 }
