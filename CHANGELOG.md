@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.8.0 (2026-10-30)
+
+## What's Changed
+* feat: sp-5806 add usesoilindexes hook for plugins by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/919
+* fix: dataset list text filtering by @svaccari in https://github.com/varda-ag/soilhive-core/pull/920
+* fix: leaked connections, getEnabledRasterFilterTables deadlock by @d-rom in https://github.com/varda-ag/soilhive-core/pull/923
+* feat(be): sp-5528 check the issuer, audience and scopes of every token by @cristbello in https://github.com/varda-ag/soilhive-core/pull/912
+* feat: sp-5863 get /configs returns each config with its updated_at by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/922
+* fix(be): sp-5528 OIDC_AUDIENCE stays unset until tokens carry an audience by @cristbello in https://github.com/varda-ag/soilhive-core/pull/924
+* feat: sp-5528 plugins call their backend directly with a plugin token by @cristbello in https://github.com/varda-ag/soilhive-core/pull/911
+* fix: POST /files does not go through transaction middleware by @d-rom in https://github.com/varda-ag/soilhive-core/pull/925
+* feat: adding raster2pgsql to backend image by @svaccari in https://github.com/varda-ag/soilhive-core/pull/928
+* chore: add ecr role by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/929
+* fix(fe): dataset editing flow by @svaccari in https://github.com/varda-ag/soilhive-core/pull/930
+* feat: sp-5802 stop refetching coverage on data type and visibility filters by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/931
+* fix(fe): sp-5864 the area info popup's tip lands on the clicked cell by @cristbello in https://github.com/varda-ag/soilhive-core/pull/932
+* fix(fe): sp-5864 the area info popup opens beneath the map's overlays by @cristbello in https://github.com/varda-ag/soilhive-core/pull/934
+* chore(backend): create dedicated tag package by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/935
+* chore(CI): fix ci image facts naming by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/937
+* chore(ci): fix docker cleanup on pr close by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/938
+* chore(CI): fix docker cleanup package name by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/939
+* chore(CI): fix dockert build and push by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/940
+* fix(be): export raster to avoid layer overwrite, include layer descri… by @d-rom in https://github.com/varda-ag/soilhive-core/pull/936
+* fix: unit conversions typo by @d-rom in https://github.com/varda-ag/soilhive-core/pull/942
+* fix: sp-5883 bump node to 24.22.2 for cve-2026-111497 by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/945
+* feat: sp-5644 - add new raster filter entry point by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/946
+* feat: checking export limits before enqueueing job by @svaccari in https://github.com/varda-ag/soilhive-core/pull/948
+* feat: sp-5538 open a plugin from the map area info card by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/947
+* fix(fe): sp-5892 the download format list shows above the datasets table in Safari by @cristbello in https://github.com/varda-ag/soilhive-core/pull/949
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.7.0...v1.8.0
+
 ## 1.7.0 (2026-10-22)
 
 ## What's Changed
