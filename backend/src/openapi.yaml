@@ -597,6 +597,8 @@ paths:
         Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
         A bulk-load, raster-load or bulk-delete job is refused with 409 while its dataset already has one of
         those queued or running, and its dataset_id is stored as the dataset's current id.
+        An export identical to an unfinished one from the same signed-in caller returns that job with 200
+        instead of starting another. Anonymous exports always start a new job.
       tags:
         - jobs
       security:
@@ -622,6 +624,12 @@ paths:
                   file-to-db: '#/components/schemas/FileToDbJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
       responses:
+        '200':
+          description: An identical export from the same caller is still unfinished; that job is returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
         '201':
           description: Async job started successfull
           content:

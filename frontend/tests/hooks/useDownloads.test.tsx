@@ -220,6 +220,36 @@ describe('useDownloads', () => {
     expect(downloadFile).toHaveBeenCalledTimes(1);
   });
 
+  it('warns and claims nothing when the backend joins an Export already stored', async () => {
+    (getStoredJobIds as jest.Mock).mockReturnValue(['job-1']);
+    createMutateAsync.mockResolvedValue({ id: 'job-1' });
+    let status = 'active';
+    mockJobs(() => status, { download_path: 'exports/file.zip?token=abc' });
+
+    const { result, rerender } = renderHook(() => useDownloads(), { wrapper });
+
+    await act(async () => {
+      await result.current.startDownload(PAYLOAD);
+    });
+
+    expect(showNotification).toHaveBeenCalledWith({
+      id: 'downloads-job-1',
+      type: 'warning',
+      title: 'Export already in progress',
+      message: 'The same export is already running. Follow it in Downloads.',
+    });
+    expect(addStoredJobId).not.toHaveBeenCalled();
+    expect(result.current.downloads.map(item => item.id)).toEqual(['job-1']);
+
+    // The tab that started it downloads it
+    status = 'completed';
+    rerender();
+    await waitFor(() => {
+      expect(result.current.downloads[0].status).toBe('completed');
+    });
+    expect(downloadFile).not.toHaveBeenCalled();
+  });
+
   it('shows notification when job started in this tab fails and keeps it with its message', async () => {
     createMutateAsync.mockResolvedValue({ id: 'job-1' });
     (useJobsQueries as jest.Mock).mockImplementation((jobIds: string[]) =>

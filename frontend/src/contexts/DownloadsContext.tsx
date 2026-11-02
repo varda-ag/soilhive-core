@@ -117,6 +117,17 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
         public_metadata_urls,
       });
 
+      // A stored id is an unfinished Export the backend joined (docs/adr/0071). The tab that started it downloads it.
+      if (getStoredJobIds(userId).includes(res.id)) {
+        showNotification({
+          id: `downloads-${res.id}`,
+          type: 'warning',
+          title: t('downloads_status.in_progress_title'),
+          message: t('downloads_status.in_progress_message'),
+        });
+        return res.id;
+      }
+
       startedHereRef.current.add(res.id);
       setJobsIds(prev => [...prev, res.id]);
 
@@ -124,7 +135,7 @@ export const DownloadsProvider: React.FC<DownloadsProviderProps> = ({ children }
 
       return res.id;
     },
-    [createJob, userId],
+    [createJob, userId, showNotification, t],
   );
 
   const cancelDownload = useCallback(

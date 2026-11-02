@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
@@ -33,10 +34,37 @@ const entitlementService = new EntitlementService();
  */
 const subjectOf = (requestData: RequestData): string | undefined => (requestData.token ? getSubject(requestData) : undefined);
 
+const UNFINISHED_STATES: string[] = ['created', 'retry', 'active'];
+
+/**
+ * What identical Export requests share (docs/adr/0071): every request field, arrays as sets,
+ * plus the Subject and the flags that decide its Export Limits.
+ */
+const exportKey = (data: ExportJob): string => {
+  const set = (values: string[] | undefined) => [...new Set(values ?? [])].sort();
+  const metadataUrls = data.public_metadata_urls ?? {};
+  const identity = [
+    data.created_by,
+    Boolean(data.isDataAdmin),
+    Boolean(data.isSuperAdmin),
+    data.filter_id,
+    set(data.dataset_ids),
+    set(data.formats),
+    data.target_crs ?? null,
+    data.public_homepage_url ?? null,
+    data.public_terms_url ?? null,
+    Object.keys(metadataUrls)
+      .sort()
+      .map(id => [id, metadataUrls[id]]),
+  ];
+  return createHash('sha256').update(JSON.stringify(identity)).digest('hex');
+};
+
 export default class JobService {
   private boss = getPgBoss();
 
-  async createJob(requestData: RequestData, data: AnyJob, options?: SendOptions): Promise<Job> {
+  /** The job enqueued, or the unfinished Export the request joined instead (docs/adr/0071). */
+  async createJob(requestData: RequestData, data: AnyJob, options?: SendOptions): Promise<{ job: Job; joined: boolean }> {
     const { sub } = requestData.token ?? {};
 
     // Checking preconditions
@@ -82,6 +110,17 @@ export default class JobService {
     data.isDataAdmin = requestData.token?.isDataAdmin;
     data.isSuperAdmin = requestData.token?.isSuperAdmin;
 
+    // Anonymous Exports carry no key, so they never join
+    if (data.type === JobQueues.EXPORT && data.created_by) {
+      const singletonKey = exportKey(data as ExportJob);
+      const joined = await this.findExportToJoin(requestData, singletonKey);
+      if (joined) {
+        log.info('Job joined', { queue: data.type, job_id: joined.id, created_by: data.created_by });
+        return { job: joined, joined: true };
+      }
+      options = { ...options, singletonKey };
+    }
+
     const id = await this.boss.send(data.type, data, options ?? {});
     if (!id) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
@@ -94,8 +133,20 @@ export default class JobService {
     if (!job) {
       throw new ErrorResponse('Failed to create job', StatusCodes.INTERNAL_SERVER_ERROR);
     }
-    return job;
+    return { job, joined: false };
   }
+
+  /**
+   * The unfinished Export with this key, if any. The advisory lock makes identical submissions check one
+   * at a time. It is released when the request commits; pg-boss enqueues through its own connection, so
+   * by then the job this request created is already visible to the next one.
+   */
+  private findExportToJoin = async (requestData: RequestData, key: string): Promise<Job | null> => {
+    await requestData.entityManager.query(`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, [`export-jobs:${key}`]);
+    const jobs = await this.boss.findJobs(JobQueues.EXPORT, { key });
+    const unfinished = jobs.find(job => UNFINISHED_STATES.includes(job.state));
+    return unfinished ? this.translateJob(unfinished) : null;
+  };
 
   /**
    * Refuses the job while its Dataset has another one Queued or running (docs/adr/0042).

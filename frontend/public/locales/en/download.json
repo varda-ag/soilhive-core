@@ -82,6 +82,8 @@
         "download_failed_title": "Download failed",
         "download_failed_message": "Please try again later",
         "unavailable_title": "Export no longer available",
-        "unavailable_message": "This export has expired. Please export the data again."
+        "unavailable_message": "This export has expired. Please export the data again.",
+        "in_progress_title": "Export already in progress",
+        "in_progress_message": "The same export is already running. Follow it in Downloads."
     }
 }
