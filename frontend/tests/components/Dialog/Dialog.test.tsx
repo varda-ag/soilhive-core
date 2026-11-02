@@ -210,6 +210,54 @@ describe('Dialog', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  describe('isLoading', () => {
+    const renderLoading = (props: Record<string, unknown> = {}) =>
+      render(
+        <Dialog {...defaultProps} secondaryText="Cancel" isLoading {...props}>
+          <p>content</p>
+        </Dialog>,
+      );
+
+    it('does not show the loader by default', () => {
+      render(
+        <Dialog {...defaultProps}>
+          <p>content</p>
+        </Dialog>,
+      );
+
+      expect(document.querySelector('.LoaderOverlay')).not.toBeInTheDocument();
+    });
+
+    it('shows the loader', () => {
+      renderLoading();
+
+      expect(document.querySelector('.LoaderOverlay')).toBeInTheDocument();
+    });
+
+    it('disables the footer buttons and the close button', () => {
+      renderLoading();
+
+      screen.getAllByTestId('sh-ui-button').forEach(button => expect(button).toBeDisabled());
+      expect(screen.getByLabelText('dialog.close_aria')).toBeDisabled();
+    });
+
+    it('does not close on Esc', () => {
+      const onClose = jest.fn();
+      renderLoading({ onClose });
+
+      callLatestOnHide();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it('does not close on the overlay mask', () => {
+      const onClose = jest.fn();
+      renderLoading({ onClose, closeOnOverlay: true });
+
+      fireEvent.click(screen.getByTestId('dialog-mask'));
+      expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Esc', () => {
     it('calls onClose when PrimeReact hides the dialog on Esc', () => {
       const onClose = jest.fn();

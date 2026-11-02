@@ -20,12 +20,13 @@ export function useEditFilter(filterId: string | undefined) {
   const { formData, setFormData, handleChange, isFormValid, trimmedFormData } = useFilterForm();
   const formInitializedFor = useRef<string | null>(null);
 
-  const { data, isFetchedAfterMount } = useRasterFilter(filterId, { pollInstall: true });
+  const { data, isFetchedAfterMount, isError } = useRasterFilter(filterId, { pollInstall: true });
   // Data cached from an earlier visit can predate the last save, and the form is filled only once
   const filter = isFetchedAfterMount ? data : undefined;
   const installStatus = filter?.install?.status;
   const isInstalled = installStatus === RasterFilterInstallStatus.INSTALLED;
   const isInstallFailed = installStatus === RasterFilterInstallStatus.FAILED;
+  const isNotInstalled = installStatus === RasterFilterInstallStatus.NOT_INSTALLED;
   const isInstalling = !!installStatus && isInstallInProgress(installStatus);
 
   const { mutateAsync: updateFilter, isPending: isUpdatingFilter } = useUpdateRasterFilterMutation(filterId);
@@ -53,6 +54,16 @@ export function useEditFilter(filterId: string | undefined) {
     queryClient.invalidateQueries({ queryKey: ['rasterFilters'] });
     navigate(ADMIN_PATHS.FILTERS, { replace: true });
   }, [isInstallFailed, filterId, showNotification, queryClient, navigate, t]);
+
+  // The error itself is already notified globally, e.g. for a wrong filterId
+  useEffect(() => {
+    if (isError) navigate(ADMIN_PATHS.FILTERS, { replace: true });
+  }, [isError, navigate]);
+
+  // A filter created by the API is queued at once, so this one has nothing to label and is only reachable by URL
+  useEffect(() => {
+    if (isNotInstalled) navigate(ADMIN_PATHS.FILTERS, { replace: true });
+  }, [isNotInstalled, navigate]);
 
   const isSaveEnabled = isInstalled && isFormValid && !isSaving;
 

@@ -21,9 +21,9 @@ jest.mock('hooks/useDeleteRasterFilter', () => ({
 
 // Renders nothing while closed, so the page snapshot is unaffected
 jest.mock('components/AdminPortal/RasterFilterDeleteModal/RasterFilterDeleteModal', () => ({
-  RasterFilterDeleteModal: ({ visible, filterName, onContinue, onCancel }: any) =>
+  RasterFilterDeleteModal: ({ visible, filterName, isDeleting, onContinue, onCancel }: any) =>
     visible ? (
-      <div data-testid="mock-delete-modal" data-filter-name={filterName}>
+      <div data-testid="mock-delete-modal" data-filter-name={filterName} data-deleting={String(!!isDeleting)}>
         <button data-testid="mock-delete-continue" onClick={onContinue} />
         <button data-testid="mock-delete-cancel" onClick={onCancel} />
       </div>
@@ -208,6 +208,13 @@ describe('MapBasedFilters page', () => {
       render(<MapBasedFilters />);
 
       expect(screen.getByTestId('mock-delete-modal')).toHaveAttribute('data-filter-name', 'Land Cover');
+    });
+
+    it('passes isDeleting to the modal', () => {
+      mockDeleteRasterFilter({ filterToDelete: mockCategories[0], isDeleting: true });
+      render(<MapBasedFilters />);
+
+      expect(screen.getByTestId('mock-delete-modal')).toHaveAttribute('data-deleting', 'true');
     });
 
     it('confirms and cancels through the delete hook', () => {

@@ -554,7 +554,7 @@
     "createFilter": {
         "title": "Upload a file",
         "message": "Here we need a text here to explain to the user that they need to upload only one tif file and it should be categorised, continuous files will be uploaded in the future too.",
-        "upload_caption": "Supported formats: Tif.",
+        "upload_caption": "Supported formats: TIFF.",
         "back": "Back to map-based filters",
         "description_section": {
             "title": "Filter description",
@@ -571,7 +571,7 @@
         },
         "mappings": {
             "title": "Label the file values",
-            "message": "The map will be filtered by your categories (eg. land use or agroecological zones). Each category will show up as a checkbox in the filter panel, so users can select them to filter the data. Type a clear, easy to understand name for each one.",
+            "message": "The map will be filtered by your categories (e.g. land use or agroecological zones). Each category will show up as a checkbox in the filter panel, so users can select them to filter the data. Type a clear, easy to understand name for each one.",
             "unlabelled_hint": "Values left unlabelled won’t appear in the filters panel",
             "pixel_value": "Pixel value",
             "label": "Label shown to the users in the filter panel",

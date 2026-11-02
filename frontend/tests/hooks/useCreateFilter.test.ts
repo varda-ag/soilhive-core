@@ -7,6 +7,7 @@ import { useUpdateFileCrsMutation } from 'hooks/useFileMutation';
 import { useFileUpload } from 'hooks/useFileUpload';
 import { useFileManagement } from 'hooks/useFileManagement';
 import { ADMIN_PATHS } from 'configuration/admin';
+import { BACKEND_BASE_URL } from 'configuration/api';
 import type { SoilDataFile } from 'types/soilDataFile';
 
 const mockInvalidateQueries = jest.fn();
@@ -24,12 +25,14 @@ jest.mock('hooks/useRasterFilterMutation', () => ({ useCreateRasterFilterMutatio
 jest.mock('hooks/useFileMutation', () => ({ useUpdateFileCrsMutation: jest.fn() }));
 jest.mock('hooks/useFileUpload', () => ({ useFileUpload: jest.fn() }));
 jest.mock('hooks/useFileManagement', () => ({ useFileManagement: jest.fn() }));
+jest.mock('../../src/auth/tokenStore', () => ({ getToken: () => 'token' }));
 
 const navigate = jest.fn();
 const createFilter = jest.fn();
 const saveFileCrs = jest.fn();
 const deleteFile = jest.fn();
 const handleFilesUpload = jest.fn();
+const fetchMock = jest.fn();
 
 const makeFile = (overrides?: Partial<SoilDataFile>): SoilDataFile => ({
   id: 'file-1',
@@ -76,6 +79,8 @@ describe('useCreateFilter', () => {
     (useUpdateFileCrsMutation as jest.Mock).mockReturnValue({ mutateAsync: saveFileCrs });
     (useFileManagement as jest.Mock).mockReturnValue({ deleteFile, deleteFileAndMapping: jest.fn() });
     mockUploading([]);
+    fetchMock.mockResolvedValue({ ok: true });
+    global.fetch = fetchMock as unknown as typeof fetch;
   });
 
   it('accepts only GeoTIFF files', () => {
@@ -305,6 +310,109 @@ describe('useCreateFilter', () => {
       expect(navigate).not.toHaveBeenCalled();
       expect(deleteFile).not.toHaveBeenCalled();
       expect(result.current.filterFile?.id).toBe('file-1');
+    });
+  });
+
+  describe('leaving the page', () => {
+    const discardedFile = (id: string) =>
+      expect(fetchMock).toHaveBeenCalledWith(`${BACKEND_BASE_URL}/files/${id}`, {
+        method: 'DELETE',
+        keepalive: true,
+        headers: { Authorization: 'Bearer token' },
+      });
+
+    it('deletes a file that was not installed when the page unmounts', async () => {
+      const { unmount } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+
+      unmount();
+
+      discardedFile('file-1');
+    });
+
+    it('deletes a file that was not installed when the tab is closed', async () => {
+      renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+
+      window.dispatchEvent(new Event('pagehide'));
+
+      discardedFile('file-1');
+    });
+
+    it('deletes nothing without a file', () => {
+      const { unmount } = renderHook(() => useCreateFilter());
+
+      unmount();
+      window.dispatchEvent(new Event('pagehide'));
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('deletes nothing once the file is removed', async () => {
+      const { result, unmount } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+      await act(() => result.current.removeFile('file-1'));
+
+      unmount();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the file of an installed filter', async () => {
+      const { result, unmount } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+      fillForm(result);
+      await act(() => result.current.handleInstall());
+
+      unmount();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('keeps the file while the filter is being created', async () => {
+      createFilter.mockReturnValue(new Promise(() => undefined));
+      const { result, unmount } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+      fillForm(result);
+      act(() => {
+        result.current.handleInstall();
+      });
+
+      unmount();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('deletes the file again after creating the filter failed', async () => {
+      createFilter.mockRejectedValue(new Error('409'));
+      const { result, unmount } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+      fillForm(result);
+      await act(() => result.current.handleInstall());
+
+      unmount();
+
+      discardedFile('file-1');
+    });
+
+    it('deletes an upload that finishes after the page unmounted', async () => {
+      const { unmount } = renderHook(() => useCreateFilter());
+
+      unmount();
+      await uploaded(makeFile({ id: 'file-late' }));
+
+      discardedFile('file-late');
+    });
+
+    it('stops listening for the tab closing after unmount', async () => {
+      const { unmount } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+      unmount();
+      fetchMock.mockClear();
+
+      window.dispatchEvent(new Event('pagehide'));
+
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 });

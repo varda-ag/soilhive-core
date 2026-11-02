@@ -13,9 +13,9 @@ interface Props {
 
 export function MapBasedFiltersTableActionTemplate({ filter, onEdit, onDelete }: Props) {
   const installStatus = getInstallStatus(filter);
-  // The install job still owns the filter while it runs, and a failed one can only be deleted
+  // The install job still owns the filter while it runs, and only an installed raster has pixel values to label
   const canDelete = !isInstallInProgress(installStatus);
-  const canEdit = canDelete && installStatus !== RasterFilterInstallStatus.FAILED;
+  const canEdit = installStatus === RasterFilterInstallStatus.INSTALLED;
 
   return (
     <div className={styles.TableActions}>

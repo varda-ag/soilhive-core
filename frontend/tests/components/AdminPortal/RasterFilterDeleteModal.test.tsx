@@ -13,9 +13,9 @@ jest.mock('react-i18next', () => ({
 }));
 
 jest.mock('components/Dialog/Dialog', () => ({
-  Dialog: ({ visible, header, secondaryText, primaryText, onPrimary, onSecondary, children }: any) =>
+  Dialog: ({ visible, header, secondaryText, primaryText, isLoading, onPrimary, onSecondary, children }: any) =>
     visible ? (
-      <div data-testid="mock-dialog">
+      <div data-testid="mock-dialog" data-loading={String(!!isLoading)}>
         <span data-testid="dialog-header">{header}</span>
         <div data-testid="dialog-content">{children}</div>
         <button data-testid="btn-cancel" onClick={onSecondary}>
@@ -76,6 +76,18 @@ describe('RasterFilterDeleteModal', () => {
     render(<RasterFilterDeleteModal {...defaultProps} filterName={undefined} />);
 
     expect(screen.getByTestId('mock-dialog')).toBeInTheDocument();
+  });
+
+  it('is not loading by default', () => {
+    render(<RasterFilterDeleteModal {...defaultProps} />);
+
+    expect(screen.getByTestId('mock-dialog')).toHaveAttribute('data-loading', 'false');
+  });
+
+  it('locks the dialog while the filter is being deleted', () => {
+    render(<RasterFilterDeleteModal {...defaultProps} isDeleting />);
+
+    expect(screen.getByTestId('mock-dialog')).toHaveAttribute('data-loading', 'true');
   });
 
   it('calls onContinue when the confirm button is clicked', () => {

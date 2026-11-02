@@ -8,11 +8,12 @@ import styles from './RasterFilterDeleteModal.module.scss';
 interface Props {
   visible: boolean;
   filterName?: string;
+  isDeleting?: boolean;
   onContinue: () => void;
   onCancel: () => void;
 }
 
-export function RasterFilterDeleteModal({ visible, filterName, onContinue, onCancel }: Props) {
+export function RasterFilterDeleteModal({ visible, filterName, isDeleting, onContinue, onCancel }: Props) {
   const { t } = useTranslation('admin');
 
   return (
@@ -23,6 +24,7 @@ export function RasterFilterDeleteModal({ visible, filterName, onContinue, onCan
       primaryText={t('filters.list.delete_modal.confirm')}
       className={styles.RasterFilterDeleteModal}
       contentClassName={styles.RasterFilterDeleteModalContent}
+      isLoading={isDeleting}
       onPrimary={onContinue}
       onSecondary={onCancel}
     >

@@ -71,11 +71,9 @@ describe('MapBasedFiltersTableActionTemplate', () => {
     });
   });
 
-  describe('when the install failed', () => {
+  describe.each([RasterFilterInstallStatus.FAILED, RasterFilterInstallStatus.NOT_INSTALLED])('when the install is %s', status => {
     it('renders only the delete icon', () => {
-      render(
-        <MapBasedFiltersTableActionTemplate filter={withStatus(RasterFilterInstallStatus.FAILED)} onEdit={onEdit} onDelete={onDelete} />,
-      );
+      render(<MapBasedFiltersTableActionTemplate filter={withStatus(status)} onEdit={onEdit} onDelete={onDelete} />);
 
       expect(screen.queryByTestId('sh-filter-edit')).not.toBeInTheDocument();
       expect(screen.getByTestId('sh-filter-delete')).toBeInTheDocument();
@@ -83,7 +81,7 @@ describe('MapBasedFiltersTableActionTemplate', () => {
   });
 
   describe('when the filter has no install report', () => {
-    it('treats it as not installed and renders both icons', () => {
+    it('treats it as not installed and renders only the delete icon', () => {
       render(
         <MapBasedFiltersTableActionTemplate
           filter={makeFilter({ enabled: false, install: undefined })}
@@ -92,7 +90,7 @@ describe('MapBasedFiltersTableActionTemplate', () => {
         />,
       );
 
-      expect(screen.getByTestId('sh-filter-edit')).toBeInTheDocument();
+      expect(screen.queryByTestId('sh-filter-edit')).not.toBeInTheDocument();
       expect(screen.getByTestId('sh-filter-delete')).toBeInTheDocument();
     });
   });

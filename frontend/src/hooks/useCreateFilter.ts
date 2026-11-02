@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,9 +10,22 @@ import { useFileManagement } from './useFileManagement';
 import { useFilterForm } from './useFilterForm';
 import { epsgCode } from '../utilities/crs';
 import { ADMIN_PATHS } from '../configuration/admin';
+import { BACKEND_BASE_URL } from '../configuration/api';
+import { getToken } from '../auth/tokenStore';
 import type { SoilDataFile } from '../types/soilDataFile';
 
 export const FILTER_ALLOWED_EXTENSIONS = ['.tif', '.tiff'];
+
+// Best effort for a file left behind when the page is closed or left: keepalive lets the request outlive the page,
+// and a failure is not worth a notification on whatever page comes next
+function discardFile(id: string) {
+  const token = getToken();
+  fetch(`${BACKEND_BASE_URL}/files/${id}`, {
+    method: 'DELETE',
+    keepalive: true,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  }).catch(() => undefined);
+}
 
 // Creates the filter from an uploaded raster; its install and labels are followed on the edit page
 export function useCreateFilter() {
@@ -26,6 +39,9 @@ export function useCreateFilter() {
   // Mirrors filterFile so a new upload can delete the file it replaces
   const filterFileRef = useRef<SoilDataFile | null>(null);
   const latestCrsSelection = useRef(0);
+  // Set while the file is being handed to a new filter, which then owns it
+  const isInstallingRef = useRef(false);
+  const isUnmountedRef = useRef(false);
 
   const { mutateAsync: saveFileCrs } = useUpdateFileCrsMutation(filterFile?.id);
   const { mutateAsync: createFilter, isPending: isCreating } = useCreateRasterFilterMutation();
@@ -53,6 +69,11 @@ export function useCreateFilter() {
   // Only one file is kept: a new upload replaces the previous one
   const onFileUploaded = useCallback(
     async (uploaded: SoilDataFile) => {
+      // An upload that finishes after the user left has nobody to install it
+      if (isUnmountedRef.current) {
+        discardFile(uploaded.id);
+        return;
+      }
       const previous = filterFileRef.current;
       setFile(uploaded);
       if (previous) await deleteFile(previous.id);
@@ -109,6 +130,20 @@ export function useCreateFilter() {
     [deleteFile, setFile],
   );
 
+  // A file uploaded but never installed is deleted when the user leaves, through the app or by closing the tab
+  useEffect(() => {
+    isUnmountedRef.current = false;
+    const discardLeftFile = () => {
+      if (filterFileRef.current && !isInstallingRef.current) discardFile(filterFileRef.current.id);
+    };
+    window.addEventListener('pagehide', discardLeftFile);
+    return () => {
+      isUnmountedRef.current = true;
+      window.removeEventListener('pagehide', discardLeftFile);
+      discardLeftFile();
+    };
+  }, []);
+
   const annotatedFile = useMemo<SoilDataFile | null>(() => {
     if (!filterFile) return null;
     return { ...filterFile, error: filterFile.isUngeoreferencedRaster ? t('datasets.soil_data.no_georeference_error') : null };
@@ -126,14 +161,18 @@ export function useCreateFilter() {
   const handleInstall = useCallback(async () => {
     if (!filterFile) return;
 
+    isInstallingRef.current = true;
     try {
       // The file now belongs to the filter: the install deletes it once it succeeds
       const created = await createFilter({ ...trimmedFormData(), file_id: filterFile.id, kind: 'categorical' });
+      filterFileRef.current = null;
       await queryClient.invalidateQueries({ queryKey: ['rasterFilters'] });
       // Replaced, so going back does not return to an emptied form
       navigate(`${ADMIN_PATHS.FILTERS_EDIT}/${created.id}`, { replace: true });
     } catch {
       // Already notified
+    } finally {
+      isInstallingRef.current = false;
     }
   }, [filterFile, trimmedFormData, createFilter, queryClient, navigate]);
 

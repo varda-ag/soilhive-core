@@ -17,7 +17,7 @@ export function MapBasedFilters() {
   const navigate = useNavigate();
   const { t } = useTranslation('admin');
   const { allCategories: allRasterCategories, isLoading, isActivationPending, setCategoryActive } = useRaster(POLLING_MS);
-  const { filterToDelete, onDelete, onDeleteCancel, onDeleteConfirm } = useDeleteRasterFilter();
+  const { filterToDelete, isDeleting, onDelete, onDeleteCancel, onDeleteConfirm } = useDeleteRasterFilter();
 
   return (
     <div className={styles.MapBasedFilters}>
@@ -60,6 +60,7 @@ export function MapBasedFilters() {
             <RasterFilterDeleteModal
               visible={!!filterToDelete}
               filterName={filterToDelete?.name}
+              isDeleting={isDeleting}
               onContinue={onDeleteConfirm}
               onCancel={onDeleteCancel}
             />

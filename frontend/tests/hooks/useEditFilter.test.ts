@@ -46,8 +46,8 @@ const makeFilter = (overrides?: Partial<RasterFilter>): RasterFilter => ({
   ...overrides,
 });
 
-const mockRasterFilter = (data: RasterFilter | undefined, isFetchedAfterMount = true) =>
-  (useRasterFilter as jest.Mock).mockReturnValue({ data, isFetchedAfterMount });
+const mockRasterFilter = (data: RasterFilter | undefined, isFetchedAfterMount = true, isError = false) =>
+  (useRasterFilter as jest.Mock).mockReturnValue({ data, isFetchedAfterMount, isError });
 
 describe('useEditFilter', () => {
   beforeEach(() => {
@@ -132,6 +132,35 @@ describe('useEditFilter', () => {
 
       expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['rasterFilters'] });
       expect(navigate).toHaveBeenCalledWith(ADMIN_PATHS.FILTERS, { replace: true });
+    });
+  });
+
+  describe('when the filter cannot be loaded', () => {
+    beforeEach(() => mockRasterFilter(undefined, true, true));
+
+    it('goes back to the list, leaving the notification to the global error handling', () => {
+      renderHook(() => useEditFilter('missing'));
+
+      expect(navigate).toHaveBeenCalledWith(ADMIN_PATHS.FILTERS, { replace: true });
+      expect(showNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('when the filter is not installed', () => {
+    beforeEach(() => mockRasterFilter(makeFilter({ install: { status: RasterFilterInstallStatus.NOT_INSTALLED } })));
+
+    it('goes back to the list without an error notification', () => {
+      renderHook(() => useEditFilter('land_cover'));
+
+      expect(navigate).toHaveBeenCalledWith(ADMIN_PATHS.FILTERS, { replace: true });
+      expect(showNotification).not.toHaveBeenCalled();
+    });
+
+    it('does not allow saving', () => {
+      const { result } = renderHook(() => useEditFilter('land_cover'));
+
+      expect(result.current.isInstalled).toBe(false);
+      expect(result.current.isSaveEnabled).toBe(false);
     });
   });
 
