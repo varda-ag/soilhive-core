@@ -87,61 +87,61 @@ exports[`DownloadSummary renders download summary page 1`] = `
               These are the datasets included in the download
             </div>
           </div>
-          <div
-            class="FormatPicker"
-          >
+          <div>
+            Mock PrimeReactProvider 
             <div
-              class="FormatPickerHeader"
+              class="FormatPicker"
             >
-              <svg
-                class="FormatPickerHeaderIcon"
-                data-testid="svg-icon-mock"
+              <div
+                class="FormatPickerHeader"
               >
-                mock-svg
-              </svg>
-              <div>
-                Download Format
+                <svg
+                  class="FormatPickerHeaderIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+                <div>
+                  Download Format
+                </div>
+              </div>
+              <div
+                class="FormatPickerContent"
+              >
+                <select
+                  data-testid="format-dropdown"
+                >
+                  <option
+                    value="csv"
+                  >
+                    CSV
+                  </option>
+                  <option
+                    value="gpkg"
+                  >
+                    Geopackage
+                  </option>
+                  <option
+                    value="geojson"
+                  >
+                    GeoJSON
+                  </option>
+                  <option
+                    value="shp"
+                  >
+                    Shapefile
+                  </option>
+                  <option
+                    value="xlsx"
+                  >
+                    XLSX
+                  </option>
+                </select>
               </div>
             </div>
             <div
-              class="FormatPickerContent"
+              class="TableContainer"
             >
-              <select
-                data-testid="format-dropdown"
-              >
-                <option
-                  value="csv"
-                >
-                  CSV
-                </option>
-                <option
-                  value="gpkg"
-                >
-                  Geopackage
-                </option>
-                <option
-                  value="geojson"
-                >
-                  GeoJSON
-                </option>
-                <option
-                  value="shp"
-                >
-                  Shapefile
-                </option>
-                <option
-                  value="xlsx"
-                >
-                  XLSX
-                </option>
-              </select>
-            </div>
-          </div>
-          <div
-            class="TableContainer"
-          >
-            <div>
-              Mock PrimeReactProvider 
               <div>
                 Mock DataTable 
                 <div>
@@ -291,61 +291,61 @@ exports[`DownloadSummary renders download summary page coming from availability 
               These are the datasets included in the download
             </div>
           </div>
-          <div
-            class="FormatPicker"
-          >
+          <div>
+            Mock PrimeReactProvider 
             <div
-              class="FormatPickerHeader"
+              class="FormatPicker"
             >
-              <svg
-                class="FormatPickerHeaderIcon"
-                data-testid="svg-icon-mock"
+              <div
+                class="FormatPickerHeader"
               >
-                mock-svg
-              </svg>
-              <div>
-                Download Format
+                <svg
+                  class="FormatPickerHeaderIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+                <div>
+                  Download Format
+                </div>
+              </div>
+              <div
+                class="FormatPickerContent"
+              >
+                <select
+                  data-testid="format-dropdown"
+                >
+                  <option
+                    value="csv"
+                  >
+                    CSV
+                  </option>
+                  <option
+                    value="gpkg"
+                  >
+                    Geopackage
+                  </option>
+                  <option
+                    value="geojson"
+                  >
+                    GeoJSON
+                  </option>
+                  <option
+                    value="shp"
+                  >
+                    Shapefile
+                  </option>
+                  <option
+                    value="xlsx"
+                  >
+                    XLSX
+                  </option>
+                </select>
               </div>
             </div>
             <div
-              class="FormatPickerContent"
+              class="TableContainer"
             >
-              <select
-                data-testid="format-dropdown"
-              >
-                <option
-                  value="csv"
-                >
-                  CSV
-                </option>
-                <option
-                  value="gpkg"
-                >
-                  Geopackage
-                </option>
-                <option
-                  value="geojson"
-                >
-                  GeoJSON
-                </option>
-                <option
-                  value="shp"
-                >
-                  Shapefile
-                </option>
-                <option
-                  value="xlsx"
-                >
-                  XLSX
-                </option>
-              </select>
-            </div>
-          </div>
-          <div
-            class="TableContainer"
-          >
-            <div>
-              Mock PrimeReactProvider 
               <div>
                 Mock DataTable 
                 <div>
@@ -495,61 +495,61 @@ exports[`DownloadSummary renders download summary page coming from data explorer
               These are the datasets included in the download
             </div>
           </div>
-          <div
-            class="FormatPicker"
-          >
+          <div>
+            Mock PrimeReactProvider 
             <div
-              class="FormatPickerHeader"
+              class="FormatPicker"
             >
-              <svg
-                class="FormatPickerHeaderIcon"
-                data-testid="svg-icon-mock"
+              <div
+                class="FormatPickerHeader"
               >
-                mock-svg
-              </svg>
-              <div>
-                Download Format
+                <svg
+                  class="FormatPickerHeaderIcon"
+                  data-testid="svg-icon-mock"
+                >
+                  mock-svg
+                </svg>
+                <div>
+                  Download Format
+                </div>
+              </div>
+              <div
+                class="FormatPickerContent"
+              >
+                <select
+                  data-testid="format-dropdown"
+                >
+                  <option
+                    value="csv"
+                  >
+                    CSV
+                  </option>
+                  <option
+                    value="gpkg"
+                  >
+                    Geopackage
+                  </option>
+                  <option
+                    value="geojson"
+                  >
+                    GeoJSON
+                  </option>
+                  <option
+                    value="shp"
+                  >
+                    Shapefile
+                  </option>
+                  <option
+                    value="xlsx"
+                  >
+                    XLSX
+                  </option>
+                </select>
               </div>
             </div>
             <div
-              class="FormatPickerContent"
+              class="TableContainer"
             >
-              <select
-                data-testid="format-dropdown"
-              >
-                <option
-                  value="csv"
-                >
-                  CSV
-                </option>
-                <option
-                  value="gpkg"
-                >
-                  Geopackage
-                </option>
-                <option
-                  value="geojson"
-                >
-                  GeoJSON
-                </option>
-                <option
-                  value="shp"
-                >
-                  Shapefile
-                </option>
-                <option
-                  value="xlsx"
-                >
-                  XLSX
-                </option>
-              </select>
-            </div>
-          </div>
-          <div
-            class="TableContainer"
-          >
-            <div>
-              Mock PrimeReactProvider 
               <div>
                 Mock DataTable 
                 <div>

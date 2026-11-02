@@ -35,7 +35,9 @@ export const continentLocalGeocoder = (query: string): CarmenGeojsonFeature[] =>
             type: 'Point',
             coordinates: centerOfMass(feature as GeoJSON.Feature).geometry.coordinates,
           } as GeoJSON.Point,
-          original_feature: feature,
+          // SoilhiveMap names the selection (locationName) from original_feature's display_name,
+          // which Nominatim's features carry and continents.json's don't.
+          original_feature: { ...feature, properties: { ...feature.properties, display_name: feature.properties.name } },
           original_geometry: feature.geometry,
           place_name: feature.properties.name,
           properties: { ...feature.properties, display_name: feature.properties.name },
