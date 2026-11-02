@@ -676,10 +676,11 @@ paths:
       x-eov-operation-handler: controllers/errors
       x-eov-operation-id: getDatasetErrors
       summary: Get latest ingestion errors per dataset
+      description: Covers Datasets that are not Published, so it is for data admins only.
       tags:
         - errors
       security:
-        - bearerAuth: []
+        - bearerAuth: [super-admin, data-admin]
       responses:
         '200':
           description: Array of datasets with their latest ingestion error
@@ -691,6 +692,8 @@ paths:
                   $ref: '#/components/schemas/DatasetError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /jobs/{jobId}:
     parameters:

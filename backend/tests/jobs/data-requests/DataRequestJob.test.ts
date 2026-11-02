@@ -46,6 +46,7 @@ import {
   addObservations,
   addSoilProperty,
   addVocabulary,
+  linkMapping,
 } from '../../../src/utils/mock';
 import ProcedureEntity from '../../../src/entities/Procedure';
 import SoilPropertyEntity from '../../../src/entities/SoilProperty';
@@ -239,6 +240,17 @@ describe('processDataRequest', () => {
 
       const { job } = await createActiveJob({ filter_id: filterId, file_id: file.slug });
       await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'RUN_FILE_NOT_SPATIAL' });
+    });
+
+    // Its units and labels would publish the Dataset's data (docs/adr/0072)
+    it('answers a file mapped to a Dataset as not found', async () => {
+      await seedDataset('mapped-file', [1]);
+      const filterId = await createFilter([getPolygonFromBbox([-1, -1, 5, 5])]);
+      const file = await addVectorFileWithGeometries('mapped-file', featureCollection([{ geometry: UNIT_A }]), { epsg: 4326 });
+      await linkMapping(file, {});
+
+      const { job } = await createActiveJob({ filter_id: filterId, file_id: file.slug });
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'RUN_FILE_NOT_FOUND' });
     });
 
     it('keeps a MultiPolygon as a single unit', async () => {
@@ -580,7 +592,7 @@ describe('processDataRequest', () => {
     });
 
     it('completes a run naming those datasets explicitly, rather than refusing what enqueue allowed', async () => {
-      // Named datasets are gated twice — enforceEntitlements at enqueue time, then again
+      // Named datasets are gated twice — enforceDatasetEntitlements at enqueue time, then again
       // in the processor. If the two gates resolve identity differently the API returns
       // 201 and the job then dies with DR_DATASET_NOT_ENTITLED, which is exactly what a
       // sub-keyed processor did.

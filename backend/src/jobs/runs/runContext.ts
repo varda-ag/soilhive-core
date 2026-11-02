@@ -5,10 +5,9 @@ import { DataFilter } from '../../interfaces/DatasetFilter';
 import { RequestData } from '../../interfaces/RequestData';
 import { getEntityManager } from '../../utils/data-source';
 import { getPgBoss, PG_BOSS_SCHEMA, updateJobState } from '../../services/PgBoss';
-import EntitlementService from '../../services/EntitlementService';
+import { jobRequestData } from '../jobRequestData';
 import FilterService from '../../services/FilterService';
 import { hasRasterFilters } from '../../data-layer/SoilDataStorage';
-import { EVERYONE } from '../../constants/constants';
 import { JobError } from '../../errors/JobError';
 import { log } from '../../utils/logger';
 import { getMaxAggregationUnits } from '../../utils/utils';
@@ -74,10 +73,9 @@ export interface RunProduct<T extends RunJobData, P = void> {
 /**
  * Resolves a Run - entitlements, Filter, Aggregation Units - and hands off to its product.
  *
- * Entitlements are re-derived here from EVERYONE plus the user's local rows, because a job
- * processor has no raw token and therefore cannot reach the external entitlements endpoint; the
- * authoritative check happens at enqueue time in JobService. What each product does with the
- * result is its own business - see runDescriptiveStatistics.
+ * Entitlements are the submitter's local grants only (see jobRequestData); the authoritative check
+ * happens at enqueue time in JobService. What each product does with the result is its own
+ * business - see runDescriptiveStatistics.
  *
  * Scope of the two inputs, which is easy to get backwards: `filter_id` always supplies the
  * criteria, and supplies the area of interest ONLY when `file_id` is absent. With a file, its
@@ -98,21 +96,15 @@ export async function processRun<T extends RunJobData, P = void>(
   selectProduct: (data: T) => RunProduct<T, P>,
 ): Promise<P | undefined> {
   const { id: jobId, data } = job;
-  const { filter_id, file_id, label_field, created_by } = data;
+  const { filter_id, file_id, label_field } = data;
 
   // Selected before anything expensive runs, and re-checked even though the enqueue path validates
   // it: a processor must not trust job data, which outlives the request that produced it.
   const product = selectProduct(data);
 
   const entityManager = await getEntityManager();
-  const entitlementService = new EntitlementService();
   const filterService = new FilterService();
-  const entitlements = await entitlementService.getUserEntitlements({ entityManager } as RequestData, created_by ?? EVERYONE);
-  const requestData = {
-    entityManager,
-    entitlements,
-    token: { sub: created_by ?? undefined, isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin },
-  } as RequestData;
+  const requestData = await jobRequestData(entityManager, data);
 
   const assertNotCancelled = async () => {
     if (await isJobCancelled(jobId!)) {

@@ -6,7 +6,6 @@ import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
 import FileEntity from '../../entities/File';
 import { RasterLoadJob } from '../../interfaces/Job';
 import { RequestData } from '../../interfaces/RequestData';
-import { Token } from '../../interfaces/Token';
 import { ResolvedBandMapping } from '../../interfaces/RasterMapping';
 import { LoadedRasterBand, RasterFileMetadata } from '../../interfaces/File';
 import DataMappingService from '../../services/DataMappingService';
@@ -24,10 +23,9 @@ import FileService from '../../services/FileService';
 import { updateRasterDatasetMetadata } from './UpdateDatasetMetadata';
 import { StagedLayerAssets, syncRasterLayerAssets } from './LoadLayerAssets';
 import { hideDatasetForLoad, statusAfterFailedLoad, statusAfterLoad } from '../LoadStatus';
-import EntitlementService from '../../services/EntitlementService';
+import { jobRequestData } from '../jobRequestData';
 import { progressReporter } from '../../services/PgBoss';
 import { getSubject } from '../../utils/auth';
-import { EVERYONE } from '../../constants/constants';
 import type { IngestRasterOptions } from '../../services/RasterIngestService';
 
 // Band ingestion owns <floor>..LOAD_PROGRESS_CEILING; the remainder covers dataset metadata.
@@ -75,12 +73,7 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
   await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
-  const entitlementService = new EntitlementService();
-  // created_by lives on the job's data, not on the pg-boss job wrapper.
-  const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, data.created_by ?? EVERYONE);
-  // getDataset hides Datasets that are not PUBLISHED from a non-privileged caller, and this job runs on one by definition
-  const token = { sub: data.created_by, isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin } as Token;
-  const requestData = { entityManager, token, entitlements };
+  const requestData = await jobRequestData(entityManager, data);
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
   const previousStatus = dataset.status;

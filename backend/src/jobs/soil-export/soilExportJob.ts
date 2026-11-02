@@ -38,8 +38,7 @@ import {
   zipFiles,
   createTempDirectory,
 } from './storageHelpers';
-import EntitlementService from '../../services/EntitlementService';
-import { EVERYONE } from '../../constants/constants';
+import { jobRequestData } from '../jobRequestData';
 import { RequestData } from '../../interfaces/RequestData';
 import { log } from '../../utils/logger';
 import DatasetService from '../../services/DatasetService';
@@ -57,12 +56,10 @@ type ExportPartResult = Partial<ExportOutputs> & { raster_layers?: RasterLayerPd
 
 export async function processExportJob(job: Job<ExportJob>): Promise<void> {
   const { id: jobId, data } = job;
-  const { created_by } = data;
   const { filter_id, formats, dataset_ids, target_crs } = data;
 
   const entityManager = await getEntityManager();
-  const entitlementService = new EntitlementService();
-  const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, created_by ?? EVERYONE);
+  const requestData = await jobRequestData(entityManager, data);
 
   // Fresh working directory on every run, and therefore no partial output from any previous one.
   const tempDir = await createTempDirectory();
@@ -70,12 +67,6 @@ export async function processExportJob(job: Job<ExportJob>): Promise<void> {
 
   try {
     // Get total records and layers for progress tracking
-    const requestData = {
-      entityManager,
-      entitlements,
-      token: { isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin },
-    } as RequestData;
-
     const datasetService = new DatasetService();
     const datasets = await Promise.all(dataset_ids.map(d => datasetService.getDataset(requestData, d)));
     const vectorDatasets = datasets.filter(d => d.gis_datatype && [GISDataType.POINT, GISDataType.POLYGONAL].includes(d.gis_datatype));
