@@ -1,13 +1,33 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { useNavigate } from 'react-router';
 import { MapBasedFilters } from '../../../src/pages/AdminPortal/MapBasedFilters/MapBasedFilters';
 import { useRaster } from 'hooks/useRaster';
+import { ADMIN_PATHS } from 'configuration/admin';
 
-jest.mock('components/UI/ExpandableText/ExpandableText', () => ({
-  ExpandableText: ({ text }: { text: string }) => <div data-testid="mock-expandable-text">{text}</div>,
+let capturedTableProps: any = {};
+
+jest.mock('react-router', () => ({
+  useNavigate: jest.fn(),
 }));
 
 jest.mock('hooks/useRaster', () => ({
   useRaster: jest.fn(),
+}));
+
+jest.mock('components/UI', () => ({
+  Button: ({ children, onClick }: any) => (
+    <button data-testid="mock-button" onClick={onClick}>
+      {children}
+    </button>
+  ),
+  Loader: () => <div data-testid="mock-loader" />,
+}));
+
+jest.mock('components/AdminPortal/MapBasedFiltersTable/MapBasedFiltersTable', () => ({
+  MapBasedFiltersTable: (props: any) => {
+    capturedTableProps = props;
+    return <div data-testid="mock-filters-table" data-count={props.filters.length} />;
+  },
 }));
 
 describe('MapBasedFilters page', () => {
@@ -17,15 +37,23 @@ describe('MapBasedFilters page', () => {
     { id: 'az', name: 'Agroecological Zones', enabled: true, active: false },
   ];
 
+  const navigate = jest.fn();
   const setCategoryActive = jest.fn();
 
-  beforeEach(() => {
-    jest.clearAllMocks();
+  const mockRaster = (overrides?: Record<string, unknown>) =>
     (useRaster as jest.Mock).mockReturnValue({
       allCategories: mockCategories,
       setCategoryActive,
       isLoading: false,
+      isActivationPending: false,
+      ...overrides,
     });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    capturedTableProps = {};
+    (useNavigate as jest.Mock).mockReturnValue(navigate);
+    mockRaster();
   });
 
   it('matches snapshot', () => {
@@ -33,66 +61,92 @@ describe('MapBasedFilters page', () => {
     expect(container).toMatchSnapshot();
   });
 
-  it('renders the correct number of expandable descriptions', () => {
+  it('polls the raster categories every 2 seconds', () => {
     render(<MapBasedFilters />);
 
-    // We expect 3 instances in the current MapBasedFilters.tsx
-    const mocks = screen.getAllByTestId('mock-expandable-text');
-    expect(mocks).toHaveLength(3);
-
-    // Verify specific content is passed to the mock
-    expect(screen.getByText('Agroecological zones')).toBeInTheDocument();
-    expect(screen.getByText('Land Cover')).toBeInTheDocument();
-    expect(screen.getByText('Soil groups')).toBeInTheDocument();
+    expect(useRaster).toHaveBeenCalledWith(2000);
   });
 
-  it('renders the correct activation status for every category dynamically', () => {
-    render(<MapBasedFilters />);
+  describe('intro section', () => {
+    it('renders the title', () => {
+      render(<MapBasedFilters />);
 
-    mockCategories.forEach(category => {
-      // Find the specific row for this category
-      const row = screen.getByTestId(`status-row-${category.id}`);
+      expect(screen.getByRole('heading', { name: 'Map-based filters' })).toBeInTheDocument();
+    });
 
-      // Verify the name appears in the correct label slot
-      expect(within(row).getByTestId('status-label')).toHaveTextContent(category.name);
+    it('renders the description', () => {
+      render(<MapBasedFilters />);
 
-      // Verify the status text matches the 'enabled' boolean logic
-      const expectedKey = category.enabled ? 'Installed' : 'Not installed';
-      expect(within(row).getByTestId('status-box')).toHaveTextContent(expectedKey);
+      // The Trans mock renders its i18nKey.
+      expect(screen.getByText('filters.intro.description')).toBeInTheDocument();
     });
   });
 
-  it('renders an activation toggle only for enabled categories, reflecting their active state', () => {
-    render(<MapBasedFilters />);
+  describe('while loading', () => {
+    beforeEach(() => mockRaster({ isLoading: true }));
 
-    mockCategories.forEach(category => {
-      const row = screen.getByTestId(`status-row-${category.id}`);
-      const toggle = within(row).queryByRole('checkbox');
+    it('renders the loader', () => {
+      render(<MapBasedFilters />);
 
-      if (category.enabled) {
-        expect(toggle).toBeInTheDocument();
-        if (category.active) {
-          expect(toggle).toBeChecked();
-        } else {
-          expect(toggle).not.toBeChecked();
-        }
-      } else {
-        expect(toggle).not.toBeInTheDocument();
-      }
+      expect(screen.getByTestId('mock-loader')).toBeInTheDocument();
+    });
+
+    it('renders neither the Add filters button nor the table', () => {
+      render(<MapBasedFilters />);
+
+      expect(screen.queryByText('Add filters')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('mock-filters-table')).not.toBeInTheDocument();
     });
   });
 
-  it('calls setCategoryActive with the new checked state when a toggle is clicked', () => {
-    render(<MapBasedFilters />);
+  describe('once loaded', () => {
+    it('does not render the loader', () => {
+      render(<MapBasedFilters />);
 
-    // 'lc' is enabled and active -> clicking it should deactivate it.
-    const activeRow = screen.getByTestId('status-row-lc');
-    fireEvent.click(within(activeRow).getByRole('checkbox'));
-    expect(setCategoryActive).toHaveBeenCalledWith('lc', false);
+      expect(screen.queryByTestId('mock-loader')).not.toBeInTheDocument();
+    });
 
-    // 'az' is enabled and not active -> clicking it should activate it.
-    const inactiveRow = screen.getByTestId('status-row-az');
-    fireEvent.click(within(inactiveRow).getByRole('checkbox'));
-    expect(setCategoryActive).toHaveBeenCalledWith('az', true);
+    it('renders the Add filters button', () => {
+      render(<MapBasedFilters />);
+
+      expect(screen.getByTestId('mock-button')).toHaveTextContent('Add filters');
+    });
+
+    it('navigates to the new filter page when Add filters is clicked', () => {
+      render(<MapBasedFilters />);
+
+      fireEvent.click(screen.getByTestId('mock-button'));
+
+      expect(navigate).toHaveBeenCalledWith(`${ADMIN_PATHS.FILTERS}/new`);
+    });
+
+    it('passes the categories to the table', () => {
+      render(<MapBasedFilters />);
+
+      expect(screen.getByTestId('mock-filters-table')).toHaveAttribute('data-count', '3');
+      expect(capturedTableProps.filters).toBe(mockCategories);
+    });
+
+    it('passes isActivationPending to the table', () => {
+      mockRaster({ isActivationPending: true });
+      render(<MapBasedFilters />);
+
+      expect(capturedTableProps.isActivationPending).toBe(true);
+    });
+
+    it('passes an empty list to the table when there are no categories', () => {
+      mockRaster({ allCategories: undefined });
+      render(<MapBasedFilters />);
+
+      expect(capturedTableProps.filters).toEqual([]);
+    });
+
+    it('passes setCategoryActive to the table', () => {
+      render(<MapBasedFilters />);
+
+      capturedTableProps.onSetCategoryActive('lc', false);
+
+      expect(setCategoryActive).toHaveBeenCalledWith('lc', false);
+    });
   });
 });

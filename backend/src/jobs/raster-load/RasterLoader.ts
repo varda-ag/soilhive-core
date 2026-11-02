@@ -6,7 +6,6 @@ import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
 import FileEntity from '../../entities/File';
 import { RasterLoadJob } from '../../interfaces/Job';
 import { RequestData } from '../../interfaces/RequestData';
-import { Token } from '../../interfaces/Token';
 import { ResolvedBandMapping } from '../../interfaces/RasterMapping';
 import { LoadedRasterBand, RasterFileMetadata } from '../../interfaces/File';
 import DataMappingService from '../../services/DataMappingService';
@@ -24,10 +23,9 @@ import FileService from '../../services/FileService';
 import { updateRasterDatasetMetadata } from './UpdateDatasetMetadata';
 import { StagedLayerAssets, syncRasterLayerAssets } from './LoadLayerAssets';
 import { hideDatasetForLoad, statusAfterFailedLoad, statusAfterLoad } from '../LoadStatus';
-import EntitlementService from '../../services/EntitlementService';
+import { jobRequestData } from '../jobRequestData';
 import { progressReporter } from '../../services/PgBoss';
 import { getSubject } from '../../utils/auth';
-import { EVERYONE } from '../../constants/constants';
 import type { IngestRasterOptions } from '../../services/RasterIngestService';
 
 // Band ingestion owns <floor>..LOAD_PROGRESS_CEILING; the remainder covers dataset metadata.
@@ -75,12 +73,7 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
   const datasetService = new DatasetService();
   const entityManager = await getEntityManager();
   await new ErrorService().clearDatasetErrors(data.dataset_id, entityManager);
-  const entitlementService = new EntitlementService();
-  // created_by lives on the job's data, not on the pg-boss job wrapper.
-  const entitlements = await entitlementService.getUserEntitlements({ entityManager } as any, data.created_by ?? EVERYONE);
-  // getDataset hides Datasets that are not PUBLISHED from a non-privileged caller, and this job runs on one by definition
-  const token = { sub: data.created_by, isDataAdmin: data.isDataAdmin, isSuperAdmin: data.isSuperAdmin } as Token;
-  const requestData = { entityManager, token, entitlements };
+  const requestData = await jobRequestData(entityManager, data);
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
   const previousStatus = dataset.status;
@@ -180,8 +173,8 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
 
     // A file is loaded once every band its mapping names is a layer, and it records what decided
     // how its pixels were written so the next edit can tell a metadata change from one that needs
-    // the file normalized again. Unlike a bulk load, the source file is never deleted and no raw
-    // table exists to drop: after a raster load the file *is* the layer's data and must survive.
+    // the file normalized again. Unlike a bulk load, no raw table exists to drop: after a raster
+    // load the file *is* the layer's data and must survive (see deleteSourceFiles for the upload).
     //
     // Written as targeted UPDATEs rather than file.save(): these entities were loaded before
     // normalization repointed files.file_path, and save() diffs the whole entity against the row
@@ -206,6 +199,15 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     await reportProgress(LOAD_PROGRESS_CEILING, 'Computing dataset metadata...');
     const updatedBy = data.created_by ? getSubject(requestData) : null;
     await updateRasterDatasetMetadata(entityManager, dataset.id, statusAfterLoad(previousStatus), updatedBy);
+
+    // Last, once nothing can fail the load any more: a failed run is retried from the source, so
+    // deleting it any earlier could leave the retry with nothing to normalize.
+    if (data.delete_source_files) {
+      await deleteSourceFiles(
+        entityManager,
+        plans.filter(plan => plan.bands.length > 0).map(plan => plan.file.id),
+      );
+    }
 
     // The job is still active here, so this last write lands; once the processor
     // returns, updateJobState's `state = 'active'` guard makes it a no-op.
@@ -375,6 +377,41 @@ const resetToSourceFile = async (entityManager: EntityManager, fileId: string, s
     `UPDATE files SET file_path = $2, metadata = COALESCE(metadata, '{}'::jsonb) - 'unit_conversion_applied', updated_at = now() WHERE id = $1`,
     [fileId, sourcePath],
   );
+};
+
+/**
+ * Deletes the original upload of every loaded file that normalization replaced with a converted
+ * copy. A file that needed no conversion still reads from its upload, so it is left alone.
+ *
+ * Read from the row rather than the plan's entity, which predates normalization repointing
+ * file_path. source_file_path is kept as a record of where the file came from; resolveSourceFile
+ * checks that it exists, so a later edit that needs the file normalized again from its original
+ * pixels fails with RL_SOURCE_FILE_NOT_FOUND rather than scaling the converted copy a second time.
+ *
+ * Best-effort, as in a bulk load: the layers are already in, and a leftover source file is not
+ * worth failing the load over.
+ */
+const deleteSourceFiles = async (entityManager: EntityManager, fileIds: string[]): Promise<void> => {
+  if (fileIds.length === 0) {
+    return;
+  }
+  const rows: { id: string; file_path: string; source_file_path: string | null }[] = await entityManager.query(
+    `SELECT id, file_path, metadata->>'source_file_path' AS source_file_path FROM files WHERE id = ANY($1::uuid[])`,
+    [fileIds],
+  );
+  const storage = FileService.getStorageEngine();
+  for (const { id, file_path, source_file_path } of rows) {
+    if (!source_file_path || source_file_path === file_path) {
+      continue;
+    }
+    try {
+      if (await storage.fileExists(source_file_path)) {
+        await storage.deleteFile(source_file_path);
+      }
+    } catch (error: any) {
+      log.warn('Failed to delete source file after raster load', { file_id: id, error: error?.message });
+    }
+  }
 };
 
 const assertReferencePeriod = (fileName: string, band: number, field: string, value: string | null): void => {

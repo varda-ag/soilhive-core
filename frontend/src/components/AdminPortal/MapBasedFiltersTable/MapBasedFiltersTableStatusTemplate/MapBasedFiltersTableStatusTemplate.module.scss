@@ -1,0 +1,20 @@
+.StatusCell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.Tag {
+  width: 6.375rem;
+  justify-content: center;
+}
+
+.ToggleWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ActiveLabel {
+  font-size: var(--font-size-2xs);
+}

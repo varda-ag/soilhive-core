@@ -12,6 +12,7 @@ declare namespace NodeJS {
     readonly CORS_ORIGINS?: string;
     readonly EXPORT_BATCH_SIZE?: string;
     readonly EXPORT_XLSX_MAX_RECORDS?: string;
+    readonly EXPORT_LIMITS_CHECK_TIMEOUT_MS?: string;
     // Postgres connection env vars
     readonly POSTGRES_HOST?: string;
     readonly POSTGRES_PORT?: string;

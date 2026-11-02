@@ -1,13 +1,13 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { datasetExistsFor, getSubject, isPrivilegedCaller } from '../utils/auth';
+import { datasetCapabilities, datasetExistsFor, getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
 import { getEntity } from '../utils/slugs';
 import { EntityType, IngestionStatus } from '../types/data';
 import { epsgMap } from '../assets/epsgMap';
-import { Capability, JobQueues } from '../types/enums';
+import { JobQueues } from '../types/enums';
 import VectorDataLoad from '../data-layer/VectorDataLoad';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingService from './DatasetFileMappingService';
@@ -155,16 +155,8 @@ export default class DatasetService {
     return Object.entries(epsgMap).map(([code, name]) => ({ code: Number(code), name }));
   };
 
-  // Pre-existing GET /datasets behavior (predates sp-5560, unrelated to the
-  // Explore/Download availability flow's move to GET /entitlements) — inlined here rather
-  // than routed through EntitlementService, since that service's own getCapabilities helper
-  // was removed as part of that unrelated migration.
   decorateWithCapabilities = (dataset: DatasetEntity, requestData: RequestData) => {
-    const isBypassed = isPrivilegedCaller(requestData.token);
-    dataset.capabilities =
-      dataset.visibility === 'public' || isBypassed
-        ? [Capability.PREVIEW, Capability.DOWNLOAD]
-        : requestData.entitlements.datasets?.[dataset.slug] || [];
+    dataset.capabilities = datasetCapabilities(requestData, dataset);
   };
 
   /**

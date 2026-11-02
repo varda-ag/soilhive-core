@@ -41,7 +41,7 @@ const EPSG3857_FILE = 'epsg3857_2b_250m.tif';
 let datasetCounter = 0;
 const uniqueName = (suffix: string): string => `test-raster-load-${(datasetCounter += 1)}-${suffix}`;
 
-const getJob = (dataset_id: string): Job<RasterLoadJob> =>
+const getJob = (dataset_id: string, options?: Pick<RasterLoadJob, 'delete_source_files'>): Job<RasterLoadJob> =>
   ({
     id: 'mock-id',
     name: 'mock-job',
@@ -53,6 +53,7 @@ const getJob = (dataset_id: string): Job<RasterLoadJob> =>
       dataset_id,
       isDataAdmin: true,
       isSuperAdmin: false,
+      ...options,
     },
     heartbeatSeconds: 10,
   }) as Job<RasterLoadJob>;
@@ -292,12 +293,13 @@ describe('RasterLoader', () => {
     expect(layers[0]!.band).toBe(2);
   });
 
-  it('never deletes the source file — after a raster load the file is the layer data', async () => {
+  it('keeps an unconverted file even with delete_source_files — after a raster load the file is the layer data', async () => {
+    const storageDir = useScratchStorage(MULTIBAND_FILE);
     const { dataset } = await setUpRasterLoad(uniqueName('keeps-source'), slug => ({ '1': bandEntry(slug, 0, 5) }));
 
-    await processRasterLoad(getJob(dataset.slug));
+    await processRasterLoad(getJob(dataset.slug, { delete_source_files: true }));
 
-    expect(fs.existsSync(path.join(rasterAssetsPath, MULTIBAND_FILE))).toBe(true);
+    expect(fs.existsSync(path.join(storageDir, MULTIBAND_FILE))).toBe(true);
   });
 
   it('is safe to re-run: a second load updates the same layers instead of duplicating them', async () => {
@@ -573,6 +575,39 @@ describe('RasterLoader', () => {
       // The output really is a COG, so a re-run finds nothing left to convert.
       const info = await GdalCLI.gdalinfo(path.join(storageDir, converted));
       expect(info.metadata?.IMAGE_STRUCTURE?.LAYOUT).toBe('COG');
+    });
+
+    it('deletes the original once converted when delete_source_files is set', async () => {
+      const storageDir = useScratchStorage(NON_COG_FILE);
+      const { dataset, file } = await setUpRasterLoad(uniqueName('delete-source'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        bandCount: 1,
+        fileName: NON_COG_FILE,
+      });
+
+      await processRasterLoad(getJob(dataset.slug, { delete_source_files: true }));
+
+      const converted = await filePathOf(file.id);
+      expect(converted).toBe('not_a_cog_250m_cog.tif');
+      expect(fs.existsSync(path.join(storageDir, converted))).toBe(true);
+      expect(fs.existsSync(path.join(storageDir, NON_COG_FILE))).toBe(false);
+      expect(await getLayers(file.id)).toHaveLength(1);
+    });
+
+    it('keeps the original of a converted file when the load fails', async () => {
+      const storageDir = useScratchStorage(NON_COG_FILE);
+      const { dataset } = await setUpRasterLoad(uniqueName('delete-source-failed'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        bandCount: 1,
+        fileName: NON_COG_FILE,
+      });
+      const rollup = jest.spyOn(UpdateDatasetMetadataModule, 'updateRasterDatasetMetadata').mockRejectedValue(new Error('rollup failed'));
+
+      try {
+        await expect(processRasterLoad(getJob(dataset.slug, { delete_source_files: true }))).rejects.toThrow('rollup failed');
+      } finally {
+        rollup.mockRestore();
+      }
+
+      expect(fs.existsSync(path.join(storageDir, NON_COG_FILE))).toBe(true);
     });
 
     it('scales each band by its own conversion factor, averaging resampled overviews', async () => {

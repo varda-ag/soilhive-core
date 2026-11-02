@@ -597,6 +597,8 @@ paths:
         Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
         A bulk-load, raster-load or bulk-delete job is refused with 409 while its dataset already has one of
         those queued or running, and its dataset_id is stored as the dataset's current id.
+        An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
+        within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
         An export identical to an unfinished one from the same signed-in caller returns that job with 200
         instead of starting another. Anonymous exports always start a new job.
       tags:
@@ -636,6 +638,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Job'
+        '400':
+          description: Invalid request, or an export over its limits; `detail` names the limit and what to change
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '422':
           $ref: '#/components/responses/UnprocessableEntity'
         '401':
@@ -676,10 +684,11 @@ paths:
       x-eov-operation-handler: controllers/errors
       x-eov-operation-id: getDatasetErrors
       summary: Get latest ingestion errors per dataset
+      description: Covers Datasets that are not Published, so it is for data admins only.
       tags:
         - errors
       security:
-        - bearerAuth: []
+        - bearerAuth: [super-admin, data-admin]
       responses:
         '200':
           description: Array of datasets with their latest ingestion error
@@ -691,6 +700,8 @@ paths:
                   $ref: '#/components/schemas/DatasetError'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /jobs/{jobId}:
     parameters:
@@ -3711,7 +3722,14 @@ components:
         dataset_id:
           type: string
           description: Dataset whose raster files are to be loaded
-      description: Loads a raster dataset. The ingested files remains the raster layer's data and must not be removed.
+        delete_source_files:
+          type: boolean
+          description: >
+            When true, deletes the original upload of every loaded file that was converted (to a COG
+            or to the standard unit) once the load succeeds. Files used as uploaded are kept. A later
+            mapping edit that changes a unit conversion then fails with RL_SOURCE_FILE_NOT_FOUND, since
+            the file can no longer be normalized again from its original pixels.
+      description: Loads a raster dataset. The ingested files remain the raster layers' data and are never removed.
 
     ExportJob:
       type: object

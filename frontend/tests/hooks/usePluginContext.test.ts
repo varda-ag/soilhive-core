@@ -224,7 +224,13 @@ describe('usePluginContext', () => {
   });
 
   it('forwards isLoading and isError from useRaster as useRasterCategories', () => {
-    useRasterMock.mockReturnValue({ allCategories: undefined, isLoading: true, isError: true, setCategoryActive: jest.fn() });
+    useRasterMock.mockReturnValue({
+      allCategories: undefined,
+      isLoading: true,
+      isActivationPending: false,
+      isError: true,
+      setCategoryActive: jest.fn(),
+    });
 
     const { result: context } = renderHook(() => usePluginContext());
     const { result } = renderHook(() => context.current.useRasterCategories());

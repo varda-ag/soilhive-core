@@ -12,7 +12,7 @@ export const CSV_HASHES_CONFIG_ID = 'vocabulary-csv-hashes';
  * (frontend/src/hooks/usePluginConfig.ts) already uses for every plugin-owned config, capturing
  * `id` (group 2) for callers that need the id with its plugin prefix stripped (see
  * `EntitlementService.selectByScope`). This is also the only namespace a non-privileged caller may
- * claim on first access (see `EntitlementService.assertCanWriteConfigEntitlement`) — a system
+ * claim on first access (see `ConfigService.putConfig`) — a system
  * config id (`frontend-logo`, `theme`, `ingestion-status`, `vocabulary-csv-hashes`, ...) never
  * matches it. One pattern for both so the two checks can't drift apart.
  */

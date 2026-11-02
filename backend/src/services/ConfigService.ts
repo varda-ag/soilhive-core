@@ -1,4 +1,4 @@
-import { AuthModes, StorageModes } from '../types/enums';
+import { AuthModes, Capability, StorageModes } from '../types/enums';
 import { JsonStorage } from '../entities/JsonStorage';
 import { ErrorResponse } from '../utils/error';
 import { In, Repository } from 'typeorm';
@@ -8,7 +8,7 @@ import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig'
 import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
-import EntitlementService from './EntitlementService';
+import EntitlementService, { configForbidden } from './EntitlementService';
 import { EntitlementScope } from '../types/Entitlements';
 
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 500;
@@ -49,33 +49,31 @@ export default class ConfigService {
   putConfig = async (requestData: RequestData, id: string, data: any): Promise<any> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
 
-    if (entitlementService.canWriteConfig(requestData, id)) {
+    if (entitlementService.canConfig(requestData, id, Capability.WRITE)) {
       await repo.upsert([{ id, data, deleted_at: null }], ['id']);
       return this.readConfigRow(repo, id);
     }
 
-    if (!PLUGIN_CONFIG_ID_PATTERN.test(id)) {
-      throw new ErrorResponse(`User does not have write entitlement for config ${id}`, StatusCodes.FORBIDDEN);
+    if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
+      // `id` is a caller-supplied (not DB-generated) primary key, so `insertResult.identifiers`
+      // is populated from the values given regardless of whether ON CONFLICT DO NOTHING actually
+      // skipped the row — it is not a reliable "did I win the race" signal here. `.returning('id')`
+      // is: Postgres only returns rows RETURNING actually inserted, so an empty `raw` means lost.
+      const insertResult = await repo
+        .createQueryBuilder()
+        .insert()
+        .into(JsonStorage)
+        .values({ id, data, deleted_at: null })
+        .orIgnore()
+        .returning('id')
+        .execute();
+      if (insertResult.raw.length > 0) {
+        await entitlementService.grantSelfConfigWrite(requestData, id);
+        return this.readConfigRow(repo, id);
+      }
     }
 
-    // `id` is a caller-supplied (not DB-generated) primary key, so `insertResult.identifiers`
-    // is populated from the values given regardless of whether ON CONFLICT DO NOTHING actually
-    // skipped the row — it is not a reliable "did I win the race" signal here. `.returning('id')`
-    // is: Postgres only returns rows RETURNING actually inserted, so an empty `raw` means lost.
-    const insertResult = await repo
-      .createQueryBuilder()
-      .insert()
-      .into(JsonStorage)
-      .values({ id, data, deleted_at: null })
-      .orIgnore()
-      .returning('id')
-      .execute();
-    if (insertResult.raw.length === 0) {
-      throw new ErrorResponse(`User does not have write entitlement for config ${id}`, StatusCodes.FORBIDDEN);
-    }
-
-    await entitlementService.grantSelfConfigWrite(requestData, id);
-    return this.readConfigRow(repo, id);
+    throw configForbidden(id, Capability.WRITE);
   };
 
   // Existence before entitlement: a missing id 404s for every caller, not 403 first. The
@@ -85,7 +83,7 @@ export default class ConfigService {
   getConfig = async (requestData: RequestData, id: string): Promise<any> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const data = await this.readConfigRow(repo, id);
-    await entitlementService.assertCanReadConfigEntitlement(requestData, id);
+    entitlementService.assertConfig(requestData, id, Capability.READ);
     return data;
   };
 
@@ -93,7 +91,7 @@ export default class ConfigService {
   // re-saving `theme` doesn't drop EVERYONE's read (ADR 0037). Attached Data Requests are destroyed
   // by the controller (see controllers/configs.ts).
   deleteConfig = async (requestData: RequestData, id: string): Promise<void> => {
-    await entitlementService.assertCanWriteConfigEntitlement(requestData, id);
+    entitlementService.assertConfig(requestData, id, Capability.WRITE);
     const repo = requestData.entityManager.getRepository(JsonStorage);
     await repo.softDelete({ id });
     if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
@@ -108,7 +106,7 @@ export default class ConfigService {
   getConfigs = async (requestData: RequestData, ids: string[]): Promise<Record<string, SavedConfig>> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
-    const readableRows = rows.filter(row => entitlementService.canReadConfig(requestData, row.id));
+    const readableRows = rows.filter(row => entitlementService.canConfig(requestData, row.id, Capability.READ));
     return Object.fromEntries(readableRows.map(r => [r.id, { data: r.data, updated_at: r.updated_at!.toISOString() }]));
   };
 

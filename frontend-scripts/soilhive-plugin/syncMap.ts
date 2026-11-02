@@ -7,6 +7,7 @@ const FRONTEND_SRC = join(REPO_ROOT, 'frontend', 'src');
 const MAP_SRC = join(FRONTEND_SRC, 'components', 'Map');
 const STYLES_SRC = join(FRONTEND_SRC, 'styles');
 const ICONS_SRC = join(FRONTEND_SRC, 'assets', 'icons');
+const DATA_SRC = join(FRONTEND_SRC, 'assets', 'data');
 
 /**
  * Subfolders of Map/ that are never vendored, because each transitively needs `primereact`
@@ -104,11 +105,14 @@ const MAP_ICONS = [
   'small-upload-icon.svg',
 ];
 
+/** Data files the vendored Map/ files import via the `assets/data/*` alias: ContinentGeocoder.ts's continent boundaries. */
+const MAP_DATA_FILES = ['continents.json'];
+
 /**
  * Vendored Map/ files reach cross-cutting dependencies two ways, neither of which resolves as-is
  * once Map/'s siblings move from the plugin root into Map/_shared/:
  *
- * - A bare alias (`hooks/useDevice`, `assets/icons/x.svg?react`) or a double-relative path
+ * - A bare alias (`hooks/useDevice`, `assets/icons/x.svg?react`, `assets/data/x.json`) or a double-relative path
  *   (`../../utilities/geo`, `../../types/backend`) — both carry no information about where
  *   Map/_shared/ actually is, so both are rewritten the same way: as a relative path from the
  *   importing file back up to Map/ (`depthWithinMap` levels — 0 for a file directly in Map/ like
@@ -143,6 +147,7 @@ export function rewriteMapFileImports(content: string, depthWithinMap = 0): stri
     .replace(/(['"])\.\.\/\.\.\/styles\//g, '$1../styles/')
     .replace(/(['"])hooks\//g, `$1${sharedPrefix}hooks/`)
     .replace(/(['"])assets\/icons\//g, `$1${sharedPrefix}assets/icons/`)
+    .replace(/(['"])assets\/data\//g, `$1${sharedPrefix}assets/data/`)
     .replace(/(['"])components\/UI\//g, `$1${uiPrefix}UI/`);
 }
 
@@ -178,14 +183,18 @@ export interface SyncMapOptions {
   /** `dest` is relative to the plugin's Map/ folder (e.g. `_shared/hooks/useDevice.ts`), not the plugin root. */
   crossCuttingFiles?: Array<{ src: string; dest: string }>;
   icons?: string[];
+  dataSrc?: string;
+  dataFiles?: string[];
 }
 
 export function syncMap(pluginPath: string, options: SyncMapOptions = {}): void {
   const mapSrc = options.mapSrc ?? MAP_SRC;
   const stylesSrc = options.stylesSrc ?? STYLES_SRC;
   const iconsSrc = options.iconsSrc ?? ICONS_SRC;
+  const dataSrc = options.dataSrc ?? DATA_SRC;
   const crossCuttingFiles = options.crossCuttingFiles ?? CROSS_CUTTING_FILES;
   const icons = options.icons ?? MAP_ICONS;
+  const dataFiles = options.dataFiles ?? MAP_DATA_FILES;
 
   const mapDest = join(pluginPath, 'Map');
   alwaysOverwrite(mapSrc, mapDest, { excludeBasenames: EXCLUDED_MAP_SUBFOLDERS });
@@ -197,6 +206,10 @@ export function syncMap(pluginPath: string, options: SyncMapOptions = {}): void 
 
   for (const icon of icons) {
     alwaysOverwrite(join(iconsSrc, icon), join(mapDest, MAP_SHARED_DIRNAME, 'assets', 'icons', icon));
+  }
+
+  for (const dataFile of dataFiles) {
+    alwaysOverwrite(join(dataSrc, dataFile), join(mapDest, MAP_SHARED_DIRNAME, 'assets', 'data', dataFile));
   }
 
   alwaysOverwrite(join(stylesSrc, 'SoilhiveMap.scss'), join(pluginPath, 'styles', 'SoilhiveMap.scss'), { allowMapAssets: true });

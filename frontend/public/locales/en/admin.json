@@ -520,36 +520,28 @@
         }
     },
     "filters": {
-        "common": {
-            "installed": "Installed",
-            "not_installed": "Not installed"
-        },
         "title": "Map settings",
         "intro": {
-            "title": "Why they need a separated configuration.",
-            "description": "Map-based filters require many GB of data to be added to the system. Each filter provides global coverage and it is provided in a separate package, to avoid unnecessary large downloads when installing the platform."
+            "title": "Map-based filters",
+            "description": "Here you can add your map-based filters, just click on the button “Add filters”, upload a tif file and fill the filter values.<br /><br />In our github repository we have some filters that proved to be useful to many users, take a look in case you want to add any of them <a>here</a>"
         },
         "list": {
-            "title": "The Filters"
-        },
-        "agroecological_zones": {
-            "name": "Agroecological zones",
-            "description": "Agroecological Zones classify land according to its suitability for agricultural production by considering climatic conditions, land resources, and crop growth requirements."
-        },
-        "land_cover": {
-            "name": "Land cover",
-            "description": "Land Cover categorizes the physical and biological cover present on the Earth’s surface, such as vegetation, cropland, water bodies, or built-up areas."
-        },
-        "soil_groups": {
-            "name": "Soil groups",
-            "description": "Soil groups classify soils into categories based on their physical, chemical, and morphological characteristics. These classifications provide a standardized way to describe and compare soils across different regions."
-        },
-        "activation": {
-            "title": "Activate the filters",
-            "description": "Access our documentation and follow the instructions to activate the map-based filters:",
-            "status_title": "Filter states",
-            "status_description": "Check if the filters are correctly activated:"
+            "add_button_text": "Add filters",
+            "empty_message": "No filters added",
+            "columns": {
+                "name": "Name",
+                "status": "Status",
+                "created_at": "Creation date",
+                "actions": "Actions"
+            },
+            "not_installed": "Not installed",
+            "activate": "Activate",
+            "deactivate": "Deactivate"
         }
+    },
+    "createFilter": {
+        "title": "Upload a file",
+        "message": "Here we need a text here to explain to the user that they need to upload only one tif file and it should be categorised, continuous files will be uploaded in the future too."
     },
     "export_settings": {
         "title": "Export settings",

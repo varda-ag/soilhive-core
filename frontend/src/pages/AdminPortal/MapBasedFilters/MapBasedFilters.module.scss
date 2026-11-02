@@ -1,118 +1,30 @@
 .MapBasedFilters {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 3rem;
-  max-width: 1000px;
+  gap: 30px;
+  padding: 1.75rem 3.125rem 3.125rem;
   color: var(--color-text-primary);
-}
 
-.Card {
-  background: var(--color-neutral-white);
-  border: 1px solid var(--color-neutral-dark-100);
-  border-radius: 8px;
-  padding: 24px;
-  display: flex;
-  gap: 20px;
+  > .Section {
+    background: var(--color-neutral-white);
+    padding: 1.5rem 2rem;
+    border-radius: 0.5rem;
+    box-shadow: var(--shadow-interface-large);
 
-  .Icon {
-    flex-shrink: 0;
-    width: 43.38px;
-    height: 43.38px;
-    color: var(--color-brand-dark-green-1000);
-  }
-
-  .Content {
-    flex-grow: 1;
-
-    h3 {
-      margin: 0 0 12px 0;
-      font-size: var(--font-size-xl);
-      font-weight: var(--font-weight-bold);
-    }
-
-    p {
-      margin: 0;
-      font-size: var(--font-size-md);
-      line-height: var(--line-height-lg);
-    }
-  }
-}
-
-.FilterList {
-  margin-top: 16px;
-
-  .FilterItem {
-    margin-bottom: 20px;
-
-    h4 {
-      margin: 0 0 8px 0;
+    > .Title {
       font-size: var(--font-size-lg);
-      font-weight: var(--font-weight-semibold);
+      line-height: var(--line-height-lg);
+      margin: 0 0 0.625rem;
+    }
+
+    > .Message {
+      line-height: 135%;
     }
   }
-}
 
-.ActivationSection {
-  .DocLink {
-    color: var(--color-cta-danger-solid);
-    text-decoration: underline;
-    word-break: break-all;
-    display: block;
-    margin: 8px 0 24px 0;
-    font-size: var(--font-size-sm);
-  }
-
-  .StatusTitle {
-    font-weight: var(--font-weight-bold);
-    font-size: var(--font-size-md);
-  }
-
-  .StatusDescription {
-    margin-top: 6px;
-    margin-bottom: 16px;
-  }
-
-  .StatusRow {
+  .Actions {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 8px;
-
-    .Label {
-      flex: 0 0 180px;
-      font-size: var(--font-size-sm);
-    }
-  }
-}
-
-.StatusBox {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 6px;
-  border-radius: 4px;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  border: 1px solid var(--color-neutral-dark-200);
-  min-width: 85px;
-  justify-content: center;
-  margin-right: 12px;
-
-  &.Installed {
-    border-color: var(--color-brand-light-green-1000);
-    background-color: var(--color-brand-light-green-100);
-    color: var(--color-text-primary);
-
-    &::before {
-      content: '✓';
-      margin-right: 6px;
-      font-weight: var(--font-weight-bold);
-    }
-  }
-
-  &.NotInstalled {
-    border-color: var(--color-neutral-dark-100);
-    background-color: var(--color-neutral-light);
-    color: var(--color-neutral-dark-400);
+    justify-content: flex-end;
+    margin-bottom: 1.25rem;
   }
 }

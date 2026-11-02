@@ -1,0 +1,41 @@
+.NameCell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.CreatedAtCell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.MapBasedFiltersTable {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100% - 60px);
+
+  .TableColumn {
+    &:nth-child(1) {
+      width: 438px;
+      max-width: 438px;
+      font-weight: var(--font-weight-bold);
+    }
+    &:nth-child(2) {
+      width: 174px;
+      min-width: 174px;
+    }
+    &:nth-child(3) {
+      width: 265px;
+      min-width: 265px;
+    }
+    &:nth-child(4) {
+      width: 141px;
+      min-width: 141px;
+    }
+
+    :global(.p-sortable-column-icon) {
+      margin-left: 0;
+    }
+  }
+}

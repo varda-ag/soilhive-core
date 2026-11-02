@@ -19,6 +19,8 @@ import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/DatasetJobs';
 import { getEntity } from '../utils/slugs';
+import { JobError } from '../errors/JobError';
+import { checkExportLimitsAtSubmission } from '../jobs/soil-export/submissionCheck';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
 
@@ -37,7 +39,7 @@ const subjectOf = (requestData: RequestData): string | undefined => (requestData
 const UNFINISHED_STATES: string[] = ['created', 'retry', 'active'];
 
 /**
- * What identical Export requests share (docs/adr/0071): every request field, arrays as sets,
+ * What identical Export requests share (docs/adr/0074): every request field, arrays as sets,
  * plus the Subject and the flags that decide its Export Limits.
  */
 const exportKey = (data: ExportJob): string => {
@@ -63,7 +65,7 @@ const exportKey = (data: ExportJob): string => {
 export default class JobService {
   private boss = getPgBoss();
 
-  /** The job enqueued, or the unfinished Export the request joined instead (docs/adr/0071). */
+  /** The job enqueued, or the unfinished Export the request joined instead (docs/adr/0074). */
   async createJob(requestData: RequestData, data: AnyJob, options?: SendOptions): Promise<{ job: Job; joined: boolean }> {
     const { sub } = requestData.token ?? {};
 
@@ -90,8 +92,16 @@ export default class JobService {
     }
 
     // Checking entitlements
+    let exportDatasetSlugs: string[] = [];
     if (data.type === JobQueues.EXPORT) {
-      await entitlementService.enforceDatasetEntitlements(requestData, (data as ExportJob).dataset_ids, Capability.DOWNLOAD);
+      // Every named Dataset must exist now: the job reads vector rows under preview alone, so one
+      // published after this check would never have download checked (docs/adr/0073)
+      exportDatasetSlugs = await entitlementService.enforceDatasetEntitlements(
+        requestData,
+        (data as ExportJob).dataset_ids,
+        Capability.DOWNLOAD,
+        { requireAll: true },
+      );
     }
 
     if (data.type === JobQueues.DATA_REQUESTS) {
@@ -110,15 +120,19 @@ export default class JobService {
     data.isDataAdmin = requestData.token?.isDataAdmin;
     data.isSuperAdmin = requestData.token?.isSuperAdmin;
 
-    // Anonymous Exports carry no key, so they never join
-    if (data.type === JobQueues.EXPORT && data.created_by) {
-      const singletonKey = exportKey(data as ExportJob);
-      const joined = await this.findExportToJoin(requestData, singletonKey);
-      if (joined) {
-        log.info('Job joined', { queue: data.type, job_id: joined.id, created_by: data.created_by });
-        return { job: joined, joined: true };
+    if (data.type === JobQueues.EXPORT) {
+      // Anonymous Exports carry no key, so they never join
+      if (data.created_by) {
+        const singletonKey = exportKey(data as ExportJob);
+        const joined = await this.findExportToJoin(requestData, singletonKey);
+        if (joined) {
+          log.info('Job joined', { queue: data.type, job_id: joined.id, created_by: data.created_by });
+          return { job: joined, joined: true };
+        }
+        options = { ...options, singletonKey };
       }
-      options = { ...options, singletonKey };
+      // After the join: the Export it joins passed this same check
+      await this.checkExportLimits(requestData, data as ExportJob, exportDatasetSlugs);
     }
 
     const id = await this.boss.send(data.type, data, options ?? {});
@@ -157,6 +171,20 @@ export default class JobService {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
     data.dataset_id = dataset.slug;
     await assertNoUnfinishedJob(requestData.entityManager, dataset);
+  };
+
+  /**
+   * Refuses an Export over its limits with the message its job would fail with, so nothing is
+   * queued and the caller can change the request (docs/adr/0070).
+   */
+  private checkExportLimits = async (requestData: RequestData, data: ExportJob, datasetSlugs: string[]): Promise<void> => {
+    try {
+      await checkExportLimitsAtSubmission(requestData, data, datasetSlugs);
+    } catch (error) {
+      if (!JobError.isJobError(error)) throw error;
+      const { message, actions } = translateJobError(error.code, error.params);
+      throw new ErrorResponse([message, ...actions].join(' '), StatusCodes.BAD_REQUEST);
+    }
   };
 
   /**
@@ -276,7 +304,7 @@ export default class JobService {
       if (!data.file_id) {
         throw new ErrorResponse('Parameter label_field requires file_id', StatusCodes.BAD_REQUEST);
       }
-      const file = await new FileService().getFile(requestData, data.file_id);
+      const file = await new FileService().getUnmappedFile(requestData, data.file_id);
       const metadata = file.metadata;
       if (!metadata || metadata.is_raster) {
         throw new ErrorResponse(`File '${data.file_id}' has no vector metadata to take label_field from`, StatusCodes.BAD_REQUEST);

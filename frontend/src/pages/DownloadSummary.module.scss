@@ -236,3 +236,9 @@
     }
   }
 }
+
+// Rendered in <body>. Safari paints the datasets table's sticky header over the open list
+// unless the list keeps a compositing layer of its own after its opening animation.
+.FormatPickerDropdownPanel {
+  will-change: transform;
+}

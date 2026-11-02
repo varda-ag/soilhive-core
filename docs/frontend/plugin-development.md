@@ -114,7 +114,7 @@ Pass `--with-map` (see [Creating a plugin](#creating-a-plugin)) to sync in `Soil
 Syncing `--with-map` vendors:
 
 - The `Map/` folder itself.
-- Its supporting files, nested under `Map/_shared/`: `DrawControl.tsx`, `hooks/useDevice.ts`, `hooks/useDragAndDropUpload.ts`, `configuration/layout.ts`, five `utilities/` files (`geo.ts`, `geometry.ts`, `map.ts`, `simplifyGeometry.ts`, `environmentVariables.ts`, `parseGeoJSONFile.ts`), `types/backend.ts`, and the icons `Map/` uses.
+- Its supporting files, nested under `Map/_shared/`: `DrawControl.tsx`, `hooks/useDevice.ts`, `hooks/useDragAndDropUpload.ts`, `configuration/layout.ts`, five `utilities/` files (`geo.ts`, `geometry.ts`, `map.ts`, `simplifyGeometry.ts`, `environmentVariables.ts`, `parseGeoJSONFile.ts`), `types/backend.ts`, the icons `Map/` uses, and `assets/data/continents.json`, the continent boundaries the location search finds.
 - `styles/SoilhiveMap.scss`. Unlike the files above, this file stays flat under the plugin's own `styles/` folder, next to the rest of `styles/`.
 - The `maplibre-gl`, `react-map-gl`, `@turf/turf`, `h3-js`, and related npm packages, merged into your `package.json` the same way `UI/`'s dependencies are (see [Managed `package.json` dependencies](#managed-packagejson-dependencies)).
 
@@ -143,7 +143,7 @@ function MyMapPage() {
 
 ### Where `Map/`'s supporting files live
 
-Every file `Map/` needs from outside its own folder — `DrawControl`, `useDevice`, the map utilities, `types/backend`, `configuration/layout`, and its icons — lands nested under `Map/_shared/`. It does not sit flat at the plugin root.
+Every file `Map/` needs from outside its own folder — `DrawControl`, `useDevice`, the map utilities, `types/backend`, `configuration/layout`, its icons and the continent boundaries — lands nested under `Map/_shared/`. It does not sit flat at the plugin root.
 
 This keeps every map-related file in one place, separate from your own code. The sync step rewrites `Map/`'s own import paths to point at `Map/_shared/` automatically. You never need to add an import alias for this yourself.
 
@@ -168,7 +168,7 @@ The host's map has three features that `--with-map` does not vendor. Each one ne
 | Host feature | Why it is not vendored | What you get instead |
 |---|---|---|
 | DAI overlay | It needs a host-only network hook, tied to a live backend filter session | Nothing equivalent. Omit the `dai` prop |
-| Selection info card (`AreaInfo`) | It is also the planned future home of a `map-info-card` capability that must stay host-only (see [ADR 0027](../adr/0027-map-is-vendored-behind-an-opt-in-flag.md)) | Your own `selectionState` (see above), or `context.useFilter(filterId)` for a selection passed in as a `filterId`. Build your own card and render it through `SoilhiveMap`'s `children` slot (needs `react-map-gl` context, for example a `Popup`) or `footer` slot (a plain sibling element, for example a bottom bar) |
+| Selection info card (`AreaInfo`) | It must stay host-only: plugins add content to the host's card through a `map-info-card` module instead (see [Adding content to the map's Area Information card](#adding-content-to-the-maps-area-information-card) and [ADR 0027](../adr/0027-map-is-vendored-behind-an-opt-in-flag.md)) | Your own `selectionState` (see above), or `context.useFilter(filterId)` for a selection passed in as a `filterId`. Build your own card and render it through `SoilhiveMap`'s `children` slot (needs `react-map-gl` context, for example a `Popup`) or `footer` slot (a plain sibling element, for example a bottom bar) |
 | Style switcher UI | It needs `primereact`'s `Dialog` | The `currentMapStyleIndex` prop. Build your own switcher and pass the index back in |
 | "Upload a polygon" toolbar modal | It needs `primereact`'s `Dialog` | `SoilhiveMapRef.onUpload`. It only accepts an already-parsed geometry; it does not read files or provide a drop zone. Pass your own `onUploadClick` to show your own upload UI, or wire up drag-and-drop yourself — see the next section |
 
@@ -559,6 +559,32 @@ Start from [`plugin-backend-example/`](../../plugin-backend-example/README.md) i
 To read core data as the user, send the token you received to the core API, as `Authorization: Bearer …`. The core reads with it exactly what the user could read, and refuses everything but a `GET` (`403`), a few reads that list other users' grants or files included. It never acts with admin rights unless your plugin is listed in `PLUGIN_TOKEN_ADMIN_PLUGINS`. Grants held by an external entitlements service (`ENTITLEMENTS_ENDPOINT`) do not apply to it.
 
 Host your backend over HTTPS, and not under the host's `COOKIE_DOMAIN`: the host keeps the user's own token in a cookie for that domain, and the browser would send it with every file your remote loads from there. A backend that serves several plugins checks `aud` per plugin.
+
+## Adding content to the map's Area Information card
+
+Your plugin can add content, for example a button, to the host map's Area Information card. The card shows when a user selects an area. Your content appears between the area values and the "Download GeoJSON" link. Your routed page stays as it is.
+
+1. Expose a second module from your `module-federation.config.ts`: `'./mapInfoCard': './src/MyCard.tsx'`.
+2. In that file, export `pluginId` (the same id as your page module), `name`, `type = 'map-info-card'` and `Page`. `Page` receives `{ context: PluginContext }`, as your routed page does.
+3. In your page module (`'.'`), export `hasMapInfoCard = true`. The host loads `./mapInfoCard` only then, so the operator configures nothing. If the declared card fails to load, the host shows a "Plugin map card unavailable" notification and your page stays available.
+
+In the card, `context` has two more fields. Both are `undefined` on your routed page:
+
+- `context.mapSelectionFilterId`: the id of a stored, geometry-only Filter of the selected area. It is `undefined` while the host saves it. Read it with `context.useFilter(filterId)`, or pass it on to your page.
+- `context.navigateToOwnPage(subPath?)`: opens a path relative to your route. With route `dashboards`, `navigateToOwnPage('new?filterId=abc')` opens `/dashboards/new?filterId=abc`, and `navigateToOwnPage()` opens `/dashboards`. The host refuses a path outside your route, such as `'../admin'` or `'/admin'`, and logs a warning.
+
+```tsx
+const Page: React.FC<{ context: PluginContext }> = ({ context }) => {
+  const filterId = context.mapSelectionFilterId;
+  return (
+    <button disabled={!filterId} onClick={() => context.navigateToOwnPage?.(`new?filterId=${filterId}`)}>
+      Generate soil analysis
+    </button>
+  );
+};
+```
+
+The host shows your card only while your routed page is available, e.g. not for a `requiresAuth` plugin on a deployment with no sign-in. If your card throws while rendering, the host renders nothing in its place and the rest of the map card stays. See [ADR 0066](../adr/0066-plugin-dual-capability-via-second-mf-expose.md).
 
 ## Registering your plugin with the host
 

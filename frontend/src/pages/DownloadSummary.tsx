@@ -84,6 +84,7 @@ function DownloadSummary() {
   const [selectedFormat, setSelectedFormat] = useState<string>(SCENARIO_FORMATS.vector.defaultFormat);
   const [showUpdatedMessage, setShowUpdatedMessage] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   const activeFormatOptions = SCENARIO_FORMATS[scenario].options;
 
@@ -105,17 +106,22 @@ function DownloadSummary() {
     }
   };
 
-  const onDownloadButtonClick = () => {
-    if (filterId) {
-      const option = activeFormatOptions.find(o => o.id === selectedFormat)!;
-      startDownload({
-        filter_id: filterId,
-        dataset_ids: selectedDatasets.map(dataset => dataset.id),
-        formats: option.formats,
-      });
-      setIsOpened(true);
-      navigate('/');
+  // Waits for the Export to start: one over its limits is refused, and the selection stays here to change
+  const onDownloadButtonClick = async () => {
+    if (!filterId) return;
+    const option = activeFormatOptions.find(o => o.id === selectedFormat)!;
+    setIsStarting(true);
+    const id = await startDownload({
+      filter_id: filterId,
+      dataset_ids: selectedDatasets.map(dataset => dataset.id),
+      formats: option.formats,
+    });
+    if (!id) {
+      setIsStarting(false);
+      return;
     }
+    setIsOpened(true);
+    navigate('/');
   };
 
   const licensesCell = ({ licenses }: DownloadSummaryDataset) => {
@@ -194,30 +200,31 @@ function DownloadSummary() {
               <CloudDownload />
               <div className={styles.MainContentHeaderText}>{t('download_summary.datasets_included_in_download')}</div>
             </div>
-            <div className={styles.FormatPicker}>
-              <div className={styles.FormatPickerHeader}>
-                <DownloadIcon className={styles.FormatPickerHeaderIcon} />
-                <div>{t('download_summary.download_format')}</div>
+            {/* Without PrimeReact's context, the open format list throws on a window resize and stays where it opened */}
+            <PrimeReactProvider>
+              <div className={styles.FormatPicker}>
+                <div className={styles.FormatPickerHeader}>
+                  <DownloadIcon className={styles.FormatPickerHeaderIcon} />
+                  <div>{t('download_summary.download_format')}</div>
+                </div>
+                <div className={styles.FormatPickerContent}>
+                  <Dropdown
+                    className={styles.FormatPickerDropdown}
+                    panelClassName={styles.FormatPickerDropdownPanel}
+                    value={selectedFormat}
+                    options={activeFormatOptions}
+                    onChange={onFormatDropdownChange}
+                    optionValue="id"
+                    optionLabel="name"
+                  />
+                  {showUpdatedMessage && (
+                    <div className={styles.FormatPickerUpdatedMessage}>
+                      <CheckIcon /> {t('download_summary.download_format_updated')}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className={styles.FormatPickerContent}>
-                <Dropdown
-                  className={styles.FormatPickerDropdown}
-                  panelClassName={styles.FormatPickerDropdownPanel}
-                  value={selectedFormat}
-                  options={activeFormatOptions}
-                  onChange={onFormatDropdownChange}
-                  optionValue="id"
-                  optionLabel="name"
-                />
-                {showUpdatedMessage && (
-                  <div className={styles.FormatPickerUpdatedMessage}>
-                    <CheckIcon /> {t('download_summary.download_format_updated')}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className={styles.TableContainer}>
-              <PrimeReactProvider>
+              <div className={styles.TableContainer}>
                 <DataTable
                   disabled={isLoading}
                   value={datasets}
@@ -244,8 +251,8 @@ function DownloadSummary() {
                     body={isLoading ? loaderCell : dataCountCell}
                   ></Column>
                 </DataTable>
-              </PrimeReactProvider>
-            </div>
+              </div>
+            </PrimeReactProvider>
           </div>
           <div className={classNames(styles.Footer, { [styles.Expanded]: summaryExpanded })}>
             <div className={styles.TermsOfUse}>
@@ -268,11 +275,11 @@ function DownloadSummary() {
               size="medium"
               type="primary"
               className={styles.DownloadButton}
-              isDisabled={isMobileDevice || isLoading || !termsAgreed || selectedDatasets.length === 0}
+              isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0}
               onClick={onDownloadButtonClick}
             >
               <DownloadIcon />
-              {t('download_summary.download_button')}
+              {isStarting ? t('download_summary.starting_download') : t('download_summary.download_button')}
             </Button>
           </div>
         </div>

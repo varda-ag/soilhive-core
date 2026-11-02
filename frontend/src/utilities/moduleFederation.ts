@@ -4,12 +4,22 @@ import ReactDOM from 'react-dom';
 import i18next from 'i18next';
 import * as ReactI18next from 'react-i18next';
 import * as ReactRouter from 'react-router';
-import { PluginType, type NewTabPlugin, type Plugin, type RemotePlugin, type SinglePagePlugin } from '../types/plugins';
+import {
+  PluginType,
+  type MapInfoCardPlugin,
+  type NewTabPlugin,
+  type Plugin,
+  type RemotePlugin,
+  type SinglePagePlugin,
+} from '../types/plugins';
 
 export const isSinglePageModule = (module: RemotePlugin): module is SinglePagePlugin =>
   module.type === PluginType.SINGLE_PAGE && !!module.route && !!module.Page;
 
 export const isNewTabModule = (module: RemotePlugin): module is NewTabPlugin => module.type === PluginType.NEW_TAB && !!module.targetUrl;
+
+const isMapInfoCardModule = (module: RemotePlugin | null): module is MapInfoCardPlugin =>
+  module?.type === PluginType.MAP_INFO_CARD && !!module.Page;
 
 const REQUIRED_FIELDS_BY_TYPE: Record<PluginType, (keyof RemotePlugin)[]> = {
   [PluginType.SINGLE_PAGE]: ['route', 'Page'],
@@ -70,8 +80,9 @@ export function partitionDuplicatePluginIds(modules: RemotePlugin[]): { unique: 
   return { unique, duplicates };
 }
 
-// Populated by fallbackPlugin's errorLoadRemote below, keyed by remote url
-// (the `id` passed to mf.loadRemote). Lets loadRemotes tell "remote failed to
+// Populated by fallbackPlugin's errorLoadRemote below, keyed by the `id` passed to
+// mf.loadRemote: a remote url, or `${url}/mapInfoCard` for a card, whose expose may
+// be missing. loadRemoteModule removes the id again. Lets loadRemotes tell "remote failed to
 // load" apart from "remote loaded but its module content is invalid": the MF
 // runtime resolves loadRemote() successfully with the fallback object below
 // rather than rejecting, so the failure would otherwise be indistinguishable
@@ -204,9 +215,21 @@ const toAbsoluteUrl = (url: string): string | undefined => {
   }
 };
 
+const MAP_INFO_CARD_EXPOSE = 'mapInfoCard';
+
+// A remote that failed to load still resolves (to fallbackPlugin's placeholder object above)
+// rather than rejecting, so a failure is only detectable via failedRemoteUrls.
+async function loadRemoteModule(id: string): Promise<RemotePlugin | null> {
+  const module = await mf.loadRemote<RemotePlugin>(id).catch(() => null);
+  return failedRemoteUrls.delete(id) ? null : module;
+}
+
 /**
  * Register and load the given remotes, returning the modules that loaded
- * successfully and the urls of the ones that didn't.
+ * successfully and the urls of the ones that didn't. A page module that sets
+ * hasMapInfoCard declares a './mapInfoCard' expose: its Page is attached to the
+ * plugin as MapInfoCard. A declared card that fails to load, or is not a
+ * map-info-card module with a Page, leaves the plugin without a MapInfoCard.
  *
  * This was previously done at module-init time via top-level await; it now runs
  * on demand so the remotes config can be fetched from the configuration service
@@ -223,28 +246,38 @@ async function loadRemotes(configs: Plugin[]): Promise<{ loaded: RemotePlugin[];
   // processError → warn() → logger.warn → console.warn) before rethrowing them.
   // The fallbackPlugin above ensures a silent <div /> is used instead.
   muteConsole();
-  let remoteModules: (RemotePlugin | null)[];
+  let remoteModules: (readonly [RemotePlugin | null, RemotePlugin | null])[];
   try {
-    remoteModules = await Promise.all(enabled.map(remote => mf.loadRemote<RemotePlugin>(remote.url).catch(() => null)));
+    // Each card starts as soon as its own page module is in, not after every remote's.
+    // MF resolves `${url}/mapInfoCard` to the remote registered under url, by string prefix.
+    remoteModules = await Promise.all(
+      enabled.map(async ({ url }) => {
+        const module = await loadRemoteModule(url);
+        const card = module?.hasMapInfoCard ? await loadRemoteModule(`${url}/${MAP_INFO_CARD_EXPOSE}`) : null;
+        return [module, card] as const;
+      }),
+    );
   } finally {
     unmuteConsole();
   }
 
   const loaded: RemotePlugin[] = [];
   const failed: string[] = [];
-  remoteModules.forEach((module, index) => {
+  remoteModules.forEach(([module, card], index) => {
     const { url } = enabled[index];
-    // A remote that failed to load still resolves (to fallbackPlugin's
-    // placeholder object above) rather than rejecting, so a failure is only
-    // detectable via failedRemoteUrls, not via truthiness of `module`.
-    if (!module || failedRemoteUrls.delete(url)) {
+    if (!module) {
       failed.push(url);
-    } else {
-      // Copied rather than mutated: a loaded module is an ES module namespace,
-      // which is not extensible. Any truthy value gates, so a malformed flag
-      // fails closed. remoteUrl comes last so a module can't supply its own.
-      loaded.push({ ...module, requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn, remoteUrl: toAbsoluteUrl(url) });
+      return;
     }
+    // Copied rather than mutated: a loaded module is an ES module namespace,
+    // which is not extensible. Any truthy value gates, so a malformed flag
+    // fails closed. remoteUrl and MapInfoCard come last so a module can't supply its own.
+    loaded.push({
+      ...module,
+      requiresAuth: !!module.requiresAuth || !!enabled[index].mustBeLoggedIn,
+      remoteUrl: toAbsoluteUrl(url),
+      MapInfoCard: isMapInfoCardModule(card) ? card.Page : undefined,
+    });
   });
 
   return { loaded, failed };

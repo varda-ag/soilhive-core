@@ -23,6 +23,7 @@ export function AdminHeader() {
 
   const titleKey = useMemo(() => {
     if (pathname.startsWith(ADMIN_PATHS.DATASETS)) return PAGE_TITLE_KEYS[ADMIN_PATHS.DATASETS];
+    if (pathname.startsWith(ADMIN_PATHS.FILTERS)) return PAGE_TITLE_KEYS[ADMIN_PATHS.FILTERS];
     return PAGE_TITLE_KEYS[pathname];
   }, [pathname]);
 

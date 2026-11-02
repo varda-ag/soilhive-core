@@ -53,7 +53,7 @@ export const extractUnitsFromFile = async (
 ): Promise<ExtractedUnits> => {
   const { fileId, parameters, labelField, maxUnits } = input;
 
-  const fileEntity = await fileService.getFile(requestData, fileId).catch(error => {
+  const fileEntity = await fileService.getUnmappedFile(requestData, fileId).catch(error => {
     if (error instanceof ErrorResponse && error.status === StatusCodes.NOT_FOUND) {
       throw new JobError('RUN_FILE_NOT_FOUND', { file_id: fileId });
     }
