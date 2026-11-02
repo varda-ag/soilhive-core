@@ -1,5 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import SoilhiveSimpleMap from 'components/Map/SoilhiveSimpleMap';
+import { bbox } from '@turf/turf';
+import type { FeatureCollection } from 'geojson';
 
 jest.mock('utilities/map', () => ({
   EOX_SATELLITE_MAP_STYLE: 'eox-style',
@@ -7,13 +9,14 @@ jest.mock('utilities/map', () => ({
 }));
 
 jest.mock('react-map-gl/maplibre', () => ({
-  Map: ({ children, attributionControl, onRender, onLoad, minZoom, maxZoom, canvasContextAttributes }: any) => (
+  Map: ({ children, attributionControl, onRender, onLoad, minZoom, maxZoom, canvasContextAttributes, renderWorldCopies }: any) => (
     <div
       data-testid="map"
       data-attribution-control={JSON.stringify(attributionControl)}
       data-min-zoom={String(minZoom)}
       data-max-zoom={String(maxZoom)}
       data-preserve-drawing-buffer={String(canvasContextAttributes?.preserveDrawingBuffer)}
+      data-render-world-copies={String(renderWorldCopies)}
     >
       <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
       <button
@@ -114,5 +117,36 @@ describe('SoilhiveSimpleMap', () => {
 
     expect(onLoad).toHaveBeenCalledTimes(1);
     expect(onLoad.mock.calls[0][0].getContainer()).toBe(screen.getByTestId('map'));
+  });
+
+  describe('world copies', () => {
+    const geometryFeature: FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [] } }],
+    };
+
+    afterEach(() => {
+      jest.mocked(bbox).mockReturnValue([0, 0, 1, 1]);
+    });
+
+    it('draws a single copy of the world for a geometry within ±180°', () => {
+      render(<SoilhiveSimpleMap geometryFeature={geometryFeature} />);
+      expect(screen.getByTestId('map').dataset.renderWorldCopies).toBe('false');
+    });
+
+    it('draws a single copy of the world with no geometry', () => {
+      render(<SoilhiveSimpleMap />);
+      expect(screen.getByTestId('map').dataset.renderWorldCopies).toBe('false');
+    });
+
+    // A single copy would cut it in two at the map's edges
+    it.each([
+      ['east past 180°', [157, 49, 242.5, 71.5]],
+      ['west past -180°', [-203, 49, -117.5, 71.5]],
+    ])('draws copies of the world for a geometry crossing the antimeridian, %s', (_, crossing) => {
+      jest.mocked(bbox).mockReturnValue(crossing as [number, number, number, number]);
+      render(<SoilhiveSimpleMap geometryFeature={geometryFeature} />);
+      expect(screen.getByTestId('map').dataset.renderWorldCopies).toBe('true');
+    });
   });
 });

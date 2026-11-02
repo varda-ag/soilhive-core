@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMetadata } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { IngestionStatus } from 'types/backend';
+import type { FeatureCollection } from 'geojson';
 import useDevice from 'hooks/useDevice';
 import useNotifications from 'hooks/useNotifications';
 import styles from './Metadata.module.scss';
@@ -22,6 +23,7 @@ import { NumberRow } from 'components/Metadata/NumberRow/NumberRow';
 import { RelatedResourcesRow } from 'components/Metadata/RelatedResourcesRow/RelatedResourcesRow';
 import { DateRow } from 'components/Metadata/DateRow/DateRow';
 import { dateStringToDDMMYYYY } from 'utilities/date';
+import { boundingBoxPolygon } from 'utilities/geo';
 
 const GIS_DATATYPE_OPTIONS = [
   { code: 'point', name: 'Point' },
@@ -81,6 +83,15 @@ export default function Metadata() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isMapPopupOpen]);
+
+  const datasetBbox = dataset?.bbox;
+  const bboxFeature = useMemo<FeatureCollection | undefined>(
+    () =>
+      datasetBbox
+        ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: boundingBoxPolygon(datasetBbox) }] }
+        : undefined,
+    [datasetBbox],
+  );
 
   const datasetName = dataset?.name;
   useEffect(() => {
@@ -166,15 +177,7 @@ export default function Metadata() {
               <div className={styles.Map}>
                 {isMounted && (
                   <>
-                    <SoilhiveSimpleMap
-                      geometryFeature={
-                        dataset?.spatial_extent
-                          ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
-                          : undefined
-                      }
-                      geometryStyle="fill"
-                      showNavigation={false}
-                    />
+                    <SoilhiveSimpleMap geometryFeature={bboxFeature} geometryStyle="fill" showNavigation={false} />
                     <button type="button" className={styles.MapOverlay} onClick={handleMapOverlayClick} aria-label={t('map.view_aria')}>
                       <span className={styles.EyeBadge}>
                         <EyeIcon />
@@ -461,15 +464,7 @@ export default function Metadata() {
             >
               <ReduceIcon />
             </button>
-            <SoilhiveSimpleMap
-              geometryFeature={
-                dataset?.spatial_extent
-                  ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: dataset.spatial_extent }] }
-                  : undefined
-              }
-              geometryStyle="fill"
-              showNavigation={true}
-            />
+            <SoilhiveSimpleMap geometryFeature={bboxFeature} geometryStyle="fill" showNavigation={true} />
           </div>
         </div>
       )}

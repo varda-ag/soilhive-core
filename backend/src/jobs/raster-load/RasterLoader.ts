@@ -14,7 +14,7 @@ import DatasetService from '../../services/DatasetService';
 import { EntityType, IngestionStatus } from '../../types/data';
 import { getEntityManager } from '../../utils/data-source';
 import { getEntity } from '../../utils/slugs';
-import { ErrorResponse } from '../../utils/error';
+import { ErrorResponse, getErrorMessage } from '../../utils/error';
 import { log } from '../../utils/logger';
 import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
@@ -27,6 +27,8 @@ import { jobRequestData } from '../jobRequestData';
 import { progressReporter } from '../../services/PgBoss';
 import { getSubject } from '../../utils/auth';
 import type { IngestRasterOptions } from '../../services/RasterIngestService';
+import { rasterWgs84Envelope } from '../../utils/raster';
+import type { Envelope } from '../../utils/GdalCLI';
 
 // Band ingestion owns <floor>..LOAD_PROGRESS_CEILING; the remainder covers dataset metadata.
 const LOAD_PROGRESS_CEILING = 90;
@@ -197,6 +199,7 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     // today (the token carries only that) but upgrades automatically if jobs ever carry an email;
     // it throws when there is no sub at all, so a job without an owner records none.
     await reportProgress(LOAD_PROGRESS_CEILING, 'Computing dataset metadata...');
+    await recordWideFileBboxes(entityManager, dataset.id, new Set(ingestPlans.map(plan => plan.file.id)));
     const updatedBy = data.created_by ? getSubject(requestData) : null;
     await updateRasterDatasetMetadata(entityManager, dataset.id, statusAfterLoad(previousStatus), updatedBy);
 
@@ -257,6 +260,52 @@ const getPendingFiles = async (entityManager: EntityManager, mappings: DatasetFi
     return [];
   }
   return await entityManager.getRepository(FileEntity).find({ where: { id: In(fileIds), status: IngestionStatus.PENDING } });
+};
+
+/**
+ * Records bbox_wgs84 for the Dataset's Files whose Raster Layers are stored wider than 180° of
+ * longitude: crossing the antimeridian, global, or merely wide. Maps read it instead of the stored
+ * extent (DatasetService.decorateWithBbox). Covers every such File, loaded in this run or not, so
+ * loading a Dataset again fills in Files loaded before bbox_wgs84 existed. A File is measured once,
+ * and again only when this run ingested it. A failure is logged rather than failing the load.
+ *
+ * Older loads stored a crossing raster's layers as its corners' min/max, which runs the wrong way
+ * round the globe; those are reset to the band of longitude a load stores now, so the prefilters
+ * reach every longitude the raster covers.
+ */
+const recordWideFileBboxes = async (entityManager: EntityManager, datasetId: string, ingestedFileIds: Set<string>): Promise<void> => {
+  const files: { id: string; file_path: string; bbox_wgs84: Envelope | null }[] = await entityManager.query(
+    `SELECT DISTINCT f.id, f.file_path, f.metadata->'bbox_wgs84' AS bbox_wgs84
+     FROM raster_layers rl
+     JOIN files f ON f.id = rl.file_id
+     WHERE rl.dataset_id = $1 AND rl.deleted_at IS NULL AND ST_XMax(rl.bbox) - ST_XMin(rl.bbox) > 180`,
+    [datasetId],
+  );
+  for (const file of files) {
+    try {
+      let bbox = file.bbox_wgs84;
+      if (!bbox || ingestedFileIds.has(file.id)) {
+        bbox = await rasterWgs84Envelope(file.file_path);
+        await entityManager.query(
+          `UPDATE files SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('bbox_wgs84', $2::jsonb), updated_at = now() WHERE id = $1`,
+          [file.id, JSON.stringify(bbox)],
+        );
+      }
+      const [west, south, east, north] = bbox;
+      if (west > east) {
+        await entityManager.query(
+          `UPDATE raster_layers SET bbox = ST_MakeEnvelope(-180, $2, 180, $3, 4326), updated_at = now()
+           WHERE file_id = $1 AND deleted_at IS NULL AND NOT (ST_XMin(bbox) = -180 AND ST_XMax(bbox) = 180)`,
+          [file.id, south, north],
+        );
+      }
+    } catch (error) {
+      log.warn('Could not record the bounding box of a raster stored wider than 180° of longitude', {
+        file_id: file.id,
+        error: getErrorMessage(error),
+      });
+    }
+  }
 };
 
 /** What ingestRaster and updateRasterLayer both take from a band mapping. */

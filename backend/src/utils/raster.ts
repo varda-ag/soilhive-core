@@ -124,6 +124,23 @@ export async function wgs84Envelope(info: GdalInfoOutput, xMin: number, yMin: nu
   return GdalCLI.lonLatEnvelope(reprojected);
 }
 
+/** A raster's extent in its own CRS, from its geoTransform: [xMin, yMin, xMax, yMax]. */
+function nativeExtent(info: GdalInfoOutput): [number, number, number, number] {
+  const gt = info.geoTransform;
+  if (!gt) throw new Error('Raster has no geoTransform');
+  const [width, height] = info.size ?? [0, 0];
+  const xMin = gt[0]!;
+  const yMax = gt[3]!;
+  return [xMin, yMax + height * gt[5]!, xMin + width * gt[1]!, yMax];
+}
+
+/** A raster file's extent in EPSG:4326 (see wgs84Envelope): west > east when it crosses the antimeridian. */
+export async function rasterWgs84Envelope(cogPath: string): Promise<Envelope> {
+  const { mainFilePath } = await FileService.getMainFilePath(cogPath);
+  const info = await GdalCLI.gdalinfo(mainFilePath);
+  return wgs84Envelope(info, ...nativeExtent(info));
+}
+
 /** An envelope's width in degrees of longitude, across the antimeridian when it crosses it. */
 export function envelopeWidthDeg([west, , east]: Envelope): number {
   return west > east ? east + 360 - west : east - west;
@@ -139,16 +156,8 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   const { mainFilePath } = await FileService.getMainFilePath(cogPath);
   const info = await GdalCLI.gdalinfo(mainFilePath);
 
-  const gt = info.geoTransform;
-  if (!gt) throw new Error('Raster has no geoTransform');
-
-  const [rasterNativeWidth, rasterNativeHeight] = info.size ?? [0, 0];
-  const xMin = gt[0]!;
-  const yMax = gt[3]!;
-  const pixW = gt[1]!;
-  const pixH = gt[5]!;
-  const xMax = xMin + rasterNativeWidth * pixW;
-  const yMin = yMax + rasterNativeHeight * pixH;
+  const [xMin, yMin, xMax, yMax] = nativeExtent(info);
+  const pixW = info.geoTransform![1]!;
 
   const nodata: number | null = info.bands?.[band - 1]?.noDataValue ?? null;
 
@@ -180,7 +189,8 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
 
   // raster_layers.bbox is a single Polygon that queries test with &&, so a raster crossing the
   // antimeridian is stored as the whole band of longitude it lies in: a Polygon spanning ±180° by
-  // its west and east edges would instead cover every longitude but the raster's own.
+  // its west and east edges would instead cover every longitude but the raster's own. The Raster
+  // Load records its true edges as the File's bbox_wgs84 (rasterWgs84Envelope).
   const [west, south, east, north] = await wgs84Envelope(info, xMin, yMin, xMax, yMax);
   const bbox: Polygon = turf.bboxPolygon(west > east ? [-180, south, 180, north] : [west, south, east, north]).geometry;
   const epsg = GdalCLI.extractEpsgFromWkt(wkt);

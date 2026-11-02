@@ -16,6 +16,7 @@ import * as PgBossModule from '../../../src/services/PgBoss';
 import * as RasterIngestModule from '../../../src/services/RasterIngestService';
 import * as LoadLayerAssetsModule from '../../../src/jobs/raster-load/LoadLayerAssets';
 import * as UpdateDatasetMetadataModule from '../../../src/jobs/raster-load/UpdateDatasetMetadata';
+import * as RasterModule from '../../../src/utils/raster';
 import { GISDataType, IngestionStatus, UnitConversionType } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
 import { GdalCLI } from '../../../src/utils/GdalCLI';
@@ -36,6 +37,8 @@ const MULTIBAND_FILE = 'multiband_2b_250m.tif';
 const NON_COG_FILE = 'not_a_cog_250m.tif';
 // A valid COG that is simply in the wrong CRS, isolating the reprojection path.
 const EPSG3857_FILE = 'epsg3857_2b_250m.tif';
+// Alaska Albers (EPSG:3338), not a COG: from 157°E across the antimeridian to 117°W.
+const ALASKA_FILE = 'alaska_albers_1b.tif';
 
 // Dataset names double as slugs, so keep them unique within the file.
 let datasetCounter = 0;
@@ -770,6 +773,145 @@ describe('RasterLoader', () => {
       } finally {
         spy.mockRestore();
       }
+    });
+  });
+
+  describe('bbox_wgs84', () => {
+    const bboxOf = async (fileId: string) => {
+      const dataSource = await getDataSource();
+      const file = await dataSource.getRepository(FileEntity).findOneByOrFail({ id: fileId });
+      return (file.metadata as RasterFileMetadata).bbox_wgs84;
+    };
+
+    // Normalization converts it into storage, so each caller points storage at a scratch copy first
+    const loadAlaska = async () => {
+      const loaded = await setUpRasterLoad(uniqueName('alaska'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        fileName: ALASKA_FILE,
+        bandCount: 1,
+      });
+      await processRasterLoad(getJob(loaded.dataset.slug));
+      return loaded;
+    };
+
+    it("records a raster's true edges when its layers are stored as the whole band of longitude", async () => {
+      useScratchStorage(ALASKA_FILE);
+      const { file } = await loadAlaska();
+
+      // Its top edge bulges north of its top corners, to ~71.46°N
+      const bbox = await bboxOf(file.id);
+      [157.3677834, 49.0545982, -117.2863728, 71.4556065].forEach((edge, i) => expect(bbox![i]).toBeCloseTo(edge, 5));
+    });
+
+    it('records nothing for a raster whose stored extent is already exact', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('exact-bbox'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect(await bboxOf(file.id)).toBeUndefined();
+    });
+
+    it('fills it in for a File loaded before it existed when the Dataset is loaded again, with nothing pending', async () => {
+      useScratchStorage(ALASKA_FILE);
+      const { dataset, file } = await loadAlaska();
+      const dataSource = await getDataSource();
+      await dataSource.query(`UPDATE files SET metadata = metadata - 'bbox_wgs84' WHERE id = $1`, [file.id]);
+
+      const ingest = jest.spyOn(RasterIngestModule, 'ingestRaster');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+        expect(ingest).not.toHaveBeenCalled();
+      } finally {
+        ingest.mockRestore();
+      }
+
+      expect((await bboxOf(file.id))![0]).toBeCloseTo(157.3677834, 5);
+    });
+
+    describe('a layer an older load stored as its corners’ min/max', () => {
+      // The wrong way round the globe: every longitude but the raster's own
+      const storeCornersBox = async (fileId: string) => {
+        const dataSource = await getDataSource();
+        await dataSource.query(
+          `UPDATE raster_layers SET bbox = ST_MakeEnvelope(-132.2706, 49.0546, 175.4991, 67.6023, 4326) WHERE file_id = $1`,
+          [fileId],
+        );
+        await dataSource.query(`UPDATE files SET metadata = metadata - 'bbox_wgs84' WHERE id = $1`, [fileId]);
+      };
+      const layerBox = async (fileId: string) => {
+        const dataSource = await getDataSource();
+        const [row] = await dataSource.query(
+          `SELECT ST_XMin(bbox) AS west, ST_XMax(bbox) AS east, ST_YMax(bbox) AS north FROM raster_layers WHERE file_id = $1`,
+          [fileId],
+        );
+        return { west: Number(row.west), east: Number(row.east), north: Number(row.north) };
+      };
+
+      it('is reset to the band of longitude, and the Dataset with it, when the Dataset is loaded again', async () => {
+        useScratchStorage(ALASKA_FILE);
+        const { dataset, file } = await loadAlaska();
+        await storeCornersBox(file.id);
+
+        await processRasterLoad(getJob(dataset.slug));
+
+        const layer = await layerBox(file.id);
+        expect([layer.west, layer.east]).toEqual([-180, 180]);
+        // Its top edge as measured, rather than its top corners
+        expect(layer.north).toBeCloseTo(71.4556065, 5);
+        const dataSource = await getDataSource();
+        const [extent] = await dataSource.query(
+          `SELECT ST_XMin(spatial_extent) AS west, ST_XMax(spatial_extent) AS east FROM datasets WHERE id = $1`,
+          [dataset.id],
+        );
+        expect([Number(extent.west), Number(extent.east)]).toEqual([-180, 180]);
+      });
+
+      it('is left alone when the raster turns out to be wide without crossing the antimeridian', async () => {
+        useScratchStorage(ALASKA_FILE);
+        const { dataset, file } = await loadAlaska();
+        await storeCornersBox(file.id);
+
+        const measure = jest.spyOn(RasterModule, 'rasterWgs84Envelope').mockResolvedValue([-170, 49, 170, 71]);
+        try {
+          await processRasterLoad(getJob(dataset.slug));
+        } finally {
+          measure.mockRestore();
+        }
+
+        const layer = await layerBox(file.id);
+        expect(layer.west).toBeCloseTo(-132.2706, 4);
+        expect(layer.east).toBeCloseTo(175.4991, 4);
+        expect(await bboxOf(file.id)).toEqual([-170, 49, 170, 71]);
+      });
+    });
+
+    it('measures a File once, rather than again on every load', async () => {
+      useScratchStorage(ALASKA_FILE);
+      const { dataset } = await loadAlaska();
+
+      const measure = jest.spyOn(RasterModule, 'rasterWgs84Envelope');
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+        expect(measure).not.toHaveBeenCalled();
+      } finally {
+        measure.mockRestore();
+      }
+    });
+
+    it('completes the load when the raster cannot be measured', async () => {
+      useScratchStorage(ALASKA_FILE);
+      const { dataset, file } = await setUpRasterLoad(uniqueName('alaska-unmeasured'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+        fileName: ALASKA_FILE,
+        bandCount: 1,
+      });
+      const measure = jest.spyOn(RasterModule, 'rasterWgs84Envelope').mockRejectedValue(new Error('gdalinfo failed'));
+      try {
+        await processRasterLoad(getJob(dataset.slug));
+      } finally {
+        measure.mockRestore();
+      }
+
+      expect(await getLayers(file.id)).toHaveLength(1);
+      expect(await bboxOf(file.id)).toBeUndefined();
     });
   });
 

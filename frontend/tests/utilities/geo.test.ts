@@ -3,6 +3,7 @@ import {
   h3IndexesToGeoJSONPolygons,
   bBoxToH3Cells,
   bBoxToPolygon,
+  boundingBoxPolygon,
   largestPolygon,
   isPointInFeatureCollection,
 } from '../../src/utilities/geo';
@@ -86,6 +87,29 @@ describe('bBoxToPolygon', () => {
       [10, 10],
       [0, 10],
       [0, 0],
+    ]);
+  });
+});
+
+describe('boundingBoxPolygon', () => {
+  it('is the bounding box itself when it stays clear of the antimeridian', () => {
+    expect(boundingBoxPolygon([-10, 40, 20, 50]).coordinates[0]).toEqual([
+      [-10, 40],
+      [20, 40],
+      [20, 50],
+      [-10, 50],
+      [-10, 40],
+    ]);
+  });
+
+  it('takes the east edge past 180° when the bounding box crosses the antimeridian', () => {
+    const [ring] = boundingBoxPolygon([157, 49, -117.5, 71.5]).coordinates;
+    expect(ring).toEqual([
+      [157, 49],
+      [242.5, 49],
+      [242.5, 71.5],
+      [157, 71.5],
+      [157, 49],
     ]);
   });
 });
