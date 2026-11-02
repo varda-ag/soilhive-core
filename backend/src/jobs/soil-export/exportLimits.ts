@@ -14,9 +14,17 @@ export interface ExportLimits {
   maxObservations: number | null;
   maxRasterLayers: number | null;
   exemptAdmins: boolean;
+  // Not an Export Limit: refuses an Export from a caller with no token, at submission only (docs/adr/0074)
+  exportRequiresSignIn: boolean;
 }
 
-export const NO_EXPORT_LIMITS: ExportLimits = { maxAreaM2: null, maxObservations: null, maxRasterLayers: null, exemptAdmins: false };
+export const NO_EXPORT_LIMITS: ExportLimits = {
+  maxAreaM2: null,
+  maxObservations: null,
+  maxRasterLayers: null,
+  exemptAdmins: false,
+  exportRequiresSignIn: false,
+};
 
 const LIMIT_KEYS = ['maxAreaM2', 'maxObservations', 'maxRasterLayers'] as const;
 
@@ -28,7 +36,11 @@ export function parseExportLimits(raw: unknown): ExportLimits {
     return NO_EXPORT_LIMITS;
   }
   const value = raw as Record<string, unknown>;
-  const limits: ExportLimits = { ...NO_EXPORT_LIMITS, exemptAdmins: value['exemptAdmins'] === true };
+  const limits: ExportLimits = {
+    ...NO_EXPORT_LIMITS,
+    exemptAdmins: value['exemptAdmins'] === true,
+    exportRequiresSignIn: value['exportRequiresSignIn'] === true,
+  };
   for (const key of LIMIT_KEYS) {
     const limit = value[key];
     if (limit === undefined || limit === null) continue;

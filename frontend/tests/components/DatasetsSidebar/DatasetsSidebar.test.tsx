@@ -6,10 +6,15 @@ import { useNavigate } from 'react-router';
 import { AvailabilityContext } from '../../../src/contexts/AvailabilityContext';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, GISDataType } from 'types/backend';
+import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('hooks/useDownloadSignInHint', () => ({
+  useDownloadSignInHint: jest.fn(),
 }));
 
 jest.mock('hooks/useEntitlementsHook', () => ({
@@ -90,6 +95,7 @@ describe('DatasetsSidebar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCan({});
+    (useDownloadSignInHint as jest.Mock).mockReturnValue(undefined);
   });
 
   it('renders the sidebar with header on desktop layout', () => {
@@ -207,6 +213,18 @@ describe('DatasetsSidebar', () => {
 
     const downloadButton = screen.getByRole('button', { name: /download/i });
     expect(downloadButton).toBeEnabled();
+  });
+
+  it('disables only the download button, saying why, while a signed-in user is required to download', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
+    (useDownloadSignInHint as jest.Mock).mockReturnValue('You need to be logged in to download data.');
+
+    render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+
+    const downloadButton = screen.getByRole('button', { name: /download/i });
+    expect(downloadButton).toBeDisabled();
+    expect(downloadButton).toHaveAttribute('title', 'You need to be logged in to download data.');
+    expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
   });
 
   it('calls navigate when clicking on download button on desktop', () => {

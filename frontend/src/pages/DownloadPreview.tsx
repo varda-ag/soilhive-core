@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 
 import useDevice from 'hooks/useDevice';
+import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
@@ -29,6 +30,7 @@ function DownloadPreview() {
   const navigate = useNavigate();
   const { t } = useTranslation(['download', 'common']);
   const { isMobileDevice } = useDevice();
+  const signInHint = useDownloadSignInHint();
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -189,7 +191,13 @@ function DownloadPreview() {
             <ArrowLeftIcon />
             {t('download_preview.back')}
           </Button>
-          <Button type="primary" className={styles.DownloadButton} isDisabled={isMobileDevice} onClick={navigateToDownload}>
+          <Button
+            type="primary"
+            className={styles.DownloadButton}
+            isDisabled={isMobileDevice || !!signInHint}
+            title={signInHint}
+            onClick={navigateToDownload}
+          >
             <DownloadIcon />
             {t('download_preview.download_button')}
           </Button>

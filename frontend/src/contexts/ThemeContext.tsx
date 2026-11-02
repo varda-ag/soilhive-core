@@ -49,6 +49,7 @@ export const defaultThemeConfig: ThemeConfig = {
     maxObservations: null,
     maxRasterLayers: null,
     exemptAdmins: false,
+    exportRequiresSignIn: false,
   },
 };
 

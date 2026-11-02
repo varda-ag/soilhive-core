@@ -4,8 +4,13 @@ import { useNavigate } from 'react-router';
 import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 import { useSoilData } from 'hooks/useSoilData';
+import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
 
 jest.mock('hooks/useDevice');
+
+jest.mock('hooks/useDownloadSignInHint', () => ({
+  useDownloadSignInHint: jest.fn(),
+}));
 
 jest.mock('hooks/useDataFilterQuery', () => {
   return { useDataFilterQuery: jest.fn().mockReturnValue({ filterId: 'test-filter-id', isLoading: false }) };
@@ -58,6 +63,7 @@ jest.mock('hooks/useDownloadPreview', () => {
 describe('DownloadPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useDownloadSignInHint as jest.Mock).mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -82,6 +88,14 @@ describe('DownloadPreview', () => {
     render(<DownloadPreview />);
     const downloadButton = screen.getByRole('button', { name: /download data/i });
     expect(downloadButton).toBeEnabled();
+  });
+
+  it('disables download button, saying why, while a signed-in user is required to download', () => {
+    (useDownloadSignInHint as jest.Mock).mockReturnValue('You need to be logged in to download data.');
+    render(<DownloadPreview />);
+    const downloadButton = screen.getByRole('button', { name: /download data/i });
+    expect(downloadButton).toBeDisabled();
+    expect(downloadButton).toHaveAttribute('title', 'You need to be logged in to download data.');
   });
 
   it('calls navigate when clicking on download button on desktop', async () => {

@@ -17,6 +17,7 @@ import { PrimeReactProvider } from 'primereact/api';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import useDownloads from 'hooks/useDownloads';
+import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
 import { useOnceDefined } from 'hooks/useOnceDefined';
 import Skeleton from 'react-loading-skeleton';
 import { GISDataType } from '../types/backend';
@@ -69,6 +70,7 @@ function DownloadSummary() {
   const { t } = useTranslation('download');
   const { isMobileDevice } = useDevice();
   const { startDownload, setIsOpened } = useDownloads();
+  const signInHint = useDownloadSignInHint();
 
   const [searchParams] = useSearchParams();
   const comingFromDataExplorer = searchParams.get('source') === 'explore';
@@ -275,7 +277,8 @@ function DownloadSummary() {
               size="medium"
               type="primary"
               className={styles.DownloadButton}
-              isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0}
+              isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0 || !!signInHint}
+              title={signInHint}
               onClick={onDownloadButtonClick}
             >
               <DownloadIcon />

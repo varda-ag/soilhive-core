@@ -2,6 +2,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import DownloadSummary from '../../src/pages/DownloadSummary';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
 import useDownloads from 'hooks/useDownloads';
+import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
 import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { GISDataType } from '../../src/types/backend';
 
@@ -40,6 +41,10 @@ jest.mock('hooks/useDownloads', () => {
     }),
   };
 });
+
+jest.mock('hooks/useDownloadSignInHint', () => ({
+  useDownloadSignInHint: jest.fn(),
+}));
 
 jest.mock('primereact/checkbox', () => {
   const Checkbox = ({ checked, onChange, inputId }: any) => (
@@ -89,6 +94,7 @@ const rasterDataset = { id: 'r1', name: 'Raster Dataset', licenses: [], dataType
 describe('DownloadSummary', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (useDownloadSignInHint as jest.Mock).mockReturnValue(undefined);
   });
 
   afterEach(() => {
@@ -231,6 +237,13 @@ describe('DownloadSummary', () => {
     it('enables download button in a narrow window on a laptop', () => {
       __setIsMobileLayout(true);
       expect(renderReadyToDownload()).toBeEnabled();
+    });
+
+    it('disables download button, saying why, while a signed-in user is required to download', () => {
+      (useDownloadSignInHint as jest.Mock).mockReturnValue('You need to be logged in to download data.');
+      const downloadButton = renderReadyToDownload();
+      expect(downloadButton).toBeDisabled();
+      expect(downloadButton).toHaveAttribute('title', 'You need to be logged in to download data.');
     });
   });
 });

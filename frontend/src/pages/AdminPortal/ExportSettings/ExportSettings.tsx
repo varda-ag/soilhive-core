@@ -41,7 +41,8 @@ function LimitLabel({ title, description }: { title: string; description: string
 export function ExportSettings() {
   const { t } = useTranslation('admin');
   const { themeConfig, saveExportLimits } = useTheme();
-  const { maxAreaM2, maxObservations, maxRasterLayers, exemptAdmins }: Partial<ExportLimits> = themeConfig.exportLimits ?? {};
+  const { maxAreaM2, maxObservations, maxRasterLayers, exemptAdmins, exportRequiresSignIn }: Partial<ExportLimits> =
+    themeConfig.exportLimits ?? {};
 
   const [enabled, setEnabled] = useState<Record<Limit, boolean>>({
     area: isSet(maxAreaM2),
@@ -54,6 +55,7 @@ export function ExportSettings() {
     rasterLayers: isSet(maxRasterLayers) ? String(maxRasterLayers) : '',
   });
   const [isAdminExempt, setIsAdminExempt] = useState<boolean>(exemptAdmins === true);
+  const [isSignInRequired, setIsSignInRequired] = useState<boolean>(exportRequiresSignIn === true);
   const [isSaving, setIsSaving] = useState(false);
 
   const errors = Object.fromEntries(
@@ -71,13 +73,14 @@ export function ExportSettings() {
         maxObservations: limitValue('observations'),
         maxRasterLayers: limitValue('rasterLayers'),
         exemptAdmins: hasLimit && isAdminExempt,
+        exportRequiresSignIn: isSignInRequired,
       });
     } catch {
       // Already reported: the failed request shows its own error notification
     } finally {
       setIsSaving(false);
     }
-  }, [enabled, values, hasLimit, isAdminExempt, saveExportLimits]);
+  }, [enabled, values, hasLimit, isAdminExempt, isSignInRequired, saveExportLimits]);
 
   return (
     <div className={styles.Layout}>
@@ -122,6 +125,25 @@ export function ExportSettings() {
                   />
                 }
                 onChange={checked => setIsAdminExempt(checked)}
+              />
+            </div>
+          </div>
+          <div className={styles.TextBlock}>
+            <h3 className={styles.Title}>{t('export_settings.access.subtitle')}</h3>
+            <p className={styles.Subtitle}>{t('export_settings.access.description')}</p>
+          </div>
+          <div className={styles.Limits}>
+            <div className={styles.Limit}>
+              <Checkbox
+                name="exportRequiresSignIn"
+                value={isSignInRequired}
+                label={
+                  <LimitLabel
+                    title={t('export_settings.export_requires_sign_in.label')}
+                    description={t('export_settings.export_requires_sign_in.description')}
+                  />
+                }
+                onChange={checked => setIsSignInRequired(checked)}
               />
             </div>
           </div>

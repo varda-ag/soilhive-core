@@ -9,6 +9,7 @@ import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useTranslation } from 'react-i18next';
 import { Capability, EntitlementScope } from 'types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
+import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
@@ -27,6 +28,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
     useAvailability();
   const { selectionType, locationName } = useAvailabilityMap();
   const { can } = useEntitlements(EntitlementScope.DATASETS);
+  const signInHint = useDownloadSignInHint();
 
   const navigate = useNavigate();
 
@@ -96,7 +98,8 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
           <Button
             className={styles.DownloadButton}
-            isDisabled={!isFilterIdReady || isMobileDevice || downloadDatasetIds.length === 0}
+            isDisabled={!isFilterIdReady || isMobileDevice || downloadDatasetIds.length === 0 || !!signInHint}
+            title={signInHint}
             onClick={handleDownloadClick}
           >
             <DownloadIcon />

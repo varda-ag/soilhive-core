@@ -7,7 +7,8 @@ import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/ser
 import { JobQueues, SoilIndexType, StatisticsType } from '../../src/types/enums';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { getRawTableName, signToken, sleep } from '../../src/utils/utils';
-import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
+import { INTERNAL_REQUEST_TOKEN_PAYLOAD, THEME_CONFIG_ID } from '../../src/constants/constants';
+import { JsonStorage } from '../../src/entities/JsonStorage';
 import { getDataAdminToken, getUserToken } from '../helper';
 import { RequestData } from '../../src/interfaces/RequestData';
 import FileService from '../../src/services/FileService';
@@ -28,6 +29,10 @@ const mockToken: Token = {
   isDataAdmin: false,
   isInternalRequest: false,
 };
+
+// As the Export settings page saves it, in the theme config (docs/adr/0074)
+const requireSignInToExport = async () =>
+  (await getDataSource()).getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits: { exportRequiresSignIn: true } } });
 
 describe('Testing /jobs routes', () => {
   beforeAll(async () => {
@@ -123,6 +128,41 @@ describe('Testing /jobs routes', () => {
 
     expect(res.statusCode).toBe(404);
     expect(exportSpy).not.toHaveBeenCalled();
+    exportSpy.mockRestore();
+  });
+
+  // Before the Dataset checks, since signing in may grant the download (docs/adr/0074)
+  it('POST /jobs export refuses a caller with no token while sign-in is required, ahead of a missing download grant', async () => {
+    const sendSpy = jest.spyOn(getPgBoss(), 'send');
+    const dataset = await addDataset('sign-in-export-ds', [0, 0, 2, 2]);
+    await (await getEntityManager()).query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+    const submit = () =>
+      request(app)
+        .post('/jobs')
+        .send({ type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv'], dataset_ids: [dataset.slug] });
+
+    expect((await submit()).statusCode).toBe(403);
+
+    await requireSignInToExport();
+    const refused = await submit();
+    expect(refused.statusCode).toBe(401);
+    expect(refused.body.detail).toBe('Exports require a signed-in user');
+    expect(sendSpy).not.toHaveBeenCalled();
+    sendSpy.mockRestore();
+  });
+
+  it('POST /jobs export takes the Export of a caller with a token while sign-in is required', async () => {
+    const exportSpy = jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
+    const dataset = await addDataset('sign-in-public-export-ds', [0, 0, 2, 2]);
+    await requireSignInToExport();
+
+    const res = await request(app)
+      .post('/jobs')
+      .set('Authorization', `Bearer ${getUserToken('signed-in-user-id', 'signed-in-user@example.com')}`)
+      .send({ type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv'], dataset_ids: [dataset.slug] });
+
+    expect(res.statusCode).toBe(201);
+    expect(res.body.data.created_by).toBe('signed-in-user@example.com');
     exportSpy.mockRestore();
   });
 
