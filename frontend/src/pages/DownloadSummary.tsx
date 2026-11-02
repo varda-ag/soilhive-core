@@ -200,30 +200,31 @@ function DownloadSummary() {
               <CloudDownload />
               <div className={styles.MainContentHeaderText}>{t('download_summary.datasets_included_in_download')}</div>
             </div>
-            <div className={styles.FormatPicker}>
-              <div className={styles.FormatPickerHeader}>
-                <DownloadIcon className={styles.FormatPickerHeaderIcon} />
-                <div>{t('download_summary.download_format')}</div>
+            {/* Without PrimeReact's context, the open format list throws on a window resize and stays where it opened */}
+            <PrimeReactProvider>
+              <div className={styles.FormatPicker}>
+                <div className={styles.FormatPickerHeader}>
+                  <DownloadIcon className={styles.FormatPickerHeaderIcon} />
+                  <div>{t('download_summary.download_format')}</div>
+                </div>
+                <div className={styles.FormatPickerContent}>
+                  <Dropdown
+                    className={styles.FormatPickerDropdown}
+                    panelClassName={styles.FormatPickerDropdownPanel}
+                    value={selectedFormat}
+                    options={activeFormatOptions}
+                    onChange={onFormatDropdownChange}
+                    optionValue="id"
+                    optionLabel="name"
+                  />
+                  {showUpdatedMessage && (
+                    <div className={styles.FormatPickerUpdatedMessage}>
+                      <CheckIcon /> {t('download_summary.download_format_updated')}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className={styles.FormatPickerContent}>
-                <Dropdown
-                  className={styles.FormatPickerDropdown}
-                  panelClassName={styles.FormatPickerDropdownPanel}
-                  value={selectedFormat}
-                  options={activeFormatOptions}
-                  onChange={onFormatDropdownChange}
-                  optionValue="id"
-                  optionLabel="name"
-                />
-                {showUpdatedMessage && (
-                  <div className={styles.FormatPickerUpdatedMessage}>
-                    <CheckIcon /> {t('download_summary.download_format_updated')}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className={styles.TableContainer}>
-              <PrimeReactProvider>
+              <div className={styles.TableContainer}>
                 <DataTable
                   disabled={isLoading}
                   value={datasets}
@@ -250,8 +251,8 @@ function DownloadSummary() {
                     body={isLoading ? loaderCell : dataCountCell}
                   ></Column>
                 </DataTable>
-              </PrimeReactProvider>
-            </div>
+              </div>
+            </PrimeReactProvider>
           </div>
           <div className={classNames(styles.Footer, { [styles.Expanded]: summaryExpanded })}>
             <div className={styles.TermsOfUse}>
