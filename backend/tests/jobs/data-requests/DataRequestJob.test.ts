@@ -296,6 +296,19 @@ describe('processDataRequest', () => {
       await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_DATASET_NOT_ENTITLED' });
     });
 
+    it('selects a dataset named by an old slug (docs/adr/0071)', async () => {
+      const { dataset } = await seedDataset('named-old-slug-ds', [1]);
+      const entityManager = await getEntityManager();
+      // Private and ungranted, so being selected is what fails the run: an unmatched slug would not
+      await entityManager.query(`UPDATE datasets SET visibility = 'private', name = 'named-old-slug-ds-renamed' WHERE id = $1`, [
+        dataset.id,
+      ]);
+
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveJob({ filter_id: filterId, dataset_ids: [dataset.slug] });
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_DATASET_NOT_ENTITLED' });
+    });
+
     it('completes over a filter that also matches a raster dataset', async () => {
       await seedDataset('vector-ds', [1, 2]);
       await addDataset('raster-ds', DATASET_BBOX, GISDataType.RASTER);

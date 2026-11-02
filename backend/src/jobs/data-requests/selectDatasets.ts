@@ -12,6 +12,7 @@ import { JobError } from '../../errors/JobError';
 import { RunContext } from '../runs/runContext';
 import { StagedVariable } from '../../data-layer/DataRequests';
 import { soilIndexRunExists, soilIndexRunType } from '../../data-layer/SoilIndex';
+import { existingDatasetSlugs } from '../../utils/slugs';
 import { SoilIndexVariableHeader, SoilPropertyVariableHeader } from './types';
 
 /** The source Filter's criteria over the Aggregation Units. */
@@ -28,7 +29,9 @@ export const selectPermittedDatasets = async (ctx: RunContext, data: DataRequest
   const entitlementService = new EntitlementService();
 
   const candidates = await new FilterService().getDatasets(requestData, derivedFilterId ?? filter_id);
-  const requested = dataset_ids && dataset_ids.length > 0 ? candidates.filter(d => dataset_ids.includes(d.id)) : candidates;
+  // Named by current slug, so an old slug still matches its candidate (docs/adr/0071).
+  const named = dataset_ids && dataset_ids.length > 0 ? await existingDatasetSlugs(requestData, dataset_ids) : null;
+  const requested = named ? candidates.filter(d => named.includes(d.id)) : candidates;
 
   const vectorDatasets = requested.filter(dataset => dataset.data_type !== GISDataType.RASTER);
   const permitted: string[] = [];

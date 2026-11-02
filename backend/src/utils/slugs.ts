@@ -160,17 +160,44 @@ export const getEntitySlugs = async (requestData: RequestData, slug: string): Pr
 };
 
 /**
- * The slugs among `slugs` whose Dataset exists for the caller (docs/adr/0057), in their given order.
- * Current slugs only, as the soil data queries match them. Uncached, so a status change takes effect at once.
+ * The current slugs of the Datasets among `slugs` that exist for the caller (docs/adr/0057), in their
+ * given order and once each. An old slug resolves through slug history, so it is never checked
+ * less than the current one (docs/adr/0071). Uncached, so a status change takes effect at once.
  */
 export const existingDatasetSlugs = async (requestData: RequestData, slugs: string[]): Promise<string[]> => {
   if (slugs.length === 0) {
     return [];
   }
-  const datasets = await requestData.entityManager.getRepository(DatasetEntity).find({
-    select: { slug: true, status: true },
-    where: { slug: In(slugs) },
-  });
-  const existing = new Set(datasets.filter(d => datasetExistsFor(requestData.token, d.status)).map(d => d.slug));
-  return slugs.filter(slug => existing.has(slug));
+  const entityManager = requestData.entityManager;
+  const datasetRepo = entityManager.getRepository(DatasetEntity);
+  const select = { id: true, slug: true, status: true } as const;
+
+  const datasetBySlug = new Map<string, DatasetEntity>();
+  for (const dataset of await datasetRepo.find({ select, where: { slug: In(slugs) } })) {
+    datasetBySlug.set(dataset.slug, dataset);
+  }
+
+  const missingSlugs = slugs.filter(slug => !datasetBySlug.has(slug));
+  if (missingSlugs.length > 0) {
+    const slugHistories = await entityManager.getRepository(SlugHistoryEntity).find({
+      select: { entity_id: true, slug: true },
+      where: { slug: In(missingSlugs), entity_type: EntityType.DATASET },
+    });
+    if (slugHistories.length > 0) {
+      const renamed = await datasetRepo.find({ select, where: { id: In(slugHistories.map(sh => sh.entity_id)) } });
+      const renamedById = new Map(renamed.map(dataset => [dataset.id, dataset]));
+      for (const sh of slugHistories) {
+        const dataset = renamedById.get(sh.entity_id);
+        if (dataset) {
+          datasetBySlug.set(sh.slug, dataset);
+        }
+      }
+    }
+  }
+
+  const existing = slugs
+    .map(slug => datasetBySlug.get(slug))
+    .filter((dataset): dataset is DatasetEntity => !!dataset && datasetExistsFor(requestData.token, dataset.status))
+    .map(dataset => dataset.slug);
+  return [...new Set(existing)];
 };

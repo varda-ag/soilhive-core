@@ -566,6 +566,8 @@ export default class EntitlementService {
 
     // The "public bypasses entitlements" rule only exists for datasets (a Dataset property);
     // there is no analogous concept — and so no analogous bypass — for `configs`.
+    // Fails closed: only a public Dataset's current slug skips the check, so an unknown or old
+    // slug needs the grant too (docs/adr/0071).
     let keysToCheck = keys;
     if (scope === EntitlementScope.DATASETS) {
       const repo = requestData.entityManager.getRepository(DatasetEntity);
@@ -573,7 +575,8 @@ export default class EntitlementService {
         select: { slug: true, visibility: true },
         where: { slug: In(keys) },
       });
-      keysToCheck = results.filter(r => r.visibility === 'private').map(r => r.slug);
+      const publicSlugs = new Set(results.filter(r => r.visibility === 'public').map(r => r.slug));
+      keysToCheck = keys.filter(key => !publicSlugs.has(key));
     }
 
     const scopedEntitlements = requestData.entitlements[scope] ?? {};
