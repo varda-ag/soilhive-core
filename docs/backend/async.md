@@ -114,6 +114,8 @@ POST /jobs
 
 `anonymous`, `public_homepage_url`, and `public_metadata_urls` are optional. The `DOWNLOAD` capability is enforced for each dataset in `dataset_ids`.
 
+A signed-in caller submitting an export identical to one of theirs still queued or running gets that job back with `200` instead of a new one (ADR 0074). Anonymous exports always start a new job.
+
 **Sequence of operations**
 
 1. Validate the requested format and create a temporary working directory.

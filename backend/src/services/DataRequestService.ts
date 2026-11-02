@@ -53,7 +53,7 @@ export default class DataRequestService {
     if (parameters.config_id !== undefined) {
       await assertCanAttach(requestData, parameters.config_id, 'data requests');
     }
-    const job = await this.jobService.createJob(requestData, {
+    const { job } = await this.jobService.createJob(requestData, {
       ...parameters,
       type: JobQueues.DATA_REQUESTS,
     } as DataRequestJob);
