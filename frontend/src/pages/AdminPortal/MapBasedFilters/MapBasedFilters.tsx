@@ -5,6 +5,8 @@ import PlusIcon from 'assets/icons/small-plus-icon.svg?react';
 import { useRaster } from 'hooks/useRaster';
 import { Button, Loader } from 'components/UI';
 import { MapBasedFiltersTable } from 'components/AdminPortal/MapBasedFiltersTable/MapBasedFiltersTable';
+import { RasterFilterDeleteModal } from 'components/AdminPortal/RasterFilterDeleteModal/RasterFilterDeleteModal';
+import { useDeleteRasterFilter } from 'hooks/useDeleteRasterFilter';
 import { ADMIN_PATHS } from 'configuration/admin';
 
 import styles from './MapBasedFilters.module.scss';
@@ -15,6 +17,7 @@ export function MapBasedFilters() {
   const navigate = useNavigate();
   const { t } = useTranslation('admin');
   const { allCategories: allRasterCategories, isLoading, isActivationPending, setCategoryActive } = useRaster(POLLING_MS);
+  const { filterToDelete, onDelete, onDeleteCancel, onDeleteConfirm } = useDeleteRasterFilter();
 
   return (
     <div className={styles.MapBasedFilters}>
@@ -50,9 +53,15 @@ export function MapBasedFilters() {
             <MapBasedFiltersTable
               filters={allRasterCategories || []}
               isActivationPending={isActivationPending}
-              onEdit={() => console.log('EDIT')}
-              onDelete={() => console.log('DELETE')}
+              onEdit={id => navigate(`${ADMIN_PATHS.FILTERS_EDIT}/${id}`)}
+              onDelete={onDelete}
               onSetCategoryActive={setCategoryActive}
+            />
+            <RasterFilterDeleteModal
+              visible={!!filterToDelete}
+              filterName={filterToDelete?.name}
+              onContinue={onDeleteConfirm}
+              onCancel={onDeleteCancel}
             />
           </>
         )}

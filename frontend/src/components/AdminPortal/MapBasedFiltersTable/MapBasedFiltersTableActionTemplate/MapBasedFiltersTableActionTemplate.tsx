@@ -1,6 +1,7 @@
 import EditIcon from 'assets/icons/edit-icon.svg?react';
 import TrashIcon from 'assets/icons/trash-icon.svg?react';
-import { type RasterFilterCategory } from 'types/backend';
+import { RasterFilterInstallStatus, type RasterFilterCategory } from 'types/backend';
+import { getInstallStatus, isInstallInProgress } from 'utilities/rasterFilter';
 
 import styles from './MapBasedFiltersTableActionTemplate.module.scss';
 
@@ -11,13 +12,18 @@ interface Props {
 }
 
 export function MapBasedFiltersTableActionTemplate({ filter, onEdit, onDelete }: Props) {
+  const installStatus = getInstallStatus(filter);
+  // The install job still owns the filter while it runs, and a failed one can only be deleted
+  const canDelete = !isInstallInProgress(installStatus);
+  const canEdit = canDelete && installStatus !== RasterFilterInstallStatus.FAILED;
+
   return (
     <div className={styles.TableActions}>
-      {filter.enabled && (
-        <>
-          <EditIcon data-testid="sh-filter-edit" className={styles.TableActionIcon} onClick={() => onEdit(filter.id)} role="button" />
-          <TrashIcon data-testid="sh-filter-delete" className={styles.TableActionIcon} onClick={() => onDelete(filter)} role="button" />
-        </>
+      {canEdit && (
+        <EditIcon data-testid="sh-filter-edit" className={styles.TableActionIcon} onClick={() => onEdit(filter.id)} role="button" />
+      )}
+      {canDelete && (
+        <TrashIcon data-testid="sh-filter-delete" className={styles.TableActionIcon} onClick={() => onDelete(filter)} role="button" />
       )}
     </div>
   );

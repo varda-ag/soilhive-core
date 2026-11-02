@@ -231,6 +231,39 @@ export interface RasterFilterCategory {
   created_by: string | null;
   updated_at: string;
   deleted_at: string | null;
+  install?: RasterFilter['install']; // Data-admins only
+}
+
+export enum RasterFilterInstallStatus {
+  NOT_INSTALLED = 'not_installed',
+  QUEUED = 'queued',
+  INSTALLING = 'installing',
+  INSTALLED = 'installed',
+  FAILED = 'failed',
+}
+
+export interface RasterFilterInstallError {
+  code: string;
+  message: string;
+  actions?: string[];
+  detail?: string;
+}
+
+// A raster filter as GET /raster-filters/{id} returns it to a data-admin
+export interface RasterFilter {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  active: boolean;
+  mappings: Record<string, string> | null; // pixel value → label
+  pixel_values: Record<string, number> | null; // pixel value → pixel count, null until installed
+  suggested_mappings: Record<string, string> | null; // pixel value → label the raster carried
+  install?: {
+    status: RasterFilterInstallStatus;
+    progress_percentage?: number;
+    errors?: RasterFilterInstallError[];
+  };
 }
 
 export interface License {

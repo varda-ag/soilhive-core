@@ -1,0 +1,21 @@
+.EditFilter {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  padding: 1.75rem 3.125rem 3.125rem;
+  color: var(--color-text-primary);
+
+  > .BackButton {
+    align-self: flex-start;
+    margin-bottom: -0.75rem;
+  }
+
+  // Holds the sections the install loader covers; tall enough to show it before the filter loads
+  > .Sections {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    min-height: 10rem;
+  }
+}
