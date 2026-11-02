@@ -1,5 +1,10 @@
 # Datasets support incremental ingestion
 
+> **Amended by ADR 0071 (proposed):** a loaded raster File's Band Mapping becomes read-only, and loads write to a
+> Load Buffer and Merge instead of hiding the Dataset. Once that is accepted, "How a raster edit is applied",
+> "The Dataset during a load" and "When a load fails" below no longer hold. Taking only new and pending Files
+> into a load still does.
+
 A Dataset that is already LOADED or PUBLISHED can take more Files, and a loaded raster File can have its Band Mapping edited. A load ingests only what is new or changed since the last one, and leaves loaded Files that nobody touched as they are.
 
 - **What a load picks up.** Only Files waiting for a load. A bulk load already took only STAGED Files. A Raster Load now takes only PENDING ones, where it used to re-ingest every mapped File on every run. Editing a loaded raster File's Band Mapping puts the File back to PENDING, which `updateMapping` does only when the mapping's content changed, since the mapping steps post a fresh data mapping on every save. A loaded vector File cannot be re-mapped, because its raw table is dropped once it is loaded.
