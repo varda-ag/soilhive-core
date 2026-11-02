@@ -3714,7 +3714,14 @@ components:
         dataset_id:
           type: string
           description: Dataset whose raster files are to be loaded
-      description: Loads a raster dataset. The ingested files remains the raster layer's data and must not be removed.
+        delete_source_files:
+          type: boolean
+          description: >
+            When true, deletes the original upload of every loaded file that was converted (to a COG
+            or to the standard unit) once the load succeeds. Files used as uploaded are kept. A later
+            mapping edit that changes a unit conversion then fails with RL_SOURCE_FILE_NOT_FOUND, since
+            the file can no longer be normalized again from its original pixels.
+      description: Loads a raster dataset. The ingested files remain the raster layers' data and are never removed.
 
     ExportJob:
       type: object

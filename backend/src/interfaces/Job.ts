@@ -45,6 +45,8 @@ export interface BulkLoadJob extends CommonJobData {
 
 export interface RasterLoadJob extends CommonJobData {
   dataset_id: string;
+  /** Delete each loaded file's original upload once a normalized copy has replaced it. */
+  delete_source_files?: boolean;
 }
 
 export interface ExportJobParameters {
