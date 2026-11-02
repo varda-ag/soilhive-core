@@ -114,7 +114,7 @@ Pass `--with-map` (see [Creating a plugin](#creating-a-plugin)) to sync in `Soil
 Syncing `--with-map` vendors:
 
 - The `Map/` folder itself.
-- Its supporting files, nested under `Map/_shared/`: `DrawControl.tsx`, `hooks/useDevice.ts`, `hooks/useDragAndDropUpload.ts`, `configuration/layout.ts`, five `utilities/` files (`geo.ts`, `geometry.ts`, `map.ts`, `simplifyGeometry.ts`, `environmentVariables.ts`, `parseGeoJSONFile.ts`), `types/backend.ts`, and the icons `Map/` uses.
+- Its supporting files, nested under `Map/_shared/`: `DrawControl.tsx`, `hooks/useDevice.ts`, `hooks/useDragAndDropUpload.ts`, `configuration/layout.ts`, five `utilities/` files (`geo.ts`, `geometry.ts`, `map.ts`, `simplifyGeometry.ts`, `environmentVariables.ts`, `parseGeoJSONFile.ts`), `types/backend.ts`, the icons `Map/` uses, and `assets/data/continents.json`, the continent boundaries the location search finds.
 - `styles/SoilhiveMap.scss`. Unlike the files above, this file stays flat under the plugin's own `styles/` folder, next to the rest of `styles/`.
 - The `maplibre-gl`, `react-map-gl`, `@turf/turf`, `h3-js`, and related npm packages, merged into your `package.json` the same way `UI/`'s dependencies are (see [Managed `package.json` dependencies](#managed-packagejson-dependencies)).
 
@@ -143,7 +143,7 @@ function MyMapPage() {
 
 ### Where `Map/`'s supporting files live
 
-Every file `Map/` needs from outside its own folder — `DrawControl`, `useDevice`, the map utilities, `types/backend`, `configuration/layout`, and its icons — lands nested under `Map/_shared/`. It does not sit flat at the plugin root.
+Every file `Map/` needs from outside its own folder — `DrawControl`, `useDevice`, the map utilities, `types/backend`, `configuration/layout`, its icons and the continent boundaries — lands nested under `Map/_shared/`. It does not sit flat at the plugin root.
 
 This keeps every map-related file in one place, separate from your own code. The sync step rewrites `Map/`'s own import paths to point at `Map/_shared/` automatically. You never need to add an import alias for this yourself.
 
