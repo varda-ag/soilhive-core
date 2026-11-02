@@ -41,6 +41,22 @@ const Page = () => null;
 const pluginA: RemotePlugin = { pluginId: 'dup', name: 'Plugin A', type: PluginType.SINGLE_PAGE, route: '/a', hasMenuItem: true, Page };
 const pluginB: RemotePlugin = { pluginId: 'dup', name: 'Plugin B', type: PluginType.SINGLE_PAGE, route: '/b', hasMenuItem: true, Page };
 
+const CardPage = () => null;
+
+const CardsConsumer = () => {
+  const { plugins, isLoadingRemotes } = useRemotes();
+  return (
+    <div data-testid="cards">
+      {isLoadingRemotes
+        ? 'loading'
+        : plugins
+            .filter(plugin => plugin.MapInfoCard)
+            .map(({ name, route }) => `${name}@${route}`)
+            .join(',')}
+    </div>
+  );
+};
+
 const Consumer = () => {
   const { plugins, isLoadingRemotes } = useRemotes();
   return <div data-testid="plugins">{isLoadingRemotes ? 'loading' : plugins.map(plugin => plugin.name).join(',')}</div>;
@@ -204,5 +220,78 @@ describe('RemotesProvider', () => {
 
     await waitFor(async () => expect((await findByTestId('plugins')).textContent).toBe('Plugin A'));
     expect(loadRemotesMock).toHaveBeenCalledTimes(1);
+  });
+
+  describe('map info cards', () => {
+    const renderCards = () =>
+      render(
+        <RemotesProvider>
+          <CardsConsumer />
+        </RemotesProvider>,
+      );
+
+    it('reports a declared card that failed to load', async () => {
+      const url = 'https://remote.example/mf-manifest.json';
+      loadRemotesMock.mockResolvedValue({ loaded: [{ ...pluginA, hasMapInfoCard: true, remoteUrl: url }], failed: [] });
+
+      const { findByTestId } = renderCards();
+
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
+      expect(showNotification).toHaveBeenCalledTimes(1);
+      expect(showNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ id: `remote-card-load-failed-${url}`, type: 'error', message: expect.stringContaining(url) }),
+      );
+    });
+
+    const failedCard = { hasMapInfoCard: true, remoteUrl: 'https://remote.example/mf-manifest.json' };
+
+    it.each<[string, RemotePlugin[], string]>([
+      ['is missing a required field', [{ ...pluginA, ...failedCard, route: undefined as unknown as string }], 'oidc'],
+      ['lost the dedup', [pluginA, { ...pluginB, ...failedCard }], 'oidc'],
+      ['needs a signed-in user on a deployment with no sign-in', [{ ...pluginA, ...failedCard, requiresAuth: true }], 'none'],
+    ])('does not report the failed card of a plugin that %s, since it has no page either', async (_label, loaded, authMode) => {
+      useAuthContextMock.mockReturnValue({ authMode });
+      loadRemotesMock.mockResolvedValue({ loaded, failed: [] });
+
+      const { findByTestId } = renderCards();
+
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
+      expect(showNotification).not.toHaveBeenCalledWith(
+        expect.objectContaining({ id: expect.stringContaining('remote-card-load-failed-') }),
+      );
+    });
+
+    it('drops the card of a duplicate plugin with its page', async () => {
+      loadRemotesMock.mockResolvedValue({
+        loaded: [pluginA, { ...pluginB, MapInfoCard: CardPage }],
+        failed: [],
+      });
+
+      const { findByTestId } = renderCards();
+
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
+      expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({ id: 'duplicate-plugin-id-dup' }));
+    });
+
+    it('drops a card whose page was dropped on a deployment with no sign-in', async () => {
+      useAuthContextMock.mockReturnValue({ authMode: 'none' });
+      loadRemotesMock.mockResolvedValue({
+        loaded: [{ ...pluginA, requiresAuth: true, MapInfoCard: CardPage }],
+        failed: [],
+      });
+
+      const { findByTestId } = renderCards();
+
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe(''));
+    });
+
+    it('keeps a card with its plugin', async () => {
+      loadRemotesMock.mockResolvedValue({ loaded: [{ ...pluginA, MapInfoCard: CardPage }], failed: [] });
+
+      const { findByTestId } = renderCards();
+
+      await waitFor(async () => expect((await findByTestId('cards')).textContent).toBe('Plugin A@/a'));
+      expect(showNotification).not.toHaveBeenCalled();
+    });
   });
 });
