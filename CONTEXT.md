@@ -148,14 +148,6 @@ _Avoid_: Import, upload (a separate earlier step), ingest (reserved for the per-
 The Dataset-scoped counterpart to Bulk Load for raster Datasets: it walks the Dataset's raster files and performs a Raster Ingest on each. Like Bulk Load it is scoped to one Dataset and named for the Dataset, not for any single file. A Raster Load produces no Features, Layers or Observations — raster data is not modelled as those — and therefore never contributes to the DAI. Unlike a Bulk Load, a Raster Load never consumes its source files: after a Bulk Load the file's contents live in the soil tables and the file is disposable, whereas after a Raster Load the file *is* the raster layer's data and must survive. What a Raster Load may discard, when asked to (`delete_source_files`), is the original upload of a file it normalized: the converted copy is then the layer's data, at the cost that the file can no longer be normalized again from its original pixels.
 _Avoid_: Raster ingest (the per-file operation Raster Load invokes), raster upload (the earlier step that puts files in storage), bulk load (the point/polygonal counterpart)
 
-**Load Buffer**:
-The per-load set of tables a Bulk Load or Raster Load writes into instead of the real ones (ADR 0071, proposed). Rows in it carry natural keys rather than ids, and no read ever sees them; they become data only through the load's **Merge**, and are dropped when the load ends, succeeds or not.
-_Avoid_: Staging, staged (a **Staged** File is one whose raw table is ready for a Bulk Load, an earlier and unrelated step), temp tables (they are ordinary unlogged tables, visible to every connection)
-
-**Merge**:
-The single transaction that ends a load (ADR 0071, proposed): it moves the **Load Buffer** into the real tables, resolving shared rows by their natural keys, marks the Files LOADED and writes the Dataset's metadata. A load's data becomes visible all at once, when the Merge commits, and a load that fails before or during it leaves the Dataset exactly as it was.
-_Avoid_: Commit (only its last step), publish (a separate status change made by a data admin)
-
 **Raster Ingest**:
 The operation that takes one Band of a *single* Cloud Optimized GeoTIFF and registers it as one Raster Layer with its footprints. One Band in, one Raster Layer out — a multiband file is ingested by one Raster Ingest per mapped Band, each carrying its own soil property. A Raster Ingest is reached only through a Raster Load: it presumes the Dataset and the File already exist and never creates either, and it never records Dataset-level metadata.
 _Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion or normalization (a Raster Load step: a deviating file is normalized once, before any of its Bands is ingested — ADR 0025), "ingesting a file" (a Raster Ingest consumes a Band, not a whole file)
