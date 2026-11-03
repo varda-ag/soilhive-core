@@ -8,6 +8,7 @@ import FileEntity from '../../../src/entities/File';
 import DatasetFileMappingEntity from '../../../src/entities/DatasetFileMapping';
 import RasterFilterEntity from '../../../src/entities/RasterFilter';
 import { RasterFilterInstallJob } from '../../../src/interfaces/Job';
+import { RasterFileMetadata } from '../../../src/interfaces/File';
 import { processRasterFilterInstall, stagingTableName } from '../../../src/jobs/raster-filter-install/RasterFilterInstaller';
 import * as PgBossModule from '../../../src/services/PgBoss';
 import FileService from '../../../src/services/FileService';
@@ -33,7 +34,7 @@ const makeRaster = (name: string, args: string[], tool: 'gdal_translate' | 'gdal
 };
 
 /** Stores `rasterPath` the way POST /files would, and creates the Raster Filter that installs from it. */
-const addFilterWithSource = async (rasterPath: string): Promise<FileEntity> => {
+const addFilterWithSource = async (rasterPath: string, metadata?: RasterFileMetadata): Promise<FileEntity> => {
   const storageRoot = process.env.LOCAL_STORAGE_ROOT_FOLDER!;
   const key = path.join('raster-filters', `${uuidv7()}-${path.basename(rasterPath)}`);
   fs.mkdirSync(path.dirname(path.join(storageRoot, key)), { recursive: true });
@@ -41,10 +42,17 @@ const addFilterWithSource = async (rasterPath: string): Promise<FileEntity> => {
   const dataSource = await getDataSource();
   const file = await dataSource
     .getRepository(FileEntity)
-    .save(dataSource.getRepository(FileEntity).create({ name: path.basename(rasterPath), file_path: key, created_by: 'tests' }));
+    .save(
+      dataSource
+        .getRepository(FileEntity)
+        .create({ name: path.basename(rasterPath), file_path: key, created_by: 'tests', ...(metadata && { metadata }) }),
+    );
   await dataSource.getRepository(RasterFilterEntity).save({ id: FILTER_ID, name: 'Installed', description: '', file_id: file.id });
   return file;
 };
+
+// Only what the install reads of a File's metadata
+const suppliedCrs = (epsg: number) => ({ epsg, crs_source: 'supplied' }) as RasterFileMetadata;
 
 const getJob = (band = 1): Job<RasterFilterInstallJob> =>
   ({
@@ -85,6 +93,8 @@ describe('processRasterFilterInstall', () => {
       HWSD_SAMPLE,
       path.join(sourceDir, 'small.tif'),
     ]);
+    // The same, left with no CRS
+    execFileSync('gdal_translate', ['-q', '-outsize', '10%', '10%', '-r', 'nearest', HWSD_SAMPLE, path.join(sourceDir, 'no_crs.tif')]);
   });
 
   beforeEach(() => {
@@ -213,9 +223,32 @@ describe('processRasterFilterInstall', () => {
     expect(await (await getDataSource()).getRepository(FileEntity).findOneBy({ id: file.id })).not.toBeNull();
   });
 
-  it('fails on a raster with no CRS', async () => {
+  it('fails on a raster with no CRS of its own and none supplied', async () => {
     await addFilterWithSource(HWSD_SAMPLE);
     await expect(processRasterFilterInstall(getJob())).rejects.toMatchObject({ code: 'RFI_NOT_GEOREFERENCED' });
+  });
+
+  it.each([
+    ['EPSG:4326, copied', 4326],
+    ['another CRS, reprojected', 4269],
+  ])('installs a raster with no CRS of its own in its Supplied CRS: %s', async (_, epsg) => {
+    await addFilterWithSource(path.join(sourceDir, 'no_crs.tif'), suppliedCrs(epsg));
+    await processRasterFilterInstall(getJob());
+
+    const dataSource = await getDataSource();
+    const [{ srid }] = await dataSource.query(`SELECT ST_SRID(rast) AS srid FROM "${FILTER_ID}" LIMIT 1`);
+    expect(srid).toBe(4326);
+    const filter = await dataSource.getRepository(RasterFilterEntity).findOneByOrFail({ id: FILTER_ID });
+    expect(Object.keys(filter.pixel_values!).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the raster's own CRS over a Supplied one", async () => {
+    await addFilterWithSource(path.join(sourceDir, 'small.tif'), suppliedCrs(3857));
+    await processRasterFilterInstall(getJob());
+
+    // Read in EPSG:3857, its pixels' degrees would be metres
+    const filter = await (await getDataSource()).getRepository(RasterFilterEntity).findOneByOrFail({ id: FILTER_ID });
+    expect(filter.resolution_m).toBe(9277);
   });
 
   it('fails when one of its table names was taken while it ran', async () => {
