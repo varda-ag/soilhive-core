@@ -4,6 +4,7 @@ import { Button, FileUploadBox, Loader } from 'components/UI';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import { SoilDataFileRow } from '../DatasetsSoilDataStep/SoilDataFileRow/SoilDataFileRow';
 import { FilterSection } from 'components/AdminPortal/RasterFilterForm/FilterSection/FilterSection';
+import { FilterBandDropdown } from 'components/AdminPortal/RasterFilterForm/FilterBandDropdown/FilterBandDropdown';
 import { FilterDescriptionForm } from 'components/AdminPortal/RasterFilterForm/FilterDescriptionForm/FilterDescriptionForm';
 import { useCreateFilter, FILTER_ALLOWED_EXTENSIONS } from 'hooks/useCreateFilter';
 import { useStorageConfig } from 'hooks/useStorageConfig';
@@ -28,6 +29,9 @@ export function CreateFilter() {
     handleCrsChange,
     handleCrsSelect,
     removeFile,
+    band,
+    isBandRequired,
+    handleBandChange,
     formData,
     isCreating,
     isInstallEnabled,
@@ -85,6 +89,7 @@ export function CreateFilter() {
                 crsOptions={crsOptions}
                 showNoData={false}
               />
+              {isBandRequired && <FilterBandDropdown bands={filterFile.rasterBands ?? []} value={band} onChange={handleBandChange} />}
             </div>
           )}
         </div>

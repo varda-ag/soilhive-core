@@ -38,6 +38,8 @@ export function useCreateFilter() {
   const [filterFile, setFilterFile] = useState<SoilDataFile | null>(null);
   // Mirrors filterFile so a new upload can delete the file it replaces
   const filterFileRef = useRef<SoilDataFile | null>(null);
+  // Picked by the user for a multiband raster; a single band needs no choice
+  const [band, setBand] = useState<number | null>(null);
   const latestCrsSelection = useRef(0);
   // Set while the file is being handed to a new filter, which then owns it
   const isInstallingRef = useRef(false);
@@ -56,6 +58,7 @@ export function useCreateFilter() {
   const setFile = useCallback((file: SoilDataFile | null) => {
     filterFileRef.current = file;
     setFilterFile(file);
+    setBand(null);
   }, []);
 
   const updateFilterFile = useCallback((updates: Partial<SoilDataFile>) => {
@@ -149,12 +152,15 @@ export function useCreateFilter() {
     return { ...filterFile, error: filterFile.isUngeoreferencedRaster ? t('datasets.soil_data.no_georeference_error') : null };
   }, [filterFile, t]);
 
+  const isBandRequired = (filterFile?.rasterBands?.length ?? 0) > 1;
+
   // The install reads the CRS from the file, so it must be detected or already saved, not just typed
   const isInstallEnabled =
     !!annotatedFile &&
     !annotatedFile.error &&
     uploadingFiles.length === 0 &&
     (!!annotatedFile.inferredCrs || !!annotatedFile.suppliedCrs || !!annotatedFile.hasCustomCrs) &&
+    (!isBandRequired || band !== null) &&
     isFormValid &&
     !isCreating;
 
@@ -164,7 +170,12 @@ export function useCreateFilter() {
     isInstallingRef.current = true;
     try {
       // The file now belongs to the filter: the install deletes it once it succeeds
-      const created = await createFilter({ ...trimmedFormData(), file_id: filterFile.id, kind: 'categorical' });
+      const created = await createFilter({
+        ...trimmedFormData(),
+        file_id: filterFile.id,
+        ...(band !== null && { band }),
+        kind: 'categorical',
+      });
       filterFileRef.current = null;
       await queryClient.invalidateQueries({ queryKey: ['rasterFilters'] });
       // Replaced, so going back does not return to an emptied form
@@ -174,7 +185,7 @@ export function useCreateFilter() {
     } finally {
       isInstallingRef.current = false;
     }
-  }, [filterFile, trimmedFormData, createFilter, queryClient, navigate]);
+  }, [filterFile, trimmedFormData, band, createFilter, queryClient, navigate]);
 
   return {
     fileInputRef,
@@ -187,6 +198,9 @@ export function useCreateFilter() {
     handleCrsChange,
     handleCrsSelect,
     removeFile,
+    band,
+    isBandRequired,
+    handleBandChange: setBand,
     formData,
     isCreating,
     isInstallEnabled,

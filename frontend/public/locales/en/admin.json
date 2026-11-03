@@ -556,6 +556,12 @@
         "message": "Here we need a text here to explain to the user that they need to upload only one tif file and it should be categorised, continuous files will be uploaded in the future too.",
         "upload_caption": "Supported formats: TIFF.",
         "back": "Back to map-based filters",
+        "band": {
+            "label": "Band",
+            "placeholder": "Select a band",
+            "hint": "This file has {{count}} bands. Pick the one that holds the filter classes: the others are discarded.",
+            "option": "Band {{number}} ({{dataType}})"
+        },
         "description_section": {
             "title": "Filter description",
             "message": "Add some general data describing your map-based filter.",

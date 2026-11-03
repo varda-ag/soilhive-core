@@ -39,6 +39,15 @@ jest.mock('../../../src/pages/AdminPortal/DatasetsSoilDataStep/SoilDataFileRow/S
   },
 }));
 
+let capturedBandDropdownProps: any = {};
+
+jest.mock('components/AdminPortal/RasterFilterForm/FilterBandDropdown/FilterBandDropdown', () => ({
+  FilterBandDropdown: (props: any) => {
+    capturedBandDropdownProps = props;
+    return <div data-testid="mock-band-dropdown" />;
+  },
+}));
+
 jest.mock('components/UI/Loader/Loader', () => ({
   Loader: () => <div data-testid="mock-loader" />,
 }));
@@ -49,6 +58,7 @@ const handleCrsSelect = jest.fn();
 const removeFile = jest.fn();
 const handleChange = jest.fn();
 const handleInstall = jest.fn();
+const handleBandChange = jest.fn();
 
 const filterFile = { id: 'file-1', file: null, name: 'land_cover.tif', progress: 100, crs: null, inferredCrs: 'EPSG:4326', error: null };
 const crsOptions = [{ code: 4326, name: 'WGS 84' }];
@@ -65,6 +75,9 @@ function buildHookMock(overrides: Record<string, unknown> = {}) {
     handleCrsChange,
     handleCrsSelect,
     removeFile,
+    band: null,
+    isBandRequired: false,
+    handleBandChange,
     formData: { name: '', description: '' },
     isCreating: false,
     isInstallEnabled: false,
@@ -88,6 +101,7 @@ describe('CreateFilter', () => {
     jest.clearAllMocks();
     capturedUploadBoxProps = {};
     capturedFileRowProps = {};
+    capturedBandDropdownProps = {};
     buildHookMock();
     (useStorageConfig as jest.Mock).mockReturnValue({
       storageConfig: { storageMode: 'local', maxUploadSizeMB: 500 },
@@ -180,6 +194,24 @@ describe('CreateFilter', () => {
           showNoData: false,
         }),
       );
+    });
+
+    it('does not ask for a band of a single-band raster', () => {
+      renderPage();
+
+      expect(screen.queryByTestId('mock-band-dropdown')).not.toBeInTheDocument();
+    });
+
+    it('asks for a band of a multiband raster, with its bands, the picked one and the handler', () => {
+      const rasterBands = [
+        { band_number: 1, data_type: 'Byte' },
+        { band_number: 2, data_type: 'Byte' },
+      ];
+      buildHookMock({ filterFile: { ...filterFile, rasterBands }, isBandRequired: true, band: 2 });
+      renderPage();
+
+      expect(screen.getByTestId('mock-band-dropdown')).toBeInTheDocument();
+      expect(capturedBandDropdownProps).toEqual({ bands: rasterBands, value: 2, onChange: handleBandChange });
     });
 
     it('renders the description section', () => {

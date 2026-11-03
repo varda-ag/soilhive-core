@@ -264,6 +264,82 @@ describe('useCreateFilter', () => {
     });
   });
 
+  describe('band', () => {
+    const multibandFile = () =>
+      makeFile({
+        rasterBands: [
+          { band_number: 1, data_type: 'Byte' },
+          { band_number: 2, data_type: 'Byte' },
+          { band_number: 3, data_type: 'Byte' },
+        ],
+      });
+
+    it('is not required for a single-band raster', async () => {
+      const { result } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile({ rasterBands: [{ band_number: 1, data_type: 'Byte' }] }));
+      fillForm(result);
+
+      expect(result.current.isBandRequired).toBe(false);
+      expect(result.current.isInstallEnabled).toBe(true);
+    });
+
+    it('is required for a multiband raster, and blocks the install until picked', async () => {
+      const { result } = renderHook(() => useCreateFilter());
+      await uploaded(multibandFile());
+      fillForm(result);
+
+      expect(result.current.isBandRequired).toBe(true);
+      expect(result.current.band).toBeNull();
+      expect(result.current.isInstallEnabled).toBe(false);
+
+      act(() => result.current.handleBandChange(2));
+
+      expect(result.current.band).toBe(2);
+      expect(result.current.isInstallEnabled).toBe(true);
+    });
+
+    it('is reset when the file is replaced', async () => {
+      const { result } = renderHook(() => useCreateFilter());
+      await uploaded(multibandFile());
+      act(() => result.current.handleBandChange(2));
+
+      await uploaded({ ...multibandFile(), id: 'file-2' });
+
+      expect(result.current.band).toBeNull();
+    });
+
+    it('is reset when the file is removed', async () => {
+      const { result } = renderHook(() => useCreateFilter());
+      await uploaded(multibandFile());
+      act(() => result.current.handleBandChange(2));
+
+      await act(() => result.current.removeFile('file-1'));
+
+      expect(result.current.band).toBeNull();
+    });
+
+    it('sends the picked band when creating the filter', async () => {
+      const { result } = renderHook(() => useCreateFilter());
+      await uploaded(multibandFile());
+      fillForm(result);
+      act(() => result.current.handleBandChange(3));
+
+      await act(() => result.current.handleInstall());
+
+      expect(createFilter).toHaveBeenCalledWith(expect.objectContaining({ file_id: 'file-1', band: 3 }));
+    });
+
+    it('sends no band for a single-band raster', async () => {
+      const { result } = renderHook(() => useCreateFilter());
+      await uploaded(makeFile());
+      fillForm(result);
+
+      await act(() => result.current.handleInstall());
+
+      expect(createFilter.mock.calls[0][0]).not.toHaveProperty('band');
+    });
+  });
+
   describe('handleInstall', () => {
     it('does nothing without a file', async () => {
       const { result } = renderHook(() => useCreateFilter());
