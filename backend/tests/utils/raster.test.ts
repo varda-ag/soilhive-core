@@ -10,6 +10,7 @@ import {
   nodataFromImage,
   parseGdalNodata,
   rasterFilterId,
+  rasterWgs84Envelope,
   selectOverviewTable,
 } from '../../src/utils/raster';
 import { GdalCLI } from '../../src/utils/GdalCLI';
@@ -36,6 +37,25 @@ const HOMOLOSINE_GAP_FTUS_FILE = 'homolosine_gap_ftus_1b.tif';
 // Alaska Albers (EPSG:3338), -a_ullr -2175765 2383965 1493175 404505: its left corners are east of
 // the antimeridian (157°E, 175°E), its right corners west of it (117°W, 132°W).
 const ALASKA_ALBERS_FILE = 'alaska_albers_1b.tif';
+
+describe('rasterWgs84Envelope', () => {
+  beforeEach(() => {
+    process.env.STORAGE_MODE = 'local';
+    process.env.LOCAL_STORAGE_ROOT_FOLDER = rasterAssetsPath;
+  });
+
+  it('keeps west > east for a raster crossing the antimeridian, rather than the whole band', async () => {
+    const envelope = await rasterWgs84Envelope(ALASKA_ALBERS_FILE);
+
+    [157.3677834, 49.0545982, -117.2863728, 71.4556065].forEach((edge, i) => expect(envelope[i]).toBeCloseTo(edge, 5));
+  });
+
+  it('is the extent itself for a raster already in EPSG:4326', async () => {
+    const envelope = await rasterWgs84Envelope('multiband_2b_250m.tif');
+
+    [-81.1625158, -34.0153972, -80.4645993, -33.4299807].forEach((edge, i) => expect(envelope[i]).toBeCloseTo(edge, 6));
+  });
+});
 
 describe('analyzeRasterMeta', () => {
   beforeEach(() => {

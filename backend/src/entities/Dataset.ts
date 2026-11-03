@@ -6,6 +6,7 @@ import SlugHistoryEntity from './SlugHistory';
 import { GISDataType, IngestionStatus } from '../types/data';
 import { Capability } from '../types/enums';
 import { QueuedJob } from '../interfaces/Job';
+import type { Envelope } from '../utils/GdalCLI';
 
 @Entity('datasets')
 @Unique(['name'])
@@ -118,4 +119,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
 
   // Not a column, populated at runtime from pg-boss for a Privileged caller (docs/adr/0042)
   queued_job?: QueuedJob | null;
+
+  // Not a column, populated at runtime from the raster Files or spatial_extent (DatasetService.decorateWithBbox)
+  bbox?: Envelope | null;
 }

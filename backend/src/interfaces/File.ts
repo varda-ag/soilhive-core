@@ -1,5 +1,6 @@
 import type { IngestionStatus } from '../types/data';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
+import type { Envelope } from '../utils/GdalCLI';
 
 export interface File {
   id: string;
@@ -41,6 +42,7 @@ export interface RasterFileMetadata extends GeoreferenceMetadata {
   driver?: string;
   epsg?: number;
   wkt?: string;
+  bbox_wgs84?: Envelope; // Its Bounding box, recorded by the Raster Load only when its Raster Layers are stored as the whole band of longitude
   size: [number, number]; // [width, height] in pixels
   band_count: number;
   raster_bands: RasterBandMetadata[];

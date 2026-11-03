@@ -3,7 +3,7 @@ import { featureToH3Set } from 'geojson2h3';
 import { cellToBoundary, cellToLatLng, type CoordPair, type H3Index } from 'h3-js';
 import { lerp } from 'math.gl';
 import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
-import type { DataAvailabilityIndex } from '../types/backend';
+import type { BoundingBox, DataAvailabilityIndex } from '../types/backend';
 
 export function h3IndexesToGeoJSONPolygon(h3Index: H3Index) {
   const [lat, lng] = cellToLatLng(h3Index);
@@ -162,6 +162,13 @@ export const bBoxToPolygon = (boundingBox: number[]) => {
   const coordinates = polygon.geometry.coordinates[0];
   return coordinates;
 };
+
+/**
+ * The rectangle to draw for a bounding box. One crossing the antimeridian (west > east) gets its east
+ * edge past 180°, which MapLibre draws in one piece rather than as the band of longitude between.
+ */
+export const boundingBoxPolygon = ([west, south, east, north]: BoundingBox): Polygon =>
+  bboxPolygon([west, south, west > east ? east + 360 : east, north]).geometry;
 
 export function largestPolygon(geometry: MultiPolygon): Polygon {
   if (!(geometry.type === 'MultiPolygon')) throw new Error('"geometry" must be a GeoJSON MultiPolygon');

@@ -1,7 +1,21 @@
 import { describe, it, expect, beforeAll, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { addSyntheticData, addSyntheticIngestionData, syntheticDataOptions, syntheticIngestionDataOptions } from '../../src/utils/mock';
+import {
+  addCategory,
+  addDataset,
+  addFile,
+  addSoilProperty,
+  addSyntheticData,
+  addSyntheticIngestionData,
+  syntheticDataOptions,
+  syntheticIngestionDataOptions,
+} from '../../src/utils/mock';
+import { getDataSource } from '../../src/utils/data-source';
+import { getPolygonFromBbox } from '../../src/utils/geometry';
+import FileEntity from '../../src/entities/File';
+import RasterLayerEntity from '../../src/entities/RasterLayer';
+import { GISDataType } from '../../src/types/data';
 import { getDataAdminToken } from '../helper';
 import StatusCodes from 'http-status-codes';
 import { Capability } from '../../src/types/enums';
@@ -105,6 +119,79 @@ describe('Testing /datasets routes', () => {
 
       const adminRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${token}`);
       expect(adminRes.statusCode).toBe(StatusCodes.OK);
+    });
+  });
+
+  describe('bbox on GET /datasets', () => {
+    const ALASKA = [157, 49, -117.3, 71.5];
+    const HAWAII = [-160.5, 18.9, -154.8, 22.2];
+
+    // A Raster Layer stored with `extent`, over a File whose metadata holds `bboxWgs84` when given
+    const addRasterLayer = async (datasetId: string, name: string, extent: number[], bboxWgs84?: number[]) => {
+      const dataSource = await getDataSource();
+      const file = await addFile(name);
+      await dataSource
+        .getRepository(FileEntity)
+        .update(file.id, { metadata: { is_raster: true, ...(bboxWgs84 && { bbox_wgs84: bboxWgs84 }) } as never });
+      const property = await addSoilProperty(name, (await addCategory(name)).id);
+      return await dataSource.getRepository(RasterLayerEntity).save({
+        file_id: file.id,
+        dataset_id: datasetId,
+        soil_property_id: property.id,
+        resolution_m: 250,
+        bbox: getPolygonFromBbox(extent),
+      });
+    };
+
+    it("gives a point Dataset its spatial_extent's corners", async () => {
+      await addDataset('bbox_points', [10, 20, 30, 40]);
+
+      const res = await request(app).get('/datasets/bbox_points');
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body.bbox).toEqual([10, 20, 30, 40]);
+    });
+
+    it('gives a raster Dataset the narrowest bbox around its Files, across the antimeridian', async () => {
+      const dataset = await addDataset('bbox_alaska', [-180, 18.9, 180, 71.5], GISDataType.RASTER);
+      await addRasterLayer(dataset.id, 'bbox_alaska_file', [-180, 49, 180, 71.5], ALASKA);
+      await addRasterLayer(dataset.id, 'bbox_hawaii_file', HAWAII, HAWAII);
+
+      const res = await request(app).get('/datasets/bbox_alaska');
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body.bbox).toEqual([157, 18.9, -117.3, 71.5]);
+      // The prefilter's band is left as it is
+      expect(res.body.spatial_extent.coordinates[0]).toContainEqual([-180, 18.9]);
+
+      const listRes = await request(app).get('/datasets');
+      expect(listRes.body.find((d: any) => d.id === 'bbox_alaska').bbox).toEqual([157, 18.9, -117.3, 71.5]);
+    });
+
+    it('counts a File probed before bbox_wgs84 existed as its stored band', async () => {
+      const dataset = await addDataset('bbox_old_file', [-180, 18.9, 180, 71.5], GISDataType.RASTER);
+      await addRasterLayer(dataset.id, 'bbox_old_alaska_file', [-180, 49, 180, 71.5]);
+      await addRasterLayer(dataset.id, 'bbox_old_hawaii_file', HAWAII, HAWAII);
+
+      const res = await request(app).get('/datasets/bbox_old_file');
+      expect(res.body.bbox).toEqual([-180, 18.9, 180, 71.5]);
+    });
+
+    it('leaves out the Files of deleted Raster Layers', async () => {
+      const dataset = await addDataset('bbox_deleted_layer', [-180, 18.9, 180, 71.5], GISDataType.RASTER);
+      await addRasterLayer(dataset.id, 'bbox_kept_file', [-180, 49, 180, 71.5], ALASKA);
+      const deleted = await addRasterLayer(dataset.id, 'bbox_deleted_file', HAWAII, HAWAII);
+      await (await getDataSource()).getRepository(RasterLayerEntity).softDelete(deleted.id);
+
+      const res = await request(app).get('/datasets/bbox_deleted_layer');
+      expect(res.body.bbox).toEqual(ALASKA);
+    });
+
+    it('is null while spatial_extent is', async () => {
+      const token = await getDataAdminToken();
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'No Extent Yet' });
+
+      const res = await request(app).get(`/datasets/${postRes.body.id}`).set('Authorization', `Bearer ${token}`);
+      expect(res.body.spatial_extent).toBeNull();
+      expect(res.body.bbox).toBeNull();
     });
   });
 

@@ -2,7 +2,7 @@ import { describe, it, expect, afterAll, jest } from '@jest/globals';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { GdalCLI } from '../../src/utils/GdalCLI';
+import { GdalCLI, type Envelope } from '../../src/utils/GdalCLI';
 import { writableAsset } from '../assets';
 
 const GEOJSON_OGRINFO = JSON.stringify({
@@ -350,6 +350,63 @@ describe('GdalCLI.lonLatEnvelope', () => {
         [-170, 11],
       ]),
     ).toEqual([-180, 10, -170, 12]);
+  });
+});
+
+describe('GdalCLI.envelopeUnion', () => {
+  const ALASKA: Envelope = [157, 49, -117.3, 71.5];
+
+  it('is the one envelope it is given', () => {
+    expect(GdalCLI.envelopeUnion([ALASKA])).toEqual(ALASKA);
+    expect(GdalCLI.envelopeUnion([[-10, 40, 20, 50]])).toEqual([-10, 40, 20, 50]);
+  });
+
+  it('keeps an envelope that lies inside another one crossing the antimeridian', () => {
+    // Hawaii
+    expect(GdalCLI.envelopeUnion([ALASKA, [-160.5, 18.9, -154.8, 22.2]])).toEqual([157, 18.9, -117.3, 71.5]);
+  });
+
+  it('joins envelopes either side of the antimeridian across it', () => {
+    // New Zealand and Fiji
+    expect(
+      GdalCLI.envelopeUnion([
+        [166, -47, 178.6, -34],
+        [177, -20, -178, -16],
+      ]),
+    ).toEqual([166, -47, -178, -16]);
+  });
+
+  it('crosses the antimeridian when that is narrower, though neither envelope does', () => {
+    // The US and Guam: 149° across the Pacific rather than 270° the other way round
+    expect(
+      GdalCLI.envelopeUnion([
+        [-125, 24, -66, 50],
+        [144.6, 13.2, 145, 13.7],
+      ]),
+    ).toEqual([144.6, 13.2, -66, 50]);
+  });
+
+  it('does not cross the antimeridian for one envelope nearly round the globe', () => {
+    // Its two edges' points alone would give the 20° stretch it leaves out
+    expect(GdalCLI.envelopeUnion([[-170, 0, 170, 10]])).toEqual([-170, 0, 170, 10]);
+  });
+
+  it('spans every longitude when the envelopes together go round the globe', () => {
+    expect(
+      GdalCLI.envelopeUnion([
+        [-180, 0, -50, 10],
+        [-60, 0, 100, 10],
+        [90, 0, -170, 10],
+      ]),
+    ).toEqual([-180, 0, 180, 10]);
+  });
+
+  it('spans every longitude once a whole band of longitude is among them', () => {
+    expect(GdalCLI.envelopeUnion([ALASKA, [-180, 40, 180, 60]])).toEqual([-180, 40, 180, 71.5]);
+  });
+
+  it('reads a west edge on the antimeridian, spelled 180, as -180', () => {
+    expect(GdalCLI.envelopeUnion([[180, 0, -170, 10]])).toEqual([-180, 0, -170, 10]);
   });
 });
 
