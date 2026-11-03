@@ -1,5 +1,9 @@
 # Shared upload size limit across /files and /frontend/logo
 
+> **Amended (ADR 0067):** the default rose to 5000 MB for Raster Filter sources, which voids the
+> "500MB poses no real risk" premise below: `logoUpload` reads the whole file into memory. Multer
+> stays shared, and `logoUpload` now enforces its own 5 MB cap before reading the file back.
+
 `MAX_UPLOAD_SIZE_MB` governs multer's `fileSize` limit for every multipart upload, including
 `POST /frontend/logo`, not just `POST /files`. `express-openapi-validator`'s `fileUploader` option
 wires a single multer instance for the whole app (see `middlewares/openapi.ts`); giving the logo

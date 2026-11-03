@@ -43,12 +43,14 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
   );
 
   if (raster_filters) {
-    for (const baseTable of enabledRasterFilterTables) {
+    for (const { id: baseTable, resolutionM } of enabledRasterFilterTables) {
       const values = raster_filters[baseTable];
       if (!values || values.length === 0) continue;
 
-      const table = selectOverviewTable(baseTable, aoiAreaM2);
-      const clippedRaster = `clipped_${table}`;
+      const table = selectOverviewTable(baseTable, aoiAreaM2, resolutionM);
+      // Numbered, not named after the table: clipped_o_32_<id> can pass Postgres' 63 characters, and
+      // two ids truncated to the same name would clash. mask_<id> always fits.
+      const clippedRaster = `clipped_${maskCteNames.length}`;
       const maskCte = `mask_${baseTable}`;
 
       ctes.push({

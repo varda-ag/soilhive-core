@@ -10,7 +10,8 @@ export type AnyJob =
   | BulkDeleteJob
   | RefreshDaiStatsJob
   | DataRequestJob
-  | SoilIndexJob;
+  | SoilIndexJob
+  | RasterFilterInstallJob;
 
 /** A job pg-boss has not picked up yet, as a Dataset's `queued_job` exposes it (docs/adr/0042). */
 export interface QueuedJob {
@@ -47,6 +48,12 @@ export interface RasterLoadJob extends CommonJobData {
   dataset_id: string;
   /** Delete each loaded file's original upload once a normalized copy has replaced it. */
   delete_source_files?: boolean;
+}
+
+export interface RasterFilterInstallJob extends CommonJobData {
+  raster_filter_id: string;
+  // 1-based, as GDAL numbers bands
+  band: number;
 }
 
 export interface ExportJobParameters {

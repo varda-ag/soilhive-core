@@ -45,14 +45,14 @@ describe('ConfigService.getMaxUploadSizeBytes', () => {
     expect(ConfigService.getMaxUploadSizeBytes()).toBe(10 * 1024 * 1024);
   });
 
-  it('defaults to 500MB when unset', () => {
+  it('defaults to 5000MB when unset', () => {
     delete process.env.MAX_UPLOAD_SIZE_MB;
-    expect(ConfigService.getMaxUploadSizeBytes()).toBe(500 * 1024 * 1024);
+    expect(ConfigService.getMaxUploadSizeBytes()).toBe(5000 * 1024 * 1024);
   });
 
-  it('defaults to 500MB when invalid', () => {
+  it('defaults to 5000MB when invalid', () => {
     process.env.MAX_UPLOAD_SIZE_MB = 'not-a-number';
-    expect(ConfigService.getMaxUploadSizeBytes()).toBe(500 * 1024 * 1024);
+    expect(ConfigService.getMaxUploadSizeBytes()).toBe(5000 * 1024 * 1024);
   });
 });
 
@@ -97,7 +97,7 @@ describe('ConfigService.getPublicStorageConfig', () => {
 
     expect(config).toStrictEqual({
       storageMode: 's3',
-      maxUploadSizeMB: 500,
+      maxUploadSizeMB: 5000,
     });
     expect(JSON.stringify(config)).not.toContain('credentials');
     expect(JSON.stringify(config)).not.toContain('bucketName');
