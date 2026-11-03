@@ -1,6 +1,6 @@
 # Map-Based Filters
 
-A map-based filter is a raster classification layer, such as land cover or soil groups, whose classes users select to narrow their area of interest. Filters are optional. A data-admin installs each one into a running instance.
+A map-based filter is a raster classification layer, such as land cover or soil groups, whose classes users select to narrow their area of interest. Filters are optional. A data-admin installs each one into a running instance, from the Admin console or through the API.
 
 ## Should you install them?
 
@@ -28,12 +28,13 @@ A filter is a raster, its labels, and a name.
 
 ### Preparing the raster
 
-- Any raster GDAL reads, georeferenced: it has a coordinate reference system and a geotransform.
+- Any raster GDAL reads, with a geotransform. It needs a coordinate reference system (CRS) too: its own, or one you choose when you upload it. A CRS the raster carries always wins.
 - **Categorical**: the chosen band holds whole-number classes, in a type of 32 bits or less. Continuous rasters (floating-point values) cannot be installed.
 - **Nodata**: unless the raster is already in EPSG:4326, its band must declare a nodata value that is not one of its classes.
 - At most `MAX_UPLOAD_SIZE_MB` (5000 MB by default).
-- Optionally, its own labels: a raster attribute table, category names, or a `CLASSES` metadata item holding the [labels JSON](#the-labels), as SoilHive's raster exports write it. `POST /files` shows them per band as `category_labels`. Only labels kept inside the file survive the upload:
-  - ERDAS Imagine `.img` keeps all three inside.
+- **Format**: the Admin console takes `.tif` and `.tiff` files only. Install other formats [through the API](#through-the-api).
+- Optionally, its own labels: a raster attribute table, category names, or a `CLASSES` metadata item holding the [labels JSON](#the-labels), as SoilHive's raster exports write it. The Admin console prefills them, and `POST /files` shows them per band as `category_labels`. Only labels kept inside the file survive the upload:
+  - ERDAS Imagine `.img` keeps all three inside, but installs through the API only.
   - A GeoTIFF keeps its attribute table and category names in a `.tif.aux.xml` sidecar, which the upload leaves behind, but keeps `CLASSES` inside. Add it with `gdal_edit.py -mo 'CLASSES={"1":"Clay","2":"Silty Clay"}' filter.tif`.
   - A `CLASSES` set on the file rather than on a band only counts for a single-band file.
 
@@ -48,10 +49,26 @@ A filter is a raster, its labels, and a name.
 
 - The name gives the filter its id, once (see [Installing a filter](#installing-a-filter)). A new version of the data is a new filter, so put the version in the name: `Land Cover 2025`.
 - Put the source and its attribution in the description. See [Licences and attribution](#licences-and-attribution).
+- Both are required. The Admin console caps the description at 600 characters.
 
 ## Installing a filter
 
-1. **Upload the raster** with `POST /files` (multipart). Note the `id` it returns.
+An installed filter cannot be reinstalled: install a new version as a new filter.
+
+### From the Admin console
+
+1. **Open the Map-based filters page** of the Admin console and click **Add filters**.
+2. **Upload the raster**, one file. Uploading another replaces it.
+   - A multi-band file asks for the **Band** that holds the classes. The others are discarded.
+   - The file's CRS is shown as in the soil data step. If it has none, choose one, and check on the map preview that the raster lands in the right place.
+3. **Fill in Filter name and Description**, then click **Install filter**. Leaving the page before then deletes the upload.
+4. **Wait for the install.** The page shows its progress. You can leave it and follow the status in the [filter list](#the-filter-list). If the install fails, you are sent back to the list.
+5. **Label it** in **Label the file values**, which lists every pixel value in the raster (see [The labels](#the-labels)). Labels the raster carried are prefilled. Clear a label to hide that value from users. Click **Save and finish**. If you left the page, open the filter again with its edit icon.
+6. **Activate it** with its toggle in the list.
+
+### Through the API
+
+1. **Upload the raster** with `POST /files` (multipart). Note the `id` it returns. If the raster has no CRS, set one with `PATCH /files/{id}` and `{ "epsg": 4326 }`, for example.
 2. **Create the filter** with `POST /raster-filters`:
    ```json
    { "name": "Land Cover 2024", "description": "...", "file_id": "<file id>", "band": 1, "kind": "categorical" }
@@ -61,29 +78,38 @@ A filter is a raster, its labels, and a name.
 4. **Label it** with `PUT /raster-filters/{id}/mappings` (see [The labels](#the-labels)). When the raster carried its own labels, `suggested_mappings` holds them, for the values it holds, ready to send as the body. A filter is **enabled** once it is installed and labelled.
 5. **Activate it** with `PATCH /raster-filters/{id}` and `{ "active": true }`, or with its toggle in the Admin console.
 
-An installed filter cannot be reinstalled: install a new version as a new filter.
-
 ## What the install does to your raster
 
 - Keeps the chosen band and discards the others.
-- Reprojects it to EPSG:4326 with nearest-neighbour resampling, unless it is already in EPSG:4326, which is copied unchanged.
+- Reprojects it to EPSG:4326 with nearest-neighbour resampling, unless it is already in EPSG:4326, which is copied unchanged. A raster without its own CRS is read in the one you chose.
 - Fails without loading anything when the band holds only nodata.
 - Loads it into the database with five overviews, and counts its pixel values (`pixel_values`).
 - Deletes the uploaded file. A failed install keeps it.
 - Leaves the filter inactive and unlabelled.
 
-## Turning installed filters on and off
+## The filter list
 
-Whether an installed filter is offered to users is controlled separately by a toggle in the Admin console, or by `PATCH /raster-filters/{id}` with `active`:
-1. Open the SoilHive Admin console and go to the **Map-based filters** page
-2. Each filter in the **Filter states** list shows whether it is **Installed**, next to a toggle switch
-3. Flip the toggle to turn the filter on or off. The change is saved immediately.
+The Admin console's **Map-based filters** page lists every filter. Its **Status** column shows each one's state, and the **Actions** column what you can do with it:
 
-Turning a filter off does **not** delete its data. Users see a filter only when it is both active and enabled.
+| Status | Meaning | Actions |
+| ------ | ------- | ------- |
+| **Queued**, **Installing** | The install is running. | None |
+| **Failed** | The install failed. See [Troubleshooting](#troubleshooting). | Delete |
+| **Not installed** | No install has run, so there is nothing to label. | Delete |
+| **Installed** | Installed but not labelled, so users don't see it. | Edit, delete |
+| A toggle | Installed and labelled: **enabled**. | Toggle, edit, delete |
+
+## Turning filters on and off
+
+Users see a filter only when it is both enabled and active. Flip its toggle in the list, or call `PATCH /raster-filters/{id}` with `active`. The change applies at once. Turning a filter off does **not** delete its data.
+
+## Editing a filter
+
+Click an installed filter's edit icon to change its name, description or labels, then click **Save**. Through the API, use `PATCH /raster-filters/{id}` and `PUT /raster-filters/{id}/mappings`. Renaming keeps the filter's `id`.
 
 ## Deleting a filter
 
-Deactivate it, then call `DELETE /raster-filters/{id}`. This drops its tables. Filters users saved with its classes keep them, but they no longer apply. Its `id` is never used again, so those classes can never select another filter's pixels: a new filter of the same name gets `<id>_2`.
+Click its delete icon and confirm. The Admin console deactivates it first. Through the API, deactivate it, then call `DELETE /raster-filters/{id}`. A filter can't be deleted while it installs. Deleting drops its tables. Filters users saved with its classes keep them, but they no longer apply. Its `id` is never used again, so those classes can never select another filter's pixels: a new filter of the same name gets `<id>_2`.
 
 ## Licences and attribution
 
@@ -104,7 +130,7 @@ CC BY 4.0 allows any use, commercial included, as long as the source is credited
 
 ## Available filters
 
-Each filter has a GeoTIFF package under https://static.soilhive.ag/map-based-filters/. Each package carries its labels as `CLASSES` metadata, so the install suggests them in `suggested_mappings`. They are listed below, keyed by value.
+Each filter has a GeoTIFF package under https://static.soilhive.ag/map-based-filters/. Each package carries its labels as `CLASSES` metadata, so the Admin console prefills them and the API returns them in `suggested_mappings`. They are listed below, keyed by value.
 
 ### Agroecological zones v4
 
@@ -315,8 +341,8 @@ Each filter has a GeoTIFF package under https://static.soilhive.ag/map-based-fil
 
 ## Troubleshooting
 
-- **The install failed.** Read `install.errors` on `GET /raster-filters/{id}`, fix the raster, then delete the filter and create it again. Its upload is kept until then, so the same `file_id` can be reused if the raster itself was fine.
-- **`RFI_NOT_GEOREFERENCED`.** The raster lacks a CRS or a geotransform. If it has a geotransform in degrees but no CRS, set one before uploading: `gdal_edit.py -a_srs EPSG:4326 filter.tif`.
+- **The install failed.** The Admin console doesn't say why: read `install.errors` on `GET /raster-filters/{id}`. Fix the raster, then delete the filter and add it again. Through the API, its upload is kept until then, so the same `file_id` can be reused if the raster itself was fine.
+- **`RFI_NOT_GEOREFERENCED`.** The raster lacks a geotransform, or has no CRS and none was chosen. If only the CRS is missing, choose one when you upload it again, or set it in the file: `gdal_edit.py -a_srs EPSG:4326 filter.tif`.
 - **An error about a missing codec, such as LERC.** The server's GDAL cannot decompress the file. The Docker image reads LERC, but other GDAL builds may not. Re-save the file: `gdal_translate -co COMPRESS=DEFLATE in.tif out.tif`.
 - **`POST /files` is refused as too large.** Raise `MAX_UPLOAD_SIZE_MB`, and the body size limit of any reverse proxy in front of the backend.
 - **`RFI_DB_LOAD_FAILED`.** The database user needs permission to create tables in the application schema, and the database needs room for the filter, which takes several times the size of its compressed GeoTIFF.

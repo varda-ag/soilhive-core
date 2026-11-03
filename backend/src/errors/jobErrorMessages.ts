@@ -163,6 +163,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "'{file_name}' has no coordinate reference system or no georeference, so it cannot be placed on the map.",
     actions: [
       'Add the missing georeferencing to the raster (it should open in the right place in QGIS), then re-upload it.',
+      'If only its coordinate reference system is missing, choose one when you upload it, then create the filter again.',
       `What a filter raster needs: ${RASTER_FILTER_DOCS_URL}#preparing-the-raster`,
     ],
   },

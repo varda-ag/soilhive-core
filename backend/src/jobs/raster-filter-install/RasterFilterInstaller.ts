@@ -10,6 +10,7 @@ import FileEntity from '../../entities/File';
 import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
 import RasterLayerAssetEntity from '../../entities/RasterLayerAsset';
 import { RasterFilterInstallJob } from '../../interfaces/Job';
+import { RasterFileMetadata } from '../../interfaces/File';
 import { JobError } from '../../errors/JobError';
 import { getEntityManager } from '../../utils/data-source';
 import { getErrorMessage } from '../../utils/error';
@@ -76,11 +77,14 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
       throw new JobError('RFI_FILE_NOT_FOUND', { raster_filter_id: id }, getErrorMessage(error));
     }));
     const params = { raster_filter_id: id, file_name: file.name, band: String(band) };
+    const metadata = file.metadata as RasterFileMetadata | undefined;
+    const suppliedEpsg = metadata?.crs_source === 'supplied' ? metadata.epsg : undefined;
 
     const info = await GdalCLI.gdalinfo(sourcePath).catch(error => {
       throw new JobError('RFI_WARP_FAILED', params, getErrorMessage(error));
     });
-    const { reprojected, nodata } = checkSource(info, params, band);
+    const { reprojected, nodata, suppliedSrs } = checkSource(info, params, band, suppliedEpsg);
+    const suppliedSrsArgs = (flag: string) => (suppliedSrs ? [flag, suppliedSrs] : []);
 
     // One band, in EPSG:4326. A raster already there is copied, not resampled.
     const extracted = path.join(workDir, 'band.tif');
@@ -105,6 +109,7 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
           [
             '-b',
             String(band),
+            ...suppliedSrsArgs('-s_srs'),
             '-t_srs',
             'EPSG:4326',
             '-r',
@@ -118,7 +123,12 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
           onProgress,
         );
       } else {
-        await GdalCLI.translate(sourcePath, extracted, ['-b', String(band), ...GTIFF_CREATION_OPTIONS], onProgress);
+        await GdalCLI.translate(
+          sourcePath,
+          extracted,
+          ['-b', String(band), ...suppliedSrsArgs('-a_srs'), ...GTIFF_CREATION_OPTIONS],
+          onProgress,
+        );
       }
     } catch (error) {
       throw new JobError('RFI_WARP_FAILED', params, getErrorMessage(error));
@@ -189,12 +199,19 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
 }
 
 /**
- * Validates the source band for installation. Returns whether it needs reprojecting to EPSG:4326, and
- * the nodata value the reprojection fills with.
+ * Validates the source band for installation. Returns whether it needs reprojecting to EPSG:4326, the
+ * nodata value the reprojection fills with, and the Supplied CRS to read the source in, when it has none of its own.
  */
-function checkSource(info: GdalInfoOutput, params: Record<string, string>, band: number): { reprojected: boolean; nodata?: number } {
+function checkSource(
+  info: GdalInfoOutput,
+  params: Record<string, string>,
+  band: number,
+  suppliedEpsg: number | undefined,
+): { reprojected: boolean; nodata?: number; suppliedSrs?: string } {
   const wkt = info.coordinateSystem?.wkt;
-  if (!info.geoTransform || !wkt) {
+  // The file's own CRS is authoritative (CONTEXT.md): a Supplied CRS only stands in for a missing one
+  const supplied = wkt ? undefined : suppliedEpsg;
+  if (!info.geoTransform || (!wkt && supplied === undefined)) {
     throw new JobError('RFI_NOT_GEOREFERENCED', params);
   }
   const bands = info.bands ?? [];
@@ -206,13 +223,17 @@ function checkSource(info: GdalInfoOutput, params: Record<string, string>, band:
     const code = FLOAT_PIXEL_TYPES.includes(pixelType) ? 'RFI_CONTINUOUS_NOT_SUPPORTED' : 'RFI_UNSUPPORTED_PIXEL_TYPE';
     throw new JobError(code, { ...params, pixel_type: pixelType });
   }
-  const reprojected = !(isGeographicCrs(wkt) && GdalCLI.extractEpsgFromWkt(wkt) === 4326);
+  const reprojected = wkt ? !(isGeographicCrs(wkt) && GdalCLI.extractEpsgFromWkt(wkt) === 4326) : supplied !== 4326;
   const nodata = bands[band - 1]!.noDataValue;
   // Reprojecting adds pixels outside the source's footprint, which would otherwise read as class 0
   if (reprojected && nodata === undefined) {
     throw new JobError('RFI_NODATA_REQUIRED', params);
   }
-  return { reprojected, ...(nodata !== undefined && { nodata }) };
+  return {
+    reprojected,
+    ...(nodata !== undefined && { nodata }),
+    ...(supplied !== undefined && { suppliedSrs: `EPSG:${supplied}` }),
+  };
 }
 
 /**
