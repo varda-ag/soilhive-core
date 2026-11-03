@@ -5,7 +5,20 @@
   padding: 1.75rem 3.125rem 3.125rem;
   color: var(--color-text-primary);
 
-  > .Section {
+  > .BackButton {
+    align-self: flex-start;
+    margin-bottom: -0.75rem;
+  }
+
+  // Holds the sections the loader covers
+  > .Sections {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .Section {
     background: var(--color-neutral-white);
     padding: 1.5rem 2rem;
     border-radius: 0.5rem;
@@ -19,6 +32,19 @@
 
     > .Message {
       line-height: 135%;
+      margin: 0 0 1.5rem;
+    }
+
+    > .FileList {
+      display: flex;
+      flex-direction: column;
+      gap: 0.625rem;
+      margin-top: 1rem;
+
+      > .FileCount {
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+      }
     }
   }
 }

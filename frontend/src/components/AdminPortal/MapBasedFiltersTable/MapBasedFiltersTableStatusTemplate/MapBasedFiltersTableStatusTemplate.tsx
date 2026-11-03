@@ -1,7 +1,9 @@
 import { useTranslation } from 'react-i18next';
+import classnames from 'classnames';
 
 import { Tag, ToggleButton } from 'components/UI';
-import type { RasterFilterCategory } from 'types/backend';
+import { RasterFilterInstallStatus, type RasterFilterCategory } from 'types/backend';
+import { getInstallStatus, isInstallInProgress } from 'utilities/rasterFilter';
 
 import styles from './MapBasedFiltersTableStatusTemplate.module.scss';
 
@@ -13,10 +15,19 @@ interface Props {
 
 export function MapBasedFiltersTableStatusTemplate({ filter, isActivationPending, onSetCategoryActive }: Props) {
   const { t } = useTranslation('admin');
+  const installStatus = getInstallStatus(filter);
 
   return (
     <div className={styles.StatusCell}>
-      {!filter.enabled && <Tag text={t(`filters.list.not_installed`)} className={styles.Tag} />}
+      {!filter.enabled && (
+        <Tag
+          text={t(`filters.list.install_status.${installStatus}`)}
+          className={classnames(styles.Tag, {
+            [styles.InProgress]: isInstallInProgress(installStatus),
+            [styles.Failed]: installStatus === RasterFilterInstallStatus.FAILED,
+          })}
+        />
+      )}
       {filter.enabled && (
         <div className={styles.ToggleWrapper}>
           <ToggleButton

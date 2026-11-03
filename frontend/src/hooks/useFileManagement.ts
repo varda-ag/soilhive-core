@@ -7,6 +7,17 @@ export function useFileManagement() {
   const { request } = useRequest();
   const { id: datasetId } = useParams();
 
+  const deleteFile = useCallback(
+    async (id: string) => {
+      await request({
+        url: `${BACKEND_BASE_URL}/files/${id}`,
+        method: 'DELETE',
+        showErrorNotification: true,
+      });
+    },
+    [request],
+  );
+
   const deleteFileAndMapping = useCallback(
     async (id: string) => {
       await request({
@@ -14,14 +25,10 @@ export function useFileManagement() {
         method: 'DELETE',
         showErrorNotification: true,
       });
-      await request({
-        url: `${BACKEND_BASE_URL}/files/${id}`,
-        method: 'DELETE',
-        showErrorNotification: true,
-      });
+      await deleteFile(id);
     },
-    [request, datasetId],
+    [request, datasetId, deleteFile],
   );
 
-  return { deleteFileAndMapping };
+  return { deleteFile, deleteFileAndMapping };
 }

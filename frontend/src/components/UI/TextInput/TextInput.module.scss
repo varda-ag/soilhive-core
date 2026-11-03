@@ -66,8 +66,14 @@
     }
   }
 
+  // On the wrapper, so the background covers its padding, not just the browser's disabled input
+  &.Disabled {
+    background: var(--color-neutral-light);
+  }
+
   &.Disabled > .InputField {
     color: var(--color-neutral-dark-400);
+    background: transparent;
 
     &::placeholder {
       color: var(--color-neutral-dark-200);

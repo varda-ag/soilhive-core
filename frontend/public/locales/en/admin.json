@@ -534,14 +534,61 @@
                 "created_at": "Creation date",
                 "actions": "Actions"
             },
-            "not_installed": "Not installed",
+            "install_status": {
+                "not_installed": "Not installed",
+                "queued": "Queued",
+                "installing": "Installing",
+                "installed": "Installed",
+                "failed": "Failed"
+            },
+            "delete_modal": {
+                "title": "Delete this filter?",
+                "message": "Are you sure you want to permanently delete <strong>{{filterName}}</strong>? This action cannot be undone. Saved filters that use its values will keep them, but they will no longer apply.",
+                "cancel": "Cancel",
+                "confirm": "Delete filter"
+            },
             "activate": "Activate",
             "deactivate": "Deactivate"
         }
     },
     "createFilter": {
         "title": "Upload a file",
-        "message": "Here we need a text here to explain to the user that they need to upload only one tif file and it should be categorised, continuous files will be uploaded in the future too."
+        "message": "Here we need a text here to explain to the user that they need to upload only one tif file and it should be categorised, continuous files will be uploaded in the future too.",
+        "upload_caption": "Supported formats: TIFF.",
+        "back": "Back to map-based filters",
+        "band": {
+            "label": "Band",
+            "placeholder": "Select a band",
+            "hint": "This file has {{count}} bands. Pick the one that holds the filter classes: the others are discarded.",
+            "option": "Band {{number}} ({{dataType}})"
+        },
+        "description_section": {
+            "title": "Filter description",
+            "message": "Add some general data describing your map-based filter.",
+            "name": "Filter name",
+            "name_placeholder": "This name will appear in the filter panel",
+            "description": "Description",
+            "description_placeholder": "Describe the filter usage"
+        },
+        "install": "Install filter",
+        "install_failed": {
+            "title": "Filter installation failed",
+            "message": "The filter could not be installed. Delete it from the list and add it again."
+        },
+        "mappings": {
+            "title": "Label the file values",
+            "message": "The map will be filtered by your categories (e.g. land use or agroecological zones). Each category will show up as a checkbox in the filter panel, so users can select them to filter the data. Type a clear, easy to understand name for each one.",
+            "unlabelled_hint": "Values left unlabelled won’t appear in the filters panel",
+            "pixel_value": "Pixel value",
+            "label": "Label shown to the users in the filter panel",
+            "clear": "Clear label"
+        },
+        "installing": {
+            "title": "Filter installation in progress",
+            "description": "The system is installing your filter. Once it is done, you can label its values here. You can also leave this page and check the filter status in the filters table."
+        },
+        "save_and_finish": "Save and finish",
+        "save": "Save"
     },
     "export_settings": {
         "title": "Export settings",
