@@ -124,6 +124,45 @@ describe('Menu Component', () => {
     expect(screen.getByTestId('test-icon')).toBeInTheDocument();
   });
 
+  it('shows the description after the option name', () => {
+    const optionsWithDescription: MenuOption[] = [{ code: '1', name: 'PNG', description: 'Best for slides' }];
+
+    render(<Menu options={optionsWithDescription} onSelect={() => {}} />);
+
+    const description = screen.getByText('Best for slides');
+    expect(description).toHaveClass('OptionDescription');
+    expect(description.parentElement).toHaveClass('OptionName');
+    expect(description.previousSibling?.textContent).toBe('PNG');
+  });
+
+  it('shows no description for an option without one', () => {
+    const { container } = render(<Menu options={baseOptions} onSelect={() => {}} />);
+
+    expect(container.querySelector('.OptionDescription')).not.toBeInTheDocument();
+  });
+
+  it('clicking an option description triggers onSelect', () => {
+    const onSelect = jest.fn();
+    const optionsWithDescription: MenuOption[] = [{ code: '1', name: 'PNG', description: 'Best for slides' }];
+
+    render(<Menu options={optionsWithDescription} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByText('Best for slides'));
+
+    expect(onSelect).toHaveBeenCalledWith(['1']);
+  });
+
+  it('does not select a disabled option through its description', () => {
+    const onSelect = jest.fn();
+    const optionsWithDescription: MenuOption[] = [{ code: '1', name: 'PNG', description: 'Best for slides', isDisabled: true }];
+
+    render(<Menu options={optionsWithDescription} onSelect={onSelect} />);
+
+    fireEvent.click(screen.getByText('Best for slides'));
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   describe('with groups', () => {
     const groupedOptions: MenuOption[] = [
       { code: 'a1', name: 'Apple', group: 'Fruits' },

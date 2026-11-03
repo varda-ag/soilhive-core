@@ -78,7 +78,7 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
               {group}
             </div>
           )}
-          {groupOptions.map(({ code, name, Icon, isDisabled, isSelected }) => (
+          {groupOptions.map(({ code, name, description, Icon, isDisabled, isSelected }) => (
             <div
               key={code}
               data-testid="sh-ui-menuoption"
@@ -89,7 +89,10 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
               onClick={() => !isDisabled && selectOption(code, isSelected)}
             >
               {Icon && <Icon className={styles.OptionIcon} />}
-              <span className={styles.OptionName}>{name}</span>
+              <span className={styles.OptionName}>
+                {name}
+                {description && <span className={styles.OptionDescription}>{description}</span>}
+              </span>
               {isSelected && showSelectedCheckIcon && <CheckIcon className={styles.CheckIcon} />}
             </div>
           ))}
