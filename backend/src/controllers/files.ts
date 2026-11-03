@@ -15,6 +15,10 @@ import { PatchFileInput } from '../interfaces/File';
 const fileService = new FileService();
 const configService = new ConfigService();
 
+// The logo is read into memory and stored in the database, so it gets a cap of its own, well
+// under MAX_UPLOAD_SIZE_MB (ADR 0029's amendment)
+const MAX_LOGO_SIZE_BYTES = 5 * 1024 * 1024;
+
 export const fileUpload = async (req: Request, res: Response) => {
   res.status(StatusCodes.CREATED).json({ message: 'File uploaded successfully', file: req.files?.[0] });
 };
@@ -36,6 +40,10 @@ export const logoUpload = async (req: Request, res: Response) => {
   // The multer fileUploader has already streamed the logo to storage. Read it back, persist the
   // bytes in the DB (source of truth, see ADR 0015), then best-effort remove the storage copy.
   const storage = FileService.getStorageEngine();
+  if ((await storage.fileSize(fileKey)) > MAX_LOGO_SIZE_BYTES) {
+    await fileService.deleteFileFromStorage(fileKey).catch(() => {});
+    throw new ErrorResponse(`The logo must be at most ${MAX_LOGO_SIZE_BYTES / (1024 * 1024)} MB`, StatusCodes.REQUEST_TOO_LONG);
+  }
   const stream = await storage.read(fileKey);
   const buffer = await FileService.streamToBuffer(stream as Readable);
   await configService.setLogo(repo, { fileKey, bytes: buffer.toString('base64') });

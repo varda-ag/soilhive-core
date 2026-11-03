@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MapBasedFiltersTableStatusTemplate } from 'components/AdminPortal/MapBasedFiltersTable/MapBasedFiltersTableStatusTemplate/MapBasedFiltersTableStatusTemplate';
-import type { RasterFilterCategory } from 'types/backend';
+import { RasterFilterInstallStatus, type RasterFilterCategory } from 'types/backend';
 
 jest.mock('components/UI', () => ({
   Tag: ({ text, className }: any) => (
@@ -55,6 +55,50 @@ describe('MapBasedFiltersTableStatusTemplate', () => {
       );
 
       expect(screen.queryByTestId('mock-toggle-button')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('when the filter is not enabled', () => {
+    const renderWithStatus = (status: RasterFilterInstallStatus) =>
+      render(
+        <MapBasedFiltersTableStatusTemplate
+          filter={makeFilter({ enabled: false, install: { status } })}
+          isActivationPending={false}
+          onSetCategoryActive={onSetCategoryActive}
+        />,
+      );
+
+    it.each([
+      [RasterFilterInstallStatus.NOT_INSTALLED, 'Not installed'],
+      [RasterFilterInstallStatus.QUEUED, 'Queued'],
+      [RasterFilterInstallStatus.INSTALLING, 'Installing'],
+      [RasterFilterInstallStatus.INSTALLED, 'Installed'],
+      [RasterFilterInstallStatus.FAILED, 'Failed'],
+    ])('renders the %s install status as "%s"', (status, text) => {
+      renderWithStatus(status);
+
+      expect(screen.getByTestId('mock-tag')).toHaveTextContent(text);
+    });
+
+    it.each([RasterFilterInstallStatus.QUEUED, RasterFilterInstallStatus.INSTALLING])('marks the %s tag as in progress', status => {
+      renderWithStatus(status);
+
+      expect(screen.getByTestId('mock-tag')).toHaveClass('InProgress');
+      expect(screen.getByTestId('mock-tag')).not.toHaveClass('Failed');
+    });
+
+    it('marks the failed tag as failed', () => {
+      renderWithStatus(RasterFilterInstallStatus.FAILED);
+
+      expect(screen.getByTestId('mock-tag')).toHaveClass('Failed');
+      expect(screen.getByTestId('mock-tag')).not.toHaveClass('InProgress');
+    });
+
+    it.each([RasterFilterInstallStatus.NOT_INSTALLED, RasterFilterInstallStatus.INSTALLED])('keeps the default colours for %s', status => {
+      renderWithStatus(status);
+
+      expect(screen.getByTestId('mock-tag')).not.toHaveClass('InProgress');
+      expect(screen.getByTestId('mock-tag')).not.toHaveClass('Failed');
     });
   });
 

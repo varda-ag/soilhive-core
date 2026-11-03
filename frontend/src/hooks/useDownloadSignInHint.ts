@@ -4,7 +4,7 @@ import { useAuthContext } from '../auth/AuthContextProvider';
 
 /**
  * Why the download buttons are disabled, while administrators require a signed-in user to export
- * and the visitor is signed out (docs/adr/0074); undefined otherwise. The backend refuses such an
+ * and the visitor is signed out (docs/adr/0075); undefined otherwise. The backend refuses such an
  * Export anyway, so this only spares the visitor a refused request.
  */
 export function useDownloadSignInHint(): string | undefined {

@@ -6,7 +6,7 @@ import * as turf from '@turf/turf';
 import FileService from '../services/FileService';
 import ConfigService from '../services/ConfigService';
 import { StorageModes } from '../types/enums';
-import { GdalCLI, type Envelope, type GdalInfoOutput } from './GdalCLI';
+import { GdalCLI, type Envelope, type GdalInfoBand, type GdalInfoOutput } from './GdalCLI';
 import { log } from './logger';
 
 export interface RasterMeta {
@@ -155,7 +155,7 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   const wkt = info.coordinateSystem?.wkt;
   let resolution: number;
   if (isGeographicCrs(wkt)) {
-    resolution = Math.round(Math.abs(pixW) * 111320);
+    resolution = geographicResolutionM(pixW);
   } else {
     // Projected CRS units aren't necessarily meters (e.g. state-plane feet), so measure the ground
     // distance across one pixel — at the raster's centre, since its corners are the likeliest
@@ -194,6 +194,100 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
   };
 }
 
+// gdalinfo's raster attribute table codes
+const RAT_STRING = 2;
+const RAT_NAME = 2;
+const RAT_MIN = 3;
+const RAT_MAX = 4;
+const RAT_MIN_MAX = 5;
+
+/**
+ * The class labels a band carries, as `{ pixel value: label }`: from its raster attribute table, else
+ * its category names, else a `CLASSES` metadata item (see classesPairs). Undefined when it has none
+ * that name a whole-number value. A value that repeats keeps its first label; several values may
+ * share one.
+ */
+export function categoryLabels(band: GdalInfoBand | undefined, info?: GdalInfoOutput): Record<string, string> | undefined {
+  return (
+    toLabels(band?.rat ? ratPairs(band.rat) : []) ??
+    toLabels((band?.categories ?? []).map((label, value): [unknown, number] => [label, value])) ??
+    toLabels(classesPairs(band, info))
+  );
+}
+
+function toLabels(pairs: Array<[unknown, number]>): Record<string, string> | undefined {
+  const labels: Record<string, string> = {};
+  for (const [label, value] of pairs) {
+    const name = typeof label === 'string' ? label.trim() : '';
+    if (!name || !Number.isInteger(value) || String(value) in labels) continue;
+    labels[String(value)] = name;
+  }
+  return Object.keys(labels).length > 0 ? labels : undefined;
+}
+
+/**
+ * A `CLASSES` metadata item holding `{ "pixel value": "label" }` JSON, as SoilHive's raster exports
+ * write it. A GeoTIFF keeps it inside the file, unlike its attribute table. The band's own item wins;
+ * the dataset's counts only in a single-band file, as it names no band. Malformed JSON is ignored.
+ */
+function classesPairs(band: GdalInfoBand | undefined, info: GdalInfoOutput | undefined): Array<[unknown, number]> {
+  const raw = band?.metadata?.['']?.['CLASSES'] ?? (info?.bands?.length === 1 ? info.metadata?.['']?.['CLASSES'] : undefined);
+  if (!raw) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return [];
+  return Object.entries(parsed).map(([value, label]): [unknown, number] => [label, value.trim() ? Number(value) : NaN]);
+}
+
+function ratPairs(rat: NonNullable<GdalInfoBand['rat']>): Array<[unknown, number]> {
+  const fields = rat.fieldDefn ?? [];
+  const label = fields.find(f => f.usage === RAT_NAME) ?? fields.find(f => f.type === RAT_STRING);
+  if (!label) return [];
+  const value = fields.find(f => f.usage === RAT_MIN_MAX) ?? fields.find(f => /^value$/i.test(f.name) && f.type !== RAT_STRING);
+  // Rows that each span a range of values cannot name one pixel value
+  if (!value && fields.some(f => f.usage === RAT_MIN || f.usage === RAT_MAX)) return [];
+  return (rat.row ?? []).map(row => {
+    if (value) return [row.f[label.index], Number(row.f[value.index])];
+    // Without a value column, a row's position is its value, offset when the rows are value bins
+    return [row.f[label.index], (rat.row0Min ?? 0) + row.index * (rat.binSize ?? 1)];
+  });
+}
+
+/** The overview factors of every Raster Filter: its overview tables are named o_<factor>_<table>. */
+export const RASTER_FILTER_OVERVIEW_FACTORS = [2, 4, 8, 16, 32] as const;
+
+// Assumed for a Raster Filter whose resolution is unknown: Land Cover 2019's, which the overview choice was tuned on
+const DEFAULT_RASTER_FILTER_RESOLUTION_M = 100;
+
+/** A Raster Filter's base table and its overview tables. */
+export const rasterFilterTables = (table: string): string[] => [table, ...RASTER_FILTER_OVERVIEW_FACTORS.map(f => `o_${f}_${table}`)];
+
+// The id is the base table's name, and the longest overview's (o_32_<id>) must fit Postgres' 63 characters
+const RASTER_FILTER_ID_MAX_LENGTH = 58;
+
+/**
+ * The nth id to try for a Raster Filter named `name`: the name in snake_case ASCII, prefixed with
+ * `rf_` unless it starts with a letter, and suffixed with `_<n>` from the second try on.
+ */
+export const rasterFilterId = (name: string, n = 1): string => {
+  const words = name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  const base = /^[a-z]/.test(words) ? words : `rf_${words}`;
+  const suffix = n > 1 ? `_${n}` : '';
+  return `${base.slice(0, RASTER_FILTER_ID_MAX_LENGTH - suffix.length).replace(/_+$/, '')}${suffix}`;
+};
+
+/** A geographic raster's resolution_m: the ground width of one pixel at the equator. */
+export const geographicResolutionM = (pixelWidthDegrees: number): number => Math.round(Math.abs(pixelWidthDegrees) * 111320);
+
 /**
  * Returns the PostGIS table name to query given an AOI area in m².
  *
@@ -201,16 +295,16 @@ export async function analyzeRasterMeta(cogPath: string, band: number): Promise<
  * still keeps the AOI represented by at least ~TARGET_PIXELS pixels.
  * If the AOI is small (high detail needed), use the base table.
  *
- * @param table     - e.g. "land_cover"
- * @param aoiAreaM2 - total input AOI size in square meters
+ * @param table           - e.g. "land_cover"
+ * @param aoiAreaM2       - total input AOI size in square meters
+ * @param baseResolutionM - the base table's pixel size; null when unknown
  */
-export const selectOverviewTable = (table: string, aoiAreaM2: number): string => {
-  const BASE_PIXEL_SIZE_M = 100;
+export const selectOverviewTable = (table: string, aoiAreaM2: number, baseResolutionM: number | null = null): string => {
   const TARGET_PIXELS = 512;
-  const OVERVIEWS = [32, 16, 8, 4, 2] as const;
+  const basePixelSizeM = baseResolutionM && baseResolutionM > 0 ? baseResolutionM : DEFAULT_RASTER_FILTER_RESOLUTION_M;
 
-  for (const factor of OVERVIEWS) {
-    const pixelSizeM = BASE_PIXEL_SIZE_M * factor;
+  for (const factor of [...RASTER_FILTER_OVERVIEW_FACTORS].reverse()) {
+    const pixelSizeM = basePixelSizeM * factor;
     const pixelAreaM2 = pixelSizeM ** 2;
     const pixelCount = aoiAreaM2 / pixelAreaM2;
     if (pixelCount >= TARGET_PIXELS) {

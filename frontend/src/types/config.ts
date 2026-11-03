@@ -13,7 +13,7 @@ export type ExportLimits = {
   maxObservations: number | null;
   maxRasterLayers: number | null;
   exemptAdmins: boolean;
-  // Not an Export Limit: the backend refuses an Export without a token at submission (docs/adr/0074)
+  // Not an Export Limit: the backend refuses an Export without a token at submission (docs/adr/0075)
   exportRequiresSignIn: boolean;
 };
 

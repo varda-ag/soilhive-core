@@ -1,6 +1,7 @@
 @import 'styles/variables/breakpoints';
 
 .Dialog {
+  position: relative;
   min-width: 30vw;
   max-width: 90vw;
   min-height: 30vw;

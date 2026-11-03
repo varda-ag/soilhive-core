@@ -4,9 +4,22 @@
   align-items: flex-start;
 }
 
-.Tag {
+.StatusCell > .Tag {
   width: 6.375rem;
   justify-content: center;
+
+  // Nested to outrank the Tag's own type colours
+  &.InProgress {
+    background-color: var(--color-brand-yellow-bg);
+    border-color: var(--color-accent-warning-1000);
+    color: var(--color-accent-warning-1500);
+  }
+
+  &.Failed {
+    background-color: var(--color-accent-danger-050);
+    border-color: var(--color-accent-danger-600);
+    color: var(--color-accent-danger-1000);
+  }
 }
 
 .ToggleWrapper {

@@ -31,9 +31,10 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
 
   const filtered = availableOptions.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const handleCheckboxChange = (value: number, checked: boolean) => {
-    const nextValues = checked ? [...selectedValues, value] : selectedValues.filter(v => v !== value);
-    handleOnChange(nextValues);
+  // An option stands for every pixel value sharing its label
+  const handleCheckboxChange = (values: number[], checked: boolean) => {
+    const others = selectedValues.filter(v => !values.includes(v));
+    handleOnChange(checked ? [...others, ...values] : others);
   };
 
   return (
@@ -61,11 +62,11 @@ export function RasterFilter({ categoryId }: RasterFilterProps) {
             <div className={styles.CheckboxList}>
               {filtered.map(option => (
                 <Checkbox
-                  key={option.value}
+                  key={option.label}
                   label={option.label}
                   size={isMobileLayout ? 'medium' : 'small'}
-                  value={selectedValues.includes(option.value)}
-                  onChange={(checked: boolean) => handleCheckboxChange(option.value, checked)}
+                  value={option.values.some(v => selectedValues.includes(v))}
+                  onChange={(checked: boolean) => handleCheckboxChange(option.values, checked)}
                 />
               ))}
             </div>

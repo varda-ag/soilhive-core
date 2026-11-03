@@ -50,12 +50,12 @@ function buildHookMock(overrides = {}) {
       name: 'Soil Groups',
       description: 'World Reference Base for Soil Resources',
       enabled: true,
-      mapping: { Acrisols: 1, Ferralsols: 2, Gleysols: 3 },
+      mapping: { '1': 'Acrisols', '2': 'Ferralsols', '3': 'Gleysols' },
     },
     availableOptions: [
-      { label: 'Acrisols', value: 1 },
-      { label: 'Ferralsols', value: 2 },
-      { label: 'Gleysols', value: 3 },
+      { label: 'Acrisols', values: [1] },
+      { label: 'Ferralsols', values: [2] },
+      { label: 'Gleysols', values: [3] },
     ],
     selectedValues: [],
     pillSelections: [],
@@ -115,6 +115,24 @@ describe('RasterFilter', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Acrisols' }));
 
     expect(handleOnChange).toHaveBeenCalledWith([1]);
+  });
+
+  it('checks and unchecks every value of a label together', () => {
+    const handleOnChange = jest.fn();
+    useRasterFiltersMock.mockReturnValue(
+      buildHookMock({ handleOnChange, availableOptions: [{ label: 'Forest', values: [1, 2] }], selectedValues: [5] }) as any,
+    );
+
+    const { rerender } = render(<RasterFilter categoryId="soil_groups" />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Forest' }));
+    expect(handleOnChange).toHaveBeenLastCalledWith([5, 1, 2]);
+
+    useRasterFiltersMock.mockReturnValue(
+      buildHookMock({ handleOnChange, availableOptions: [{ label: 'Forest', values: [1, 2] }], selectedValues: [5, 1, 2] }) as any,
+    );
+    rerender(<RasterFilter categoryId="soil_groups" />);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Forest' }));
+    expect(handleOnChange).toHaveBeenLastCalledWith([5]);
   });
 
   it('filters checkboxes based on the search term', () => {

@@ -99,9 +99,10 @@ async function getFilterString(requestData: RequestData, filterEntity: FilterCri
     for (const [tableId, values] of Object.entries(filterEntity.raster_filters)) {
       const rasterFilter = rasterFilterMap.get(tableId);
       if (!rasterFilter?.mappings) continue;
+      const { mappings } = rasterFilter;
 
-      const reverseMap = new Map(Object.entries(rasterFilter.mappings).map(([label, num]) => [num, label]));
-      const labels = values.map(v => reverseMap.get(v) ?? String(v));
+      // Several values may share a label
+      const labels = [...new Set(values.map(v => mappings[String(v)] ?? String(v)))];
       parts.push(`${rasterFilter.name}: ${labels.join(', ')}`);
     }
   }

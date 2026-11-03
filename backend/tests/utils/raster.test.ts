@@ -4,10 +4,12 @@ import path from 'path';
 import { fromArrayBuffer, writeArrayBuffer } from 'geotiff';
 import {
   analyzeRasterMeta,
+  categoryLabels,
   formatGdalNodata,
   isMetricProjectedCrs,
   nodataFromImage,
   parseGdalNodata,
+  rasterFilterId,
   selectOverviewTable,
 } from '../../src/utils/raster';
 import { GdalCLI } from '../../src/utils/GdalCLI';
@@ -193,6 +195,19 @@ describe('raster tests', () => {
     const table = selectOverviewTable(baseTable, aoiM2);
     expect(table).toEqual(expected);
   });
+
+  it.each([
+    // A 1 km raster (Soil Groups): Italy on o_32 would be ~300 pixels
+    [1000, 300_000_000_000, 'o_16_raster'],
+    [1000, 22_000_000_000, 'o_4_raster'],
+    [1000, 500_000_000, 'raster'],
+    // A 10 m raster: a field-sized AOI already has enough pixels on an overview
+    [10, 1_000_000, 'o_4_raster'],
+    // Unknown resolution falls back to 100 m
+    [null, 300_000_000_000, 'o_32_raster'],
+  ])('selectOverviewTable scales with a %s m base resolution', (resolutionM, aoiM2, expected) => {
+    expect(selectOverviewTable('raster', aoiM2, resolutionM)).toEqual(expected);
+  });
 });
 
 describe('nodataFromImage', () => {
@@ -225,4 +240,137 @@ describe('nodataFromImage', () => {
       expect(parseGdalNodata(formatGdalNodata(value))).toBe(value);
     },
   );
+});
+
+describe('categoryLabels', () => {
+  const rat = (fieldDefn: Array<{ name: string; type: number; usage: number }>, rows: Array<Array<string | number>>, extra = {}) => ({
+    rat: { fieldDefn: fieldDefn.map((f, index) => ({ index, ...f })), row: rows.map((f, index) => ({ index, f })), ...extra },
+  });
+
+  it('reads a value column and a name column', () => {
+    const band = rat(
+      [
+        { name: 'Value', type: 0, usage: 0 },
+        { name: 'Class_Names', type: 2, usage: 2 },
+      ],
+      [
+        [65, 'Acrisols'],
+        [70, 'Cambisols'],
+      ],
+    );
+    expect(categoryLabels(band)).toEqual({ '65': 'Acrisols', '70': 'Cambisols' });
+  });
+
+  it('prefers a min-max column for the value, and takes the first string column without a name column', () => {
+    const band = rat(
+      [
+        { name: 'Code', type: 0, usage: 5 },
+        { name: 'Count', type: 0, usage: 1 },
+        { name: 'Label', type: 2, usage: 0 },
+      ],
+      [
+        [11, 900, 'Rangeland'],
+        [1, 40, 'Water'],
+      ],
+    );
+    expect(categoryLabels(band)).toEqual({ '11': 'Rangeland', '1': 'Water' });
+  });
+
+  it('uses the row position without a value column, offset by value bins', () => {
+    const columns = [{ name: 'Class', type: 2, usage: 2 }];
+    expect(categoryLabels(rat(columns, [['Nodata'], ['Forest'], ['Crops']]))).toEqual({ '0': 'Nodata', '1': 'Forest', '2': 'Crops' });
+    expect(categoryLabels(rat(columns, [['Forest'], ['Crops']], { row0Min: 10, binSize: 5 }))).toEqual({ '10': 'Forest', '15': 'Crops' });
+  });
+
+  it('skips a table whose rows span value ranges', () => {
+    const band = rat(
+      [
+        { name: 'Min', type: 1, usage: 3 },
+        { name: 'Max', type: 1, usage: 4 },
+        { name: 'Class', type: 2, usage: 2 },
+      ],
+      [[0, 0.5, 'Low']],
+    );
+    expect(categoryLabels(band)).toBeUndefined();
+  });
+
+  it('skips blank labels, values that are not whole numbers, and repeated values, but lets values share a label', () => {
+    const band = rat(
+      [
+        { name: 'Value', type: 1, usage: 0 },
+        { name: 'Label', type: 2, usage: 2 },
+      ],
+      [
+        [1, 'Water'],
+        [2, ' '],
+        [2.5, 'Half'],
+        [3, 'Water'],
+        [1, 'Lake'],
+        [4, 'Trees'],
+      ],
+    );
+    expect(categoryLabels(band)).toEqual({ '1': 'Water', '3': 'Water', '4': 'Trees' });
+  });
+
+  it('falls back to category names, the value being the position', () => {
+    expect(categoryLabels({ categories: ['', 'Class one', 'Class two'] })).toEqual({ '1': 'Class one', '2': 'Class two' });
+  });
+
+  it('is undefined for a band without labels', () => {
+    expect(categoryLabels({})).toBeUndefined();
+    expect(categoryLabels(undefined)).toBeUndefined();
+  });
+
+  describe('CLASSES metadata', () => {
+    const classes = (labels: unknown) => ({ '': { CLASSES: typeof labels === 'string' ? labels : JSON.stringify(labels) } });
+
+    it("reads a single-band file's CLASSES", () => {
+      const band = {};
+      expect(categoryLabels(band, { bands: [band], metadata: classes({ 1: 'Clay', 2: 'Silty Clay' }) })).toEqual({
+        '1': 'Clay',
+        '2': 'Silty Clay',
+      });
+    });
+
+    it("prefers the band's own CLASSES, and ignores the file's when it has several bands", () => {
+      const band = { metadata: classes({ 1: 'Band clay' }) };
+      expect(categoryLabels(band, { bands: [band, {}], metadata: classes({ 1: 'File clay' }) })).toEqual({ '1': 'Band clay' });
+      expect(categoryLabels({}, { bands: [{}, {}], metadata: classes({ 1: 'File clay' }) })).toBeUndefined();
+    });
+
+    it('comes after category names', () => {
+      const band = { categories: ['', 'Named'], metadata: classes({ 1: 'Classes' }) };
+      expect(categoryLabels(band)).toEqual({ '1': 'Named' });
+    });
+
+    it('skips blank labels and keys that are not whole numbers, and is undefined for malformed JSON', () => {
+      const band = { metadata: classes({ 1: 'Clay', 2: ' ', 2.5: 'Half', '': 'None', x: 'Text', 3: 7 }) };
+      expect(categoryLabels(band)).toEqual({ '1': 'Clay' });
+      expect(categoryLabels({ metadata: classes('{"1": "Clay"') })).toBeUndefined();
+      expect(categoryLabels({ metadata: classes(['Clay']) })).toBeUndefined();
+    });
+  });
+});
+
+describe('rasterFilterId', () => {
+  it.each([
+    ['Land Cover 2024', 'land_cover_2024'],
+    ['Zones agroécologiques (v5)', 'zones_agroecologiques_v5'],
+    ['  Soil -- groups  ', 'soil_groups'],
+    ['2024 Land Cover', 'rf_2024_land_cover'],
+    ['Почвы', 'rf'],
+  ])('derives %s as %s', (name, id) => {
+    expect(rasterFilterId(name)).toBe(id);
+  });
+
+  it('suffixes from the second try on', () => {
+    expect(rasterFilterId('Land Cover', 2)).toBe('land_cover_2');
+    expect(rasterFilterId('Почвы', 3)).toBe('rf_3');
+  });
+
+  it('fits the overview tables, suffix included, without a dangling underscore', () => {
+    expect(rasterFilterId('a'.repeat(70))).toBe('a'.repeat(58));
+    expect(rasterFilterId('a'.repeat(70), 12)).toBe(`${'a'.repeat(55)}_12`);
+    expect(rasterFilterId(`${'a'.repeat(57)} b`)).toBe('a'.repeat(57));
+  });
 });

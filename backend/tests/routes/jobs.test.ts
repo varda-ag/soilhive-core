@@ -30,7 +30,7 @@ const mockToken: Token = {
   isInternalRequest: false,
 };
 
-// As the Export settings page saves it, in the theme config (docs/adr/0074)
+// As the Export settings page saves it, in the theme config (docs/adr/0075)
 const requireSignInToExport = async () =>
   (await getDataSource()).getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { exportLimits: { exportRequiresSignIn: true } } });
 
@@ -131,7 +131,7 @@ describe('Testing /jobs routes', () => {
     exportSpy.mockRestore();
   });
 
-  // Before the Dataset checks, since signing in may grant the download (docs/adr/0074)
+  // Before the Dataset checks, since signing in may grant the download (docs/adr/0075)
   it('POST /jobs export refuses a caller with no token while sign-in is required, ahead of a missing download grant', async () => {
     const sendSpy = jest.spyOn(getPgBoss(), 'send');
     const dataset = await addDataset('sign-in-export-ds', [0, 0, 2, 2]);
@@ -687,6 +687,57 @@ describe('Testing /jobs routes', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({ type: JobQueues.RASTER_LOAD, dataset_id: 'no-such-dataset' });
       expect(res.statusCode).toBe(404);
+    });
+  });
+
+  describe('export joining (docs/adr/0074)', () => {
+    const submit = (body: object, token?: string) => {
+      const req = request(app).post('/jobs');
+      return (token ? req.set('Authorization', `Bearer ${token}`) : req).send(body);
+    };
+
+    it('joins an unfinished identical Export from the same Subject only, and never once it finishes', async () => {
+      let release: () => void = () => {};
+      const held = new Promise<void>(resolve => (release = resolve));
+      const exportSpy = jest.spyOn(SoilExportJobModule, 'processExportJob').mockImplementation(() => held);
+      const spy = getPgBoss().getSpy(JobQueues.EXPORT);
+      const token = getUserToken('export-join-user', 'export-join@example.com');
+      // Named Datasets must exist (docs/adr/0073)
+      const [a, b] = [await addDataset('export-join-a', [0, 0, 1, 1]), await addDataset('export-join-b', [0, 0, 1, 1])];
+      const body = { type: JobQueues.EXPORT, filter_id: uuidv4(), formats: ['csv', 'gpkg'], dataset_ids: [a.slug, b.slug] };
+      // Restored only at the end: a worker polls every 2s, so it may fetch these jobs after the submissions,
+      // and the real processor would fail them on the made-up filter
+      try {
+        const first = await submit(body, token);
+        expect(first.statusCode).toBe(201);
+        const firstId = first.body.id;
+
+        // Arrays compare as sets
+        const same = await submit({ ...body, formats: ['gpkg', 'csv'], dataset_ids: [b.slug, a.slug] }, token);
+        expect(same.statusCode).toBe(200);
+        expect(same.body.id).toBe(firstId);
+
+        const otherFormats = await submit({ ...body, formats: ['csv'] }, token);
+        expect(otherFormats.statusCode).toBe(201);
+        expect(otherFormats.body.id).not.toBe(firstId);
+
+        const otherSubject = await submit(body, getUserToken('export-join-other', 'export-join-other@example.com'));
+        expect(otherSubject.statusCode).toBe(201);
+        expect(otherSubject.body.id).not.toBe(firstId);
+
+        const anonymous = [await submit(body), await submit(body)];
+        expect(anonymous.map(res => res.statusCode)).toEqual([201, 201]);
+        expect(anonymous[0]!.body.id).not.toBe(anonymous[1]!.body.id);
+
+        release();
+        await spy.waitForJobWithId(firstId, 'completed');
+        const afterFinish = await submit(body, token);
+        expect(afterFinish.statusCode).toBe(201);
+        expect(afterFinish.body.id).not.toBe(firstId);
+      } finally {
+        release();
+        exportSpy.mockRestore();
+      }
     });
   });
 });

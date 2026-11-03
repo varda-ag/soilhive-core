@@ -25,12 +25,23 @@ describe('authMiddleware', () => {
     entityManager = await getEntityManager();
     getUserEntitlementsSpy = jest.spyOn(EntitlementService.prototype, 'getUserEntitlements');
     jest.spyOn(JobService.prototype, 'createJob').mockResolvedValue({
-      id: 'test-job-id',
-      queue: 'bulk-load',
-      status: 'created',
-      created_at: new Date(),
-      completed_at: null,
-      data: { type: 'bulk-load', dataset_id: 'test-dataset', created_by: null, progress_percentage: 0 },
+      job: {
+        id: 'test-job-id',
+        queue: 'bulk-load',
+        status: 'created',
+        created_at: new Date(),
+        completed_at: null,
+        data: {
+          type: 'bulk-load',
+          dataset_id: 'test-dataset',
+          created_by: null,
+          progress_percentage: 0,
+          isDataAdmin: true,
+          isSuperAdmin: false,
+        },
+        message: null,
+      },
+      joined: false,
     });
   });
 

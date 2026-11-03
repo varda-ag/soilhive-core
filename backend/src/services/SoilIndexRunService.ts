@@ -42,7 +42,7 @@ export default class SoilIndexRunService {
     if (parameters.config_id !== undefined) {
       await assertCanAttach(requestData, parameters.config_id, 'soil index runs');
     }
-    const job = await this.jobService.createJob(requestData, { ...parameters, type: QUEUE } as SoilIndexJob);
+    const { job } = await this.jobService.createJob(requestData, { ...parameters, type: QUEUE } as SoilIndexJob);
     log.info('Soil index run submitted', { id: job.id, soil_index_type: parameters.soil_index_type });
     return this.fromJob(job, null);
   };

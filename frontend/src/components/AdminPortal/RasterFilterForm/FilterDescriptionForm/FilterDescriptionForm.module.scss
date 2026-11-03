@@ -1,0 +1,29 @@
+.FilterDescriptionForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  > .NameInput {
+    max-width: 60%;
+  }
+
+  // Matches TextInput (small): only the border width changes, so its focus and error colours still apply
+  .DescriptionTextArea {
+    border-width: 0.125rem;
+
+    // TextArea marks disabled and read-only on its own module classes, so the textarea itself is checked
+    &:hover:not(:has(> textarea:disabled)) {
+      border-color: var(--color-cta-default-hover);
+      box-shadow: var(--shadow-hover-default);
+    }
+
+    > textarea {
+      font-size: var(--font-size-md);
+      line-height: var(--line-height-lg);
+
+      &::placeholder {
+        color: var(--color-neutral-dark-400);
+      }
+    }
+  }
+}

@@ -83,7 +83,7 @@ const useNavigateMock = useNavigate as jest.MockedFunction<typeof useNavigate>;
 function buildDefaultMocks(overrides: { deleteFileAndMapping?: jest.Mock; existingFiles?: any[] } = {}) {
   const deleteFileAndMapping = overrides.deleteFileAndMapping ?? jest.fn().mockResolvedValue(undefined);
 
-  useFileManagementMock.mockReturnValue({ deleteFileAndMapping });
+  useFileManagementMock.mockReturnValue({ deleteFile: jest.fn(), deleteFileAndMapping });
   useCreateDatasetFileMappingMock.mockReturnValue({ mutateAsync: jest.fn() } as any);
 
   // useApiQuery is called twice in the hook: once for /epsg and once for /datasets/.../files.

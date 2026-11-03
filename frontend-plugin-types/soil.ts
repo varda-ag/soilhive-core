@@ -26,7 +26,8 @@ export interface PluginRasterFilterCategory {
   description: string;
   enabled: boolean;
   active: boolean;
-  mappings: Record<string, number> | null;
+  // Pixel value → label. Several values may share a label
+  mappings: Record<string, string> | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

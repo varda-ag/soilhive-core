@@ -14,7 +14,7 @@ export interface ExportLimits {
   maxObservations: number | null;
   maxRasterLayers: number | null;
   exemptAdmins: boolean;
-  // Not an Export Limit: refuses an Export from a caller with no token, at submission only (docs/adr/0074)
+  // Not an Export Limit: refuses an Export from a caller with no token, at submission only (docs/adr/0075)
   exportRequiresSignIn: boolean;
 }
 
