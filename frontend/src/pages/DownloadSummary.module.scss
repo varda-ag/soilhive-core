@@ -58,6 +58,11 @@
       padding: 0 20px 0 20px;
       padding-bottom: 80px;
 
+      // Room for the Footer's extra row
+      @media (max-width: $bp-tablet-max) {
+        padding-bottom: 140px;
+      }
+
       &Content {
         background-color: var(--color-neutral-white);
         max-width: 929px;
@@ -226,8 +231,17 @@
           left: 448px;
         }
 
+        @media (max-width: $bp-tablet-max) {
+          flex-wrap: wrap;
+        }
+
         .SignInHint {
           margin-right: auto;
+
+          // A row of its own below a desktop's width: beside the terms it gets a few words a line
+          @media (max-width: $bp-tablet-max) {
+            flex-basis: 100%;
+          }
         }
 
         .TermsOfUse {

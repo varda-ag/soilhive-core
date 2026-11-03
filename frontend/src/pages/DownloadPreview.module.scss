@@ -105,6 +105,8 @@
 
         .DownloadButton {
           flex-grow: 1;
+          // Its width: 100% would push it onto a row of its own, now that the row wraps for the sign-in hint
+          flex-basis: 0;
         }
       }
 
