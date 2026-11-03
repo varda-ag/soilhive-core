@@ -5,8 +5,8 @@ import StatusCodes from 'http-status-codes';
 const jobService = new JobService();
 
 export const postJob = async (req: Request, res: Response) => {
-  const data = await jobService.createJob(req.customData, req.body);
-  res.status(StatusCodes.CREATED).json(data);
+  const { job, joined } = await jobService.createJob(req.customData, req.body);
+  res.status(joined ? StatusCodes.OK : StatusCodes.CREATED).json(job);
 };
 
 export const getJobs = async (req: Request, res: Response) => {

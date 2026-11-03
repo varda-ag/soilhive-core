@@ -19,6 +19,7 @@ interface Props {
   onCrsSelect: (fileId: string, crs: string) => void;
   onRemove: (fileId: string) => void;
   crsOptions: { code: number; name: string }[];
+  showNoData?: boolean;
 }
 
 // Matches .p-autocomplete-item's font (prime.react.override.scss) plus its 16px
@@ -44,7 +45,7 @@ function formatFileSize(bytes: number | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mb`;
 }
 
-export function SoilDataFileRow({ soilDataFile, onCrsChange, onCrsSelect, onRemove, crsOptions }: Props) {
+export function SoilDataFileRow({ soilDataFile, onCrsChange, onCrsSelect, onRemove, crsOptions, showNoData = true }: Props) {
   const { t } = useTranslation('admin');
   const {
     id,
@@ -114,7 +115,7 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onCrsSelect, onRemo
           <div className={styles.FileName}>{name}</div>
           <div className={styles.FileSize}>
             {formatFileSize(file?.size)}
-            {isRaster && (
+            {isRaster && showNoData && (
               <span className={styles.NoData}>
                 {t('datasets.soil_data.nodata', {
                   value: formatRasterNoData(rasterBands, (limit, dataType) =>

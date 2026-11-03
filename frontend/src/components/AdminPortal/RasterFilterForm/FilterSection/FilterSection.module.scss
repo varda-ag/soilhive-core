@@ -1,0 +1,30 @@
+.FilterSection {
+  background: var(--color-neutral-white);
+  padding: 1.5rem 2rem;
+  border-radius: 0.5rem;
+  box-shadow: var(--shadow-interface-large);
+
+  > .Title {
+    font-size: var(--font-size-md);
+    font-weight: var(--font-weight-bold);
+    margin: 0 0 0.5rem;
+  }
+
+  > .Message {
+    font-size: var(--font-size-sm);
+    margin: 0 0 1rem;
+  }
+
+  // Action bar flush with the section's edges, kept in view while the form scrolls
+  > .Actions {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: flex-end;
+    padding: 1rem 2rem;
+    margin: 1.5rem -2rem -1.5rem;
+    background-color: var(--color-neutral-white);
+    border-radius: 0 0 0.5rem 0.5rem;
+    box-shadow: 0 -0.15rem 0.625rem var(--color-shadow-interface);
+  }
+}

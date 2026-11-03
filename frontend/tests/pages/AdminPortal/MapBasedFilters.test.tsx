@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { useNavigate } from 'react-router';
 import { MapBasedFilters } from '../../../src/pages/AdminPortal/MapBasedFilters/MapBasedFilters';
 import { useRaster } from 'hooks/useRaster';
+import { useDeleteRasterFilter } from 'hooks/useDeleteRasterFilter';
 import { ADMIN_PATHS } from 'configuration/admin';
 
 let capturedTableProps: any = {};
@@ -12,6 +13,21 @@ jest.mock('react-router', () => ({
 
 jest.mock('hooks/useRaster', () => ({
   useRaster: jest.fn(),
+}));
+
+jest.mock('hooks/useDeleteRasterFilter', () => ({
+  useDeleteRasterFilter: jest.fn(),
+}));
+
+// Renders nothing while closed, so the page snapshot is unaffected
+jest.mock('components/AdminPortal/RasterFilterDeleteModal/RasterFilterDeleteModal', () => ({
+  RasterFilterDeleteModal: ({ visible, filterName, isDeleting, onContinue, onCancel }: any) =>
+    visible ? (
+      <div data-testid="mock-delete-modal" data-filter-name={filterName} data-deleting={String(!!isDeleting)}>
+        <button data-testid="mock-delete-continue" onClick={onContinue} />
+        <button data-testid="mock-delete-cancel" onClick={onCancel} />
+      </div>
+    ) : null,
 }));
 
 jest.mock('components/UI', () => ({
@@ -39,6 +55,19 @@ describe('MapBasedFilters page', () => {
 
   const navigate = jest.fn();
   const setCategoryActive = jest.fn();
+  const onDelete = jest.fn();
+  const onDeleteCancel = jest.fn();
+  const onDeleteConfirm = jest.fn();
+
+  const mockDeleteRasterFilter = (overrides?: Record<string, unknown>) =>
+    (useDeleteRasterFilter as jest.Mock).mockReturnValue({
+      filterToDelete: null,
+      isDeleting: false,
+      onDelete,
+      onDeleteCancel,
+      onDeleteConfirm,
+      ...overrides,
+    });
 
   const mockRaster = (overrides?: Record<string, unknown>) =>
     (useRaster as jest.Mock).mockReturnValue({
@@ -54,6 +83,7 @@ describe('MapBasedFilters page', () => {
     capturedTableProps = {};
     (useNavigate as jest.Mock).mockReturnValue(navigate);
     mockRaster();
+    mockDeleteRasterFilter();
   });
 
   it('matches snapshot', () => {
@@ -147,6 +177,55 @@ describe('MapBasedFilters page', () => {
       capturedTableProps.onSetCategoryActive('lc', false);
 
       expect(setCategoryActive).toHaveBeenCalledWith('lc', false);
+    });
+
+    it('navigates to the edit page of the filter whose edit action is used', () => {
+      render(<MapBasedFilters />);
+
+      capturedTableProps.onEdit('lc');
+
+      expect(navigate).toHaveBeenCalledWith(`${ADMIN_PATHS.FILTERS}/edit/lc`);
+    });
+
+    it('passes onDelete to the table', () => {
+      render(<MapBasedFilters />);
+
+      capturedTableProps.onDelete(mockCategories[0]);
+
+      expect(onDelete).toHaveBeenCalledWith(mockCategories[0]);
+    });
+  });
+
+  describe('delete modal', () => {
+    it('is closed while no filter is picked for deletion', () => {
+      render(<MapBasedFilters />);
+
+      expect(screen.queryByTestId('mock-delete-modal')).not.toBeInTheDocument();
+    });
+
+    it('opens with the name of the filter picked for deletion', () => {
+      mockDeleteRasterFilter({ filterToDelete: mockCategories[0] });
+      render(<MapBasedFilters />);
+
+      expect(screen.getByTestId('mock-delete-modal')).toHaveAttribute('data-filter-name', 'Land Cover');
+    });
+
+    it('passes isDeleting to the modal', () => {
+      mockDeleteRasterFilter({ filterToDelete: mockCategories[0], isDeleting: true });
+      render(<MapBasedFilters />);
+
+      expect(screen.getByTestId('mock-delete-modal')).toHaveAttribute('data-deleting', 'true');
+    });
+
+    it('confirms and cancels through the delete hook', () => {
+      mockDeleteRasterFilter({ filterToDelete: mockCategories[0] });
+      render(<MapBasedFilters />);
+
+      fireEvent.click(screen.getByTestId('mock-delete-continue'));
+      fireEvent.click(screen.getByTestId('mock-delete-cancel'));
+
+      expect(onDeleteConfirm).toHaveBeenCalledTimes(1);
+      expect(onDeleteCancel).toHaveBeenCalledTimes(1);
     });
   });
 });

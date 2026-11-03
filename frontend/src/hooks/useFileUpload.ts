@@ -10,7 +10,7 @@ import { georeferenceOf } from 'utilities/georeference';
 import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileRasterBandDescriptor } from 'types/backend';
 
-export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
+export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void, allowedExtensions: string[] = ALLOWED_EXTENSIONS) {
   const { t } = useTranslation('admin');
   const { storageConfig } = useStorageConfig();
   const maxUploadSizeMB = storageConfig?.maxUploadSizeMB;
@@ -94,7 +94,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
 
       fileArray.forEach(file => {
         const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
-        if (!ALLOWED_EXTENSIONS.includes(extension)) {
+        if (!allowedExtensions.includes(extension)) {
           extensionErrors.push(`${file.name}: ${t('datasets.soil_data.invalid_file_type')}`);
           return;
         }
@@ -148,7 +148,7 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void) {
       setUploadingFiles([]);
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [uploadFile, onFileUploaded, t, maxUploadSizeMB],
+    [uploadFile, onFileUploaded, t, maxUploadSizeMB, allowedExtensions],
   );
 
   return { fileInputRef, uploadingFiles, uploadProgress, uploadErrors, handleFiles };

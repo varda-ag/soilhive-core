@@ -96,7 +96,7 @@ beforeEach(() => {
       id: 'raster-table',
       name: 'Land cover',
       description: '',
-      mappings: { Forest: 1, Cropland: 2, Grassland: 3 },
+      mappings: { '1': 'Forest', '2': 'Cropland', '3': 'Grassland' },
       created_at: new Date(),
       updated_at: null,
     },

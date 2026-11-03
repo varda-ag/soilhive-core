@@ -30,7 +30,7 @@ Per-upload memory use is bounded by `queueSize × partSize`; size these together
 
 ### Upload size limit
 
-- `MAX_UPLOAD_SIZE_MB` (default `500`): maximum size of an uploaded file, in MB. Shared by `POST /files` and `POST /frontend/logo` rather than a per-route limit — see `docs/adr/0029`.
+- `MAX_UPLOAD_SIZE_MB` (default `5000`): maximum size of an uploaded file, in MB, sized for global map-based filter rasters (`docs/adr/0067`). Applies to `POST /files` and `POST /frontend/logo`, though a logo is also capped at 5 MB — see `docs/adr/0029`. A reverse proxy in front of the backend needs a body limit at least this large.
 
 ## Plugin tokens
 

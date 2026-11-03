@@ -1,58 +1,309 @@
-import RasterFilterEntity from '../entities/RasterFilter';
-import { RequestData } from '../interfaces/RequestData';
-import { RasterFilterWithEnabled } from '../interfaces/RasterFilter';
-import { ErrorResponse } from '../utils/error';
 import { StatusCodes } from 'http-status-codes';
-import { resetEnabledRasterFilterTablesCache } from '../data-layer/SoilDataStorage';
+import { In } from 'typeorm';
+import RasterFilterEntity from '../entities/RasterFilter';
+import FileEntity from '../entities/File';
+import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
+import { RequestData } from '../interfaces/RequestData';
+import { CreateRasterFilterInput, PatchRasterFilterInput, RasterFilterInstall, RasterFilterWithEnabled } from '../interfaces/RasterFilter';
+import { RasterFilterInstallJob } from '../interfaces/Job';
+import { RasterFileMetadata } from '../interfaces/File';
+import { ErrorResponse } from '../utils/error';
+import { EntityType } from '../types/data';
+import { JobQueues } from '../types/enums';
+import { getEntity } from '../utils/slugs';
+import { getSubject, isPrivilegedCaller } from '../utils/auth';
+import { bumpCacheEpoch } from '../utils/cache-epoch';
+import { rasterFilterId, rasterFilterTables } from '../utils/raster';
+import { assertNoUnfinishedInstall, getInstallStates, takenRasterFilterNames } from '../data-layer/RasterFilterInstalls';
+import { getActiveRasterFilters, withEnabled } from '../data-layer/EnabledRasterFilters';
+import JobService from './JobService';
+
+// Seconds before an install job becomes visible to workers, so the POST that enqueued it has committed
+const INSTALL_START_AFTER_SECONDS = 5;
+
+// How long DELETE waits for in-flight queries to release a filter's tables before giving up
+const DELETE_LOCK_TIMEOUT = '5s';
+
+/** A Raster Filter as GET returns it to a caller that is not Privileged. */
+export interface PublicRasterFilter {
+  id: string;
+  name: string;
+  description: string;
+  mappings: Record<string, string> | null;
+  kind: string;
+  resolution_m: number | null;
+  active: boolean;
+  enabled: boolean;
+  created_at: Date;
+  updated_at: Date | null;
+}
+
+/** A Raster Filter as GET returns it to a Privileged caller. `file_id` is the File's slug. */
+export interface AdminRasterFilter extends PublicRasterFilter {
+  file_id: string | null;
+  created_by: string | null;
+  pixel_values: Record<string, number> | null;
+  suggested_mappings: Record<string, string> | null;
+  install: RasterFilterInstall;
+}
 
 export default class RasterFilterService {
-  async getRasterFilters(requestData: RequestData): Promise<RasterFilterEntity[]> {
-    const repo = requestData.entityManager.getRepository(RasterFilterEntity);
-    return await repo.find();
+  /**
+   * The catalog. A caller that is not Privileged sees only the Raster Filters users can select
+   * (active and enabled), without the install's workings: the same rule as Datasets (docs/adr/0034).
+   */
+  async getRasterFilters(requestData: RequestData): Promise<Array<PublicRasterFilter | AdminRasterFilter>> {
+    const entities = await requestData.entityManager.getRepository(RasterFilterEntity).find({ order: { id: 'ASC' } });
+    const decorated = await RasterFilterService.decorateWithEnable(requestData, entities);
+    if (!isPrivilegedCaller(requestData.token)) {
+      return decorated.filter(f => f.active && f.enabled).map(toPublic);
+    }
+    return this.toAdmin(requestData, decorated);
   }
 
-  getRasterFilter = async (requestData: RequestData, id: string): Promise<RasterFilterEntity> => {
+  /** One Raster Filter, absent (404) to a caller that is not Privileged unless it is active and enabled. */
+  getRasterFilter = async (requestData: RequestData, id: string): Promise<PublicRasterFilter | AdminRasterFilter> => {
+    const [decorated] = await RasterFilterService.decorateWithEnable(requestData, [await this.findRasterFilter(requestData, id)]);
+    if (!isPrivilegedCaller(requestData.token)) {
+      if (!decorated!.active || !decorated!.enabled) {
+        throw new ErrorResponse(`Resource '${id}' not found`, StatusCodes.NOT_FOUND);
+      }
+      return toPublic(decorated!);
+    }
+    const [admin] = await this.toAdmin(requestData, [decorated!]);
+    return admin!;
+  };
+
+  /**
+   * Creates a Raster Filter and enqueues its Installation from an uploaded raster File, which the
+   * install consumes (docs/adr/0066). Its id is derived from its name and never reissued
+   * (docs/adr/0069). Labels come later, through putMappings.
+   */
+  createRasterFilter = async (requestData: RequestData, input: CreateRasterFilterInput): Promise<AdminRasterFilter> => {
+    const { name, description, kind } = input;
+    const { file, band } = await this.resolveSourceFile(requestData, input.file_id, input.band);
+
+    const id = await this.insertUnderFreeId(requestData, {
+      name,
+      description,
+      kind,
+      file_id: file.id,
+      created_by: getSubject(requestData),
+      active: false,
+      mappings: null,
+    });
+
+    await new JobService().createJob(
+      requestData,
+      { type: JobQueues.RASTER_FILTER_INSTALL, raster_filter_id: id, band } as RasterFilterInstallJob,
+      { startAfter: INSTALL_START_AFTER_SECONDS },
+    );
+
+    return (await this.getRasterFilter(requestData, id)) as AdminRasterFilter;
+  };
+
+  /** Updates the admin-editable fields. The id is the table name, so it never changes, even when the name does. */
+  patchRasterFilter = async (requestData: RequestData, id: string, input: PatchRasterFilterInput): Promise<AdminRasterFilter> => {
     const repo = requestData.entityManager.getRepository(RasterFilterEntity);
-    const entity = await repo.findOneBy({ id });
+    const entity = await this.findRasterFilter(requestData, id);
+    const activeChanged = input.active !== undefined && input.active !== entity.active;
+    repo.merge(entity, {
+      ...(input.active !== undefined && { active: input.active }),
+      ...(input.name !== undefined && { name: input.name }),
+      ...(input.description !== undefined && { description: input.description }),
+    });
+    await repo.save(entity);
+    if (activeChanged) {
+      // Changes which Raster Filters every node applies
+      await bumpCacheEpoch();
+    }
+    return (await this.getRasterFilter(requestData, id)) as AdminRasterFilter;
+  };
+
+  /**
+   * Replaces a Raster Filter's labels: `{ pixel value: label }`, so several values may share a label
+   * (docs/adr/0068). Only an installed filter can be labelled, and only with values its raster holds.
+   * The CLI's filters have no recorded values, so theirs go unchecked. An empty object unlabels the
+   * filter, which disables it.
+   */
+  putMappings = async (requestData: RequestData, id: string, mappings: Record<string, string>): Promise<AdminRasterFilter> => {
+    const repo = requestData.entityManager.getRepository(RasterFilterEntity);
+    const entity = await this.findRasterFilter(requestData, id);
+    const [install] = (await getInstallStates(requestData.entityManager, [id])).values();
+    if (install!.status !== 'installed') {
+      throw new ErrorResponse(
+        `Raster filter '${id}' is not installed (${install!.status}), so it has nothing to label yet`,
+        StatusCodes.CONFLICT,
+      );
+    }
+
+    const values = Object.keys(mappings);
+    // Canonical form only: '07' or '7.0' would never match a pixel value's key
+    const notWhole = values.filter(value => !Number.isSafeInteger(Number(value)) || String(Number(value)) !== value);
+    if (notWhole.length > 0) {
+      throw new ErrorResponse(`Pixel values must be whole numbers, but ${notWhole.join(', ')} are not`, StatusCodes.BAD_REQUEST);
+    }
+    if (entity.pixel_values) {
+      const absent = values.filter(value => !(String(value) in entity.pixel_values!));
+      if (absent.length > 0) {
+        throw new ErrorResponse(`Raster filter '${id}' has no pixels with value(s) ${absent.join(', ')}`, StatusCodes.BAD_REQUEST);
+      }
+    }
+
+    entity.mappings = mappings;
+    await repo.save(entity);
+    // The first labels enable the filter, and an empty object disables it
+    await bumpCacheEpoch();
+    return (await this.getRasterFilter(requestData, id)) as AdminRasterFilter;
+  };
+
+  /**
+   * Drops a Raster Filter's tables and soft-deletes it. Refused while it is active, so no node is still
+   * querying its tables, and while an install is unfinished. Filters saved with its values keep them:
+   * they are ignored once it is no longer enabled. The source File of a failed install is left for
+   * orphan cleanup.
+   */
+  deleteRasterFilter = async (requestData: RequestData, id: string): Promise<void> => {
+    const { entityManager } = requestData;
+    const entity = await this.findRasterFilter(requestData, id);
+    if (entity.active) {
+      throw new ErrorResponse(`Raster filter '${id}' is active: deactivate it before deleting it`, StatusCodes.CONFLICT);
+    }
+    await assertNoUnfinishedInstall(entityManager, id);
+
+    // A query still reading the tables holds a lock the drop must wait for: give up rather than stall every query queued behind it
+    await entityManager.query(`SET LOCAL lock_timeout = '${DELETE_LOCK_TIMEOUT}'`);
+    try {
+      for (const table of rasterFilterTables(id)) {
+        await entityManager.query(`DROP TABLE IF EXISTS "${table}"`);
+      }
+    } catch (error: any) {
+      // lock_not_available
+      if (error?.code === '55P03') {
+        throw new ErrorResponse(`Raster filter '${id}' is in use: try again shortly`, StatusCodes.CONFLICT);
+      }
+      throw error;
+    }
+    // Soft, so the id is never reissued and saved Filters never select a new Raster Filter's pixels
+    // (docs/adr/0069). The File is let go, or orphan cleanup would skip it for good.
+    const repo = entityManager.getRepository(RasterFilterEntity);
+    await repo.update({ id }, { file_id: null });
+    await repo.softDelete({ id });
+    await bumpCacheEpoch();
+  };
+
+  /** The Raster Filters users can select: active and enabled. */
+  getActiveRasterFilters = async (requestData: RequestData): Promise<RasterFilterWithEnabled[]> =>
+    getActiveRasterFilters(requestData.entityManager);
+
+  /** `enabled`: the backing raster table exists and there are labels to select. */
+  static decorateWithEnable = async (requestData: RequestData, input: RasterFilterEntity[]): Promise<RasterFilterWithEnabled[]> =>
+    withEnabled(requestData.entityManager, input);
+
+  /**
+   * Inserts a Raster Filter under the first id derived from its name that no Raster Filter, deleted
+   * ones included, has had, and whose tables would collide with nothing in the schema.
+   */
+  private insertUnderFreeId = async (
+    requestData: RequestData,
+    values: Pick<RasterFilterEntity, 'name' | 'description' | 'kind' | 'file_id' | 'created_by' | 'active' | 'mappings'>,
+  ): Promise<string> => {
+    const { entityManager } = requestData;
+    for (let n = 1; ; n++) {
+      const id = rasterFilterId(values.name, n);
+      if ((await takenRasterFilterNames(entityManager, id)).length > 0) continue;
+      // Skipped rather than failed on a taken id, so a concurrent POST of the same name moves on to the next one
+      const { raw } = await entityManager
+        .createQueryBuilder()
+        .insert()
+        .into(RasterFilterEntity)
+        .values({ ...values, id })
+        .orIgnore()
+        .returning('id')
+        .updateEntity(false)
+        .execute();
+      if (raw.length > 0) return id;
+    }
+  };
+
+  private findRasterFilter = async (requestData: RequestData, id: string): Promise<RasterFilterEntity> => {
+    const entity = await requestData.entityManager.getRepository(RasterFilterEntity).findOneBy({ id });
     if (!entity) {
       throw new ErrorResponse(`Resource '${id}' not found`, StatusCodes.NOT_FOUND);
     }
     return entity;
   };
 
-  patchRasterFilter = async (requestData: RequestData, id: string, active: boolean): Promise<RasterFilterEntity> => {
-    const repo = requestData.entityManager.getRepository(RasterFilterEntity);
-    const entity = await this.getRasterFilter(requestData, id);
-    if (active !== entity.active) {
-      entity.active = active;
-      resetEnabledRasterFilterTablesCache();
-    }
-    return await repo.save(entity);
-  };
-
-  getActiveRasterFilters = async (requestData: RequestData): Promise<RasterFilterWithEnabled[]> => {
-    const data = await this.getRasterFilters(requestData);
-    const decorated = await RasterFilterService.decorateWithEnable(requestData, data);
-    return (decorated as RasterFilterWithEnabled[]).filter(d => d.enabled && d.active);
-  };
-
-  static decorateWithEnable = async (
+  /**
+   * The raster File a new Raster Filter installs from, and the band to install: given, or the only one
+   * a single-band File has. The install deletes the File, so it must belong to nothing else.
+   */
+  private resolveSourceFile = async (
     requestData: RequestData,
-    input: RasterFilterEntity | RasterFilterEntity[],
-  ): Promise<RasterFilterWithEnabled | RasterFilterWithEnabled[]> => {
-    if (Array.isArray(input)) {
-      const promises = input.map(e => this.decorateWithEnable(requestData, e));
-      const results = await Promise.all(promises);
-      return results as RasterFilterWithEnabled[];
+    slug: string,
+    requestedBand: number | undefined,
+  ): Promise<{ file: FileEntity; band: number }> => {
+    const { entityManager } = requestData;
+    const file = await getEntity(requestData, FileEntity, EntityType.FILE, slug);
+    const metadata = file.metadata as RasterFileMetadata | undefined;
+    if (!metadata?.is_raster) {
+      throw new ErrorResponse(`File '${slug}' is not a raster`, StatusCodes.BAD_REQUEST);
     }
-    const output = { enabled: false, ...input };
-    // A plain query rather than queryRunner.hasTable: the pool's default manager has no queryRunner,
-    // and opening one here would take a second connection from inside a request's transaction.
-    const [{ exists: hasTable }] = await requestData.entityManager.query(
-      'SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = $1) AS exists',
-      [input.id],
+    if (requestedBand === undefined && metadata.band_count !== 1) {
+      throw new ErrorResponse(
+        `File '${slug}' has ${metadata.band_count} bands: choose the one to install with 'band'`,
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+    const band = requestedBand ?? 1;
+    if (band > metadata.band_count) {
+      throw new ErrorResponse(`File '${slug}' has ${metadata.band_count} band(s), so it has no band ${band}`, StatusCodes.BAD_REQUEST);
+    }
+    const [mapping, asset, filter] = await Promise.all([
+      entityManager.getRepository(DatasetFileMappingEntity).findOneBy({ file_id: file.id }),
+      entityManager.getRepository(RasterLayerAssetEntity).findOneBy({ file_id: file.id }),
+      entityManager.getRepository(RasterFilterEntity).findOneBy({ file_id: file.id }),
+    ]);
+    if (mapping || asset || filter) {
+      throw new ErrorResponse(
+        `File '${slug}' is already used by ${filter ? `raster filter '${filter.id}'` : 'a dataset'}, and installing a raster filter deletes its file`,
+        StatusCodes.CONFLICT,
+      );
+    }
+    return { file, band };
+  };
+
+  private toAdmin = async (requestData: RequestData, filters: RasterFilterWithEnabled[]): Promise<AdminRasterFilter[]> => {
+    const { entityManager } = requestData;
+    const installs = await getInstallStates(
+      entityManager,
+      filters.map(f => f.id),
     );
-    output.enabled = Boolean(hasTable && input.mappings && Object.keys(input.mappings).length > 0);
-    return output;
+    const fileIds = filters.map(f => f.file_id).filter((id): id is string => id !== null);
+    const files =
+      fileIds.length > 0 ? await entityManager.getRepository(FileEntity).find({ where: { id: In(fileIds) }, withDeleted: true }) : [];
+    const slugs = new Map(files.map(f => [f.id, f.slug]));
+    return filters.map(f => ({
+      ...toPublic(f),
+      file_id: f.file_id ? (slugs.get(f.file_id) ?? null) : null,
+      created_by: f.created_by,
+      pixel_values: f.pixel_values,
+      suggested_mappings: f.suggested_mappings,
+      install: installs.get(f.id)!,
+    }));
   };
 }
+
+const toPublic = (f: RasterFilterWithEnabled): PublicRasterFilter => ({
+  id: f.id,
+  name: f.name,
+  description: f.description,
+  mappings: f.mappings,
+  kind: f.kind,
+  resolution_m: f.resolution_m,
+  active: f.active,
+  enabled: f.enabled,
+  created_at: f.created_at,
+  updated_at: f.updated_at,
+});

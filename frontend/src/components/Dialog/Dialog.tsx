@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import CloseIcon from 'assets/icons/cross-icon.svg?react';
 import styles from './Dialog.module.scss';
 import { Button } from '../UI/Button/Button';
+import { Loader } from '../UI/Loader/Loader';
 
 interface Props {
   visible: boolean;
@@ -19,6 +20,8 @@ interface Props {
   headerClassName?: string;
   hideButtons?: boolean;
   closeOnOverlay?: boolean;
+  // Shows a loader and locks the dialog until the action started from it finishes
+  isLoading?: boolean;
   onPrimary?: () => void;
   onSecondary?: () => void;
   onClose?: () => void;
@@ -37,6 +40,7 @@ export function Dialog({
   headerClassName,
   hideButtons = false,
   closeOnOverlay = false,
+  isLoading = false,
   onPrimary,
   onSecondary,
   onClose,
@@ -61,17 +65,17 @@ export function Dialog({
   const onMaskClick = useCallback(
     (event: MouseEvent) => {
       const target = event.target as HTMLElement;
-      if (target && target.classList.contains('p-dialog-mask')) {
+      if (!isLoading && target && target.classList.contains('p-dialog-mask')) {
         onClose?.();
       }
     },
-    [onClose],
+    [isLoading, onClose],
   );
 
   // PrimeReact calls onHide on Esc but also after every close it is told about: only the first is still visible
   const onHide = useCallback(() => {
-    if (visible) (onClose ?? onSecondary)?.();
-  }, [visible, onClose, onSecondary]);
+    if (visible && !isLoading) (onClose ?? onSecondary)?.();
+  }, [visible, isLoading, onClose, onSecondary]);
 
   return (
     <ConfirmDialog
@@ -85,7 +89,12 @@ export function Dialog({
         <>
           <div className={classnames(styles.Header, headerClassName)} ref={headerRef as RefObject<HTMLDivElement>}>
             {header}
-            <button className={styles.CloseButton} onClick={onClose ?? onSecondary} aria-label={t('dialog.close_aria')}>
+            <button
+              className={styles.CloseButton}
+              onClick={onClose ?? onSecondary}
+              disabled={isLoading}
+              aria-label={t('dialog.close_aria')}
+            >
               <CloseIcon />
             </button>
           </div>
@@ -95,15 +104,16 @@ export function Dialog({
           {!hideButtons && (
             <div className={styles.Footer} ref={footerRef as RefObject<HTMLDivElement>}>
               {!!secondaryText && (
-                <Button className={styles.Button} type="secondary" onClick={onSecondary}>
+                <Button className={styles.Button} type="secondary" isDisabled={isLoading} onClick={onSecondary}>
                   {secondaryText}
                 </Button>
               )}
-              <Button className={styles.Button} onClick={onPrimary}>
+              <Button className={styles.Button} isDisabled={isLoading} onClick={onPrimary}>
                 {primaryText || t('dialog.continue')}
               </Button>
             </div>
           )}
+          {isLoading && <Loader />}
         </>
       )}
     />
