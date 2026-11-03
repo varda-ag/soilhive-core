@@ -150,7 +150,7 @@ The application server hosts the SoilHive backend and frontend containers. Stora
 
 ### Map-based filter rasters (current release)
 
-Map-based filters are not included in the Docker containers: a data-admin installs each one through the API after the system first starts. See [Map-Based Filters](map-based-filters.md) for installation instructions and the list of available filters.
+Map-based filters are not included in the Docker containers: a data-admin installs each one from the Admin console or through the API after the system first starts. See [Map-Based Filters](map-based-filters.md) for installation instructions and the list of available filters.
 
 Installing a filter uploads its raster, which the backend reprojects and loads into PostgreSQL, and then deletes. The upload and its working copies need temporary disk space on the application server of a few times the raster's size while the installation runs. The largest filters (Land Cover) are several GB, so `MAX_UPLOAD_SIZE_MB` and any reverse proxy's body limit must allow uploads that large.
 
