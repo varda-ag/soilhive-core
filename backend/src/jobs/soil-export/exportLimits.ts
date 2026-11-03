@@ -60,7 +60,8 @@ export async function getExportLimits(
   const row = await entityManager.getRepository(JsonStorage).findOneBy({ id: THEME_CONFIG_ID });
   const limits = parseExportLimits((row?.data as { exportLimits?: unknown } | undefined)?.exportLimits);
   const isAdmin = Boolean(submitter.isDataAdmin || submitter.isSuperAdmin);
-  return limits.exemptAdmins && isAdmin ? NO_EXPORT_LIMITS : limits;
+  // The exemption lifts the Export Limits only: exportRequiresSignIn is not one
+  return limits.exemptAdmins && isAdmin ? { ...NO_EXPORT_LIMITS, exportRequiresSignIn: limits.exportRequiresSignIn } : limits;
 }
 
 // The km² decimals an area limit needs to be shown exactly: at least 2, and at most 6, since the

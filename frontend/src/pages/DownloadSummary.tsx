@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import useDevice from 'hooks/useDevice';
-import { Button } from 'components/UI';
+import { Button, FormMessage } from 'components/UI';
 import styles from './DownloadSummary.module.scss';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
@@ -71,6 +71,7 @@ function DownloadSummary() {
   const { isMobileDevice } = useDevice();
   const { startDownload, setIsOpened } = useDownloads();
   const signInHint = useDownloadSignInHint();
+  const signInHintId = useId();
 
   const [searchParams] = useSearchParams();
   const comingFromDataExplorer = searchParams.get('source') === 'explore';
@@ -257,6 +258,7 @@ function DownloadSummary() {
             </PrimeReactProvider>
           </div>
           <div className={classNames(styles.Footer, { [styles.Expanded]: summaryExpanded })}>
+            {signInHint && <FormMessage id={signInHintId} className={styles.SignInHint} message={signInHint} />}
             <div className={styles.TermsOfUse}>
               <Checkbox
                 inputId="agree-to-terms-for-download"
@@ -278,7 +280,7 @@ function DownloadSummary() {
               type="primary"
               className={styles.DownloadButton}
               isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0 || !!signInHint}
-              title={signInHint}
+              ariaDescribedBy={signInHint ? signInHintId : undefined}
               onClick={onDownloadButtonClick}
             >
               <DownloadIcon />

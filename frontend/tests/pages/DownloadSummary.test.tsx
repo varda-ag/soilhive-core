@@ -243,7 +243,9 @@ describe('DownloadSummary', () => {
       (useDownloadSignInHint as jest.Mock).mockReturnValue('You need to be logged in to download data.');
       const downloadButton = renderReadyToDownload();
       expect(downloadButton).toBeDisabled();
-      expect(downloadButton).toHaveAttribute('title', 'You need to be logged in to download data.');
+      // Shown beside the button, not only on hover: a disabled button takes no focus
+      expect(screen.getByText('You need to be logged in to download data.')).toBeVisible();
+      expect(downloadButton).toHaveAccessibleDescription(/You need to be logged in to download data\./);
     });
   });
 });

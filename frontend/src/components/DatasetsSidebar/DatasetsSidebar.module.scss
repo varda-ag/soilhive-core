@@ -19,6 +19,13 @@
   }
 }
 
+// In the flow, unlike .Action below it: the list gives up the room it takes
+.SignInHint {
+  margin-top: auto;
+  padding: 10px 15px 0;
+  background-color: var(--color-bg-secondary);
+}
+
 .Action {
   display: flex;
   gap: 13px;

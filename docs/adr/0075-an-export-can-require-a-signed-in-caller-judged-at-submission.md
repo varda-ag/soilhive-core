@@ -1,6 +1,6 @@
 # An Export can require a signed-in caller, judged only at submission
 
-Administrators can require a signed-in caller to export, an option the legacy platform had. The flag is `exportRequiresSignIn` in the theme config's `exportLimits`, saved from the Export settings page beside the Export Limits, though it is not one: it bounds who may export, not how much. While it is set, `POST /jobs` refuses an Export from a caller with no token with `401`, before any Dataset is checked, since signing in may grant the `download` the caller lacks. The frontend disables its download buttons for a signed-out visitor and says why on hover, as the legacy platform disabled its own.
+Administrators can require a signed-in caller to export, an option the legacy platform had. The flag is `exportRequiresSignIn` in the theme config's `exportLimits`, saved from the Export settings page beside the Export Limits, though it is not one: it bounds who may export, not how much. While it is set, `POST /jobs` refuses an Export from a caller with no token with `401`, before any Dataset is checked, since signing in may grant the `download` the caller lacks. The frontend disables its download buttons for a signed-out visitor, as the legacy platform disabled its own, and says why in a line beside them: a disabled button takes no keyboard focus and a touch screen has no hover, so a tooltip alone would reach only mouse users.
 
 ## Considered options
 

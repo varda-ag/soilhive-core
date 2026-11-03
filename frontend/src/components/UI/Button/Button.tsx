@@ -21,6 +21,7 @@ export interface Props {
   onClick?: MouseEventHandler<HTMLButtonElement>;
   dataTestId?: string;
   ariaLabel?: string;
+  ariaDescribedBy?: string;
   title?: string;
 }
 
@@ -37,6 +38,7 @@ export function Button({
   isDisabled,
   dataTestId,
   ariaLabel,
+  ariaDescribedBy,
   title,
   onClick,
 }: Props) {
@@ -77,6 +79,7 @@ export function Button({
         to={to}
         className={composedClassNames}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         title={title}
       >
         {children}
@@ -93,6 +96,7 @@ export function Button({
         target="_blank"
         rel="noreferrer"
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         title={title}
       >
         {children}
@@ -115,6 +119,7 @@ export function Button({
       )}
       disabled={isDisabled}
       aria-label={ariaLabel}
+      aria-describedby={ariaDescribedBy}
       title={title}
       onClick={onClick}
     >

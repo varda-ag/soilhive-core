@@ -69,6 +69,21 @@
         white-space: nowrap;
       }
 
+      // Beside the buttons on a desktop, on a line of its own above them otherwise
+      .SignInHint {
+        white-space: nowrap;
+
+        @media (max-width: $bp-tablet-max) {
+          flex-basis: 100%;
+          justify-content: center;
+        }
+      }
+
+      @media (max-width: $bp-tablet-max) {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
       @media (max-width: $bp-mobile-max) {
         flex-direction: row;
         gap: 11px;

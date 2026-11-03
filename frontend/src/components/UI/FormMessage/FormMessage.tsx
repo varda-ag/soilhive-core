@@ -10,6 +10,7 @@ import styles from './FormMessage.module.scss';
 type FormMessageType = 'error' | 'warning' | 'info';
 
 interface Props {
+  id?: string;
   message: string;
   type?: FormMessageType;
   withBackground?: boolean;
@@ -17,7 +18,7 @@ interface Props {
   className?: string;
 }
 
-export function FormMessage({ message, withBackground, className, type = 'info', showBorder = true }: Props) {
+export function FormMessage({ id, message, withBackground, className, type = 'info', showBorder = true }: Props) {
   const typeClass = useMemo(
     () =>
       ({
@@ -40,6 +41,7 @@ export function FormMessage({ message, withBackground, className, type = 'info',
 
   return (
     <div
+      id={id}
       data-testid="sh-form-message"
       className={classnames(styles.FormMessage, typeClass, className, {
         [styles.Global]: withBackground,

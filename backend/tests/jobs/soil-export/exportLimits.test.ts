@@ -82,6 +82,14 @@ describe('getExportLimits', () => {
     expect(await getExportLimits(entityManagerWithTheme({ exportLimits }), submitter)).toEqual(NO_EXPORT_LIMITS);
   });
 
+  it('keeps exportRequiresSignIn for an exempt admin: it is not an Export Limit', async () => {
+    const theme = { exportLimits: { ...exportLimits, exportRequiresSignIn: true } };
+    expect(await getExportLimits(entityManagerWithTheme(theme), { isDataAdmin: true })).toEqual({
+      ...NO_EXPORT_LIMITS,
+      exportRequiresSignIn: true,
+    });
+  });
+
   it('applies the limits to an admin when exemptAdmins is not set', async () => {
     const result = await getExportLimits(entityManagerWithTheme({ exportLimits: { maxObservations: 100 } }), { isSuperAdmin: true });
     expect(result.maxObservations).toBe(100);

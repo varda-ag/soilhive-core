@@ -223,7 +223,9 @@ describe('DatasetsSidebar', () => {
 
     const downloadButton = screen.getByRole('button', { name: /download/i });
     expect(downloadButton).toBeDisabled();
-    expect(downloadButton).toHaveAttribute('title', 'You need to be logged in to download data.');
+    // Shown beside the button, not only on hover: a disabled button takes no focus
+    expect(screen.getByText('You need to be logged in to download data.')).toBeVisible();
+    expect(downloadButton).toHaveAccessibleDescription(/You need to be logged in to download data\./);
     expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
   });
 

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Button } from 'components/UI';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { Button, FormMessage } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
 import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
@@ -31,6 +31,7 @@ function DownloadPreview() {
   const { t } = useTranslation(['download', 'common']);
   const { isMobileDevice } = useDevice();
   const signInHint = useDownloadSignInHint();
+  const signInHintId = useId();
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -174,6 +175,7 @@ function DownloadPreview() {
           <span className={styles.SubTitle}>{t('download_preview.page_subtitle')}</span>
         </div>
         <div className={styles.Buttons}>
+          {signInHint && <FormMessage id={signInHintId} className={styles.SignInHint} message={signInHint} />}
           <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
             <ShareIcon />
           </Button>
@@ -195,7 +197,7 @@ function DownloadPreview() {
             type="primary"
             className={styles.DownloadButton}
             isDisabled={isMobileDevice || !!signInHint}
-            title={signInHint}
+            ariaDescribedBy={signInHint ? signInHintId : undefined}
             onClick={navigateToDownload}
           >
             <DownloadIcon />

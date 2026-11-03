@@ -1,7 +1,7 @@
 import { DatasetsSidebarHeader } from './DatasetsSidebarHeader/DatasetsSidebarHeader';
 import { DatasetsSidebarSummary } from './DatasetsSidebarSummary/DatasetsSidebarSummary';
 import { DatasetsList } from './DatasetsList/DatasetsList';
-import { Button, PageSidebar } from 'components/UI';
+import { Button, FormMessage, PageSidebar } from 'components/UI';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
 import useDevice from 'hooks/useDevice';
 import useAvailability from 'hooks/useAvailability';
@@ -13,7 +13,7 @@ import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useId, useMemo } from 'react';
 
 interface Props {
   isOpened: boolean;
@@ -29,6 +29,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { selectionType, locationName } = useAvailabilityMap();
   const { can } = useEntitlements(EntitlementScope.DATASETS);
   const signInHint = useDownloadSignInHint();
+  const signInHintId = useId();
 
   const navigate = useNavigate();
 
@@ -81,6 +82,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           isCountLoading={isDatasetsLoading && isCoverageLoading}
         />
         <DatasetsList />
+        {signInHint && <FormMessage id={signInHintId} className={styles.SignInHint} message={signInHint} />}
         <div className={styles.Action}>
           <Button
             className={styles.PreviewButton}
@@ -99,7 +101,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           <Button
             className={styles.DownloadButton}
             isDisabled={!isFilterIdReady || isMobileDevice || downloadDatasetIds.length === 0 || !!signInHint}
-            title={signInHint}
+            ariaDescribedBy={signInHint ? signInHintId : undefined}
             onClick={handleDownloadClick}
           >
             <DownloadIcon />
