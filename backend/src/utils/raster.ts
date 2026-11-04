@@ -220,6 +220,7 @@ const RAT_MIN_MAX = 5;
 export function categoryLabels(band: GdalInfoBand | undefined, info?: GdalInfoOutput): Record<string, string> | undefined {
   return (
     toLabels(band?.rat ? ratPairs(band.rat) : []) ??
+    toLabels(info?.rat ? ratPairs(info.rat) : []) ??
     toLabels((band?.categories ?? []).map((label, value): [unknown, number] => [label, value])) ??
     toLabels(classesPairs(band, info))
   );
