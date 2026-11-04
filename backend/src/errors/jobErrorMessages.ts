@@ -55,6 +55,14 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       `Check your file is compliant with the guidelines in the documentation: ${VECTOR_DOCS_URL}#what-your-file-should-contain`,
     ],
   },
+  FTD_FILE_ALREADY_LOADED: {
+    message: "'{file_name}' is already loaded, so it can't be staged again.",
+    actions: ['Only files that are not loaded yet go through staging. To add more data, upload a new file.'],
+  },
+  FTD_DATASET_LOADING: {
+    message: "'{file_name}' can't be staged while its dataset is loading.",
+    actions: ['Wait for the data load to finish, then retry file staging.'],
+  },
   FTD_STALE_STAGING_TABLE: {
     message: 'A previous import attempt left behind incomplete staging data.',
     actions: ['Wait a few minutes for automatic cleanup, then try again. If it persists, contact support.'],

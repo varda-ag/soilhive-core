@@ -20,6 +20,8 @@ interface Props {
   isUnitEnabled: boolean;
   isDetailsEnabled: boolean;
   isGeometryDetectedField: boolean;
+  // A loaded File's row: shown with its mapping, which can no longer be changed.
+  isReadOnly?: boolean;
   onToggle: (columnName: string) => void;
   onConceptChange: (columnName: string, value: string) => void;
   onUnitChange: (columnName: string, value: string) => void;
@@ -40,6 +42,7 @@ export function MappingRow({
   isUnitEnabled,
   isDetailsEnabled,
   isGeometryDetectedField,
+  isReadOnly = false,
   onToggle,
   onConceptChange,
   onUnitChange,
@@ -79,8 +82,8 @@ export function MappingRow({
             value={conceptValue ?? undefined}
             placeholder={t('datasets.mappings.row.select_concept')}
             onChange={code => onConceptChange(columnName, code)}
-            onClear={isGeometryDetectedField ? undefined : () => onConceptChange(columnName, '')}
-            isDisabled={isGeometryDetectedField}
+            onClear={isGeometryDetectedField || isReadOnly ? undefined : () => onConceptChange(columnName, '')}
+            isDisabled={isGeometryDetectedField || isReadOnly}
           />
         </div>
 
@@ -90,7 +93,7 @@ export function MappingRow({
             options={unitOptions}
             value={unitValue ?? undefined}
             placeholder={t('datasets.mappings.row.unit_placeholder')}
-            isDisabled={!isUnitEnabled}
+            isDisabled={!isUnitEnabled || isReadOnly}
             onChange={value => onUnitChange(columnName, value as string)}
           />
         </div>

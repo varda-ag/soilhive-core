@@ -165,9 +165,19 @@ export const addRasterLayerAsset = async (rasterLayerId: string, filename: strin
   return file;
 };
 
+/** Data mappings are unique by content (data_mapping_hash), so an existing match is returned rather than duplicated. */
 export const addDataMapping = async (data_mapping: object): Promise<DataMappingEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(DataMappingEntity);
+  const existing = await repo
+    .createQueryBuilder('dm')
+    .where(`dm.data_mapping_hash = encode(sha256(CAST(:data_mapping AS jsonb)::TEXT::BYTEA), 'hex')`, {
+      data_mapping: JSON.stringify(data_mapping),
+    })
+    .getOne();
+  if (existing) {
+    return existing;
+  }
   const mapping = repo.create({
     data_mapping,
     created_by: 'tests',

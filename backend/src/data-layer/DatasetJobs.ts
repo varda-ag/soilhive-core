@@ -24,6 +24,22 @@ export async function getQueuedJobs(entityManager: EntityManager, slugs: string[
   return new Map(rows.map(({ id, queue, dataset_id }) => [dataset_id, { id, queue }]));
 }
 
+/** The running (`active`) job on one of the given queues for any of the given Datasets, by slug, or null. */
+export async function getActiveJob(entityManager: EntityManager, queues: string[], slugs: string[]): Promise<QueuedJob | null> {
+  if (slugs.length === 0) {
+    return null;
+  }
+  const [job]: QueuedJob[] = await entityManager.query(
+    `SELECT id, name AS queue
+     FROM ${PG_BOSS_SCHEMA}.job
+     WHERE name = ANY($1) AND state = 'active' AND data->>'dataset_id' = ANY($2)
+     ORDER BY started_on
+     LIMIT 1`,
+    [queues, slugs],
+  );
+  return job ?? null;
+}
+
 /**
  * Refuses with 409 while the Dataset has a job on a locking queue that is Queued or running.
  *

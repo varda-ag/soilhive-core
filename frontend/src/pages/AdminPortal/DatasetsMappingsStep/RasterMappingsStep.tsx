@@ -105,6 +105,7 @@ export function RasterMappingsStep({ id }: Props) {
               isUnitEnabled={mapping.conceptId !== null && unitOptions.length > 0}
               isDetailsEnabled={isDetailsEnabled}
               isGeometryDetectedField={mapping.isGeometryDetectedField}
+              isReadOnly={mapping.isReadOnly}
               onToggle={toggleRow}
               onConceptChange={handleConceptChange}
               onUnitChange={handleUnitChange}
@@ -117,6 +118,7 @@ export function RasterMappingsStep({ id }: Props) {
                     placeholder={t('datasets.mappings.row.depth_from_placeholder')}
                     value={mapping.minDepth ?? ''}
                     isError={depthErrors[columnName]?.min ?? false}
+                    isReadOnly={mapping.isReadOnly}
                     onChange={value => handleMinDepthChange(columnName, value)}
                   />
                   <TextInput
@@ -126,6 +128,7 @@ export function RasterMappingsStep({ id }: Props) {
                     placeholder={t('datasets.mappings.row.depth_to_placeholder')}
                     value={mapping.maxDepth ?? ''}
                     isError={depthErrors[columnName]?.max ?? false}
+                    isReadOnly={mapping.isReadOnly}
                     onChange={value => handleMaxDepthChange(columnName, value)}
                   />
                 </div>
@@ -145,6 +148,7 @@ export function RasterMappingsStep({ id }: Props) {
                   onReferencePeriodStopChange={handleReferencePeriodStopChange}
                   onLayerDescriptionChange={handleLayerDescriptionChange}
                   onAdditionalResourcesChange={handleAdditionalResourcesChange}
+                  isReadOnly={mapping.isReadOnly}
                 />
               }
             />

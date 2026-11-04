@@ -21,7 +21,7 @@ export async function getRasterFileBboxes(entityManager: EntityManager, datasetI
             ST_XMin(ST_Extent(rl.bbox)) AS west, ST_YMin(ST_Extent(rl.bbox)) AS south,
             ST_XMax(ST_Extent(rl.bbox)) AS east, ST_YMax(ST_Extent(rl.bbox)) AS north
      FROM raster_layers rl
-     JOIN files f ON f.id = rl.file_id
+     JOIN files f ON f.id = rl.file_id AND f.deleted_at IS NULL
      WHERE rl.dataset_id = ANY($1::uuid[]) AND rl.deleted_at IS NULL
      GROUP BY rl.dataset_id, f.id`,
     [datasetIds],

@@ -3,6 +3,7 @@ import { FileStorage } from '@flystorage/file-storage';
 import { StatusCodes } from 'http-status-codes';
 import { idToSlug } from '../utils/slugs';
 import FileService from '../services/FileService';
+import DatasetFileMappingService from '../services/DatasetFileMappingService';
 import { ErrorResponse } from '../utils/error';
 import { verifySignedPath } from '../utils/presigned-url';
 import * as path from 'path';
@@ -124,6 +125,7 @@ export const getFile = async (req: Request, res: Response) => {
 
 export const deleteFile = async (req: Request, res: Response) => {
   const { fileId } = req.params;
+  await DatasetFileMappingService.assertFileDeletable(req.customData, fileId! as string);
   await fileService.deleteFile(req.customData, fileId! as string);
   fileService.deleteFileFromStorage(fileId! as string);
   res.sendStatus(StatusCodes.NO_CONTENT);

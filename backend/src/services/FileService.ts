@@ -691,7 +691,10 @@ export default class FileService {
     if (!fileEntity.metadata.layer_name) {
       throw new JobError('FTD_MISSING_LAYER_NAME');
     }
-
+    // Staging a loaded File again would re-ingest its records on the next Bulk Load
+    if (fileEntity.status === IngestionStatus.LOADED) {
+      throw new JobError('FTD_FILE_ALREADY_LOADED', { file_name: fileEntity.name });
+    }
     const repo = requestData.entityManager.getRepository(FileEntity);
     await repo.update(fileEntity.id, { status: IngestionStatus.ONGOING });
 

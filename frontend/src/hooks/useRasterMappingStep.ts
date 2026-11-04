@@ -36,6 +36,9 @@ export interface ColumnMapping {
   additionalResources: { file_id: string }[];
   details: RowDetails;
   isGeometryDetectedField: boolean;
+  // The band of a loaded File: shown as it was loaded, and never saved again. Correcting it means
+  // removing the File and uploading it again.
+  isReadOnly: boolean;
 }
 
 const isRasterFile = (file: FileDescriptor): file is FileDescriptor & { metadata: RasterFileDescriptorMetadata } =>
@@ -262,6 +265,7 @@ function isMappingChanged(
   if (Object.keys(dataMappingByFileId).length === 0) return true;
 
   for (const m of columnMappings) {
+    if (m.isReadOnly) continue;
     const existing = dataMappingByFileId[m.fileId]?.[String(m.bandKey)];
 
     if (m.conceptId === null) {
@@ -316,6 +320,7 @@ export function useRasterMappingStep(datasetId?: string) {
     files,
     isLoadingFiles,
     datasetFileMappings,
+    loadedFileIds,
     isLoadingDatasetFileMappings,
     isImporting,
     allFilesStaged,
@@ -391,6 +396,7 @@ export function useRasterMappingStep(datasetId?: string) {
     setColumnMappings(
       columns.map(({ columnName, fileId, bandKey }) => {
         const isGeometryDetectedField = false;
+        const isReadOnly = loadedFileIds.has(fileId);
         const existing = dataMappingByFileId[fileId]?.[String(bandKey)];
         if (!existing) {
           return {
@@ -407,6 +413,7 @@ export function useRasterMappingStep(datasetId?: string) {
             additionalResources: [],
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
+            isReadOnly,
           };
         }
         if (typeof existing === 'string') {
@@ -424,6 +431,7 @@ export function useRasterMappingStep(datasetId?: string) {
             additionalResources: [],
             details: { ...EMPTY_DETAILS },
             isGeometryDetectedField,
+            isReadOnly,
           };
         }
         const proc = procedureByColumn[columnName];
@@ -443,10 +451,11 @@ export function useRasterMappingStep(datasetId?: string) {
           additionalResources: existing.additional_resources ?? [],
           details,
           isGeometryDetectedField,
+          isReadOnly,
         };
       }),
     );
-  }, [files, columns, procedureByColumn, dataMappingByFileId]);
+  }, [files, columns, procedureByColumn, dataMappingByFileId, loadedFileIds]);
 
   const detailOptions = useMemo((): DetailOptionMap => {
     const base: DetailOptionMap = {
@@ -582,8 +591,10 @@ export function useRasterMappingStep(datasetId?: string) {
   }, []);
 
   const save = useCallback(async () => {
-    const procedureIds = await createMappingProcedures(columnMappings, procedureByColumn, createProcedure);
-    const requestsByFile = buildDataMappingRequestsByFile(columnMappings, procedureIds);
+    // A loaded File keeps the mapping it was loaded with: the backend refuses changing it.
+    const editableMappings = columnMappings.filter(m => !m.isReadOnly);
+    const procedureIds = await createMappingProcedures(editableMappings, procedureByColumn, createProcedure);
+    const requestsByFile = buildDataMappingRequestsByFile(editableMappings, procedureIds);
 
     // One mapping per file — each keyed by band number — linked to that file via dataset-file-mapping.
     await Promise.all(
@@ -630,11 +641,13 @@ export function useRasterMappingStep(datasetId?: string) {
     if (isRaster) setShowLoadingPanel(true);
     await save();
 
-    if (!changed && allFilesStaged) {
+    // Only Files not yet loaded go through a Raster Load, so with none of them there is no load
+    // to start, and the "loading started" panel would be misleading.
+    const hasPendingFile = (files ?? []).some(f => isRasterFile(f) && !loadedFileIds.has(f.id));
+    if (!hasPendingFile || (!changed && allFilesStaged)) {
       setIsImportingState(false);
-      if (!isRaster) {
-        navigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
-      }
+      setShowLoadingPanel(false);
+      navigate(isRaster ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
       return;
     }
 
@@ -647,6 +660,8 @@ export function useRasterMappingStep(datasetId?: string) {
     dataMappingByFileId,
     procedureByColumn,
     allFilesStaged,
+    files,
+    loadedFileIds,
     save,
     navigate,
     datasetId,

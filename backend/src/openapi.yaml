@@ -1125,6 +1125,12 @@ paths:
       x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: deleteDatasetFileMappingByFileId
       summary: Delete a dataset file mapping by file ID
+      description: >
+        Removes a file from the dataset. When the file is a loaded raster, its raster layers stay until
+        the next raster-load job for the dataset deletes them, along with their footprints, additional
+        resources and group memberships, and rolls the dataset's metadata up again. Delete the file too
+        (DELETE /files/{fileId}) to hide its layers from reads straight away. A loaded vector file
+        can't be removed, since its observations don't record which file they came from.
       tags:
         - datasets
       security:
@@ -1150,7 +1156,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or the file is a loaded vector file
           content:
             application/json:
               schema:
@@ -1228,7 +1234,7 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or the file is the source of a raster filter
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, the file is the source of a raster filter, or the file is loaded and the mapping's content changes
           content:
             application/json:
               schema:
@@ -2370,6 +2376,13 @@ paths:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: deleteFile
       summary: Delete a file
+      description: >
+        Soft-deletes a file. When it is a loaded raster, reads stop serving its raster layers straight
+        away, and the next raster-load job of each dataset it is mapped to deletes them, along with
+        their footprints, additional resources and group memberships, and rolls the dataset's
+        metadata up again. Refused with 409 while one of those datasets has a load or purge queued or
+        running. A loaded vector file can't be deleted, since its observations don't record which
+        file they came from.
       tags:
         - files
       security:
@@ -2380,7 +2393,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The file is the source of a raster filter, which owns it until installed
+          description: >
+            The file is the source of a raster filter, which owns it until installed; or it is a
+            loaded vector file; or a dataset it is mapped to has a bulk-load, raster-load or
+            bulk-delete job queued or running
           content:
             application/json:
               schema:
@@ -3883,10 +3899,11 @@ components:
           type: boolean
           description: >
             When true, deletes the original upload of every loaded file that was converted (to a COG
-            or to the standard unit) once the load succeeds. Files used as uploaded are kept. A later
-            mapping edit that changes a unit conversion then fails with RL_SOURCE_FILE_NOT_FOUND, since
-            the file can no longer be normalized again from its original pixels.
-      description: Loads a raster dataset. The ingested files remain the raster layers' data and are never removed.
+            or to the standard unit) once the load succeeds. Files used as uploaded are kept. A loaded
+            file's mapping can't be changed afterwards, so nothing needs the original again.
+      description: >
+        Loads a raster dataset's files that are waiting for a load, and deletes the raster layers of files
+        removed from the dataset since. The ingested files remain the raster layers' data and are never removed.
 
     ExportJob:
       type: object

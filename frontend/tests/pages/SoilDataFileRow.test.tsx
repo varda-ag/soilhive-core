@@ -438,7 +438,7 @@ describe('SoilDataFileRow', () => {
       />,
     );
 
-    const removeBtn = screen.getByTestId('sh-ui-button');
+    const removeBtn = screen.getByTestId('sh-soil-data-remove-file');
     fireEvent.click(removeBtn);
 
     expect(onRemove).toHaveBeenCalledWith('file-123');

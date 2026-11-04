@@ -68,7 +68,15 @@ export function useDatasetIngestionState(datasetId?: string) {
 
   const serverIsImporting = files?.some(f => f.status === IngestionStatus.ONGOING) ?? false;
   const isImporting = isImportingState || serverIsImporting;
-  const allFilesStaged = files?.every(f => f.status === IngestionStatus.STAGED) ?? false;
+
+  // Only Files not yet loaded go through the steps: a loaded File keeps the mapping it was loaded
+  // with, and loading it again would ingest its records twice.
+  const loadedFileIds = useMemo(() => new Set((files ?? []).filter(f => f.status === IngestionStatus.LOADED).map(f => f.id)), [files]);
+  const pendingFileMappings = useMemo(
+    () => (datasetFileMappings ?? []).filter(dfm => !loadedFileIds.has(dfm.fileID)),
+    [datasetFileMappings, loadedFileIds],
+  );
+  const allFilesStaged = files?.filter(f => f.status !== IngestionStatus.LOADED).every(f => f.status === IngestionStatus.STAGED) ?? false;
 
   const { data: existingMappings, isLoading: isLoadingExistingMappings } = useApiQuery<DataMappingResponse[]>({
     endpoint: `/datasets/${datasetId}/mappings`,
@@ -147,6 +155,8 @@ export function useDatasetIngestionState(datasetId?: string) {
     files,
     isLoadingFiles,
     datasetFileMappings,
+    pendingFileMappings,
+    loadedFileIds,
     isLoadingDatasetFileMappings,
     isImporting,
     allFilesStaged,

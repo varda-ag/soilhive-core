@@ -265,6 +265,84 @@ describe('useRasterMappingStep', () => {
     });
   });
 
+  describe('loaded files', () => {
+    // Stable references — new arrays on every render would re-trigger the columnMappings useEffect.
+    const rasterMetadata = { is_raster: true, raster_bands: [{ band_number: 1 }] };
+    const loadedFile = { id: 'loaded-file', status: 'LOADED', name: 'loaded.tif', metadata: rasterMetadata };
+    const newFile = { id: 'new-file', status: 'PENDING', name: 'new.tif', metadata: rasterMetadata };
+    const mappingsData = [{ id: 'mapping-loaded', data_mapping: { '1': { property_id: 'ph', min_depth: 0, max_depth: 5 } } }];
+
+    const setup = (filesData: (typeof loadedFile)[]) => {
+      const datasetFileMappings = filesData.map(f => ({
+        id: `dfm-${f.id}`,
+        fileID: f.id,
+        mappingId: `mapping-${f.status === 'LOADED' ? 'loaded' : f.id}`,
+      }));
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+        if (endpoint.includes('/mappings')) return { data: mappingsData, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+    };
+    const bothFiles = [loadedFile, newFile];
+    const loadedOnly = [loadedFile];
+
+    it('shows the rows of a loaded file read-only, with the mapping it was loaded with', () => {
+      setup(bothFiles);
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+      const byFile = Object.fromEntries(result.current.columnMappings.map(m => [m.fileId, m]));
+      expect(byFile['loaded-file']).toMatchObject({ isReadOnly: true, conceptId: 'ph' });
+      expect(byFile['new-file']).toMatchObject({ isReadOnly: false });
+    });
+
+    it('save() posts no mapping for a loaded file', async () => {
+      setup(bothFiles);
+      const mockCreateMapping = jest.fn().mockResolvedValue({ id: 'mapping-new', data_mapping: {} });
+      (useCreateMappingsMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateMapping });
+      const mockUpdate = jest.fn().mockResolvedValue(undefined);
+      (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: mockUpdate });
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+
+      await act(async () => {
+        await result.current.handleSaveAndContinueLater();
+      });
+
+      expect(mockCreateMapping).toHaveBeenCalledTimes(1);
+      expect(mockUpdate).toHaveBeenCalledTimes(1);
+      expect(mockUpdate).toHaveBeenCalledWith({ datasetId: '42', datasetFileMappingId: 'dfm-new-file', mappingId: 'mapping-new' });
+    });
+
+    it('handleContinue queues no raster-load when every file is already loaded', async () => {
+      setup(loadedOnly);
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', gis_datatype: 'raster' } });
+      const mockCreateJob = jest.fn().mockResolvedValue({ id: 'job-1' });
+      (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      expect(mockCreateJob).not.toHaveBeenCalled();
+      expect(result.current.showLoadingPanel).toBe(false);
+      expect(mockNavigate).toHaveBeenCalledWith('/admin/datasets');
+    });
+
+    it('handleContinue still queues a raster-load for a new file next to a loaded one', async () => {
+      setup(bothFiles);
+      const mockCreateJob = jest.fn().mockResolvedValue({ id: 'job-1' });
+      (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+      const { result } = renderHook(() => useRasterMappingStep('42'));
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'raster-load' });
+    });
+  });
+
   describe('isImporting', () => {
     it('is false when no file is ONGOING and handleContinue has not been called', () => {
       setupWithFileStatuses(['PENDING']);
