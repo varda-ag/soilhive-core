@@ -20,6 +20,8 @@ import useDownloads from 'hooks/useDownloads';
 import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
 import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 import { useOnceDefined } from 'hooks/useOnceDefined';
+import { useGoBack } from 'hooks/useGoBack';
+import { useRestoredPageState } from '../auth/signinPageState';
 import Skeleton from 'react-loading-skeleton';
 import { GISDataType } from '../types/backend';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
@@ -60,6 +62,11 @@ const SCENARIO_FORMATS = {
 
 type Scenario = keyof typeof SCENARIO_FORMATS;
 
+// The Datasets and the format chosen here, carried through an OIDC sign-in so the visitor comes back to
+// them (docs/adr/0075). The terms are left for the signed-in user to agree to.
+const DOWNLOAD_SUMMARY_SIGNIN_STATE_KEY = 'downloadSummary';
+type DownloadSummarySigninState = { datasetIds: string[]; format: string };
+
 const getScenario = (datasets: DownloadSummaryDataset[]): Scenario => {
   if (datasets.every(d => d.dataType !== GISDataType.RASTER)) return 'vector';
   if (datasets.every(d => d.dataType === GISDataType.RASTER)) return 'raster';
@@ -89,6 +96,16 @@ function DownloadSummary() {
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false);
+  const restored = useRestoredPageState<DownloadSummarySigninState>(DOWNLOAD_SUMMARY_SIGNIN_STATE_KEY);
+
+  // With no page of this app behind this one (after a sign-in, or opened from a link), Back still goes where
+  // it says. The Data Explorer is rebuilt from its URL and the map keeps its selection.
+  const explorerParams = new URLSearchParams();
+  if (selectionType) explorerParams.append('selectionType', selectionType);
+  if (locationName) explorerParams.append('locationName', locationName);
+  if (filterId) explorerParams.append('filterId', filterId);
+  if (datasetsParam) explorerParams.append('datasets', datasetsParam);
+  const goBack = useGoBack(comingFromDataExplorer ? { pathname: '/explore', search: `?${explorerParams.toString()}` } : '/');
 
   const activeFormatOptions = SCENARIO_FORMATS[scenario].options;
 
@@ -114,7 +131,7 @@ function DownloadSummary() {
   const onDownloadButtonClick = async () => {
     if (!filterId) return;
     if (isSignInRequired) {
-      // Signing in comes back to this page, whose URL holds the selection
+      // Signing in comes back to this page, with the Datasets and the format chosen here
       setIsSignInDialogOpen(true);
       return;
     }
@@ -163,8 +180,15 @@ function DownloadSummary() {
     datasetsIds,
   });
 
-  // Select all datasets the first time they are loaded
-  useOnceDefined(datasets, onSelectedDatasetsChange);
+  // Select all datasets the first time they are loaded, or those chosen here before a sign-in
+  const onDatasetsLoaded = (loaded: DownloadSummaryDataset[]) => {
+    const chosen = loaded.filter(dataset => restored?.datasetIds?.includes(dataset.id));
+    const initial = chosen.length > 0 ? chosen : loaded;
+    onSelectedDatasetsChange(initial);
+    const isFormatAvailable = SCENARIO_FORMATS[getScenario(initial)].options.some(option => option.id === restored?.format);
+    if (restored?.format && isFormatAvailable) setSelectedFormat(restored.format);
+  };
+  useOnceDefined(datasets, onDatasetsLoaded);
 
   return (
     <div className={styles.DownloadSummary}>
@@ -174,14 +198,7 @@ function DownloadSummary() {
           <span className={styles.SubTitle}>{t('download_summary.page_subtitle')}</span>
         </div>
         <div className={styles.Buttons}>
-          <Button
-            dataTestId="download-preview-back-button"
-            className={styles.BackButton}
-            type="secondary"
-            onClick={() => {
-              navigate(-1);
-            }}
-          >
+          <Button dataTestId="download-preview-back-button" className={styles.BackButton} type="secondary" onClick={goBack}>
             <ArrowLeftIcon />
             {comingFromDataExplorer ? t('download_summary.back_to_data_explorer') : t('download_summary.back_to_map')}
           </Button>
@@ -293,7 +310,16 @@ function DownloadSummary() {
           </div>
         </div>
       </div>
-      <DownloadSignInDialog visible={isSignInDialogOpen} onClose={() => setIsSignInDialogOpen(false)} />
+      <DownloadSignInDialog
+        visible={isSignInDialogOpen}
+        pageState={{
+          [DOWNLOAD_SUMMARY_SIGNIN_STATE_KEY]: {
+            datasetIds: selectedDatasets.map(dataset => dataset.id),
+            format: selectedFormat,
+          } satisfies DownloadSummarySigninState,
+        }}
+        onClose={() => setIsSignInDialogOpen(false)}
+      />
     </div>
   );
 }

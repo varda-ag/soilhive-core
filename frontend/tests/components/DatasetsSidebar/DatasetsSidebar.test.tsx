@@ -18,10 +18,9 @@ jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
 }));
 
 jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
-  DownloadSignInDialog: ({ visible, returnTo, onClose }: any) =>
+  DownloadSignInDialog: ({ visible, onClose }: any) =>
     visible ? (
       <div data-testid="download-sign-in-dialog">
-        {returnTo}
         <button onClick={onClose}>cancel sign-in</button>
       </div>
     ) : null,
@@ -238,11 +237,9 @@ describe('DatasetsSidebar', () => {
     expect(downloadButton).toBeEnabled();
     fireEvent.click(downloadButton);
 
+    // The sign-in comes back to the map, where the signed-in user clicks Download again
     expect(navigateMockFn).not.toHaveBeenCalled();
-    // An OIDC sign-in reloads the app and loses the map's selection, so it comes back to the Download Summary
-    expect(screen.getByTestId('download-sign-in-dialog')).toHaveTextContent(
-      '/download?source=availability&selectionType=mock-selection-type&filterId=mock-filter-id&datasets=test-dataset',
-    );
+    expect(screen.getByTestId('download-sign-in-dialog')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'cancel sign-in' }));
     expect(screen.queryByTestId('download-sign-in-dialog')).not.toBeInTheDocument();

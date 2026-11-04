@@ -22,6 +22,7 @@ import { useDownloadPreview } from 'hooks/useDownloadPreview';
 
 import useDevice from 'hooks/useDevice';
 import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
+import { useGoBack } from 'hooks/useGoBack';
 import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 
@@ -32,7 +33,9 @@ function DownloadPreview() {
   const { t } = useTranslation(['download', 'common']);
   const { isMobileDevice } = useDevice();
   const isSignInRequired = useIsSignInRequiredToDownload();
-  const [signInReturnTo, setSignInReturnTo] = useState<string>();
+  const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false);
+  // The map keeps its selection, restored after a sign-in too
+  const goBack = useGoBack('/');
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -159,16 +162,17 @@ function DownloadPreview() {
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
   const navigateToDownload = () => {
+    if (isSignInRequired) {
+      setIsSignInDialogOpen(true);
+      return;
+    }
     const params = new URLSearchParams();
     params.append('source', 'explore');
     params.append('selectionType', `${selectionType}`);
     if (locationName) params.append('locationName', `${locationName}`);
     params.append('filterId', `${filterId}`);
     params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
-    const target = { pathname: '/download', search: `?${params.toString()}` };
-    // An OIDC sign-in reloads the app: come back to the Download Summary this button leads to
-    if (isSignInRequired) setSignInReturnTo(target.pathname + target.search);
-    else navigate(target);
+    navigate({ pathname: '/download', search: `?${params.toString()}` });
   };
 
   return (
@@ -185,14 +189,7 @@ function DownloadPreview() {
           <Button type="tertiary" isIconOnly={true} className={styles.BookmarkButton}>
             <BookmarkIcon />
           </Button>
-          <Button
-            dataTestId="download-preview-back-button"
-            className={styles.BackButton}
-            type="secondary"
-            onClick={() => {
-              navigate(-1);
-            }}
-          >
+          <Button dataTestId="download-preview-back-button" className={styles.BackButton} type="secondary" onClick={goBack}>
             <ArrowLeftIcon />
             {t('download_preview.back')}
           </Button>
@@ -267,7 +264,7 @@ function DownloadPreview() {
           {t('download_preview.tab_table')}
         </Button>
       </div>
-      <DownloadSignInDialog visible={!!signInReturnTo} returnTo={signInReturnTo} onClose={() => setSignInReturnTo(undefined)} />
+      <DownloadSignInDialog visible={isSignInDialogOpen} onClose={() => setIsSignInDialogOpen(false)} />
     </div>
   );
 }

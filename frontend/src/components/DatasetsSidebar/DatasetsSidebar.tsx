@@ -30,7 +30,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   const { selectionType, locationName } = useAvailabilityMap();
   const { can } = useEntitlements(EntitlementScope.DATASETS);
   const isSignInRequired = useIsSignInRequiredToDownload();
-  const [signInReturnTo, setSignInReturnTo] = useState<string>();
+  const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -55,10 +55,12 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   );
 
   const handleDownloadClick = () => {
-    const target = { pathname: '/download', search: `?${getSearchParams(downloadDatasetIds, { source: 'availability' }).toString()}` };
-    // An OIDC sign-in reloads the app, losing the map's selection: come back to where the download was heading
-    if (isSignInRequired) setSignInReturnTo(target.pathname + target.search);
-    else navigate(target);
+    // The Datasets a signed-in user may download can differ, so they click again once back on the map
+    if (isSignInRequired) {
+      setIsSignInDialogOpen(true);
+      return;
+    }
+    navigate({ pathname: '/download', search: `?${getSearchParams(downloadDatasetIds, { source: 'availability' }).toString()}` });
   };
 
   const getSearchParams = useCallback(
@@ -111,7 +113,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
         </div>
       </div>
-      <DownloadSignInDialog visible={!!signInReturnTo} returnTo={signInReturnTo} onClose={() => setSignInReturnTo(undefined)} />
+      <DownloadSignInDialog visible={isSignInDialogOpen} onClose={() => setIsSignInDialogOpen(false)} />
     </PageSidebar>
   );
 }

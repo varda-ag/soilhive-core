@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
-import { AvailabilityProvider } from '../../src/contexts/AvailabilityContext';
+import { AVAILABILITY_SIGNIN_STATE_KEY, AvailabilityProvider, type AvailabilitySigninState } from '../../src/contexts/AvailabilityContext';
+import { setRestoredPageState } from '../../src/auth/signinPageState';
 import useAvailability from 'hooks/useAvailability';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
@@ -382,6 +383,40 @@ describe('AvailabilityContext', () => {
       expect(result.current.isDatasetsLoading).toBe(false);
       expect(result.current.isLoadingPartialFilter).toBe(false);
       expect(result.current.isLoadingFilterId).toBe(true);
+    });
+  });
+
+  describe('after a sign-in started from the map (docs/adr/0075)', () => {
+    const restoredState: AvailabilitySigninState = {
+      selectedDatasets: [privateDownloadableDataset.id],
+      isAllSelected: false,
+      searchValue: 'private',
+      datasetFrontendFilters: { type: [GISDataType.POINT], visibility: [] },
+      datasetFilters: { soil_properties: ['ph'], data_types: [GISDataType.POINT] },
+      selectedSoilProperties: ['ph'],
+      selectedTimeFilter: { min: 2000, max: 2010 },
+    };
+
+    afterEach(() => setRestoredPageState(undefined));
+
+    it('puts back the filters and the Datasets ticked before it', () => {
+      setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: restoredState });
+
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      expect(result.current).toMatchObject(restoredState);
+      expect(useDataFilterQuery).toHaveBeenCalledWith({ geometries: [], parameters: restoredState.datasetFilters });
+    });
+
+    it('starts afresh when the map is opened again later', () => {
+      setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: restoredState });
+      renderHook(() => useAvailability(), { wrapper: AvailabilityProvider }).unmount();
+
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      expect(result.current.selectedDatasets).toEqual([]);
+      expect(result.current.searchValue).toBe('');
+      expect(result.current.datasetFilters).toEqual({});
     });
   });
 });

@@ -1,6 +1,6 @@
 import { act, render, screen } from '@testing-library/react';
 import DownloadPreview from '../../src/pages/DownloadPreview';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 import { useSoilData } from 'hooks/useSoilData';
@@ -13,7 +13,7 @@ jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
 }));
 
 jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
-  DownloadSignInDialog: ({ visible, returnTo }: any) => (visible ? <div data-testid="download-sign-in-dialog">{returnTo}</div> : null),
+  DownloadSignInDialog: ({ visible }: any) => (visible ? <div data-testid="download-sign-in-dialog" /> : null),
 }));
 
 jest.mock('hooks/useDataFilterQuery', () => {
@@ -34,6 +34,7 @@ jest.mock('react-router', () => ({
   __esModule: true,
   useNavigate: jest.fn(),
   useSearchParams: jest.fn().mockReturnValue([new Map([])]),
+  useLocation: jest.fn(),
 }));
 
 jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
@@ -68,6 +69,8 @@ describe('DownloadPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(false);
+    // Reached from another page of the app, unless a test says otherwise
+    (useLocation as jest.Mock).mockReturnValue({ key: 'in-app-entry' });
   });
 
   afterEach(() => {
@@ -104,9 +107,9 @@ describe('DownloadPreview', () => {
     expect(downloadButton).toBeEnabled();
     await act(async () => downloadButton.click());
 
+    // The sign-in comes back to this page, where the signed-in user clicks Download data again
     expect(navigateMockFn).not.toHaveBeenCalled();
-    // The sign-in comes back to the Download Summary this button leads to
-    expect(screen.getByTestId('download-sign-in-dialog')).toHaveTextContent(/^\/download\?source=explore&.*&datasets=test-dataset$/);
+    expect(screen.getByTestId('download-sign-in-dialog')).toBeInTheDocument();
   });
 
   it('calls navigate when clicking on download button on desktop', async () => {
@@ -129,6 +132,18 @@ describe('DownloadPreview', () => {
     const backButton = getByTestId('download-preview-back-button');
     await act(async () => backButton.click());
     expect(navigateMockFn).toHaveBeenCalledWith(-1);
+  });
+
+  it('goes to the map on Back when no page of the app is behind this one, as after a sign-in', async () => {
+    (useLocation as jest.Mock).mockReturnValue({ key: 'default' });
+    const navigateMockFn = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);
+    render(<DownloadPreview />);
+
+    await act(async () => screen.getByTestId('download-preview-back-button').click());
+
+    // Not -1: the identity provider's page is behind this one
+    expect(navigateMockFn).toHaveBeenCalledWith('/');
   });
 
   it('reads a raster dataset through the preview filter, unsorted', () => {

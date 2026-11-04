@@ -8,6 +8,7 @@ jest.mock('react-router', () => ({
   __esModule: true,
   useNavigate: jest.fn().mockReturnValue(jest.fn()),
   useSearchParams: jest.fn().mockReturnValue([{ get: jest.fn() }]),
+  useLocation: jest.fn().mockReturnValue({ key: 'in-app-entry' }),
 }));
 
 jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {

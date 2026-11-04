@@ -5,6 +5,8 @@ import useDownloads from 'hooks/useDownloads';
 import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
 import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { GISDataType } from '../../src/types/backend';
+import { useLocation, useNavigate } from 'react-router';
+import { setRestoredPageState } from '../../src/auth/signinPageState';
 
 jest.mock('react-router', () => {
   const mockSearchParamsGet = jest.fn();
@@ -16,6 +18,7 @@ jest.mock('react-router', () => {
         get: mockSearchParamsGet,
       },
     ]),
+    useLocation: jest.fn(),
     mockSearchParamsGet,
   };
 });
@@ -47,8 +50,8 @@ jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
 }));
 
 jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
-  DownloadSignInDialog: ({ visible, returnTo }: any) =>
-    visible ? <div data-testid="download-sign-in-dialog">{returnTo ?? 'current page'}</div> : null,
+  DownloadSignInDialog: ({ visible, pageState }: any) =>
+    visible ? <div data-testid="download-sign-in-dialog">{JSON.stringify(pageState)}</div> : null,
 }));
 
 jest.mock('primereact/checkbox', () => {
@@ -100,6 +103,8 @@ describe('DownloadSummary', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(false);
+    // Reached from another page of the app, unless a test says otherwise
+    (useLocation as jest.Mock).mockReturnValue({ key: 'in-app-entry' });
   });
 
   afterEach(() => {
@@ -255,8 +260,77 @@ describe('DownloadSummary', () => {
       fireEvent.click(downloadButton);
 
       expect(startDownload).not.toHaveBeenCalled();
-      // No returnTo: the sign-in comes back to this page, whose URL holds the selection
-      expect(screen.getByTestId('download-sign-in-dialog')).toHaveTextContent('current page');
+      // The sign-in comes back to this page, with the Datasets and the format chosen here
+      expect(JSON.parse(screen.getByTestId('download-sign-in-dialog').textContent!)).toEqual({
+        downloadSummary: { datasetIds: ['v1'], format: 'csv' },
+      });
+    });
+  });
+
+  describe('after a sign-in started here', () => {
+    afterEach(() => setRestoredPageState(undefined));
+
+    it('ticks again the Datasets and picks again the format chosen before it', () => {
+      setRestoredPageState({ downloadSummary: { datasetIds: ['r1'], format: 'gpkg' } });
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset, rasterDataset], datasetsSummary: {} });
+
+      render(<DownloadSummary />);
+
+      expect(mockDataTableProps.mock.lastCall[0].selection).toEqual([rasterDataset]);
+      expect(screen.getByTestId('format-dropdown')).toHaveValue('gpkg');
+      expect(screen.getByRole('option', { name: 'Geotiff' })).toBeInTheDocument();
+      // The terms are for the signed-in user to agree to
+      expect(screen.getByRole('checkbox')).not.toBeChecked();
+    });
+
+    it('keeps the default format when the chosen one does not fit the Datasets', () => {
+      setRestoredPageState({ downloadSummary: { datasetIds: ['v1'], format: 'tiff' } });
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset, rasterDataset], datasetsSummary: {} });
+
+      render(<DownloadSummary />);
+
+      expect(mockDataTableProps.mock.lastCall[0].selection).toEqual([vectorDataset]);
+      expect(screen.getByTestId('format-dropdown')).toHaveValue('csv');
+    });
+
+    it('ticks every Dataset when none of the chosen ones is still listed', () => {
+      setRestoredPageState({ downloadSummary: { datasetIds: ['gone'], format: 'gpkg' } });
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset, rasterDataset], datasetsSummary: {} });
+
+      render(<DownloadSummary />);
+
+      expect(mockDataTableProps.mock.lastCall[0].selection).toEqual([vectorDataset, rasterDataset]);
+    });
+  });
+
+  describe('back button', () => {
+    const params: Record<string, string> = { selectionType: 'country', locationName: 'Nakuru, Kenya', filterId: 'f1', datasets: 'a,b' };
+    const clickBack = (source: string) => {
+      const navigate = jest.fn();
+      (useNavigate as jest.Mock).mockReturnValue(navigate);
+      mockSearchParamsGet.mockImplementation((key: string) => (key === 'source' ? source : (params[key] ?? null)));
+      render(<DownloadSummary />);
+      fireEvent.click(screen.getByTestId('download-preview-back-button'));
+      return navigate;
+    };
+
+    it('goes back to the previous page of the app', () => {
+      expect(clickBack('availability')).toHaveBeenCalledWith(-1);
+    });
+
+    describe('when no page of the app is behind this one, as after a sign-in', () => {
+      beforeEach(() => (useLocation as jest.Mock).mockReturnValue({ key: 'default' }));
+
+      it('goes to the map', () => {
+        expect(clickBack('availability')).toHaveBeenCalledWith('/');
+      });
+
+      it('goes to the Data Explorer of the same selection', () => {
+        expect(clickBack('explore')).toHaveBeenCalledWith({
+          pathname: '/explore',
+          search: `?${new URLSearchParams(params).toString()}`,
+        });
+      });
     });
   });
 });

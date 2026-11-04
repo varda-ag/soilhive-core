@@ -1,9 +1,14 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
+import { useAvailabilitySigninState } from 'hooks/useAvailabilitySigninState';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 
 jest.mock('../../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
+}));
+
+jest.mock('hooks/useAvailabilitySigninState', () => ({
+  useAvailabilitySigninState: jest.fn(),
 }));
 
 jest.mock('components/Dialog/Dialog', () => ({
@@ -20,10 +25,12 @@ jest.mock('components/Dialog/Dialog', () => ({
 describe('DownloadSignInDialog', () => {
   const login = jest.fn();
   const onClose = jest.fn();
+  const availabilityState = { availabilityMap: { locationName: 'Nakuru, Kenya' }, availability: { searchValue: '' } };
 
   beforeEach(() => {
     jest.clearAllMocks();
     (useAuthContext as jest.Mock).mockReturnValue({ login });
+    (useAvailabilitySigninState as jest.Mock).mockReturnValue(() => availabilityState);
   });
 
   it('renders nothing while not visible', () => {
@@ -45,7 +52,7 @@ describe('DownloadSignInDialog', () => {
   });
 
   it('closes without logging in on Cancel', () => {
-    render(<DownloadSignInDialog visible={true} returnTo="/download?filterId=f" onClose={onClose} />);
+    render(<DownloadSignInDialog visible={true} onClose={onClose} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -53,20 +60,21 @@ describe('DownloadSignInDialog', () => {
     expect(login).not.toHaveBeenCalled();
   });
 
-  it('closes and logs in, coming back to returnTo, on Log in', () => {
-    render(<DownloadSignInDialog visible={true} returnTo="/download?filterId=f" onClose={onClose} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
-
-    expect(onClose).toHaveBeenCalledTimes(1);
-    expect(login).toHaveBeenCalledWith('/download?filterId=f');
-  });
-
-  it('logs in coming back to the current page without returnTo', () => {
+  it("closes and logs in on Log in, carrying the map's selection and filters", () => {
     render(<DownloadSignInDialog visible={true} onClose={onClose} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(login).toHaveBeenCalledWith(undefined);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(login).toHaveBeenCalledWith(availabilityState);
+  });
+
+  it("carries the page's own state beside them", () => {
+    const pageState = { downloadSummary: { datasetIds: ['a'], format: 'gpkg' } };
+    render(<DownloadSignInDialog visible={true} pageState={pageState} onClose={onClose} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Log in' }));
+
+    expect(login).toHaveBeenCalledWith({ ...availabilityState, ...pageState });
   });
 });

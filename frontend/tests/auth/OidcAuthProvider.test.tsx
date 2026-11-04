@@ -15,6 +15,7 @@ import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { saveToken, clearToken } from '../../src/auth/tokenStore';
 import { setTokenRefresher } from '../../src/auth/tokenRefresher';
+import { peekRestoredPageState, setRestoredPageState } from '../../src/auth/signinPageState';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -263,11 +264,12 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/dashboards/abc?tab=2#w' } });
     });
 
-    it('sends the given path instead, when the caller names where to come back to', () => {
+    it('carries the page state the caller gives beside the current path', () => {
       window.history.replaceState({}, '', '/');
+      const pageState = { availabilityMap: { locationName: 'Nakuru, Kenya' } };
       const LoginTrigger = () => {
         const { login } = useAuthContext();
-        return <button onClick={() => login('/download?filterId=f&datasets=a,b')}>login</button>;
+        return <button onClick={() => login(pageState)}>login</button>;
       };
       (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(null));
       const { getByRole } = render(
@@ -278,7 +280,26 @@ describe('OidcAuthProvider token lifecycle', () => {
 
       fireEvent.click(getByRole('button', { name: 'login' }));
 
-      expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/download?filterId=f&datasets=a,b' } });
+      expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/', pageState } });
+    });
+
+    it('hands the page state back on the sign-in callback, for the pages to put back when they mount', () => {
+      renderWithUser(null);
+      window.history.replaceState({}, '', '/?code=abc&state=xyz');
+
+      getOnSigninCallback()({ state: { returnTo: '/', pageState: { availabilityMap: { locationName: 'Nakuru, Kenya' } } } });
+
+      expect(peekRestoredPageState('availabilityMap')).toEqual({ locationName: 'Nakuru, Kenya' });
+    });
+
+    it('hands back nothing after a sign-in started without page state', () => {
+      setRestoredPageState({ availabilityMap: { locationName: 'from an earlier sign-in' } });
+      renderWithUser(null);
+      window.history.replaceState({}, '', '/?code=abc&state=xyz');
+
+      getOnSigninCallback()({ state: { returnTo: '/' } });
+
+      expect(peekRestoredPageState('availabilityMap')).toBeUndefined();
     });
 
     it('restores the recorded path on the sign-in callback', () => {
