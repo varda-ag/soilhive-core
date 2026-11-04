@@ -616,7 +616,7 @@
         },
         "export_requires_sign_in": {
             "label": "Require login to download",
-            "description": "Download buttons stay disabled until the visitor logs in."
+            "description": "Visitors who are not logged in are asked to log in when they click Download."
         },
         "errors": {
             "positive_number": "Enter a number greater than zero",

@@ -6,15 +6,25 @@ import { useNavigate } from 'react-router';
 import { AvailabilityContext } from '../../../src/contexts/AvailabilityContext';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, GISDataType } from 'types/backend';
-import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
-jest.mock('hooks/useDownloadSignInHint', () => ({
-  useDownloadSignInHint: jest.fn(),
+jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
+  useIsSignInRequiredToDownload: jest.fn(),
+}));
+
+jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
+  DownloadSignInDialog: ({ visible, returnTo, onClose }: any) =>
+    visible ? (
+      <div data-testid="download-sign-in-dialog">
+        {returnTo}
+        <button onClick={onClose}>cancel sign-in</button>
+      </div>
+    ) : null,
 }));
 
 jest.mock('hooks/useEntitlementsHook', () => ({
@@ -95,7 +105,7 @@ describe('DatasetsSidebar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCan({});
-    (useDownloadSignInHint as jest.Mock).mockReturnValue(undefined);
+    (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(false);
   });
 
   it('renders the sidebar with header on desktop layout', () => {
@@ -215,18 +225,28 @@ describe('DatasetsSidebar', () => {
     expect(downloadButton).toBeEnabled();
   });
 
-  it('disables only the download button, saying why, while a signed-in user is required to download', () => {
+  it('asks a signed-out visitor to log in instead of navigating, while a signed-in user is required to download', () => {
     (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
-    (useDownloadSignInHint as jest.Mock).mockReturnValue('You need to be logged in to download data.');
+    (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(true);
+    const navigateMockFn = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);
 
     render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+    expect(screen.queryByTestId('download-sign-in-dialog')).not.toBeInTheDocument();
 
     const downloadButton = screen.getByRole('button', { name: /download/i });
-    expect(downloadButton).toBeDisabled();
-    // Shown beside the button, not only on hover: a disabled button takes no focus
-    expect(screen.getByText('You need to be logged in to download data.')).toBeVisible();
-    expect(downloadButton).toHaveAccessibleDescription(/You need to be logged in to download data\./);
-    expect(screen.getByRole('button', { name: /explore/i })).toBeEnabled();
+    expect(downloadButton).toBeEnabled();
+    fireEvent.click(downloadButton);
+
+    expect(navigateMockFn).not.toHaveBeenCalled();
+    // An OIDC sign-in reloads the app and loses the map's selection, so it comes back to the Download Summary
+    expect(screen.getByTestId('download-sign-in-dialog')).toHaveTextContent(
+      '/download?source=availability&selectionType=mock-selection-type&filterId=mock-filter-id&datasets=test-dataset',
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'cancel sign-in' }));
+    expect(screen.queryByTestId('download-sign-in-dialog')).not.toBeInTheDocument();
+    expect(navigateMockFn).not.toHaveBeenCalled();
   });
 
   it('calls navigate when clicking on download button on desktop', () => {

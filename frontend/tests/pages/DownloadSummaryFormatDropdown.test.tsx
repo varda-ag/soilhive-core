@@ -24,8 +24,12 @@ jest.mock('hooks/useDownloads', () => ({
   default: jest.fn().mockReturnValue({ startDownload: jest.fn(), setIsOpened: jest.fn() }),
 }));
 
-jest.mock('hooks/useDownloadSignInHint', () => ({
-  useDownloadSignInHint: jest.fn(),
+jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
+  useIsSignInRequiredToDownload: jest.fn().mockReturnValue(false),
+}));
+
+jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
+  DownloadSignInDialog: () => null,
 }));
 
 jest.mock('primereact/datatable', () => {

@@ -1,6 +1,6 @@
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import useDevice from 'hooks/useDevice';
-import { Button, FormMessage } from 'components/UI';
+import { Button } from 'components/UI';
 import styles from './DownloadSummary.module.scss';
 import ArrowLeftIcon from 'assets/icons/arrow-left-icon.svg?react';
 import DownloadIcon from 'assets/icons/download-icon.svg?react';
@@ -17,7 +17,8 @@ import { PrimeReactProvider } from 'primereact/api';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import useDownloads from 'hooks/useDownloads';
-import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
+import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 import { useOnceDefined } from 'hooks/useOnceDefined';
 import Skeleton from 'react-loading-skeleton';
 import { GISDataType } from '../types/backend';
@@ -70,8 +71,7 @@ function DownloadSummary() {
   const { t } = useTranslation('download');
   const { isMobileDevice } = useDevice();
   const { startDownload, setIsOpened } = useDownloads();
-  const signInHint = useDownloadSignInHint();
-  const signInHintId = useId();
+  const isSignInRequired = useIsSignInRequiredToDownload();
 
   const [searchParams] = useSearchParams();
   const comingFromDataExplorer = searchParams.get('source') === 'explore';
@@ -88,6 +88,7 @@ function DownloadSummary() {
   const [showUpdatedMessage, setShowUpdatedMessage] = useState(false);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false);
 
   const activeFormatOptions = SCENARIO_FORMATS[scenario].options;
 
@@ -112,6 +113,11 @@ function DownloadSummary() {
   // Waits for the Export to start: one over its limits is refused, and the selection stays here to change
   const onDownloadButtonClick = async () => {
     if (!filterId) return;
+    if (isSignInRequired) {
+      // Signing in comes back to this page, whose URL holds the selection
+      setIsSignInDialogOpen(true);
+      return;
+    }
     const option = activeFormatOptions.find(o => o.id === selectedFormat)!;
     setIsStarting(true);
     const id = await startDownload({
@@ -258,7 +264,6 @@ function DownloadSummary() {
             </PrimeReactProvider>
           </div>
           <div className={classNames(styles.Footer, { [styles.Expanded]: summaryExpanded })}>
-            {signInHint && <FormMessage id={signInHintId} className={styles.SignInHint} message={signInHint} />}
             <div className={styles.TermsOfUse}>
               <Checkbox
                 inputId="agree-to-terms-for-download"
@@ -279,8 +284,7 @@ function DownloadSummary() {
               size="medium"
               type="primary"
               className={styles.DownloadButton}
-              isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0 || !!signInHint}
-              ariaDescribedBy={signInHint ? signInHintId : undefined}
+              isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0}
               onClick={onDownloadButtonClick}
             >
               <DownloadIcon />
@@ -289,6 +293,7 @@ function DownloadSummary() {
           </div>
         </div>
       </div>
+      <DownloadSignInDialog visible={isSignInDialogOpen} onClose={() => setIsSignInDialogOpen(false)} />
     </div>
   );
 }

@@ -4,12 +4,16 @@ import { useNavigate } from 'react-router';
 import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 import { useSoilData } from 'hooks/useSoilData';
-import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
 
 jest.mock('hooks/useDevice');
 
-jest.mock('hooks/useDownloadSignInHint', () => ({
-  useDownloadSignInHint: jest.fn(),
+jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
+  useIsSignInRequiredToDownload: jest.fn(),
+}));
+
+jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
+  DownloadSignInDialog: ({ visible, returnTo }: any) => (visible ? <div data-testid="download-sign-in-dialog">{returnTo}</div> : null),
 }));
 
 jest.mock('hooks/useDataFilterQuery', () => {
@@ -63,7 +67,7 @@ jest.mock('hooks/useDownloadPreview', () => {
 describe('DownloadPreview', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (useDownloadSignInHint as jest.Mock).mockReturnValue(undefined);
+    (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -90,14 +94,19 @@ describe('DownloadPreview', () => {
     expect(downloadButton).toBeEnabled();
   });
 
-  it('disables download button, saying why, while a signed-in user is required to download', () => {
-    (useDownloadSignInHint as jest.Mock).mockReturnValue('You need to be logged in to download data.');
+  it('asks a signed-out visitor to log in instead of navigating, while a signed-in user is required to download', async () => {
+    (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(true);
+    const navigateMockFn = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);
     render(<DownloadPreview />);
+
     const downloadButton = screen.getByRole('button', { name: /download data/i });
-    expect(downloadButton).toBeDisabled();
-    // Shown beside the button, not only on hover: a disabled button takes no focus
-    expect(screen.getByText('You need to be logged in to download data.')).toBeVisible();
-    expect(downloadButton).toHaveAccessibleDescription(/You need to be logged in to download data\./);
+    expect(downloadButton).toBeEnabled();
+    await act(async () => downloadButton.click());
+
+    expect(navigateMockFn).not.toHaveBeenCalled();
+    // The sign-in comes back to the Download Summary this button leads to
+    expect(screen.getByTestId('download-sign-in-dialog')).toHaveTextContent(/^\/download\?source=explore&.*&datasets=test-dataset$/);
   });
 
   it('calls navigate when clicking on download button on desktop', async () => {

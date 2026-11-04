@@ -5,7 +5,11 @@ export type AuthContext = {
   isLoading: boolean;
   error?: unknown;
   user?: User | null;
-  login: (password?: string) => void;
+  /**
+   * Starts a sign-in. Under OIDC the identity provider sends the user back to `returnTo` (a same-origin
+   * path), or to the current page without one. Password mode signs in on the page, so it ignores it.
+   */
+  login: (returnTo?: string) => void;
   logout: () => void;
   authMode: string;
   /**

@@ -142,7 +142,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     // authenticated, like the other providers, or callers gating on `user` send token-less
     // requests to auth-only routes (e.g. GET /entitlements → 401 toast).
     user: reactOidcAuth.isAuthenticated ? reactOidcAuth.user : null,
-    login: () => reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath() } satisfies SigninState }),
+    login: returnTo => reactOidcAuth.signinRedirect({ state: { returnTo: returnTo ?? getCurrentPath() } satisfies SigninState }),
     logout: () => {
       clearToken();
       reactOidcAuth.signoutRedirect();

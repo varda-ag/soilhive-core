@@ -324,7 +324,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 
 - An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
 - An **Export Bundle** can be downloaded any number of times, but only while its **Export** is still known; once the Export is forgotten the Bundle is unreachable, though nothing deletes it
-- While administrators require it, an **Export** is refused to a caller with no token: judged once, at submission and before its **Datasets** are checked, so an Export already queued still runs. The frontend keeps its download buttons disabled until the visitor is a **Signed-in user**
+- While administrators require it, an **Export** is refused to a caller with no token: judged once, at submission and before its **Datasets** are checked, so an Export already queued still runs. The frontend asks a signed-out visitor who clicks a download button to log in first
 - A **Preview table** shows the soil data that touches the **AOI**, not the contents of an **Export Bundle**: for a raster Dataset it can list pixels along the AOI's edge that the Bundle leaves out
 - A **Dataset** *references* one or more **Features** through its **DatasetLayers**; it does not contain them, and the same **Feature** may be referenced by several **Datasets**
 - A **Feature** has one or more **DatasetLayers**

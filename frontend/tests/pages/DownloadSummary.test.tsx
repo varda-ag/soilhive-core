@@ -2,7 +2,7 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import DownloadSummary from '../../src/pages/DownloadSummary';
 import { useDownloadSummary } from 'hooks/useDownloadSummary';
 import useDownloads from 'hooks/useDownloads';
-import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
 import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __resetIsMobileDevice } from 'hooks/useDevice';
 import { GISDataType } from '../../src/types/backend';
 
@@ -42,8 +42,13 @@ jest.mock('hooks/useDownloads', () => {
   };
 });
 
-jest.mock('hooks/useDownloadSignInHint', () => ({
-  useDownloadSignInHint: jest.fn(),
+jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
+  useIsSignInRequiredToDownload: jest.fn(),
+}));
+
+jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
+  DownloadSignInDialog: ({ visible, returnTo }: any) =>
+    visible ? <div data-testid="download-sign-in-dialog">{returnTo ?? 'current page'}</div> : null,
 }));
 
 jest.mock('primereact/checkbox', () => {
@@ -94,7 +99,7 @@ const rasterDataset = { id: 'r1', name: 'Raster Dataset', licenses: [], dataType
 describe('DownloadSummary', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (useDownloadSignInHint as jest.Mock).mockReturnValue(undefined);
+    (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -239,13 +244,19 @@ describe('DownloadSummary', () => {
       expect(renderReadyToDownload()).toBeEnabled();
     });
 
-    it('disables download button, saying why, while a signed-in user is required to download', () => {
-      (useDownloadSignInHint as jest.Mock).mockReturnValue('You need to be logged in to download data.');
+    it('asks a signed-out visitor to log in instead of starting the download, while a signed-in user is required to download', () => {
+      const startDownload = jest.fn();
+      (useDownloads as jest.Mock).mockReturnValue({ startDownload, setIsOpened: jest.fn() });
+      mockSearchParamsGet.mockImplementation((key: string) => (key === 'filterId' ? 'test-filter' : null));
+      (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(true);
+
       const downloadButton = renderReadyToDownload();
-      expect(downloadButton).toBeDisabled();
-      // Shown beside the button, not only on hover: a disabled button takes no focus
-      expect(screen.getByText('You need to be logged in to download data.')).toBeVisible();
-      expect(downloadButton).toHaveAccessibleDescription(/You need to be logged in to download data\./);
+      expect(downloadButton).toBeEnabled();
+      fireEvent.click(downloadButton);
+
+      expect(startDownload).not.toHaveBeenCalled();
+      // No returnTo: the sign-in comes back to this page, whose URL holds the selection
+      expect(screen.getByTestId('download-sign-in-dialog')).toHaveTextContent('current page');
     });
   });
 });

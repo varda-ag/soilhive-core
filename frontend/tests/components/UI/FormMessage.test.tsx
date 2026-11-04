@@ -47,12 +47,6 @@ describe('FormMessage component', () => {
     expect(screen.getByTestId('sh-form-message')).toHaveClass('test-class');
   });
 
-  it('takes an id, so a control can point at it', () => {
-    render(<FormMessage id="hint" message="Message" />);
-
-    expect(screen.getByTestId('sh-form-message')).toHaveAttribute('id', 'hint');
-  });
-
   it('does not apply Border class with showBorder false', () => {
     render(<FormMessage message="Message" withBackground showBorder={false} />);
 

@@ -263,6 +263,24 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/dashboards/abc?tab=2#w' } });
     });
 
+    it('sends the given path instead, when the caller names where to come back to', () => {
+      window.history.replaceState({}, '', '/');
+      const LoginTrigger = () => {
+        const { login } = useAuthContext();
+        return <button onClick={() => login('/download?filterId=f&datasets=a,b')}>login</button>;
+      };
+      (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(null));
+      const { getByRole } = render(
+        <AuthContextProvider>
+          <LoginTrigger />
+        </AuthContextProvider>,
+      );
+
+      fireEvent.click(getByRole('button', { name: 'login' }));
+
+      expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/download?filterId=f&datasets=a,b' } });
+    });
+
     it('restores the recorded path on the sign-in callback', () => {
       renderWithUser(null);
       window.history.replaceState({}, '', '/admin?code=abc&state=xyz');

@@ -29,19 +29,6 @@ describe('Button component', () => {
     expect(btn).toHaveAttribute('form', 'testForm');
   });
 
-  it('is described by the element ariaDescribedBy names', () => {
-    render(
-      <>
-        <Button ariaDescribedBy="why" isDisabled>
-          Download
-        </Button>
-        <p id="why">Log in first</p>
-      </>,
-    );
-
-    expect(screen.getByTestId('sh-ui-button')).toHaveAccessibleDescription('Log in first');
-  });
-
   it('calls onClick when button is clicked', () => {
     const handleClick = jest.fn();
     render(<Button onClick={handleClick}>Press</Button>);

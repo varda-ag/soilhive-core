@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useState } from 'react';
-import { Button, FormMessage } from 'components/UI';
+import { useEffect, useMemo, useState } from 'react';
+import { Button } from 'components/UI';
 import styles from './DownloadPreview.module.scss';
 import DownloadDataSummary from 'components/DownloadDataSummary/DownloadDataSummary';
 import DownloadIcon from 'assets/icons/small-download-icon.svg?react';
@@ -21,7 +21,8 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 
 import useDevice from 'hooks/useDevice';
-import { useDownloadSignInHint } from 'hooks/useDownloadSignInHint';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
+import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
@@ -30,8 +31,8 @@ function DownloadPreview() {
   const navigate = useNavigate();
   const { t } = useTranslation(['download', 'common']);
   const { isMobileDevice } = useDevice();
-  const signInHint = useDownloadSignInHint();
-  const signInHintId = useId();
+  const isSignInRequired = useIsSignInRequiredToDownload();
+  const [signInReturnTo, setSignInReturnTo] = useState<string>();
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -164,7 +165,10 @@ function DownloadPreview() {
     if (locationName) params.append('locationName', `${locationName}`);
     params.append('filterId', `${filterId}`);
     params.append('datasets', availableFixedDatasets.map(dataset => dataset.id).join(','));
-    navigate({ pathname: '/download', search: `?${params.toString()}` });
+    const target = { pathname: '/download', search: `?${params.toString()}` };
+    // An OIDC sign-in reloads the app: come back to the Download Summary this button leads to
+    if (isSignInRequired) setSignInReturnTo(target.pathname + target.search);
+    else navigate(target);
   };
 
   return (
@@ -175,7 +179,6 @@ function DownloadPreview() {
           <span className={styles.SubTitle}>{t('download_preview.page_subtitle')}</span>
         </div>
         <div className={styles.Buttons}>
-          {signInHint && <FormMessage id={signInHintId} className={styles.SignInHint} message={signInHint} />}
           <Button type="tertiary" isIconOnly={true} className={styles.ShareButton}>
             <ShareIcon />
           </Button>
@@ -193,13 +196,7 @@ function DownloadPreview() {
             <ArrowLeftIcon />
             {t('download_preview.back')}
           </Button>
-          <Button
-            type="primary"
-            className={styles.DownloadButton}
-            isDisabled={isMobileDevice || !!signInHint}
-            ariaDescribedBy={signInHint ? signInHintId : undefined}
-            onClick={navigateToDownload}
-          >
+          <Button type="primary" className={styles.DownloadButton} isDisabled={isMobileDevice} onClick={navigateToDownload}>
             <DownloadIcon />
             {t('download_preview.download_button')}
           </Button>
@@ -270,6 +267,7 @@ function DownloadPreview() {
           {t('download_preview.tab_table')}
         </Button>
       </div>
+      <DownloadSignInDialog visible={!!signInReturnTo} returnTo={signInReturnTo} onClose={() => setSignInReturnTo(undefined)} />
     </div>
   );
 }
