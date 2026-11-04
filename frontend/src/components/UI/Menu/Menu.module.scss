@@ -33,6 +33,13 @@
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+
+            > .OptionDescription {
+                font-size: var(--font-size-xs);
+            }
         }
 
         > .OptionIcon,
