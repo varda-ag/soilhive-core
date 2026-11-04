@@ -418,5 +418,59 @@ describe('AvailabilityContext', () => {
       expect(result.current.searchValue).toBe('');
       expect(result.current.datasetFilters).toEqual({});
     });
+
+    describe('with "Select all" ticked before it', () => {
+      // What "Select all" ticked for the signed-out visitor: the public Dataset only
+      const selectAllState: AvailabilitySigninState = {
+        selectedDatasets: [publicDataset.id],
+        isAllSelected: true,
+        searchValue: '',
+        datasetFrontendFilters: { type: [], visibility: [] },
+        datasetFilters: {},
+        selectedSoilProperties: [],
+        selectedTimeFilter: {},
+      };
+      const availableToTheSignedInUser = [publicDataset.id, privateDownloadableDataset.id, privatePreviewOnlyDataset.id].sort();
+
+      it('ticks every Dataset now available, those the sign-in unlocked included', () => {
+        setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: selectAllState });
+
+        const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+        expect(result.current.isAllSelected).toBe(true);
+        expect([...result.current.selectedDatasets].sort()).toEqual(availableToTheSignedInUser);
+        expect(result.current.availableDatasets.map(dataset => dataset.id).sort()).toEqual(availableToTheSignedInUser);
+      });
+
+      it("waits for the signed-in user's entitlements before ticking them", () => {
+        const loadedEntitlements = (useEntitlements as jest.Mock)();
+        (useEntitlements as jest.Mock).mockReturnValue({ can: () => false, isLoading: true });
+        setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: selectAllState });
+
+        const { result, rerender } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+        expect(result.current.selectedDatasets).toEqual([]);
+
+        (useEntitlements as jest.Mock).mockReturnValue(loadedEntitlements);
+        rerender();
+
+        expect([...result.current.selectedDatasets].sort()).toEqual(availableToTheSignedInUser);
+      });
+
+      it('leaves it unticked when the visitor unticks it before the Datasets load', () => {
+        const loadedCoverage = (useFilteredCoverageQuery as jest.Mock)();
+        (useFilteredCoverageQuery as jest.Mock).mockReturnValue({ data: undefined, isLoading: true });
+        setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: selectAllState });
+
+        const { result, rerender } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+        act(() => {
+          result.current.selectAllDatasets(false);
+        });
+        (useFilteredCoverageQuery as jest.Mock).mockReturnValue(loadedCoverage);
+        rerender();
+
+        expect(result.current.isAllSelected).toBe(false);
+        expect(result.current.selectedDatasets).toEqual([]);
+      });
+    });
   });
 });
