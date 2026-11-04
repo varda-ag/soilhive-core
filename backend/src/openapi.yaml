@@ -2200,6 +2200,17 @@ paths:
         - datasets
       security:
         - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - in: query
+          name: metadata_only
+          required: false
+          description: >-
+            When true, loads each record's feature, licence and layer, and a dataset layer for every
+            soil property in the data mapping, but creates no Observations. Property values in the
+            records are ignored, so records need only `geometry` and their metadata fields.
+          schema:
+            type: boolean
+            default: false
       requestBody:
         required: true
         content:
