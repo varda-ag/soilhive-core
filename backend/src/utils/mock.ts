@@ -128,6 +128,18 @@ export const addDataset = async (
   return await repo.save(dataset);
 };
 
+/** A Dataset not published yet (PENDING), as one reaching its first load is: loads into a PUBLISHED Dataset are refused. */
+export const addUnpublishedDataset = async (
+  name: string,
+  spatial_extent: number[],
+  gis_datatype: GISDataType = GISDataType.POINT,
+): Promise<DatasetEntity> => {
+  const dataset = await addDataset(name, spatial_extent, gis_datatype);
+  await (await getDataSource()).getRepository(DatasetEntity).update({ id: dataset.id }, { status: IngestionStatus.PENDING });
+  dataset.status = IngestionStatus.PENDING;
+  return dataset;
+};
+
 export const addFile = async (name: string = 'test_file'): Promise<FileEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(FileEntity);

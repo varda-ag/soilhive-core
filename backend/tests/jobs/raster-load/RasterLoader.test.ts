@@ -1131,7 +1131,7 @@ describe('RasterLoader', () => {
       ]);
     });
 
-    it('returns a never-loaded dataset to PENDING and leaves the file pending when a load fails', async () => {
+    it('keeps a never-loaded dataset PENDING and leaves the file pending when a load fails', async () => {
       const { dataset, file } = await setUpRasterLoad(uniqueName('failure-status'), () => null);
 
       await expect(processRasterLoad(getJob(dataset.slug))).rejects.toThrow();
@@ -1184,7 +1184,7 @@ describe('RasterLoader', () => {
     });
   });
 
-  describe('loading into a loaded or published dataset', () => {
+  describe('loading into a loaded dataset', () => {
     const getFile = async (fileId: string): Promise<FileEntity> => {
       const dataSource = await getDataSource();
       return dataSource.getRepository(FileEntity).findOneByOrFail({ id: fileId });
@@ -1215,10 +1215,39 @@ describe('RasterLoader', () => {
       expect((await getDataset(dataset.id)).n_raster_layers).toBe(2);
     });
 
-    it('hides a PUBLISHED dataset while it loads and publishes it again afterwards', async () => {
-      const { dataset } = await setUpRasterLoad(uniqueName('published'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
+    it('RL_DATASET_PUBLISHED for a PUBLISHED dataset with a file to load, writing nothing', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('published'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
         status: IngestionStatus.PUBLISHED,
       });
+
+      await expect(processRasterLoad(getJob(dataset.slug))).rejects.toMatchObject({ name: 'JobError', code: 'RL_DATASET_PUBLISHED' });
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+      expect((await getFile(file.id)).status).toBe(IngestionStatus.PENDING);
+      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.PUBLISHED);
+    });
+
+    it.each([
+      ['a mapping that names no band', () => ({})],
+      ['no mapping at all', () => null],
+    ])('only removes layers on a PUBLISHED dataset whose pending file has %s, which a load skips', async (_case, buildMapping) => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('published-skipped'), buildMapping, {
+        status: IngestionStatus.PUBLISHED,
+      });
+
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+      expect((await getFile(file.id)).status).toBe(IngestionStatus.PENDING);
+      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.PUBLISHED);
+    });
+
+    it('never makes a LOADED dataset ONGOING while it loads', async () => {
+      const { dataset, property } = await setUpRasterLoad(uniqueName('loaded-visible'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      await processRasterLoad(getJob(dataset.slug));
+      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.LOADED);
+
+      await addRasterFile(dataset.id, EPSG3857_FILE, { '2': bandEntry(property.slug, 5, 15) });
       const statusesWhileIngesting: string[] = [];
       const spy = jest.spyOn(PgBossModule, 'progressReporter').mockImplementation(() => async (_percentage, description) => {
         if (description.includes('Ingesting band')) {
@@ -1233,18 +1262,16 @@ describe('RasterLoader', () => {
       }
 
       expect(statusesWhileIngesting.length).toBeGreaterThan(0);
-      expect(statusesWhileIngesting.every(status => status === IngestionStatus.ONGOING)).toBe(true);
-      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.PUBLISHED);
+      expect(statusesWhileIngesting.every(status => status === IngestionStatus.LOADED)).toBe(true);
+      expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.LOADED);
     });
 
-    it('on failure, removes the layers of the new file and leaves a published dataset published with the rest', async () => {
+    it('on failure, removes the layers of the new file and leaves a loaded dataset LOADED with the rest', async () => {
       const {
         dataset,
         file: loaded,
         property,
-      } = await setUpRasterLoad(uniqueName('add-failure'), slug => ({ '1': bandEntry(slug, 0, 5) }), {
-        status: IngestionStatus.PUBLISHED,
-      });
+      } = await setUpRasterLoad(uniqueName('add-failure'), slug => ({ '1': bandEntry(slug, 0, 5) }));
       await processRasterLoad(getJob(dataset.slug));
       const [before] = await getLayers(loaded.id);
 
@@ -1259,12 +1286,12 @@ describe('RasterLoader', () => {
 
       expect(await getLayers(added.id)).toHaveLength(0);
       expect((await getFile(added.id)).status).toBe(IngestionStatus.PENDING);
-      // The loaded file was never touched: it keeps its published layer.
+      // The loaded file was never touched: it keeps its layer.
       const [after] = await getLayers(loaded.id);
       expect(after!.id).toBe(before!.id);
       expect((await getFile(loaded.id)).status).toBe(IngestionStatus.LOADED);
       const reloaded = await getDataset(dataset.id);
-      expect(reloaded.status).toBe(IngestionStatus.PUBLISHED);
+      expect(reloaded.status).toBe(IngestionStatus.LOADED);
       expect(reloaded.n_raster_layers).toBe(1);
 
       // The retry ingests the new file from scratch.

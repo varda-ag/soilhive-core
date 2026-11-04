@@ -57,6 +57,14 @@ describe('DatasetsTableStatusTemplate', () => {
     expect(screen.getByTestId('mock-tag')).toHaveClass('QUEUED');
   });
 
+  it('renders Loading in place of the status while a load runs', () => {
+    const dataset = { ...makeDataset(IngestionStatus.LOADED), isLoading: true };
+    render(<DatasetsTableStatusTemplate dataset={dataset} onShowErrors={onShowErrors} />);
+
+    expect(screen.getByTestId('mock-tag')).toHaveTextContent('Loading');
+    expect(screen.getByTestId('mock-tag')).toHaveClass('ONGOING');
+  });
+
   it('applies status-specific className to the tag', () => {
     render(<DatasetsTableStatusTemplate dataset={makeDataset(IngestionStatus.LOADED)} onShowErrors={onShowErrors} />);
 

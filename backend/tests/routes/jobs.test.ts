@@ -12,11 +12,14 @@ import { getDataAdminToken, getUserToken } from '../helper';
 import { RequestData } from '../../src/interfaces/RequestData';
 import FileService from '../../src/services/FileService';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
+import * as RasterLoaderModule from '../../src/jobs/raster-load/RasterLoader';
 import * as SoilExportJobModule from '../../src/jobs/soil-export/soilExportJob';
 import * as FileToDbJobModule from '../../src/jobs/file-to-db/FileToDbJob';
 import { VectorFileMetadata } from '../../src/interfaces/File';
-import { addDataset, linkMapping } from '../../src/utils/mock';
-import { GISDataType } from '../../src/types/data';
+import { addDataMapping, addDataset, addDatasetFileMapping, addFile, addUnpublishedDataset, linkMapping } from '../../src/utils/mock';
+import DatasetEntity from '../../src/entities/Dataset';
+import DatasetFileMappingEntity from '../../src/entities/DatasetFileMapping';
+import { GISDataType, IngestionStatus } from '../../src/types/data';
 import { writableAssets } from '../assets';
 
 const mockToken: Token = {
@@ -170,7 +173,9 @@ describe('Testing /jobs routes', () => {
 
     jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockResolvedValue(undefined);
     jest.spyOn(SoilExportJobModule, 'processExportJob').mockResolvedValue(undefined);
-    // createJob resolves the dataset of a bulk-load before enqueueing it
+    // createJob resolves the dataset of a bulk-load before enqueueing it, and refuses a published one,
+    // while an anonymous export needs a published one: so a dataset each
+    await addUnpublishedDataset('test-load-dataset', [-180, -90, 180, 90]);
     await addDataset('test-dataset', [-180, -90, 180, 90]);
 
     // The spy has to exist before the job is enqueued. pg-boss only records into spies that
@@ -182,7 +187,7 @@ describe('Testing /jobs routes', () => {
     // Create bulk load job
     const bulkRes = await request(app)
       .post('/jobs')
-      .send({ type: 'bulk-load', dataset_id: 'test-dataset' })
+      .send({ type: 'bulk-load', dataset_id: 'test-load-dataset' })
       .set('Authorization', `Bearer ${token}`);
     expect(bulkRes.statusCode).toBe(201);
     expect(bulkRes.body).toHaveProperty('id');
@@ -249,7 +254,7 @@ describe('Testing /jobs routes', () => {
 
     // The real processRasterLoad runs here: it resolves the dataset up front, so without this row
     // the job fails instead of draining. With no staged files it has nothing to ingest and completes.
-    await addDataset('test-dataset', [-180, -90, 180, 90], GISDataType.RASTER);
+    await addUnpublishedDataset('test-dataset', [-180, -90, 180, 90], GISDataType.RASTER);
 
     // Acquired before the job is enqueued - see the bulk-load test above
     const spy = getPgBoss().getSpy(JobQueues.RASTER_LOAD);
@@ -567,7 +572,7 @@ describe('Testing /jobs routes', () => {
 
     it('keeps the dataset locked while its job runs, but no longer queued', async () => {
       const token = await getDataAdminToken();
-      const dataset = await addDataset('running-lock-dataset', [0, 0, 1, 1]);
+      const dataset = await addUnpublishedDataset('running-lock-dataset', [0, 0, 1, 1]);
       let release!: () => void;
       const released = new Promise<void>(resolve => (release = resolve));
       jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockImplementation(() => released);
@@ -591,16 +596,129 @@ describe('Testing /jobs routes', () => {
 
         const read = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
         expect(read.body.queued_job).toBeNull();
+        expect(read.body.active_job).toEqual({ id: job.body.id, queue: JobQueues.BULK_LOAD });
+        const anonymous = await request(app).get(`/datasets/${dataset.slug}`);
+        expect(anonymous.body).not.toHaveProperty('active_job');
       } finally {
         release();
       }
       await spy.waitForJobWithId(job.body.id, 'completed');
+      const completed = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
+      expect(completed.body.active_job).toBeNull();
 
       const done = await request(app)
         .patch(`/datasets/${dataset.slug}`)
         .set('Authorization', `Bearer ${token}`)
         .send({ description: 'changed' });
       expect(done.statusCode).toBe(200);
+    });
+
+    it('clears active_job when the load fails', async () => {
+      const token = await getDataAdminToken();
+      const dataset = await addUnpublishedDataset('failed-load-dataset', [0, 0, 1, 1]);
+      const load = jest.spyOn(BulkLoaderModule, 'processBulkLoad').mockRejectedValue(new Error('load exploded'));
+      const spy = getPgBoss().getSpy(JobQueues.BULK_LOAD);
+      try {
+        const job = await request(app)
+          .post('/jobs')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ type: JobQueues.BULK_LOAD, dataset_id: dataset.slug });
+        expect(job.statusCode).toBe(201);
+        await spy.waitForJobWithId(job.body.id, 'failed');
+      } finally {
+        load.mockRestore();
+      }
+
+      const read = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
+      expect(read.body.active_job).toBeNull();
+    });
+
+    describe('loads into a PUBLISHED dataset', () => {
+      const publishedDataset = async (name: string) => {
+        const dataset = await addDataset(name, [0, 0, 1, 1]);
+        await (await getDataSource()).getRepository(DatasetEntity).update({ id: dataset.id }, { status: IngestionStatus.PUBLISHED });
+        return dataset;
+      };
+
+      it('refuses a bulk-load with 409', async () => {
+        const token = await getDataAdminToken();
+        const dataset = await publishedDataset('published-bulk-load');
+
+        const res = await request(app)
+          .post('/jobs')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ type: JobQueues.BULK_LOAD, dataset_id: dataset.slug });
+
+        expect(res.statusCode).toBe(409);
+        expect(res.body.detail).toContain('published');
+      });
+
+      /** Maps a PENDING File into the Dataset with the given data mapping. */
+      const pendingFile = async (datasetId: string, name: string, isRaster: boolean, mapping: object) => {
+        const file = await addFile(name);
+        const dfm = await addDatasetFileMapping(datasetId, (await addDataMapping(mapping)).id);
+        const dataSource = await getDataSource();
+        await dataSource.getRepository(DatasetFileMappingEntity).update({ id: dfm.id }, { file_id: file.id });
+        await dataSource.query(`UPDATE files SET status = $2, metadata = $3::jsonb WHERE id = $1`, [
+          file.id,
+          IngestionStatus.PENDING,
+          JSON.stringify({ is_raster: isRaster }),
+        ]);
+      };
+
+      it('refuses a raster-load with a raster file to ingest with 409', async () => {
+        const token = await getDataAdminToken();
+        const dataset = await publishedDataset('published-raster-load');
+        await pendingFile(dataset.id, 'published-raster-load-file', true, { '1': { property_id: 'published-raster-load-property' } });
+
+        const res = await request(app)
+          .post('/jobs')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ type: JobQueues.RASTER_LOAD, dataset_id: dataset.slug });
+
+        expect(res.statusCode).toBe(409);
+        expect(res.body.detail).toContain('published');
+      });
+
+      it.each([
+        ['a raster file whose mapping names no band', 'empty-mapping', true, {}],
+        ['a file that is not a raster', 'not-raster', false, { '1': { property_id: 'not-raster-property' } }],
+      ])('accepts a raster-load whose only pending file is %s, which a load skips', async (_case, name, isRaster, mapping) => {
+        const token = await getDataAdminToken();
+        const dataset = await publishedDataset(`published-skipped-${name}`);
+        await pendingFile(dataset.id, `published-skipped-${name}-file`, isRaster, mapping);
+        const load = jest.spyOn(RasterLoaderModule, 'processRasterLoad').mockResolvedValue(undefined);
+        const spy = getPgBoss().getSpy(JobQueues.RASTER_LOAD);
+        try {
+          const res = await request(app)
+            .post('/jobs')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ type: JobQueues.RASTER_LOAD, dataset_id: dataset.slug });
+
+          expect(res.statusCode).toBe(201);
+          await spy.waitForJobWithId(res.body.id, 'completed');
+        } finally {
+          load.mockRestore();
+        }
+      });
+
+      it('accepts a raster-load with no file waiting, which only removes the layers of removed files', async () => {
+        const token = await getDataAdminToken();
+        const dataset = await publishedDataset('published-raster-removal');
+        const load = jest.spyOn(RasterLoaderModule, 'processRasterLoad').mockResolvedValue(undefined);
+        const spy = getPgBoss().getSpy(JobQueues.RASTER_LOAD);
+        try {
+          const res = await request(app)
+            .post('/jobs')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ type: JobQueues.RASTER_LOAD, dataset_id: dataset.slug });
+
+          expect(res.statusCode).toBe(201);
+          await spy.waitForJobWithId(res.body.id, 'completed');
+        } finally {
+          load.mockRestore();
+        }
+      });
     });
 
     it('does not lock on file staging', async () => {

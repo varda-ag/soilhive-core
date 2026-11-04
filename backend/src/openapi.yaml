@@ -659,7 +659,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: >-
+            The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or a
+            bulk-load or raster-load targets a published dataset. A raster-load of a published dataset
+            with no file waiting for a load is accepted: it only removes the layers of removed files.
           content:
             application/json:
               schema:
@@ -3628,6 +3631,21 @@ components:
             queue:
               type: string
               enum: [bulk-load, raster-load, bulk-delete]
+        active_job:
+          type: object
+          nullable: true
+          readOnly: true
+          description: >-
+            The bulk-load or raster-load job running on the dataset, or null. A load no longer changes
+            the dataset's status, so this is how a load in progress shows. Returned by GET /datasets
+            and GET /datasets/{datasetId} to data-admin, super-admin and internal-request callers only.
+          properties:
+            id:
+              type: string
+              format: uuid
+            queue:
+              type: string
+              enum: [bulk-load, raster-load]
 
     SoilProperty:
       type: object

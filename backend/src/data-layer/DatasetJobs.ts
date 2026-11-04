@@ -24,6 +24,27 @@ export async function getQueuedJobs(entityManager: EntityManager, slugs: string[
   return new Map(rows.map(({ id, queue, dataset_id }) => [dataset_id, { id, queue }]));
 }
 
+/** Queues whose running job is a Dataset's `active_job`: bulk-delete is left out, since its Dataset leaves the list. */
+export const DATASET_LOAD_QUEUES: string[] = [JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD];
+
+/**
+ * The running load of each of the given Datasets, keyed by slug. At most one each: the lock refuses
+ * a second. Read from pg-boss rather than from the Dataset's status, which a load no longer changes,
+ * so it is cleared whichever way the job ends: completed, failed, cancelled or reaped.
+ */
+export async function getActiveLoads(entityManager: EntityManager, slugs: string[]): Promise<Map<string, QueuedJob>> {
+  if (slugs.length === 0) {
+    return new Map();
+  }
+  const rows: UnfinishedJobRow[] = await entityManager.query(
+    `SELECT id, name AS queue, data->>'dataset_id' AS dataset_id
+     FROM ${PG_BOSS_SCHEMA}.job
+     WHERE name = ANY($1) AND state = 'active' AND data->>'dataset_id' = ANY($2)`,
+    [DATASET_LOAD_QUEUES, slugs],
+  );
+  return new Map(rows.map(({ id, queue, dataset_id }) => [dataset_id, { id, queue }]));
+}
+
 /** The running (`active`) job on one of the given queues for any of the given Datasets, by slug, or null. */
 export async function getActiveJob(entityManager: EntityManager, queues: string[], slugs: string[]): Promise<QueuedJob | null> {
   if (slugs.length === 0) {
@@ -38,6 +59,29 @@ export async function getActiveJob(entityManager: EntityManager, queues: string[
     [queues, slugs],
   );
   return job ?? null;
+}
+
+/**
+ * Whether a Raster Load of the Dataset would ingest a File: a raster File waiting for a load (PENDING)
+ * whose data mapping names at least one band. Other PENDING Files are never loaded: a non-raster
+ * File, and a raster File whose mapping is empty, which the loader skips. Shared by the check when
+ * the job is created and the loader, so a load that only removes layers is told apart the same way.
+ */
+export async function hasRasterFileToLoad(entityManager: EntityManager, datasetId: string): Promise<boolean> {
+  const [row] = await entityManager.query(
+    `SELECT 1
+     FROM dataset_file_mappings dfm
+     JOIN files f ON f.id = dfm.file_id AND f.deleted_at IS NULL
+     JOIN data_mappings dm ON dm.id = dfm.data_mapping_id
+     WHERE dfm.dataset_id = $1
+       AND dfm.deleted_at IS NULL
+       AND f.status = 'PENDING'
+       AND (f.metadata->>'is_raster')::boolean
+       AND EXISTS (SELECT 1 FROM jsonb_each(dm.data_mapping) band WHERE jsonb_typeof(band.value) = 'object')
+     LIMIT 1`,
+    [datasetId],
+  );
+  return !!row;
 }
 
 /**

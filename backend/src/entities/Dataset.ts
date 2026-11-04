@@ -119,6 +119,8 @@ export default class DatasetEntity extends BaseTable implements Dataset {
 
   // Not a column, populated at runtime from pg-boss for a Privileged caller (docs/adr/0042)
   queued_job?: QueuedJob | null;
+  // Likewise: the load running on the Dataset, which no longer changes its status
+  active_job?: QueuedJob | null;
 
   // Not a column, populated at runtime from the raster Files or spatial_extent (DatasetService.decorateWithBbox)
   bbox?: Envelope | null;

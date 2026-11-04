@@ -1,7 +1,6 @@
 import { Job } from 'pg-boss';
 import { StatusCodes } from 'http-status-codes';
 import { EntityManager, In } from 'typeorm';
-import DatasetEntity from '../../entities/Dataset';
 import DatasetFileMappingEntity from '../../entities/DatasetFileMapping';
 import FileEntity from '../../entities/File';
 import { RasterLoadJob } from '../../interfaces/Job';
@@ -22,7 +21,8 @@ import { checkFileFormat, ingestRaster } from '../../services/RasterIngestServic
 import FileService from '../../services/FileService';
 import { updateRasterDatasetMetadata } from './UpdateDatasetMetadata';
 import { StagedLayerAssets, syncRasterLayerAssets } from './LoadLayerAssets';
-import { hideDatasetForLoad, statusAfterFailedLoad, statusAfterLoad } from '../LoadStatus';
+import { statusAfterLoad } from '../LoadStatus';
+import { hasRasterFileToLoad } from '../../data-layer/DatasetJobs';
 import { jobRequestData } from '../jobRequestData';
 import { progressReporter } from '../../services/PgBoss';
 import { getSubject } from '../../utils/auth';
@@ -79,13 +79,14 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     const mappingService = new DatasetFileMappingService();
     const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
 
-    // Only the files waiting for a load — see getPendingFiles.
-    const files = await getPendingFiles(entityManager, datasetFileMappings);
-
-    // A run that only removes files leaves the Dataset on show: reads already hide a deleted file's layers.
-    if (files.length > 0) {
-      await hideDatasetForLoad(entityManager, dataset);
+    // A PUBLISHED Dataset only takes a load that removes layers, so it ingests nothing: the pending
+    // files left are ones a load skips, which mustn't fail the removal. One with a file to ingest is
+    // refused when the job is created (JobService.assertLoadable); this catches one queued before that check.
+    if (previousStatus === IngestionStatus.PUBLISHED && (await hasRasterFileToLoad(entityManager, dataset.id))) {
+      throw new JobError('RL_DATASET_PUBLISHED', { dataset_name: dataset.name });
     }
+    // Only the files waiting for a load — see getPendingFiles.
+    const files = previousStatus === IngestionStatus.PUBLISHED ? [] : await getPendingFiles(entityManager, datasetFileMappings);
     await reportProgress(0, 'Removing the layers of removed files...');
     await removeUnmappedLayers(entityManager, dataset.id);
 
@@ -181,9 +182,9 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     // returns, updateJobState's `state = 'active'` guard makes it a no-op.
     await reportProgress(100, 'Raster load complete');
   } catch (error: any) {
-    // A file this run started writing to may be half-normalized or half-ingested, and the dataset
-    // is about to be shown again — so its layers are removed rather than published in that state,
-    // and the retry ingests the file from scratch. Files the run never reached stay PENDING.
+    // A file this run started writing to may be half-normalized or half-ingested, so its layers are
+    // removed rather than kept in that state, and the retry ingests the file from scratch. Files the
+    // run never reached stay PENDING. The Dataset keeps its status.
     const touched = [...touchedFileIds];
     if (touched.length > 0) {
       await entityManager.query(`DELETE FROM raster_layers WHERE file_id = ANY($1::uuid[]) AND dataset_id = $2`, [touched, dataset.id]);
@@ -193,17 +194,13 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
       ]);
       // The layers just removed were counted in the dataset's rollup, which has to follow them.
       // Best-effort: the rollup may be what failed, and its error must not mask the original one.
-      await updateRasterDatasetMetadata(entityManager, dataset.id, statusAfterFailedLoad(previousStatus), null).catch(rollupError =>
+      await updateRasterDatasetMetadata(entityManager, dataset.id, previousStatus, null).catch(rollupError =>
         log.warn('Failed to roll up dataset metadata after a failed raster load', {
           dataset_id: dataset.id,
           error: rollupError?.message,
         }),
       );
     }
-    // Targeted for the same reason as the file status above: updateRasterDatasetMetadata may
-    // already have rewritten this row, and saving the entity loaded at the top of the job would
-    // restore its stale metadata along with the status.
-    await entityManager.getRepository(DatasetEntity).update({ id: dataset.id }, { status: statusAfterFailedLoad(previousStatus) });
     throw error;
   }
 }
