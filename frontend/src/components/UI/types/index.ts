@@ -8,6 +8,8 @@ export type ComponentSizeType = 'medium' | 'small' | 'tiny';
 export interface MenuOption {
   code: string;
   name: string;
+  // Shown after the name, dimmed, e.g. what the option is best for.
+  description?: string;
   isDisabled?: boolean;
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
   // The heading the option is listed under. The Menu lists options without a group first, then each
