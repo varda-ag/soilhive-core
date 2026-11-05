@@ -219,6 +219,7 @@ export const addFeatures = async (type: GISDataType, coordinatesArray) => {
         return { geom: { type: geom_type as any, coordinates } };
       }),
     )
+    .orUpdate(['geom'], ['geom_hash'])
     .returning('*')
     .execute();
   return result.raw;

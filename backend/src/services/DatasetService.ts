@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
+import FileEntity from '../entities/File';
 import { datasetCapabilities, datasetExistsFor, getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
@@ -94,11 +95,16 @@ export default class DatasetService {
       ? { ...existingSteps, description: data.preprocessing_steps }
       : (dataset.processing_steps ?? null);
 
+    const now = new Date();
+    // Publishing puts the Dataset's data live. That includes a re-publish: an unpublished Dataset can be
+    // loaded into, so its data may have changed while it was down.
+    const isPublish = data.status === IngestionStatus.PUBLISHED && dataset.status !== IngestionStatus.PUBLISHED;
     repo.merge(dataset, {
       ...data,
       processing_steps: nextProcessingSteps,
       updated_by: subject,
-      updated_at: new Date(),
+      updated_at: now,
+      ...(isPublish ? { data_updated_at: now } : {}),
     });
 
     const saved = await repo.save(dataset);
@@ -212,6 +218,24 @@ export default class DatasetService {
   private toProcessingSteps = (value: string | null): ProcessingSteps | null => {
     return value ? { description: value } : null;
   };
+
+  /**
+   * Refuses with 409 previewing a File that isn't STAGED. Only a STAGED File has the raw table the
+   * preview reads: file-to-db creates it, and a bulk load drops it once the File is LOADED. Without
+   * this, the preview fails on the missing table with Postgres's "relation … does not exist".
+   *
+   * Checked by the preview routes only: the bulk load reads a File's stats while it is still STAGED.
+   */
+  async assertFileStaged(requestData: RequestData, datasetFileMappingId: string): Promise<void> {
+    const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
+    const file = datasetFileMapping.file_id
+      ? await requestData.entityManager.getRepository(FileEntity).findOneBy({ id: datasetFileMapping.file_id })
+      : null;
+    if (file && file.status !== IngestionStatus.STAGED) {
+      const reason = file.status === IngestionStatus.LOADED ? 'it is already loaded' : "it hasn't been processed yet";
+      throw new ErrorResponse(`File '${file.slug}' has no staged data to preview: ${reason}`, StatusCodes.CONFLICT);
+    }
+  }
 
   async getSoilData(requestData: RequestData, datasetFileMappingId: string, limit: number, cursor?: string, sort?: string) {
     const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);

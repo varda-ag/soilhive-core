@@ -88,7 +88,7 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     // Only the files waiting for a load — see getPendingFiles.
     const files = previousStatus === IngestionStatus.PUBLISHED ? [] : await getPendingFiles(entityManager, datasetFileMappings);
     await reportProgress(0, 'Removing the layers of removed files...');
-    await removeUnmappedLayers(entityManager, dataset.id);
+    const removedLayers = await removeUnmappedLayers(entityManager, dataset.id);
 
     // Resolve every band mapping and validate it against the file before writing anything, so the
     // progress denominator spans the whole job and a bad mapping aborts before a partial load.
@@ -171,6 +171,10 @@ export async function processRasterLoad(job: Job<RasterLoadJob>): Promise<void> 
     await recordWideFileBboxes(entityManager, dataset.id, new Set(ingestPlans.map(plan => plan.file.id)));
     const updatedBy = data.created_by ? getSubject(requestData) : null;
     await updateRasterDatasetMetadata(entityManager, dataset.id, statusAfterLoad(previousStatus), updatedBy);
+    // Removing layers from a PUBLISHED Dataset changes the data its readers get
+    if (previousStatus === IngestionStatus.PUBLISHED && removedLayers > 0) {
+      await entityManager.query(`UPDATE datasets SET data_updated_at = now() WHERE id = $1`, [dataset.id]);
+    }
 
     // Last, once nothing can fail the load any more: a failed run is retried from the source, so
     // deleting it any earlier could leave the retry with nothing to normalize.
@@ -228,10 +232,10 @@ const getPendingFiles = async (entityManager: EntityManager, mappings: DatasetFi
  * how a loaded raster File is removed; the endpoints only drop the mapping and soft-delete the File,
  * since deleting the layers and rolling the Dataset up can outlast a request. Footprint links, assets
  * and group memberships go by cascade, and the orphan-footprint trigger removes footprints no other
- * layer uses. The rollup after the load accounts for them.
+ * layer uses. The rollup after the load accounts for them. Returns how many layers it deleted.
  */
-const removeUnmappedLayers = async (entityManager: EntityManager, datasetId: string): Promise<void> => {
-  await entityManager.query(
+const removeUnmappedLayers = async (entityManager: EntityManager, datasetId: string): Promise<number> => {
+  const [, deleted]: [unknown, number] = await entityManager.query(
     `DELETE FROM raster_layers rl
      WHERE rl.dataset_id = $1
        AND (
@@ -240,6 +244,7 @@ const removeUnmappedLayers = async (entityManager: EntityManager, datasetId: str
        )`,
     [datasetId],
   );
+  return deleted;
 };
 
 /**

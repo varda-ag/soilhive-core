@@ -2146,6 +2146,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The file isn't staged, so it has no raw records to count (it's loaded, or not processed yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data/stats:
     parameters:
@@ -2180,6 +2186,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The file isn't staged, so it has no raw records to summarise (it's loaded, or not processed yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /datasets/{datasetId}/dataset-file-mapping/{datasetFileMappingId}/soil-data:
     parameters:
@@ -2294,6 +2306,12 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: The file isn't staged, so it has no raw records to preview (it's loaded, or not processed yet)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /files:
     post:

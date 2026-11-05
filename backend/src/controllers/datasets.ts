@@ -96,6 +96,7 @@ export const getEpsgCodes = async (req: Request, res: Response) => {
 };
 
 export const getSoilData = async (req: Request, res: Response) => {
+  await datasetService.assertFileStaged(req.customData, req.params['datasetFileMappingId']! as string);
   const data = await datasetService.getSoilData(
     req.customData,
     req.params['datasetFileMappingId']! as string,
@@ -107,11 +108,13 @@ export const getSoilData = async (req: Request, res: Response) => {
 };
 
 export const getSoilDataCount = async (req: Request, res: Response) => {
+  await datasetService.assertFileStaged(req.customData, req.params['datasetFileMappingId']! as string);
   const count = await datasetService.getSoilDataCount(req.customData, req.params['datasetFileMappingId']! as string);
   res.json({ count });
 };
 
 export const getSoilDataStats = async (req: Request, res: Response) => {
+  await datasetService.assertFileStaged(req.customData, req.params['datasetFileMappingId']! as string);
   const data = await datasetService.getSoilDataStats(req.customData, req.params['datasetFileMappingId']! as string);
   res.json(data);
 };

@@ -59,6 +59,21 @@ describe('Testing /datasets routes', () => {
       expect(res.body).toHaveProperty('related_resources');
     });
 
+    it('GET /datasets/:datasetId gives an anonymous caller the revision and data update date, but no version or job fields', async () => {
+      const s1 = await addSyntheticData({ ...syntheticDataOptions, id: 1, soilPropertyNames: ['ph'] });
+      const dataSource = await getDataSource();
+      await dataSource.query(`UPDATE datasets SET version_number = 3, data_updated_at = now() WHERE id = $1`, [s1.dataset.id]);
+
+      const res = await request(app).get(`/datasets/${s1.dataset.slug}`);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body).toHaveProperty('version_number', 3);
+      expect(res.body.data_updated_at).toEqual(expect.any(String));
+      expect(res.body).not.toHaveProperty('pending_version');
+      expect(res.body).not.toHaveProperty('queued_job');
+      expect(res.body).not.toHaveProperty('active_job');
+    });
+
     it('GET /datasets responds with 404 if dataset does not exist', async () => {
       const res = await request(app).get(`/datasets/wrong`);
       expect(res.statusCode).toBe(StatusCodes.NOT_FOUND);
@@ -280,6 +295,25 @@ describe('Testing /datasets routes', () => {
 
       expect(res.statusCode).toBe(StatusCodes.OK);
       expect(res.body.status).toBe('PUBLISHED');
+    });
+
+    it('sets data_updated_at when a dataset is published, and not on a metadata edit', async () => {
+      const token = await getDataAdminToken();
+      const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'dataset-data-updated' });
+      expect(postRes.body.data_updated_at).toBeNull();
+
+      const published = await request(app)
+        .patch(`/datasets/${postRes.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ status: 'PUBLISHED' });
+      expect(published.body.data_updated_at).toEqual(expect.any(String));
+
+      const edited = await request(app)
+        .patch(`/datasets/${postRes.body.id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ author: 'Edited Author' });
+      expect(edited.body.data_updated_at).toBe(published.body.data_updated_at);
+      expect(edited.body.updated_at).not.toBe(published.body.updated_at);
     });
 
     it('should update preprocessing_steps and related_resources via PATCH (200)', async () => {
@@ -735,6 +769,31 @@ describe('Testing /datasets routes', () => {
       expect(res.body).toHaveProperty('row_deletions');
       // Internally deleted rows: 14 + user_deleted rows 2
       expect(res.body.summary.rows_deleted).toBe(16);
+    });
+  });
+
+  describe('previewing a file that is not STAGED', () => {
+    // Only a STAGED file has a raw table: a LOADED one's was dropped by its bulk load, a PENDING one's
+    // isn't created yet. All three preview routes read it.
+    it.each([
+      ['LOADED', 'already loaded'],
+      ['PENDING', "hasn't been processed yet"],
+    ])('is refused with 409 for a %s file on every preview route', async (status, reason) => {
+      const token = await getDataAdminToken();
+      const { dataset, datasetFileMapping, file } = await addSyntheticIngestionData({
+        ...syntheticIngestionDataOptions,
+        id: 2,
+        createTable: true,
+      });
+      const dataSource = await getDataSource();
+      await dataSource.query(`UPDATE files SET status = $2 WHERE id = $1`, [file.id, status]);
+
+      const base = `/datasets/${dataset.slug}/dataset-file-mapping/${datasetFileMapping.id}/soil-data`;
+      for (const path of [`${base}?limit=10`, `${base}/count`, `${base}/stats`]) {
+        const res = await request(app).get(path).set('Authorization', `Bearer ${token}`);
+        expect(res.statusCode).toBe(StatusCodes.CONFLICT);
+        expect(res.body.detail).toContain(reason);
+      }
     });
   });
 });

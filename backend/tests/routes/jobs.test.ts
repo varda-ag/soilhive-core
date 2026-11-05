@@ -651,6 +651,8 @@ describe('Testing /jobs routes', () => {
 
         expect(res.statusCode).toBe(409);
         expect(res.body.detail).toContain('published');
+        // Says to unpublish until the UI can open a version (dataset-version-plan.md, phase 6)
+        expect(res.body.detail).toContain('unpublish it first');
       });
 
       /** Maps a PENDING File into the Dataset with the given data mapping. */

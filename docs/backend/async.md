@@ -461,11 +461,8 @@ POST /jobs
 
 1. Mark the dataset record as deleted via the dataset service.
 2. Open a database transaction with a 5-minute statement timeout.
-3. Loop until all associated records are removed (1 000 rows per iteration):
-   - Find a chunk of `dataset_layers` rows linked to the dataset.
-   - Delete those `dataset_layers` rows and capture the affected `feature_id` and `layer_id` sets.
-   - Delete orphaned `features`: rows whose `feature_id` is in the set and that no other `dataset_layers` row still references.
-   - Delete orphaned `layers`: rows whose `layer_id` is in the set and that no other `dataset_layers` row still references.
+3. Delete the dataset's `dataset_layers` in chunks of 1 000 (`DatasetRows.deleteDatasetLayers`, shared with version reset and discard), their observations by cascade. A raster dataset's `raster_layers` go instead (`deleteRasterLayers`).
 4. Commit the transaction.
+5. For a vector dataset, queue `sweep-orphan-rows`, which deletes the `features` and `layers` no `dataset_layers` row references any more.
 
-Chunked deletion avoids locking large tables for extended periods. Orphan checks ensure that features and layers shared across multiple datasets are only removed once the last referencing dataset is deleted.
+Chunked deletion keeps each statement under the statement timeout. The orphan sweep, rather than the purge, removes features and layers: it only removes those no remaining dataset references, so shared ones stay, and a load referencing one at the same moment fails a sweep batch (retried by the next run) rather than the whole purge.

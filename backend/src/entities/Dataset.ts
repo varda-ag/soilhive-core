@@ -1,6 +1,6 @@
-import { Entity, Column, PrimaryColumn, Unique, Index, ForeignKey } from 'typeorm';
+import { Entity, Column, PrimaryColumn, Unique, Index, ForeignKey, Check } from 'typeorm';
 import type { Polygon } from 'typeorm';
-import { Dataset, MeasuredProperty, ProcessingSteps } from '../interfaces/Dataset';
+import { Dataset, MeasuredProperty, PendingVersion, ProcessingSteps } from '../interfaces/Dataset';
 import BaseTable from './BaseTable';
 import SlugHistoryEntity from './SlugHistory';
 import { GISDataType, IngestionStatus } from '../types/data';
@@ -14,6 +14,8 @@ import type { Envelope } from '../utils/GdalCLI';
 @ForeignKey(() => SlugHistoryEntity, ['id', 'slug'], ['entity_id', 'slug'], {
   deferrable: 'INITIALLY DEFERRED',
 })
+@ForeignKey(() => DatasetEntity, ['version_of'], ['id'])
+@Check('CHK_datasets_version_not_published', `"version_of" IS NULL OR "status" <> 'PUBLISHED'`)
 export default class DatasetEntity extends BaseTable implements Dataset {
   @PrimaryColumn('uuid', {
     default: () => 'uuidv7()',
@@ -110,6 +112,22 @@ export default class DatasetEntity extends BaseTable implements Dataset {
 
   @Column({ type: 'text', nullable: true, array: true })
   related_resources?: string[] | null;
+
+  // The PUBLISHED Dataset this one is a Version of, or null (docs/backend/dataset-version-plan.md)
+  @Column({ type: 'uuid', nullable: true })
+  @Index('IDX_datasets_version_of_open', { unique: true, where: '"version_of" IS NOT NULL AND "deleted_at" IS NULL' })
+  version_of?: string | null;
+
+  @Column({ type: 'int', default: 1 })
+  version_number: number;
+
+  // When the published data last changed: a publish, a Version published into this Dataset, or a
+  // Raster Load that removed layers from it. Metadata edits move only updated_at, whose type it shares.
+  @Column({ type: 'timestamp', nullable: true })
+  data_updated_at?: Date | null;
+
+  // Not a column, populated at runtime for a Privileged caller: the open Version of this Dataset
+  pending_version?: PendingVersion | null;
 
   // Not a column, populated at runtime based on entitlements
   capabilities?: Capability[];

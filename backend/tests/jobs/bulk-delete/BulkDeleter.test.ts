@@ -1,4 +1,4 @@
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
 import { Job } from 'pg-boss';
@@ -8,6 +8,10 @@ import { BulkDeleteJob } from '../../../src/interfaces/Job';
 import { Token } from '../../../src/interfaces/Token';
 import DatasetService from '../../../src/services/DatasetService';
 import * as BulkDeleterModule from '../../../src/jobs/bulk-delete/BulkDeleter';
+import * as DatasetRowsModule from '../../../src/data-layer/DatasetRows';
+import * as PgBossModule from '../../../src/services/PgBoss';
+import { processSweepOrphanRows } from '../../../src/jobs/orphan-cleanup/SweepOrphanRowsJob';
+import { JobQueues } from '../../../src/types/enums';
 import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource, getEntityManager } from '../../../src/utils/data-source';
 import { addRasterData, addSyntheticData, getLoadedDataCount, syntheticDataOptions } from '../../../src/utils/mock';
@@ -38,6 +42,16 @@ const getJob = (dataset_id: string): Job<BulkDeleteJob> => {
     heartbeatSeconds: 10,
   };
 };
+
+// A vector purge queues an orphan sweep; pg-boss isn't started in this suite
+let sendSpy: jest.Mock;
+beforeEach(() => {
+  sendSpy = jest.fn(async () => 'sweep-job-id');
+  jest.spyOn(PgBossModule, 'getPgBoss').mockReturnValue({ send: sendSpy } as never);
+});
+afterEach(() => {
+  jest.restoreAllMocks();
+});
 
 describe('BulkDeleter class', () => {
   it('Bulk deleting all synthetic data', async () => {
@@ -79,6 +93,15 @@ describe('BulkDeleter class', () => {
 
     await promise;
 
+    // The purge removes the Dataset Layers and their observations, and leaves the features and
+    // layers to the orphan sweep it queues
+    const purged = await getLoadedDataCount();
+    expect(purged.n_dataset_layers).toBe(0);
+    expect(purged.n_observations).toBe(0);
+    expect(purged.n_features).toBeGreaterThan(0);
+    expect(sendSpy).toHaveBeenCalledWith(JobQueues.SWEEP_ORPHAN_ROWS, {});
+
+    await processSweepOrphanRows();
     const createdData = await getLoadedDataCount();
     expect(createdData.n_features).toBe(0);
     expect(createdData.n_layers).toBe(0);
@@ -99,6 +122,7 @@ describe('BulkDeleter class', () => {
     const dataToKeep = await getLoadedDataCount(datasetToKeep.id);
 
     await BulkDeleterModule.processBulkDeletion(getJob(datasetToDelete.slug));
+    await processSweepOrphanRows();
 
     const dataPostDeletion = await getLoadedDataCount();
     expect(dataPostDeletion.n_features).toBe(dataToKeep.n_features);
@@ -194,6 +218,8 @@ describe('BulkDeleter class - raster datasets', () => {
     const repo = dataSource.getRepository(DatasetEntity);
     const archived = await repo.findOne({ where: { id: rasterLayer.dataset_id }, withDeleted: true });
     expect(archived?.status).toBe(IngestionStatus.ARCHIVED);
+    // A raster purge leaves no features or layers behind, so it queues no orphan sweep
+    expect(sendSpy).not.toHaveBeenCalled();
   });
 
   it('does not delete raster layers belonging to a different dataset', async () => {
@@ -245,7 +271,7 @@ describe('BulkDeleter class - raster datasets', () => {
     expect(ownFootprints.length).toBeGreaterThan(0);
 
     // Small enough that every layer takes several batches
-    const chunked = BulkDeleterModule as unknown as { FOOTPRINT_CHUNK_SIZE: number };
+    const chunked = DatasetRowsModule as unknown as { FOOTPRINT_CHUNK_SIZE: number };
     const chunkSize = chunked.FOOTPRINT_CHUNK_SIZE;
     chunked.FOOTPRINT_CHUNK_SIZE = 3;
     try {
@@ -351,6 +377,8 @@ describe('BulkDeleter class - errors', () => {
     expect(reloaded).not.toBeNull();
     expect(reloaded?.status).toBe(IngestionStatus.PUBLISHED);
     expect(reloaded?.deleted_at).toBeNull();
+    // Nothing was deleted, so there's nothing to sweep
+    expect(sendSpy).not.toHaveBeenCalled();
   });
 
   // This is the guard on ADR 0027. Stripping a jsonb key cannot be undone by anything but a
