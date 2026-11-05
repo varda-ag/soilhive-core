@@ -1,8 +1,8 @@
 import type {
   PluginClassDistribution,
+  PluginClassDistributionSubmission,
   PluginCorrelation,
   PluginCorrelationSubmission,
-  PluginClassDistributionSubmission,
   PluginDataRequest,
   PluginDataRequestData,
   PluginDescriptiveSubmission,
