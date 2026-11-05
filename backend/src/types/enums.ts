@@ -66,6 +66,12 @@ export enum ValueType {
   COUNT = 'count',
 }
 
+/** How a correlation reduces several values of one location in one row to one. */
+export enum CorrelationMeasure {
+  MEAN = 'mean',
+  MEDIAN = 'median',
+}
+
 /** How Classes are generated from `class_count`. */
 export enum ClassMethod {
   EQUAL_INTERVAL = 'equal-interval',
