@@ -336,7 +336,7 @@ showNotification({ type: 'success', title: t('saved'), message: t('savedDetail')
 
 ### Requesting statistics (Data Requests)
 
-A Data Request computes descriptive statistics, a class distribution, or a value range for one soil property or soil index, over a filter's aggregation areas. Three hooks cover its lifecycle:
+A Data Request computes descriptive statistics, a class distribution, or a value range for one soil property or soil index, or a correlation between two soil properties, over a filter's aggregation areas. Three hooks cover its lifecycle:
 
 - `context.useDataRequestSubmit(pluginId, configId)` submits one. The request is **attached** to your config item `configId`, which must already be saved (see `usePluginConfig`). The caller needs write on that item.
 - `context.useDataRequest(id)` reads one and polls it until it is `completed` or `failed`. Pass `undefined` to skip fetching.
@@ -382,6 +382,29 @@ const useReplaceRequest = (context: PluginContext, dashboardId: string) => {
 `error.kind` is `lost` (404: deleted, or never existed), `forbidden` (no read on the config item), or `unavailable` (server or network error, retried automatically). Only `unavailable` keeps the last `data`. A `failed` status is not an error: it is the request's outcome, and `message` says why. A 4xx on submit, for example an unsaved config item, rejects `mutateAsync`.
 
 A result is never recomputed, so `created_at` tells how old the figures are. `request.units` gives each `unit_id` in the results its label and area.
+
+#### Correlation
+
+A `correlation` request compares two soil properties, `variable_x` and `variable_y`, location by location. It is the data for a scatter plot. Soil indexes are not supported. The backend accepts it from step 2 of SP-5920; until then, use the standalone mock.
+
+```ts
+const submission: PluginDataRequestSubmission = {
+  statistics_type: 'correlation',
+  filter_id: filterId,
+  variable_x: { type: 'soil-property', id: 'clay' },
+  variable_y: { type: 'soil-property', id: 'ph' },
+  measure: 'mean',
+  depth_ranges: 'standard', // required, and 'standard' only
+  time_aggregation: 5,
+};
+```
+
+- **One point is one location of one dataset.** An x value and a y value pair when they have the same dataset, location, standard depth range and period. A location that has only one of the two properties gives no point. Layers without depth are left out.
+- **`measure`** (`mean` or `median`) reduces several values of one property at one location, depth range and period to one value.
+- **Statistics are per dataset.** Each `overall` row is one dataset × period × depth range, with the units combined. Each `results` row is one dataset × period × depth range × unit. Datasets are never pooled. A location in two overlapping units shows in both units' rows, and counts once in `overall`.
+- **A statistic can be absent.** `n_points` is always there. `pearson_r`, `spearman_rho`, `r_squared`, `slope` and `intercept` are absent when `n_points` is below `min_points`, or when they cannot be computed: for example, 500 points that all have `clay = 20` have no variance in x, so they have no `pearson_r` and no `slope`. Show "not enough data", not "r = undefined".
+- **Points are two columns.** `x[i]` and `y[i]` are one location. A row has at most `max_points` points. When it has more, `points_truncated` is `true` and `x`/`y` are a fixed-seed sample; the statistics still use all `n_points`.
+- **A missing `results` row means no points.** `depth_start` is never `null`; `depth_end` is `null` for deeper than 200 cm.
 
 ### Computing a soil index (Soil Index Runs)
 
