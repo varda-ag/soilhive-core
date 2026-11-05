@@ -288,6 +288,12 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'This correlation would send {points} points in {rows} rows. This server sends at most {max_points} points and {max_rows} rows.',
     actions: ['Use fewer areas or fewer datasets.', 'Alternatively, pool the years with time_aggregation none.'],
   },
+  // DR_CORRELATION_TOO_LARGE for a request that already pools the years with time_aggregation none
+  DR_CORRELATION_TOO_LARGE_POOLED: {
+    message:
+      'This correlation would send {points} points in {rows} rows. This server sends at most {max_points} points and {max_rows} rows.',
+    actions: ['Use fewer areas or fewer datasets.'],
+  },
   DR_CLASS_DISTRIBUTION_TOO_LARGE: {
     message: 'This class distribution would have {rows} rows ({entries} class values), more than the {max_entries} this server returns.',
     actions: [

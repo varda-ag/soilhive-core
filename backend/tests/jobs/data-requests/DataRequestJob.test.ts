@@ -931,15 +931,16 @@ describe('processDataRequest', () => {
       await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_INVALID_PARAMETERS' });
     });
 
-    it('computes and records a correlation when that is the named type', async () => {
-      const dataset = await addDataset('type-correlation', DATASET_BBOX, GISDataType.POINT);
-      const category = await addCategory('type-correlation-cat');
-      const clay = await addSoilProperty('type-correlation-clay', category.id, '%');
-      const soc = await addSoilProperty('type-correlation-soc', category.id, 'g/kg');
-      const procedure = await addProcedure('type-correlation-proc');
+    // Ten locations in UNIT_A, each with clay = i and soc = 3i at 0-30 cm in 2020.
+    const seedCorrelation = async (prefix: string) => {
+      const dataset = await addDataset(prefix, DATASET_BBOX, GISDataType.POINT);
+      const category = await addCategory(`${prefix}-cat`);
+      const clay = await addSoilProperty(`${prefix}-clay`, category.id, '%');
+      const soc = await addSoilProperty(`${prefix}-soc`, category.id, 'g/kg');
+      const procedure = await addProcedure(`${prefix}-proc`);
       for (let i = 1; i <= 10; i += 1) {
         const [feature] = await addFeatures(GISDataType.POINT, [nextCoordinates()]);
-        const layer = await addLayer(undefined, '2020-06-01', 0, 30, `type-correlation-${i}`);
+        const layer = await addLayer(undefined, '2020-06-01', 0, 30, `${prefix}-${i}`);
         for (const [property, value] of [
           [clay, i],
           [soc, 3 * i],
@@ -948,6 +949,11 @@ describe('processDataRequest', () => {
           await addObservations([value], procedure.id, datasetLayer.id);
         }
       }
+      return { dataset, clay, soc };
+    };
+
+    it('computes and records a correlation when that is the named type', async () => {
+      const { dataset, clay, soc } = await seedCorrelation('type-correlation');
       const filterId = await createFilter([UNIT_A]);
 
       const { jobId, job } = await createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
@@ -978,6 +984,36 @@ describe('processDataRequest', () => {
       });
       expect(record.data.results[0].x).toHaveLength(10);
       expect(record.data.results[0].y).toHaveLength(10);
+    });
+
+    it('fails an over-budget correlation that already pools the years without suggesting to pool them', async () => {
+      const { dataset, clay, soc } = await seedCorrelation('budget-correlation');
+      const filterId = await createFilter([UNIT_A]);
+      const { jobId, job } = await createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
+        statistics_type: StatisticsType.CORRELATION,
+        filter_id: filterId,
+        dataset_ids: [dataset.slug],
+        variable_x: { type: VariableType.SOIL_PROPERTY, id: clay.slug },
+        variable_y: { type: VariableType.SOIL_PROPERTY, id: soc.slug },
+        measure: CorrelationMeasure.MEAN,
+        depth_ranges: DepthRanges.STANDARD,
+        time_aggregation: 'none',
+      });
+      const previous = process.env['DATA_REQUESTS_MAX_CORRELATION_POINTS'];
+      process.env['DATA_REQUESTS_MAX_CORRELATION_POINTS'] = '5';
+      try {
+        await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_CORRELATION_TOO_LARGE_POOLED' });
+      } finally {
+        if (previous === undefined) delete process.env['DATA_REQUESTS_MAX_CORRELATION_POINTS'];
+        else process.env['DATA_REQUESTS_MAX_CORRELATION_POINTS'] = previous;
+      }
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('failed');
+      expect(record.message).toContain('at most 5 points');
+      expect(record.message).toContain('Use fewer areas or fewer datasets.');
+      expect(record.message).not.toContain('time_aggregation none');
     });
 
     it('fails a correlation whose soil property was deleted after submission', async () => {

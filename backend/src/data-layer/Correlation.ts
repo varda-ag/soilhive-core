@@ -154,7 +154,8 @@ export const computeCorrelation = async (entityManager: EntityManager, options: 
     const points = Number(sized?.point_count ?? 0);
     if (rows > maxRows || points > maxTotalPoints) {
       log.warn('Correlation over budget', { rows, max_rows: maxRows, points, max_points: maxTotalPoints });
-      throw new JobError('DR_CORRELATION_TOO_LARGE', { rows, max_rows: maxRows, points, max_points: maxTotalPoints });
+      const code = timeAggregation === 'none' ? 'DR_CORRELATION_TOO_LARGE_POOLED' : 'DR_CORRELATION_TOO_LARGE';
+      throw new JobError(code, { rows, max_rows: maxRows, points, max_points: maxTotalPoints });
     }
     await progress(`Sized the correlation: ${rows} row(s), ${points} point(s)`, 55);
     await checkCancelled();

@@ -370,9 +370,9 @@ describe('computeCorrelation — budget', () => {
     const unitB = await bboxUnit([1, 1, 3, 3]);
     const base = { unitIds: [unitA, unitB], datasetSlugs: [dataset.slug], x: x.slug, y: y.slug };
 
-    // Two points in unit A, one in unit B.
+    // Two points in unit A, one in unit B. The default time_aggregation none already pools the years.
     await expect(run({ ...base, maxTotalPoints: 2 })).rejects.toMatchObject({
-      code: 'DR_CORRELATION_TOO_LARGE',
+      code: 'DR_CORRELATION_TOO_LARGE_POOLED',
       params: { points: 3, max_points: 2 },
     });
     expect((await run({ ...base, maxTotalPoints: 3 })).results).toHaveLength(2);
