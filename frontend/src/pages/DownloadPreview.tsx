@@ -21,6 +21,9 @@ import { useTranslation } from 'react-i18next';
 import { useDownloadPreview } from 'hooks/useDownloadPreview';
 
 import useDevice from 'hooks/useDevice';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
+import { useGoBack } from 'hooks/useGoBack';
+import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
@@ -29,6 +32,10 @@ function DownloadPreview() {
   const navigate = useNavigate();
   const { t } = useTranslation(['download', 'common']);
   const { isMobileDevice } = useDevice();
+  const isSignInRequired = useIsSignInRequiredToDownload();
+  const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false);
+  // The map keeps its selection, restored after a sign-in too
+  const goBack = useGoBack('/');
 
   const [searchParams] = useSearchParams();
   const selectionType = searchParams.get('selectionType') ?? undefined;
@@ -155,6 +162,10 @@ function DownloadPreview() {
   const [selectedTab, setSelectedTab] = useState<'summary' | 'availability'>('summary');
 
   const navigateToDownload = () => {
+    if (isSignInRequired) {
+      setIsSignInDialogOpen(true);
+      return;
+    }
     const params = new URLSearchParams();
     params.append('source', 'explore');
     params.append('selectionType', `${selectionType}`);
@@ -178,14 +189,7 @@ function DownloadPreview() {
           <Button type="tertiary" isIconOnly={true} className={styles.BookmarkButton}>
             <BookmarkIcon />
           </Button>
-          <Button
-            dataTestId="download-preview-back-button"
-            className={styles.BackButton}
-            type="secondary"
-            onClick={() => {
-              navigate(-1);
-            }}
-          >
+          <Button dataTestId="download-preview-back-button" className={styles.BackButton} type="secondary" onClick={goBack}>
             <ArrowLeftIcon />
             {t('download_preview.back')}
           </Button>
@@ -260,6 +264,7 @@ function DownloadPreview() {
           {t('download_preview.tab_table')}
         </Button>
       </div>
+      <DownloadSignInDialog visible={isSignInDialogOpen} onClose={() => setIsSignInDialogOpen(false)} />
     </div>
   );
 }

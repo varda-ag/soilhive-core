@@ -1,4 +1,4 @@
-import React, { createContext, useState, type ReactNode, useCallback, useMemo } from 'react';
+import React, { createContext, useState, type ReactNode, useCallback, useEffect, useMemo, useRef } from 'react';
 
 import type { AvailabilityDataset, DatasetFrontendFilters, DatasetSummary, TimeFilterState } from 'types/availability';
 import { mapFilteredDatasetSummaryToAvailabilityDataset, mapFilteredDatasetToAvailabilityDataset } from '../adapters';
@@ -24,6 +24,20 @@ import { useFilteredCoverageQuery } from 'hooks/useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { SPLIT_FILTERING_QUERIES } from 'utilities/environmentVariables';
+import { useRestoredPageState } from '../auth/signinPageState';
+
+// The filters and the Datasets ticked on the map, carried through an OIDC sign-in so the visitor comes
+// back to them (docs/adr/0075)
+export const AVAILABILITY_SIGNIN_STATE_KEY = 'availability';
+export type AvailabilitySigninState = {
+  selectedDatasets: string[];
+  isAllSelected: boolean;
+  searchValue: string;
+  datasetFrontendFilters: DatasetFrontendFilters;
+  datasetFilters: FilterCriteria;
+  selectedSoilProperties: string[];
+  selectedTimeFilter: TimeFilterState;
+};
 
 type AvailabilityContextType = {
   allSoilProperties: SoilProperty[];
@@ -76,15 +90,19 @@ type AvailabilityProviderProps = {
 
 export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ children }) => {
   const { geometryFilter } = useAvailabilityMap();
-  const [selectedDatasets, setSelectedDatasets] = useState<string[]>([]);
-  const [searchValue, setSearchValue] = useState<string>('');
-  const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>({
-    type: [],
-    visibility: [],
-  });
-  const [isAllSelected, setIsAllSelected] = useState<boolean>(false);
+  const restored = useRestoredPageState<AvailabilitySigninState>(AVAILABILITY_SIGNIN_STATE_KEY);
+  // Not the Datasets a "Select all" ticked for the signed-out visitor: it ticks again below, after the sign-in
+  const [selectedDatasets, setSelectedDatasets] = useState<string[]>(restored?.isAllSelected ? [] : (restored?.selectedDatasets ?? []));
+  const [searchValue, setSearchValue] = useState<string>(restored?.searchValue ?? '');
+  const [datasetFrontendFilters, setDatasetFrontendFilters] = useState<DatasetFrontendFilters>(
+    restored?.datasetFrontendFilters ?? {
+      type: [],
+      visibility: [],
+    },
+  );
+  const [isAllSelected, setIsAllSelected] = useState<boolean>(restored?.isAllSelected ?? false);
 
-  const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>({});
+  const [datasetFilters, setDatasetFilters] = useState<FilterCriteria>(restored?.datasetFilters ?? {});
   const { data: categories, isLoading: isLoadingCategories } = usePropertiesCategories();
   const { data: allSoilProperties, isLoading: isLoadingSoilProperties } = useSoilProperties();
   const { allCategories: allRasterCategories, isLoading: isLoadingRasterCategories } = useRaster();
@@ -109,10 +127,10 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   );
   const { data: fullFilterDatasets, isLoading: isFullDatasetsLoading } = useFilteredDatasetsQuery(coverageFilterId);
 
-  const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>([]);
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>({});
+  const [selectedSoilProperties, setSelectedSoilProperties] = useState<string[]>(restored?.selectedSoilProperties ?? []);
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState<TimeFilterState>(restored?.selectedTimeFilter ?? {});
 
-  const { can } = useEntitlements(EntitlementScope.DATASETS);
+  const { can, isLoading: isLoadingEntitlements } = useEntitlements(EntitlementScope.DATASETS);
   const isAvailableDataset = useCallback(
     (dataset: { id: string; visibility: string }) =>
       dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id),
@@ -179,6 +197,16 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   const isDatasetsLoading = useMemo(() => {
     return isLoadingCoverageFilter || (SPLIT_FILTERING_QUERIES ? isFullDatasetsLoading : isFullCoverageLoading);
   }, [isLoadingCoverageFilter, isFullDatasetsLoading, isFullCoverageLoading]);
+
+  // A "Select all" ticked before a sign-in ticks again once the Datasets and the signed-in user's
+  // entitlements have loaded, so it takes in the Datasets the sign-in unlocked (docs/adr/0075). Once,
+  // like a click on it, and not if the visitor changed the selection meanwhile.
+  const isRestoredSelectAllPending = useRef(restored?.isAllSelected === true);
+  useEffect(() => {
+    if (!isRestoredSelectAllPending.current || !scopedDatasets || isDatasetsLoading || isLoadingEntitlements) return;
+    isRestoredSelectAllPending.current = false;
+    if (isAllSelected) selectAllDatasets(true);
+  }, [scopedDatasets, isDatasetsLoading, isLoadingEntitlements, isAllSelected, selectAllDatasets]);
 
   const isCoverageLoading = useMemo(() => {
     return isLoadingCoverageFilter || isFullCoverageLoading || isPartialCoverageLoading;

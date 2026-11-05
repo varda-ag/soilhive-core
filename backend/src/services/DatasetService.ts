@@ -18,7 +18,7 @@ import { refreshDaiStats } from '../data-layer/DaiStats';
 import JobService from './JobService';
 import { RefreshDaiStatsJob } from '../interfaces/Job';
 import { ProcessingSteps } from '../interfaces/Dataset';
-import { assertNoUnfinishedJob, getActiveLoads, getQueuedJobs } from '../data-layer/DatasetJobs';
+import { assertNoUnfinishedJob, getUnfinishedJobs } from '../data-layer/DatasetJobs';
 import { getRasterFileBboxes } from '../data-layer/DatasetBbox';
 import { GdalCLI, type Envelope } from '../utils/GdalCLI';
 import * as turf from '@turf/turf';
@@ -177,8 +177,7 @@ export default class DatasetService {
       return;
     }
     const slugs = datasets.map(d => d.slug);
-    const queued = await getQueuedJobs(requestData.entityManager, slugs);
-    const active = await getActiveLoads(requestData.entityManager, slugs);
+    const { queued, active } = await getUnfinishedJobs(requestData.entityManager, slugs);
     for (const dataset of datasets) {
       dataset.queued_job = queued.get(dataset.slug) ?? null;
       dataset.active_job = active.get(dataset.slug) ?? null;

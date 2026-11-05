@@ -288,7 +288,7 @@ describe('ThemeProvider / useTheme', () => {
 
   it('saveExportLimits calls saveConfig with the export limits and shows notification', async () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
-    const exportLimits = { maxAreaM2: 1e9, maxObservations: null, maxRasterLayers: 10, exemptAdmins: true };
+    const exportLimits = { maxAreaM2: 1e9, maxObservations: null, maxRasterLayers: 10, exemptAdmins: true, exportRequiresSignIn: true };
 
     await act(async () => {
       await result.current.saveExportLimits(exportLimits);

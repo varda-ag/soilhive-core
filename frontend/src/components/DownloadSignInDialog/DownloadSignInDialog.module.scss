@@ -1,0 +1,27 @@
+// The legacy platform's "Please log in to download." popup: a photo, the message, Cancel and Log in
+.DownloadSignInDialog {
+  width: 31.25rem;
+  min-width: auto;
+  min-height: auto;
+}
+
+.Content {
+  padding: 0;
+}
+
+.Hero {
+  height: 200px;
+  flex-shrink: 0;
+  background-image: url('../../assets/images/login-request-modal-image.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.Message {
+  margin: 0;
+  padding: 1.5rem;
+  font-size: var(--font-size-2lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
