@@ -75,6 +75,7 @@ export interface GdalInfoOutput {
   // In the raster's own CRS; pixel coordinates when it has no geoTransform
   cornerCoordinates?: Partial<Record<'upperLeft' | 'upperRight' | 'lowerRight' | 'lowerLeft', [number, number]>>;
   wgs84Extent?: { type: string; coordinates: number[][][] };
+  rat?: GdalRasterAttributeTable;
 }
 
 /** An EPSG:4326 extent. west > east when it crosses the antimeridian. */

@@ -535,6 +535,35 @@ describe('VectorDataLoad class', () => {
     const observations = await entityManager.find(ObservationEntity);
     expect(observations.length).toBeGreaterThan(0);
   });
+  it('rawRecordToDataModel with metadataOnly should create dataset_layers but no observations', async () => {
+    const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    const vdl = new VectorDataLoad();
+    const entityManager = await getEntityManager();
+    const requestData: RequestData = {
+      entityManager,
+      token: {
+        sub: 'mock-sub',
+        scope: 'mock-scope',
+        raw: 'raw-auth-token',
+        email: 'mock-email',
+        isDataAdmin: true,
+        isSuperAdmin: false,
+        isInternalRequest: false,
+      },
+      entitlements: {},
+    };
+    const service = new DataMappingService();
+    const dataMappingConfig = await service.parseDataMapping(requestData, dataMapping.id);
+    const preview = (await vdl.getDataPreview(entityManager, dataMappingConfig, file.id, 1, false))[0] as SoilRecord;
+    // Geometry and metadata only, no property values
+    const record = { geometry: preview.geometry, min_depth: preview.min_depth, max_depth: preview.max_depth } as SoilRecord;
+    const observationsBefore = await entityManager.count(ObservationEntity);
+    await vdl.rawRecordToDataModel(entityManager, dataMappingConfig, record, dataset.id, true);
+    const datasetLayers = await entityManager.find(DatasetLayerEntity, { where: { dataset_id: dataset.id } });
+    const mappedPropertyIds = new Set(Object.values(dataMappingConfig.property_cols).map(c => c.property_id));
+    expect(datasetLayers.length).toBe(mappedPropertyIds.size);
+    expect(await entityManager.count(ObservationEntity)).toBe(observationsBefore);
+  });
   it('rawRecordToDataModel with missing metadata columns should insert null for these fields but keep 0 value metadata', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({
       ...syntheticIngestionDataOptions,
