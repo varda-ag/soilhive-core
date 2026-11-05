@@ -5,6 +5,11 @@ import type { PluginQueryResult } from './common';
 // A soil property id (e.g. 'ph'), or the id of a completed Soil Index Run.
 export type PluginDataRequestVariable = { type: 'soil-property'; id: string } | { type: 'soil-index'; id: string };
 
+// Only soil properties: soil indexes are not supported for correlation.
+export type PluginCorrelationVariable = Extract<PluginDataRequestVariable, { type: 'soil-property' }>;
+
+export type PluginCorrelationMeasure = 'mean' | 'median';
+
 export type PluginTimeAggregation = number | 'none'; // integer 1–10
 export type PluginDepthRanges = 'none' | 'standard';
 
@@ -17,7 +22,6 @@ export interface PluginClassDefinition {
 
 interface PluginDataRequestSubmissionBase {
   filter_id: string;
-  variable: PluginDataRequestVariable;
   time_aggregation: PluginTimeAggregation; // required
   dataset_ids?: string[]; // rejected for a soil-index variable
   file_id?: string;
@@ -26,11 +30,13 @@ interface PluginDataRequestSubmissionBase {
 
 export interface PluginDescriptiveSubmission extends PluginDataRequestSubmissionBase {
   statistics_type: 'descriptive';
+  variable: PluginDataRequestVariable;
   depth_ranges?: PluginDepthRanges; // rejected for a soil-index variable
 }
 
 export type PluginClassDistributionSubmission = PluginDataRequestSubmissionBase & {
   statistics_type: 'class-distribution';
+  variable: PluginDataRequestVariable;
   value_type: 'percentage' | 'count';
   depth_ranges?: PluginDepthRanges;
 } & (
@@ -40,9 +46,22 @@ export type PluginClassDistributionSubmission = PluginDataRequestSubmissionBase 
 
 export interface PluginValueRangeSubmission extends PluginDataRequestSubmissionBase {
   statistics_type: 'value-range';
+  variable: PluginDataRequestVariable;
 }
 
-export type PluginDataRequestSubmission = PluginDescriptiveSubmission | PluginClassDistributionSubmission | PluginValueRangeSubmission;
+export interface PluginCorrelationSubmission extends PluginDataRequestSubmissionBase {
+  statistics_type: 'correlation';
+  variable_x: PluginCorrelationVariable;
+  variable_y: PluginCorrelationVariable; // must differ from variable_x
+  measure: PluginCorrelationMeasure; // reduces several values of one location in one row
+  depth_ranges: 'standard'; // required
+}
+
+export type PluginDataRequestSubmission =
+  | PluginDescriptiveSubmission
+  | PluginClassDistributionSubmission
+  | PluginValueRangeSubmission
+  | PluginCorrelationSubmission;
 
 // ---- Results (the `data` field of GET /data-requests/{id}) ----
 
@@ -133,6 +152,47 @@ export interface PluginValueRange extends PluginDataRequestVariableHeader, Plugi
   datasets?: (PluginValueRangeFigures & PluginYearKeys & { dataset_id: string })[]; // absent for a soil index
 }
 
+export interface PluginCorrelationAxis {
+  soil_property: string;
+  standard_unit: string | null;
+}
+
+// Year keys are absent when time_aggregation is none; null means no sampling year.
+export interface PluginCorrelationRowKeys extends PluginYearKeys {
+  dataset_id: string;
+  depth_start: number;
+  depth_end: number | null; // null: deeper than 200 cm
+}
+
+// n_points is always present. Each statistic is absent when n_points < min_points, or when it cannot be computed (no variance).
+export interface PluginCorrelationStatistics {
+  n_points: number;
+  pearson_r?: number;
+  spearman_rho?: number;
+  r_squared?: number; // pearson_r squared
+  slope?: number; // least-squares fit of y on x
+  intercept?: number;
+}
+
+export interface PluginCorrelationOverallRow extends PluginCorrelationRowKeys, PluginCorrelationStatistics {}
+
+export interface PluginCorrelationResultRow extends PluginCorrelationRowKeys, PluginCorrelationStatistics {
+  unit_id: string;
+  points_truncated: boolean; // true: x/y are a fixed-seed sample of max_points; statistics still use all n_points
+  x: number[]; // x[i] and y[i] are one location
+  y: number[];
+}
+
+// statistics_type 'correlation'
+export interface PluginCorrelation {
+  x: PluginCorrelationAxis;
+  y: PluginCorrelationAxis;
+  min_points: number;
+  max_points: number;
+  overall: PluginCorrelationOverallRow[]; // per dataset × period × depth, units combined
+  results: PluginCorrelationResultRow[]; // per dataset × period × depth × unit; a missing row means no points
+}
+
 // The data type follows statistics_type.
 export type PluginDataRequestData<S extends PluginDataRequestSubmission> = S extends { statistics_type: 'descriptive' }
   ? PluginSoilStatistics
@@ -140,7 +200,9 @@ export type PluginDataRequestData<S extends PluginDataRequestSubmission> = S ext
     ? PluginClassDistribution
     : S extends { statistics_type: 'value-range' }
       ? PluginValueRange
-      : never;
+      : S extends { statistics_type: 'correlation' }
+        ? PluginCorrelation
+        : never;
 
 // ---- The Data Request (GET /data-requests/{id}) ----
 
@@ -180,7 +242,8 @@ export interface PluginDataRequestOf<S extends PluginDataRequestSubmission> {
 export type PluginDataRequest =
   | PluginDataRequestOf<PluginDescriptiveSubmission>
   | PluginDataRequestOf<PluginClassDistributionSubmission>
-  | PluginDataRequestOf<PluginValueRangeSubmission>;
+  | PluginDataRequestOf<PluginValueRangeSubmission>
+  | PluginDataRequestOf<PluginCorrelationSubmission>;
 
 // ---- Hook result ----
 
