@@ -95,14 +95,16 @@ const depthRangesProblem = ({ depth_ranges }: DataRequestJobParameters): string 
   return null;
 };
 
+/** Checked on the ids here, and on the resolved Soil Properties where the database is at hand. */
+export const SAME_CORRELATION_VARIABLES = 'Parameters variable_x and variable_y must name different soil properties';
+
 const correlationProblem = (data: DataRequestJobParameters): string | null => {
   const axisIssue = correlationAxisProblem('variable_x', data.variable_x) ?? correlationAxisProblem('variable_y', data.variable_y);
   if (axisIssue) {
     return axisIssue;
   }
-  // Ids are compared again after slug resolution, which needs the database.
   if (data.variable_x!.id === data.variable_y!.id) {
-    return 'Parameters variable_x and variable_y must name different soil properties';
+    return SAME_CORRELATION_VARIABLES;
   }
 
   const measures = Object.values(CorrelationMeasure).join(', ');

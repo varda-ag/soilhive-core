@@ -21,7 +21,7 @@ import FilterService from './FilterService';
 import FileService from './FileService';
 import SoilPropertyService from './SoilPropertyService';
 import { DataFilter } from '../interfaces/DatasetFilter';
-import { misplacedParameter, notASoilIndexRun, parametersProblem } from '../jobs/data-requests/parameters';
+import { misplacedParameter, notASoilIndexRun, parametersProblem, SAME_CORRELATION_VARIABLES } from '../jobs/data-requests/parameters';
 import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
@@ -248,7 +248,7 @@ export default class JobService {
       const y = await this.validateSoilPropertyVariable(requestData, 'variable_y', data.variable_y.id, data.filter_id, filter);
       // An old slug and the current one name the same Soil Property.
       if (x === y) {
-        throw new ErrorResponse('Parameters variable_x and variable_y must name different soil properties', StatusCodes.BAD_REQUEST);
+        throw new ErrorResponse(SAME_CORRELATION_VARIABLES, StatusCodes.BAD_REQUEST);
       }
     }
 

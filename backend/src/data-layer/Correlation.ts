@@ -52,8 +52,6 @@ interface RawStatistics {
   spearman_rho: number | null;
   slope: number | null;
   intercept: number | null;
-  var_x: number | null;
-  var_y: number | null;
 }
 
 interface RawResultRow extends RawStatistics {
@@ -62,37 +60,34 @@ interface RawResultRow extends RawStatistics {
   y: number[];
 }
 
-const REDUCERS: Record<CorrelationMeasure, string> = {
-  [CorrelationMeasure.MEAN]: 'AVG(value)',
-  [CorrelationMeasure.MEDIAN]: 'percentile_cont(0.5) WITHIN GROUP (ORDER BY value)',
+/** One value per location and bucket for the Soil Property `slug` (a SQL placeholder). */
+const REDUCERS: Record<CorrelationMeasure, (slug: string) => string> = {
+  [CorrelationMeasure.MEAN]: slug => `AVG(value) FILTER (WHERE soil_property_slug = ${slug})`,
+  [CorrelationMeasure.MEDIAN]: slug => `percentile_cont(0.5) WITHIN GROUP (ORDER BY value) FILTER (WHERE soil_property_slug = ${slug})`,
 };
 
-/**
- * Pearson, Spearman (Pearson of average ranks, so ties share a rank) and the least-squares fit of
- * y on x, per group of `keys` over `source`.
- */
-const statisticsSql = (source: string, keys: string[], extraColumns = '', extraSelect = ''): string => {
-  const groupBy = keys.join(', ');
-  return `
-    ranked AS (
-      SELECT s.*,
-        RANK() OVER (PARTITION BY ${groupBy} ORDER BY x) + (COUNT(*) OVER (PARTITION BY ${groupBy}, x) - 1) / 2.0 AS rank_x,
-        RANK() OVER (PARTITION BY ${groupBy} ORDER BY y) + (COUNT(*) OVER (PARTITION BY ${groupBy}, y) - 1) / 2.0 AS rank_y
-        ${extraColumns}
-      FROM ${source} s
-    )
-    SELECT ${groupBy},
-      COUNT(*)::int AS n_points,
-      corr(y, x) AS pearson_r,
-      corr(rank_y::float8, rank_x::float8) AS spearman_rho,
-      regr_slope(y, x) AS slope,
-      regr_intercept(y, x) AS intercept,
-      var_samp(x) AS var_x,
-      var_samp(y) AS var_y
-      ${extraSelect}
-    FROM ranked
-    GROUP BY ${groupBy}`;
-};
+const OVERALL_KEYS = 'dataset_slug, year_start, depth_start';
+const RESULT_KEYS = `unit_id, ${OVERALL_KEYS}`;
+
+/** Average ranks, so ties share a rank: Spearman is the Pearson of these. */
+const rankedSql = (source: string, keys: string): string => `
+  SELECT s.*,
+    RANK() OVER (PARTITION BY ${keys} ORDER BY x) + (COUNT(*) OVER (PARTITION BY ${keys}, x) - 1) / 2.0 AS rank_x,
+    RANK() OVER (PARTITION BY ${keys} ORDER BY y) + (COUNT(*) OVER (PARTITION BY ${keys}, y) - 1) / 2.0 AS rank_y
+  FROM ${source} s`;
+
+/** Pearson, Spearman and the least-squares fit of y on x; `corr` is null when x or y does not vary. */
+const STATISTICS = `
+  COUNT(*)::int AS n_points,
+  corr(y, x) AS pearson_r,
+  corr(rank_y::float8, rank_x::float8) AS spearman_rho,
+  regr_slope(y, x) AS slope,
+  regr_intercept(y, x) AS intercept`;
+
+/** Aggregated in one order, so x[i] and y[i] stay one location. */
+const POINTS = `
+  array_agg(x ORDER BY sample_rank) FILTER (WHERE sample_rank <= ${CORRELATION_MAX_POINTS}) AS x,
+  array_agg(y ORDER BY sample_rank) FILTER (WHERE sample_rank <= ${CORRELATION_MAX_POINTS}) AS y`;
 
 /** The `correlation` product: per-unit rows with sampled points, plus pre-fan-out `overall` rows. */
 export const computeCorrelation = async (entityManager: EntityManager, options: CorrelationOptions): Promise<CorrelationResult> => {
@@ -117,52 +112,44 @@ export const computeCorrelation = async (entityManager: EntityManager, options: 
       assertNotCancelled: checkCancelled,
     });
 
-    // ── reduce: one value per location, bucket and Soil Property ────────────────────
-    await em.query(`
-      CREATE TEMP TABLE sst_reduced ON COMMIT DROP AS
-      SELECT dataset_slug, feature_id, year_start, depth_start, soil_property_slug, ${REDUCERS[measure]} AS value
-      FROM (
-        SELECT o.*, ${yearStartSql(timeAggregation)} AS year_start, ${depthStartSql(DepthRanges.STANDARD)} AS depth_start
-        FROM sst_obs o
-      ) bucketed
-      WHERE depth_start IS NOT NULL
-      GROUP BY dataset_slug, feature_id, year_start, depth_start, soil_property_slug`);
-    await em.query('CREATE INDEX ON sst_reduced (soil_property_slug, dataset_slug, feature_id, depth_start)');
-    await em.query('ANALYZE sst_reduced');
-
-    // ── pair: x and y of one location in one bucket, never across Datasets ─────────
-    // COALESCE, not IS NOT DISTINCT FROM, which cannot hash-join.
+    // ── reduce and pair: x and y of one location in one bucket, never across Datasets ─
     await em.query(
       `CREATE TEMP TABLE sst_pairs ON COMMIT DROP AS
-       SELECT rx.dataset_slug, rx.feature_id, rx.year_start, rx.depth_start, rx.value AS x, ry.value AS y
-       FROM sst_reduced rx
-       JOIN sst_reduced ry
-         ON ry.dataset_slug = rx.dataset_slug
-        AND ry.feature_id = rx.feature_id
-        AND ry.depth_start = rx.depth_start
-        AND COALESCE(ry.year_start, -1) = COALESCE(rx.year_start, -1)
-       WHERE rx.soil_property_slug = $1 AND ry.soil_property_slug = $2`,
+       SELECT * FROM (
+         SELECT ${OVERALL_KEYS}, feature_id, ${REDUCERS[measure]('$1')} AS x, ${REDUCERS[measure]('$2')} AS y
+         FROM (
+           SELECT o.*, ${yearStartSql(timeAggregation)} AS year_start, ${depthStartSql(DepthRanges.STANDARD)} AS depth_start
+           FROM sst_obs o
+         ) bucketed
+         WHERE depth_start IS NOT NULL
+         GROUP BY ${OVERALL_KEYS}, feature_id
+       ) reduced
+       WHERE x IS NOT NULL AND y IS NOT NULL`,
       [x, y],
     );
-    await em.query('CREATE INDEX ON sst_pairs (feature_id)');
     await em.query('ANALYZE sst_pairs');
+
+    // Fan-out to units, with a fixed-seed sample order: the hash of the location and the row.
+    await em.query(`
+      CREATE TEMP TABLE sst_fanned ON COMMIT DROP AS
+      SELECT uf.unit_id, p.*,
+        ROW_NUMBER() OVER (
+          PARTITION BY uf.unit_id, p.dataset_slug, p.year_start, p.depth_start
+          ORDER BY md5(p.feature_id::text || ':' || uf.unit_id::text || ':' || p.dataset_slug || ':' || COALESCE(p.year_start::text, '') || ':' || p.depth_start::text)
+        ) AS sample_rank
+      FROM sst_pairs p
+      JOIN sst_unit_features uf ON uf.feature_id = p.feature_id`);
+    await em.query('ANALYZE sst_fanned');
     await progress('Paired the values', 50);
     await checkCancelled();
 
-    // `overall` reads pre-fan-out, so overlapping units don't count a location twice.
-    const fannedOut = `
-      fanned_out AS (SELECT uf.unit_id, p.* FROM sst_pairs p JOIN sst_unit_features uf ON uf.feature_id = p.feature_id)`;
-
     // ── size ─────────────────────────────────────────────────────────────────────────
-    const [sized]: { row_count: string; point_count: string }[] = await em.query(
-      `WITH ${fannedOut},
-       unit_groups AS (SELECT COUNT(*) AS n FROM fanned_out GROUP BY unit_id, dataset_slug, year_start, depth_start)
-       SELECT
-         (SELECT COUNT(*) FROM unit_groups)
-         + (SELECT COUNT(*) FROM (SELECT 1 FROM sst_pairs GROUP BY dataset_slug, year_start, depth_start) o) AS row_count,
-         (SELECT COALESCE(SUM(LEAST(n, $1)), 0) FROM unit_groups) AS point_count`,
-      [CORRELATION_MAX_POINTS],
-    );
+    // `overall` reads pre-fan-out, so overlapping units don't count a location twice.
+    const [sized]: { row_count: string; point_count: string }[] = await em.query(`
+      SELECT
+        (SELECT COUNT(*) FILTER (WHERE sample_rank = 1) FROM sst_fanned)
+        + (SELECT COUNT(*) FROM (SELECT 1 FROM sst_pairs GROUP BY ${OVERALL_KEYS}) o) AS row_count,
+        (SELECT COUNT(*) FILTER (WHERE sample_rank <= ${CORRELATION_MAX_POINTS}) FROM sst_fanned) AS point_count`);
     const rows = Number(sized?.row_count ?? 0);
     const points = Number(sized?.point_count ?? 0);
     if (rows > maxRows || points > maxTotalPoints) {
@@ -174,22 +161,19 @@ export const computeCorrelation = async (entityManager: EntityManager, options: 
 
     // ── statistics ───────────────────────────────────────────────────────────────────
     const overallRows: RawStatistics[] = await em.query(`
-      WITH ${statisticsSql('sst_pairs', ['dataset_slug', 'year_start', 'depth_start'])}
+      WITH ranked AS (${rankedSql('sst_pairs', OVERALL_KEYS)})
+      SELECT ${OVERALL_KEYS}, ${STATISTICS}
+      FROM ranked
+      GROUP BY ${OVERALL_KEYS}
       ORDER BY dataset_slug, year_start NULLS LAST, depth_start`);
     await progress('Computed overall correlations', 70);
     await checkCancelled();
 
-    // Fixed-seed sample: the hash of the location and the row orders the points.
-    const resultKeys = ['unit_id', 'dataset_slug', 'year_start', 'depth_start'];
-    const sampleOrder = `ROW_NUMBER() OVER (
-          PARTITION BY ${resultKeys.join(', ')}
-          ORDER BY md5(feature_id::text || ':' || unit_id::text || ':' || dataset_slug || ':' || COALESCE(year_start::text, '') || ':' || depth_start::text)
-        ) AS sample_rank`;
-    const sampled = `
-      array_agg(x ORDER BY sample_rank) FILTER (WHERE sample_rank <= ${CORRELATION_MAX_POINTS}) AS x,
-      array_agg(y ORDER BY sample_rank) FILTER (WHERE sample_rank <= ${CORRELATION_MAX_POINTS}) AS y`;
     const unitRows: RawResultRow[] = await em.query(`
-      WITH ${fannedOut}, ${statisticsSql('fanned_out', resultKeys, `, ${sampleOrder}`, `, ${sampled}`)}
+      WITH ranked AS (${rankedSql('sst_fanned', RESULT_KEYS)})
+      SELECT ${RESULT_KEYS}, ${STATISTICS}, ${POINTS}
+      FROM ranked
+      GROUP BY ${RESULT_KEYS}
       ORDER BY dataset_slug, unit_id, year_start NULLS LAST, depth_start`);
     await progress('Computed per-area correlations', 90);
 
@@ -215,16 +199,14 @@ const rowKeys = (raw: RawStatistics, timeAggregation: TimeAggregation): Correlat
 
 /** Only `n_points` below the minimum or when x or y does not vary. */
 const statisticsOf = (raw: RawStatistics): CorrelationStatistics => {
-  const varies = (variance: number | null) => variance !== null && variance > 0;
-  if (raw.n_points < CORRELATION_MIN_POINTS || !varies(raw.var_x) || !varies(raw.var_y)) {
+  if (raw.n_points < CORRELATION_MIN_POINTS || raw.pearson_r === null) {
     return { n_points: raw.n_points };
   }
-  const pearsonR = raw.pearson_r!;
   return {
     n_points: raw.n_points,
-    pearson_r: round3(pearsonR),
+    pearson_r: round3(raw.pearson_r),
     spearman_rho: round3(raw.spearman_rho!),
-    r_squared: round3(pearsonR * pearsonR),
+    r_squared: round3(raw.pearson_r * raw.pearson_r),
     slope: round3(raw.slope!),
     intercept: round3(raw.intercept!),
   };

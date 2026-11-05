@@ -1,7 +1,6 @@
 import { DataRequestJob } from '../../interfaces/Job';
 import { updateJobState } from '../../services/PgBoss';
 import { JobQueues } from '../../types/enums';
-import SoilPropertyEntity from '../../entities/SoilProperty';
 import { computeCorrelation } from '../../data-layer/Correlation';
 import {
   getDataRequestsMaxCells,
@@ -12,14 +11,9 @@ import {
 import { JobError } from '../../errors/JobError';
 import { log } from '../../utils/logger';
 import { RunContext } from '../runs/runContext';
-import { parametersProblem } from './parameters';
-import { effectiveFilterOf, resolveSoilProperty, selectPermittedDatasets } from './selectDatasets';
-import { CORRELATION_MAX_POINTS, CORRELATION_MIN_POINTS, CorrelationOutput, SoilPropertyVariableHeader } from './types';
-
-const headerOf = (soilProperty: SoilPropertyEntity): SoilPropertyVariableHeader => ({
-  soil_property: soilProperty.slug,
-  standard_unit: soilProperty.standard_unit ?? null,
-});
+import { parametersProblem, SAME_CORRELATION_VARIABLES } from './parameters';
+import { effectiveFilterOf, resolveSoilProperty, selectPermittedDatasets, soilPropertyHeader } from './selectDatasets';
+import { CORRELATION_MAX_POINTS, CORRELATION_MIN_POINTS, CorrelationOutput } from './types';
 
 /** The `correlation` Statistics Type: how two Soil Properties vary together at the same locations. */
 export async function runCorrelation(ctx: RunContext, data: DataRequestJob): Promise<CorrelationOutput> {
@@ -40,7 +34,7 @@ export async function runCorrelation(ctx: RunContext, data: DataRequestJob): Pro
   const x = await resolveSoilProperty(ctx.requestData, data.variable_x!.id);
   const y = await resolveSoilProperty(ctx.requestData, data.variable_y!.id);
   if (x.id === y.id) {
-    throw new JobError('DR_INVALID_PARAMETERS', { reason: 'Parameters variable_x and variable_y must name different soil properties' });
+    throw new JobError('DR_INVALID_PARAMETERS', { reason: SAME_CORRELATION_VARIABLES });
   }
   const datasetSlugs = await selectPermittedDatasets(ctx, data);
 
@@ -81,8 +75,8 @@ export async function runCorrelation(ctx: RunContext, data: DataRequestJob): Pro
 
   // processDataRequest writes the row (docs/adr/0037).
   return {
-    x: headerOf(x),
-    y: headerOf(y),
+    x: soilPropertyHeader(x),
+    y: soilPropertyHeader(y),
     min_points: CORRELATION_MIN_POINTS,
     max_points: CORRELATION_MAX_POINTS,
     overall,

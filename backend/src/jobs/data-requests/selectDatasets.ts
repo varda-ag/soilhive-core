@@ -54,6 +54,11 @@ export const resolveSoilProperty = async (requestData: RequestData, id: string):
   }
 };
 
+export const soilPropertyHeader = (soilProperty: SoilPropertyEntity): SoilPropertyVariableHeader => ({
+  soil_property: soilProperty.slug,
+  standard_unit: soilProperty.standard_unit ?? null,
+});
+
 export interface ResolvedVariable {
   staged: StagedVariable;
   header: SoilPropertyVariableHeader | SoilIndexVariableHeader;
@@ -83,7 +88,7 @@ export const resolveVariable = async (ctx: RunContext, data: DataRequestJob): Pr
   const soilProperty = await resolveSoilProperty(ctx.requestData, variable.id);
   return {
     staged: { soilPropertySlug: soilProperty.slug },
-    header: { soil_property: soilProperty.slug, standard_unit: soilProperty.standard_unit ?? null },
+    header: soilPropertyHeader(soilProperty),
     datasetSlugs: await selectPermittedDatasets(ctx, data),
     label: soilProperty.slug,
   };
