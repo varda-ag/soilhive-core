@@ -21,6 +21,9 @@ const VECTOR_DOCS_URL = `${DOCS_BASE_URL}/1a-vector-data-ingestion.md`;
 const RASTER_DOCS_URL = `${DOCS_BASE_URL}/1b-raster-data-ingestion.md`;
 const RASTER_FILTER_DOCS_URL = 'https://github.com/varda-ag/soilhive-core/blob/main/docs/map-based-filters.md';
 
+const CORRELATION_TOO_LARGE_MESSAGE =
+  'This correlation would send {points} points in {rows} rows. This server sends at most {max_points} points and {max_rows} rows.';
+
 export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   FTD_FILE_NOT_FOUND: {
     message: 'Your file was removed from storage before processing could start.',
@@ -284,14 +287,12 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     ],
   },
   DR_CORRELATION_TOO_LARGE: {
-    message:
-      'This correlation would send {points} points in {rows} rows. This server sends at most {max_points} points and {max_rows} rows.',
+    message: CORRELATION_TOO_LARGE_MESSAGE,
     actions: ['Use fewer areas or fewer datasets.', 'Alternatively, pool the years with time_aggregation none.'],
   },
   // DR_CORRELATION_TOO_LARGE for a request that already pools the years with time_aggregation none
   DR_CORRELATION_TOO_LARGE_POOLED: {
-    message:
-      'This correlation would send {points} points in {rows} rows. This server sends at most {max_points} points and {max_rows} rows.',
+    message: CORRELATION_TOO_LARGE_MESSAGE,
     actions: ['Use fewer areas or fewer datasets.'],
   },
   DR_CLASS_DISTRIBUTION_TOO_LARGE: {
