@@ -46,6 +46,7 @@ export enum StatisticsType {
   DESCRIPTIVE = 'descriptive',
   CLASS_DISTRIBUTION = 'class-distribution',
   VALUE_RANGE = 'value-range',
+  CORRELATION = 'correlation',
 }
 
 /** What a Class Distribution or Value Range is computed for. */

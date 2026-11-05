@@ -12,6 +12,7 @@ import { failureMessage } from '../runs/failureMessage';
 import { runDescriptiveStatistics } from './descriptiveStatistics';
 import { runClassDistribution } from './classDistribution';
 import { runValueRange } from './valueRange';
+import { runCorrelation } from './correlation';
 import { DataRequestOutput } from './types';
 
 /**
@@ -31,6 +32,7 @@ const PRODUCERS: Record<StatisticsType, RunProduct<DataRequestJob, DataRequestOu
   [StatisticsType.DESCRIPTIVE]: { appliesRasterMask: true, run: runDescriptiveStatistics },
   [StatisticsType.CLASS_DISTRIBUTION]: { appliesRasterMask: true, run: runClassDistribution },
   [StatisticsType.VALUE_RANGE]: { appliesRasterMask: true, run: runValueRange },
+  [StatisticsType.CORRELATION]: { appliesRasterMask: true, run: runCorrelation },
 };
 
 const recordOutcome = async (

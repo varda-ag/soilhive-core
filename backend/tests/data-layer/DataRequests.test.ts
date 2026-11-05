@@ -16,7 +16,7 @@ import FilterService from '../../src/services/FilterService';
 import { GISDataType } from '../../src/types/data';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { DataRequestJob } from '../../src/interfaces/Job';
-import { ClassMethod, DepthRanges, JobQueues, StatisticsType, ValueType, VariableType } from '../../src/types/enums';
+import { ClassMethod, CorrelationMeasure, DepthRanges, JobQueues, StatisticsType, ValueType, VariableType } from '../../src/types/enums';
 
 // The one mapping from job data to what a caller reads back, shared by the row the processor writes
 // and the response served while the job lives (docs/adr/0037).
@@ -110,6 +110,26 @@ describe('toDataRequestParameters', () => {
       time_aggregation: 3,
       depth_ranges: DepthRanges.STANDARD,
       value_type: ValueType.COUNT,
+    });
+  });
+});
+
+describe('toDataRequestParameters — correlation', () => {
+  it('keeps both axes and the measure, so a reader can name the axes', () => {
+    const result = toDataRequestParameters({
+      type: JobQueues.DATA_REQUESTS,
+      statistics_type: StatisticsType.CORRELATION,
+      filter_id: 'f',
+      variable_x: { type: VariableType.SOIL_PROPERTY, id: 'clay' },
+      variable_y: { type: VariableType.SOIL_PROPERTY, id: 'soc' },
+      measure: CorrelationMeasure.MEDIAN,
+      depth_ranges: DepthRanges.STANDARD,
+      time_aggregation: 3,
+    } as DataRequestJob);
+    expect(result).toMatchObject({
+      variable_x: { type: VariableType.SOIL_PROPERTY, id: 'clay' },
+      variable_y: { type: VariableType.SOIL_PROPERTY, id: 'soc' },
+      measure: CorrelationMeasure.MEDIAN,
     });
   });
 });

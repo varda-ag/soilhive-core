@@ -1,6 +1,6 @@
 import { validate as isUuid } from 'uuid';
-import { ClassDefinition, DataRequestJobParameters } from '../../interfaces/Job';
-import { ClassMethod, DepthRanges, StatisticsType, ValueType, VariableType } from '../../types/enums';
+import { ClassDefinition, ClassDistributionVariable, DataRequestJobParameters } from '../../interfaces/Job';
+import { ClassMethod, CorrelationMeasure, DepthRanges, StatisticsType, ValueType, VariableType } from '../../types/enums';
 import { MAX_CLASSES, MIN_CLASS_COUNT, UNCLASSIFIED } from './types';
 
 export const MAX_TIME_AGGREGATION = 10;
@@ -11,9 +11,12 @@ const PARAMETER_TYPES: Record<string, StatisticsType[]> = {
   classes: [StatisticsType.CLASS_DISTRIBUTION],
   class_count: [StatisticsType.CLASS_DISTRIBUTION],
   class_method: [StatisticsType.CLASS_DISTRIBUTION],
-  time_aggregation: [StatisticsType.DESCRIPTIVE, StatisticsType.CLASS_DISTRIBUTION, StatisticsType.VALUE_RANGE],
-  depth_ranges: [StatisticsType.DESCRIPTIVE, StatisticsType.CLASS_DISTRIBUTION],
+  time_aggregation: [StatisticsType.DESCRIPTIVE, StatisticsType.CLASS_DISTRIBUTION, StatisticsType.VALUE_RANGE, StatisticsType.CORRELATION],
+  depth_ranges: [StatisticsType.DESCRIPTIVE, StatisticsType.CLASS_DISTRIBUTION, StatisticsType.CORRELATION],
   value_type: [StatisticsType.CLASS_DISTRIBUTION],
+  variable_x: [StatisticsType.CORRELATION],
+  variable_y: [StatisticsType.CORRELATION],
+  measure: [StatisticsType.CORRELATION],
 };
 
 export const misplacedParameter = (data: DataRequestJobParameters, statisticsType: StatisticsType): string | undefined =>
@@ -30,6 +33,8 @@ export const parametersProblem = (data: DataRequestJobParameters): string | null
       return classDistributionProblem(data);
     case StatisticsType.VALUE_RANGE:
       return variableProblem(data) ?? timeAggregationProblem(data);
+    case StatisticsType.CORRELATION:
+      return correlationProblem(data);
     default:
       return null;
   }
@@ -86,6 +91,47 @@ const timeAggregationProblem = ({ time_aggregation, statistics_type }: DataReque
 const depthRangesProblem = ({ depth_ranges }: DataRequestJobParameters): string | null => {
   if (depth_ranges !== undefined && !Object.values(DepthRanges).includes(depth_ranges)) {
     return `Parameter depth_ranges '${depth_ranges}' is not supported: use one of ${Object.values(DepthRanges).join(', ')}`;
+  }
+  return null;
+};
+
+const correlationProblem = (data: DataRequestJobParameters): string | null => {
+  const axisIssue = correlationAxisProblem('variable_x', data.variable_x) ?? correlationAxisProblem('variable_y', data.variable_y);
+  if (axisIssue) {
+    return axisIssue;
+  }
+  // Ids are compared again after slug resolution, which needs the database.
+  if (data.variable_x!.id === data.variable_y!.id) {
+    return 'Parameters variable_x and variable_y must name different soil properties';
+  }
+
+  const measures = Object.values(CorrelationMeasure).join(', ');
+  if (data.measure === undefined) {
+    return `Parameter measure is required for statistics_type correlation: use one of ${measures}`;
+  }
+  if (!Object.values(CorrelationMeasure).includes(data.measure)) {
+    return `Parameter measure '${data.measure}' is not supported: use one of ${measures}`;
+  }
+
+  // Pairs are made per Standard Depth Range, so the ranges cannot be pooled.
+  if (data.depth_ranges !== DepthRanges.STANDARD) {
+    return `Parameter depth_ranges must be '${DepthRanges.STANDARD}' for statistics_type correlation`;
+  }
+  return timeAggregationProblem(data);
+};
+
+const correlationAxisProblem = (name: string, variable: ClassDistributionVariable | undefined): string | null => {
+  if (!variable) {
+    return `Parameter ${name} is required for statistics_type correlation`;
+  }
+  if (variable.type === VariableType.SOIL_INDEX) {
+    return `Parameter ${name}: soil indexes are not supported for correlation`;
+  }
+  if (variable.type !== VariableType.SOIL_PROPERTY) {
+    return `Parameter ${name}.type '${variable.type}' is not supported: use ${VariableType.SOIL_PROPERTY}`;
+  }
+  if (!variable.id) {
+    return `Parameter ${name}.id is required`;
   }
   return null;
 };

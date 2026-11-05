@@ -10,7 +10,9 @@ import { getPgBoss, initPgBoss, stopPgBoss } from '../../../src/services/PgBoss'
 import {
   Capability,
   ClassMethod,
+  CorrelationMeasure,
   DataRequestStatus,
+  DepthRanges,
   JobQueues,
   SoilIndexType,
   StatisticsType,
@@ -44,6 +46,7 @@ import {
   addFile,
   addLayer,
   addObservations,
+  addProcedure,
   addSoilProperty,
   addVocabulary,
   linkMapping,
@@ -926,6 +929,70 @@ describe('processDataRequest', () => {
       });
 
       await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_INVALID_PARAMETERS' });
+    });
+
+    it('computes and records a correlation when that is the named type', async () => {
+      const dataset = await addDataset('type-correlation', DATASET_BBOX, GISDataType.POINT);
+      const category = await addCategory('type-correlation-cat');
+      const clay = await addSoilProperty('type-correlation-clay', category.id, '%');
+      const soc = await addSoilProperty('type-correlation-soc', category.id, 'g/kg');
+      const procedure = await addProcedure('type-correlation-proc');
+      for (let i = 1; i <= 10; i += 1) {
+        const [feature] = await addFeatures(GISDataType.POINT, [nextCoordinates()]);
+        const layer = await addLayer(undefined, '2020-06-01', 0, 30, `type-correlation-${i}`);
+        for (const [property, value] of [
+          [clay, i],
+          [soc, 3 * i],
+        ] as const) {
+          const datasetLayer = await addDatasetLayer(dataset.id, layer.id, feature.id, property.id);
+          await addObservations([value], procedure.id, datasetLayer.id);
+        }
+      }
+      const filterId = await createFilter([UNIT_A]);
+
+      const { jobId, job } = await createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
+        statistics_type: StatisticsType.CORRELATION,
+        filter_id: filterId,
+        dataset_ids: [dataset.slug],
+        variable_x: { type: VariableType.SOIL_PROPERTY, id: clay.slug },
+        variable_y: { type: VariableType.SOIL_PROPERTY, id: soc.slug },
+        measure: CorrelationMeasure.MEAN,
+        depth_ranges: DepthRanges.STANDARD,
+        time_aggregation: 1,
+      });
+      await processDataRequest(job);
+
+      const entityManager = await getEntityManager();
+      const [record] = await entityManager.query(`SELECT * FROM data_requests WHERE id = $1`, [jobId]);
+      expect(record.status).toBe('completed');
+      expect(record.request).toMatchObject({ variable_x: { id: clay.slug }, variable_y: { id: soc.slug }, measure: 'mean' });
+      const keys = { dataset_id: dataset.slug, year_start: 2020, year_end: 2020, depth_start: 15, depth_end: 30 };
+      const figures = { n_points: 10, pearson_r: 1, spearman_rho: 1, r_squared: 1, slope: 3, intercept: 0 };
+      expect(record.data).toMatchObject({
+        x: { soil_property: clay.slug, standard_unit: '%' },
+        y: { soil_property: soc.slug, standard_unit: 'g/kg' },
+        min_points: 10,
+        max_points: 1000,
+        overall: [{ ...keys, ...figures }],
+        results: [{ ...keys, ...figures, unit_id: expect.any(String), points_truncated: false }],
+      });
+      expect(record.data.results[0].x).toHaveLength(10);
+      expect(record.data.results[0].y).toHaveLength(10);
+    });
+
+    it('fails a correlation whose soil property was deleted after submission', async () => {
+      const filterId = await createFilter([UNIT_A]);
+      const { job } = await createActiveRunJob<DataRequestJob>(JobQueues.DATA_REQUESTS, {
+        statistics_type: StatisticsType.CORRELATION,
+        filter_id: filterId,
+        variable_x: { type: VariableType.SOIL_PROPERTY, id: (await sharedProperty()).slug },
+        variable_y: { type: VariableType.SOIL_PROPERTY, id: 'no-such-property' },
+        measure: CorrelationMeasure.MEAN,
+        depth_ranges: DepthRanges.STANDARD,
+        time_aggregation: 1,
+      });
+
+      await expect(processDataRequest(job)).rejects.toMatchObject({ code: 'DR_UNKNOWN_SOIL_PROPERTY' });
     });
 
     it('fails rather than assuming descriptive when the type is absent', async () => {

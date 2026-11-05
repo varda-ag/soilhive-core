@@ -76,6 +76,7 @@ Soil index map tiles (ADR 0043). Budgets count vertices, so a point costs one an
 - `TILES_CONCURRENCY` (default `10`): tile queries running at once per node, so map panning cannot take every connection from the pool.
 
 `data-requests` only:
-- `DATA_REQUESTS_MAX_CELLS` (default `200000`): budget for a `descriptive` result, in `overall` + `results` rows. Above it the job fails before aggregating.
+- `DATA_REQUESTS_MAX_CELLS` (default `200000`): budget for a `descriptive` or `correlation` result, in `overall` + `results` rows. Above it the job fails before aggregating.
+- `DATA_REQUESTS_MAX_CORRELATION_POINTS` (default `500000`): budget for a `correlation` result, in points sent over all `results` rows (each row sends at most `max_points`). Above it the job fails before the statistics (docs/adr/0075).
 - `DATA_REQUESTS_MAX_CLASS_ENTRIES` (default `1000000`): budget for a `class-distribution` result, in rows × (classes + 1). Above it the job fails before aggregating; nothing is truncated.
 - `DATA_REQUESTS_STATEMENT_TIMEOUT_MS` (default `1800000`, 30 minutes): statement timeout for the aggregation queries.
