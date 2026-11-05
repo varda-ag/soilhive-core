@@ -6,10 +6,7 @@ import type { PluginQueryResult } from './common';
 export type PluginDataRequestVariable = { type: 'soil-property'; id: string } | { type: 'soil-index'; id: string };
 
 // Only soil properties: soil indexes are not supported for correlation.
-export interface PluginCorrelationVariable {
-  type: 'soil-property';
-  id: string;
-}
+export type PluginCorrelationVariable = Extract<PluginDataRequestVariable, { type: 'soil-property' }>;
 
 export type PluginCorrelationMeasure = 'mean' | 'median';
 
@@ -160,10 +157,9 @@ export interface PluginCorrelationAxis {
   standard_unit: string | null;
 }
 
-export interface PluginCorrelationRowKeys {
+// Year keys are absent when time_aggregation is none; null means no sampling year.
+export interface PluginCorrelationRowKeys extends PluginYearKeys {
   dataset_id: string;
-  year_start?: number | null; // absent when time_aggregation is none; null: no sampling year
-  year_end?: number | null;
   depth_start: number;
   depth_end: number | null; // null: deeper than 200 cm
 }
