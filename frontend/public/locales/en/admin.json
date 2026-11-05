@@ -610,6 +610,14 @@
             "label": "Exempt administrators",
             "description": "Data admins and super admins can export without limits."
         },
+        "access": {
+            "subtitle": "Download access",
+            "description": "Choose whether visitors must log in before they can download data."
+        },
+        "export_requires_sign_in": {
+            "label": "Require login to download",
+            "description": "Visitors who are not logged in are asked to log in when they click Download."
+        },
         "errors": {
             "positive_number": "Enter a number greater than zero",
             "positive_integer": "Enter a whole number greater than zero"

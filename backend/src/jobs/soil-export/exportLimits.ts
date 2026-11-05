@@ -14,9 +14,17 @@ export interface ExportLimits {
   maxObservations: number | null;
   maxRasterLayers: number | null;
   exemptAdmins: boolean;
+  // Not an Export Limit: refuses an Export from a caller with no token, at submission only (docs/adr/0075)
+  exportRequiresSignIn: boolean;
 }
 
-export const NO_EXPORT_LIMITS: ExportLimits = { maxAreaM2: null, maxObservations: null, maxRasterLayers: null, exemptAdmins: false };
+export const NO_EXPORT_LIMITS: ExportLimits = {
+  maxAreaM2: null,
+  maxObservations: null,
+  maxRasterLayers: null,
+  exemptAdmins: false,
+  exportRequiresSignIn: false,
+};
 
 const LIMIT_KEYS = ['maxAreaM2', 'maxObservations', 'maxRasterLayers'] as const;
 
@@ -28,7 +36,11 @@ export function parseExportLimits(raw: unknown): ExportLimits {
     return NO_EXPORT_LIMITS;
   }
   const value = raw as Record<string, unknown>;
-  const limits: ExportLimits = { ...NO_EXPORT_LIMITS, exemptAdmins: value['exemptAdmins'] === true };
+  const limits: ExportLimits = {
+    ...NO_EXPORT_LIMITS,
+    exemptAdmins: value['exemptAdmins'] === true,
+    exportRequiresSignIn: value['exportRequiresSignIn'] === true,
+  };
   for (const key of LIMIT_KEYS) {
     const limit = value[key];
     if (limit === undefined || limit === null) continue;
@@ -48,7 +60,8 @@ export async function getExportLimits(
   const row = await entityManager.getRepository(JsonStorage).findOneBy({ id: THEME_CONFIG_ID });
   const limits = parseExportLimits((row?.data as { exportLimits?: unknown } | undefined)?.exportLimits);
   const isAdmin = Boolean(submitter.isDataAdmin || submitter.isSuperAdmin);
-  return limits.exemptAdmins && isAdmin ? NO_EXPORT_LIMITS : limits;
+  // The exemption lifts the Export Limits only: exportRequiresSignIn is not one
+  return limits.exemptAdmins && isAdmin ? { ...NO_EXPORT_LIMITS, exportRequiresSignIn: limits.exportRequiresSignIn } : limits;
 }
 
 // The km² decimals an area limit needs to be shown exactly: at least 2, and at most 6, since the

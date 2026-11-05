@@ -9,6 +9,7 @@ import { clearToken, saveToken, getToken } from './tokenStore';
 import { refreshAccessToken, setTokenRefresher } from './tokenRefresher';
 import { getEmailFromAccessToken, isTokenExpired } from './tokenClaims';
 import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from './signinReturnTo';
+import { getPageState, setRestoredPageState } from './signinPageState';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 
@@ -45,7 +46,9 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
         revokeTokensOnSignout
         userStore={new WebStorageStateStore({ store: window.localStorage })}
         onSigninCallback={user => {
-          // Runs before the provider stops loading, so the router is created on this URL.
+          // Runs before the provider stops loading, so the router is created on this URL and the pages
+          // that put their state back find it when they mount.
+          setRestoredPageState(getPageState(user?.state));
           window.history.replaceState({}, document.title, getReturnTo(user?.state) ?? window.location.pathname);
         }}
       >
@@ -142,7 +145,8 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     // authenticated, like the other providers, or callers gating on `user` send token-less
     // requests to auth-only routes (e.g. GET /entitlements → 401 toast).
     user: reactOidcAuth.isAuthenticated ? reactOidcAuth.user : null,
-    login: () => reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath() } satisfies SigninState }),
+    login: pageState =>
+      reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath(), ...(pageState && { pageState }) } satisfies SigninState }),
     logout: () => {
       clearToken();
       reactOidcAuth.signoutRedirect();

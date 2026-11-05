@@ -21,6 +21,7 @@ import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/Dat
 import { getEntity } from '../utils/slugs';
 import { JobError } from '../errors/JobError';
 import { checkExportLimitsAtSubmission } from '../jobs/soil-export/submissionCheck';
+import { getExportLimits } from '../jobs/soil-export/exportLimits';
 import DatasetEntity from '../entities/Dataset';
 import { EntityType } from '../types/data';
 
@@ -95,6 +96,7 @@ export default class JobService {
     // Checking entitlements
     let exportDatasetSlugs: string[] = [];
     if (data.type === JobQueues.EXPORT) {
+      await this.checkExportSignIn(requestData);
       // Every named Dataset must exist now: the job reads vector rows under preview alone, so one
       // published after this check would never have download checked (docs/adr/0073)
       exportDatasetSlugs = await entitlementService.enforceDatasetEntitlements(
@@ -172,6 +174,18 @@ export default class JobService {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
     data.dataset_id = dataset.slug;
     await assertNoUnfinishedJob(requestData.entityManager, dataset);
+  };
+
+  /**
+   * Refuses an Export from a caller with no token while administrators require a signed-in user
+   * to export (docs/adr/0075). Judged before the Dataset checks: signing in may grant the download.
+   */
+  private checkExportSignIn = async (requestData: RequestData): Promise<void> => {
+    if (requestData.token?.sub) return;
+    const { exportRequiresSignIn } = await getExportLimits(requestData.entityManager, {});
+    if (exportRequiresSignIn) {
+      throw new ErrorResponse('Exports require a signed-in user', StatusCodes.UNAUTHORIZED);
+    }
   };
 
   /**

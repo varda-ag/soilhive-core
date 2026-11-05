@@ -8,6 +8,7 @@ jest.mock('react-router', () => ({
   __esModule: true,
   useNavigate: jest.fn().mockReturnValue(jest.fn()),
   useSearchParams: jest.fn().mockReturnValue([{ get: jest.fn() }]),
+  useLocation: jest.fn().mockReturnValue({ key: 'in-app-entry' }),
 }));
 
 jest.mock('components/DownloadDataSummary/DownloadDataSummary', () => {
@@ -22,6 +23,14 @@ jest.mock('hooks/useDownloadSummary', () => ({
 jest.mock('hooks/useDownloads', () => ({
   __esModule: true,
   default: jest.fn().mockReturnValue({ startDownload: jest.fn(), setIsOpened: jest.fn() }),
+}));
+
+jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
+  useIsSignInRequiredToDownload: jest.fn().mockReturnValue(false),
+}));
+
+jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
+  DownloadSignInDialog: () => null,
 }));
 
 jest.mock('primereact/datatable', () => {

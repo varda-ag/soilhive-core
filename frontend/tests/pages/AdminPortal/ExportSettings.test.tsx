@@ -7,9 +7,9 @@ jest.mock('hooks/useTheme', () => ({
   default: jest.fn(),
 }));
 
-const UNLIMITED = { maxAreaM2: null, maxObservations: null, maxRasterLayers: null, exemptAdmins: false };
+const UNLIMITED = { maxAreaM2: null, maxObservations: null, maxRasterLayers: null, exemptAdmins: false, exportRequiresSignIn: false };
 
-// Rendered in order: area, observations, raster layers, exempt administrators
+// Rendered in order: area, observations, raster layers, exempt administrators, require login
 const checkboxes = () => screen.getAllByRole('checkbox');
 const inputs = () => screen.getAllByTestId('sh-ui-textinputfield') as HTMLInputElement[];
 const saveButton = () => screen.getByText('Save changes').closest('button') as HTMLButtonElement;
@@ -82,7 +82,7 @@ describe('ExportSettings page', () => {
     fireEvent.change(inputs()[2], { target: { value: '10' } });
     fireEvent.click(checkboxes()[3]);
     await clickSave();
-    expect(saveExportLimits).toHaveBeenCalledWith({ maxAreaM2: null, maxObservations: 500000, maxRasterLayers: 10, exemptAdmins: true });
+    expect(saveExportLimits).toHaveBeenCalledWith({ ...UNLIMITED, maxObservations: 500000, maxRasterLayers: 10, exemptAdmins: true });
   });
 
   it('saves an unticked limit as null', async () => {
@@ -96,6 +96,32 @@ describe('ExportSettings page', () => {
     renderPage({ ...UNLIMITED, maxRasterLayers: 10, exemptAdmins: true });
     fireEvent.click(checkboxes()[2]);
     expect(checkboxes()[3]).toBeDisabled();
+    await clickSave();
+    expect(saveExportLimits).toHaveBeenCalledWith(UNLIMITED);
+  });
+
+  it('renders the login requirement apart from the limits', () => {
+    renderPage();
+    expect(screen.getByText('Download access')).toBeInTheDocument();
+    expect(screen.getByText('Require login to download')).toBeInTheDocument();
+  });
+
+  it('initialises the login requirement from the stored setting', () => {
+    renderPage({ ...UNLIMITED, exportRequiresSignIn: true });
+    expect(checkboxes()[4]).toBeChecked();
+  });
+
+  it('saves the login requirement with no limit enabled, leaving the exemption off', async () => {
+    renderPage();
+    expect(checkboxes()[4]).toBeEnabled();
+    fireEvent.click(checkboxes()[4]);
+    await clickSave();
+    expect(saveExportLimits).toHaveBeenCalledWith({ ...UNLIMITED, exportRequiresSignIn: true });
+  });
+
+  it('saves an unticked login requirement as false', async () => {
+    renderPage({ ...UNLIMITED, exportRequiresSignIn: true });
+    fireEvent.click(checkboxes()[4]);
     await clickSave();
     expect(saveExportLimits).toHaveBeenCalledWith(UNLIMITED);
   });

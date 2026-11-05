@@ -1,11 +1,17 @@
 import { type User } from './Token';
+import { type SigninPageState } from './signinPageState';
 
 export type AuthContext = {
   isAuthenticated: boolean;
   isLoading: boolean;
   error?: unknown;
   user?: User | null;
-  login: (password?: string) => void;
+  /**
+   * Starts a sign-in. Under OIDC the identity provider sends the user back to the current page, which
+   * reloads the app: `pageState` comes back with them through `useRestoredPageState`. Password mode signs
+   * in on the page, so it ignores it.
+   */
+  login: (pageState?: SigninPageState) => void;
   logout: () => void;
   authMode: string;
   /**

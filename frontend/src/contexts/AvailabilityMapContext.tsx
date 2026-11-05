@@ -4,8 +4,26 @@ import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 import { bboxPolygon } from '@turf/turf';
 
 import useTheme from '../hooks/useTheme';
+import { useRestoredPageState } from '../auth/signinPageState';
 
 export type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
+
+type SelectionType = 'h3-cell' | 'drawn-polygon' | 'country';
+
+// The selection on the map, carried through an OIDC sign-in so the visitor comes back to it (docs/adr/0075).
+// Left out: the H3 cell, a map feature that does not survive storage (the selection keeps its shape), and the
+// point of the area card, a maplibre class this module does not load; a click in the selection reopens it.
+export const AVAILABILITY_MAP_SIGNIN_STATE_KEY = 'availabilityMap';
+export type AvailabilityMapSigninState = {
+  selection: MapSelection;
+  geometryFilter: (Polygon | MultiPolygon)[];
+  boundingBox: [number, number, number, number];
+  selectionType: SelectionType;
+  locationName?: string;
+  showSelectionToolbar: boolean;
+  isDaiEnabled: boolean;
+  daiOpacity: number;
+};
 
 type AvailabilityMapContextType = {
   selectedPoint: LngLat | null;
@@ -17,7 +35,7 @@ type AvailabilityMapContextType = {
   showSelectionToolbar: boolean;
   boundingBox: [number, number, number, number];
   geometryFilter: (Polygon | MultiPolygon)[];
-  selectionType: 'h3-cell' | 'drawn-polygon' | 'country';
+  selectionType: SelectionType;
   locationName?: string;
   isDaiEnabled: boolean;
   daiOpacity: number;
@@ -29,7 +47,7 @@ type AvailabilityMapContextType = {
   setShowSelectionToolbar: React.Dispatch<React.SetStateAction<boolean>>;
   setBoundingBox: React.Dispatch<React.SetStateAction<[number, number, number, number]>>;
   setGeometryFilter: React.Dispatch<React.SetStateAction<(Polygon | MultiPolygon)[]>>;
-  setSelectionType: React.Dispatch<React.SetStateAction<'h3-cell' | 'drawn-polygon' | 'country'>>;
+  setSelectionType: React.Dispatch<React.SetStateAction<SelectionType>>;
   setLocationName: React.Dispatch<React.SetStateAction<string | undefined>>;
   setIsDaiEnabled: React.Dispatch<React.SetStateAction<boolean>>;
   setDaiOpacity: React.Dispatch<React.SetStateAction<number>>;
@@ -45,25 +63,31 @@ type AvailabilityMapProviderProps = {
 
 export const AvailabilityMapProvider: React.FC<AvailabilityMapProviderProps> = ({ children }) => {
   const { themeConfig, isLoadingThemeConfig } = useTheme();
+  const restored = useRestoredPageState<AvailabilityMapSigninState>(AVAILABILITY_MAP_SIGNIN_STATE_KEY);
 
   const [selectedPoint, setSelectedPoint] = useState<LngLat | null>(null);
   const [selectedH3Cell, setSelectedH3Cell] = useState<MapGeoJSONFeature | null>(null);
   const [h3Cells, setH3Cells] = useState<FeatureCollection | null>(null);
-  const [selection, setSelection] = useState<MapSelection>(emptySelection);
+  const [selection, setSelection] = useState<MapSelection>(restored?.selection ?? emptySelection);
   const [showDrawControl, setShowDrawControl] = useState(false);
-  const [showSelectionToolbar, setShowSelectionToolbar] = useState(false);
-  const [selectionType, setSelectionType] = useState<'h3-cell' | 'drawn-polygon' | 'country'>('drawn-polygon');
-  const [locationName, setLocationName] = useState<string>();
-  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>(themeConfig.initialBbox);
-  const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>([bboxPolygon(themeConfig.initialBbox).geometry]);
-  const [isDaiEnabled, setIsDaiEnabled] = useState<boolean>(themeConfig.daiConfig?.isEnabled && themeConfig.daiConfig?.defaultValue);
-  const [daiOpacity, setDaiOpacity] = useState(80);
+  const [showSelectionToolbar, setShowSelectionToolbar] = useState(restored?.showSelectionToolbar ?? false);
+  const [selectionType, setSelectionType] = useState<SelectionType>(restored?.selectionType ?? 'drawn-polygon');
+  const [locationName, setLocationName] = useState<string | undefined>(restored?.locationName);
+  const [boundingBox, setBoundingBox] = useState<[number, number, number, number]>(restored?.boundingBox ?? themeConfig.initialBbox);
+  const [geometryFilter, setGeometryFilter] = useState<(Polygon | MultiPolygon)[]>(
+    () => restored?.geometryFilter ?? [bboxPolygon(themeConfig.initialBbox).geometry],
+  );
+  const [isDaiEnabled, setIsDaiEnabled] = useState<boolean>(
+    restored?.isDaiEnabled ?? (themeConfig.daiConfig?.isEnabled && themeConfig.daiConfig?.defaultValue),
+  );
+  const [daiOpacity, setDaiOpacity] = useState(restored?.daiOpacity ?? 80);
 
   // The state above is seeded from themeConfig, but themeConfig starts out as
   // defaultThemeConfig until the real config finishes loading. Since this
   // provider can now mount before that load completes, re-apply the real
-  // values once, the first time loading finishes.
-  const hasSyncedInitialConfig = useRef(false);
+  // values once, the first time loading finishes. Not over a selection a
+  // sign-in brought back: it was made under the real config.
+  const hasSyncedInitialConfig = useRef(!!restored);
   useEffect(() => {
     if (isLoadingThemeConfig || hasSyncedInitialConfig.current) return;
     hasSyncedInitialConfig.current = true;

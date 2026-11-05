@@ -2,7 +2,9 @@
 // It travels in the sign-in's custom `state`, which oidc-client-ts keeps in
 // browser storage rather than in the URL, so a crafted link cannot set it.
 
-export type SigninState = { returnTo: string };
+import type { SigninPageState } from './signinPageState';
+
+export type SigninState = { returnTo: string; pageState?: SigninPageState };
 
 // Appended by the identity provider when it redirects back from a sign-in, whether or not it succeeded.
 const CALLBACK_PARAMS = ['code', 'state', 'session_state', 'iss', 'error', 'error_description', 'error_uri'];

@@ -21,7 +21,8 @@
             "title": "Log in to use {{name}}",
             "admin_portal": "the Admin Portal",
             "message": "You need to be logged in to view this page."
-        }
+        },
+        "sign_in_to_download": "Please log in to download."
     },
     "logo": "Logo",
     "nav_menu": {

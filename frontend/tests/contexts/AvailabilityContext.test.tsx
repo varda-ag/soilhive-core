@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
-import { AvailabilityProvider } from '../../src/contexts/AvailabilityContext';
+import { AVAILABILITY_SIGNIN_STATE_KEY, AvailabilityProvider, type AvailabilitySigninState } from '../../src/contexts/AvailabilityContext';
+import { setRestoredPageState } from '../../src/auth/signinPageState';
 import useAvailability from 'hooks/useAvailability';
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useDataFilterQuery } from 'hooks/useDataFilterQuery';
@@ -382,6 +383,94 @@ describe('AvailabilityContext', () => {
       expect(result.current.isDatasetsLoading).toBe(false);
       expect(result.current.isLoadingPartialFilter).toBe(false);
       expect(result.current.isLoadingFilterId).toBe(true);
+    });
+  });
+
+  describe('after a sign-in started from the map (docs/adr/0075)', () => {
+    const restoredState: AvailabilitySigninState = {
+      selectedDatasets: [privateDownloadableDataset.id],
+      isAllSelected: false,
+      searchValue: 'private',
+      datasetFrontendFilters: { type: [GISDataType.POINT], visibility: [] },
+      datasetFilters: { soil_properties: ['ph'], data_types: [GISDataType.POINT] },
+      selectedSoilProperties: ['ph'],
+      selectedTimeFilter: { min: 2000, max: 2010 },
+    };
+
+    afterEach(() => setRestoredPageState(undefined));
+
+    it('puts back the filters and the Datasets ticked before it', () => {
+      setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: restoredState });
+
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      expect(result.current).toMatchObject(restoredState);
+      expect(useDataFilterQuery).toHaveBeenCalledWith({ geometries: [], parameters: restoredState.datasetFilters });
+    });
+
+    it('starts afresh when the map is opened again later', () => {
+      setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: restoredState });
+      renderHook(() => useAvailability(), { wrapper: AvailabilityProvider }).unmount();
+
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      expect(result.current.selectedDatasets).toEqual([]);
+      expect(result.current.searchValue).toBe('');
+      expect(result.current.datasetFilters).toEqual({});
+    });
+
+    describe('with "Select all" ticked before it', () => {
+      // What "Select all" ticked for the signed-out visitor: the public Dataset only
+      const selectAllState: AvailabilitySigninState = {
+        selectedDatasets: [publicDataset.id],
+        isAllSelected: true,
+        searchValue: '',
+        datasetFrontendFilters: { type: [], visibility: [] },
+        datasetFilters: {},
+        selectedSoilProperties: [],
+        selectedTimeFilter: {},
+      };
+      const availableToTheSignedInUser = [publicDataset.id, privateDownloadableDataset.id, privatePreviewOnlyDataset.id].sort();
+
+      it('ticks every Dataset now available, those the sign-in unlocked included', () => {
+        setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: selectAllState });
+
+        const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+        expect(result.current.isAllSelected).toBe(true);
+        expect([...result.current.selectedDatasets].sort()).toEqual(availableToTheSignedInUser);
+        expect(result.current.availableDatasets.map(dataset => dataset.id).sort()).toEqual(availableToTheSignedInUser);
+      });
+
+      it("waits for the signed-in user's entitlements before ticking them", () => {
+        const loadedEntitlements = (useEntitlements as jest.Mock)();
+        (useEntitlements as jest.Mock).mockReturnValue({ can: () => false, isLoading: true });
+        setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: selectAllState });
+
+        const { result, rerender } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+        expect(result.current.selectedDatasets).toEqual([]);
+
+        (useEntitlements as jest.Mock).mockReturnValue(loadedEntitlements);
+        rerender();
+
+        expect([...result.current.selectedDatasets].sort()).toEqual(availableToTheSignedInUser);
+      });
+
+      it('leaves it unticked when the visitor unticks it before the Datasets load', () => {
+        const loadedCoverage = (useFilteredCoverageQuery as jest.Mock)();
+        (useFilteredCoverageQuery as jest.Mock).mockReturnValue({ data: undefined, isLoading: true });
+        setRestoredPageState({ [AVAILABILITY_SIGNIN_STATE_KEY]: selectAllState });
+
+        const { result, rerender } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+        act(() => {
+          result.current.selectAllDatasets(false);
+        });
+        (useFilteredCoverageQuery as jest.Mock).mockReturnValue(loadedCoverage);
+        rerender();
+
+        expect(result.current.isAllSelected).toBe(false);
+        expect(result.current.selectedDatasets).toEqual([]);
+      });
     });
   });
 });
