@@ -32,8 +32,8 @@ export interface StageObservationsOptions {
   unitIds: string[];
   /** Dataset slugs to aggregate: already entitlement-filtered and raster-free. */
   datasetSlugs: string[];
-  /** Narrows to one Soil Property, in addition to the Filter's own criteria. */
-  soilPropertySlug?: string;
+  /** Narrows to these Soil Properties, in addition to the Filter's own criteria. */
+  soilPropertySlugs?: [string, ...string[]];
   onPhase: (description: string, percentage: number) => Promise<void>;
   assertNotCancelled: () => Promise<void>;
 }
@@ -43,7 +43,7 @@ export const stageObservations = async (
   em: EntityManager,
   options: StageObservationsOptions,
 ): Promise<{ usesMatchingFeatures: boolean }> => {
-  const { filter, unitIds, datasetSlugs, soilPropertySlug } = options;
+  const { filter, unitIds, datasetSlugs, soilPropertySlugs } = options;
   const schema = process.env.POSTGRES_SCHEMA;
   const progress = options.onPhase;
   const checkCancelled = options.assertNotCancelled;
@@ -91,8 +91,8 @@ export const stageObservations = async (
     { dataset: 'ds', layer: 'layer', soilProperty: 'sp', license: 'license' },
     { includeVisibility: true },
   );
-  if (soilPropertySlug !== undefined) {
-    whereClauses.push(`sp.slug = ${p(soilPropertySlug)}`);
+  if (soilPropertySlugs !== undefined) {
+    whereClauses.push(`sp.slug = ANY(${p(soilPropertySlugs)}::text[])`);
   }
 
   await em.query(SST_OBS_DDL);
@@ -226,7 +226,7 @@ export const stageVariable = async (em: EntityManager, options: StageVariableOpt
     });
     return;
   }
-  await stageObservations(em, { ...options, soilPropertySlug: variable.soilPropertySlug });
+  await stageObservations(em, { ...options, soilPropertySlugs: [variable.soilPropertySlug] });
 };
 
 export const nothingToStage = (variable: StagedVariable, unitIds: string[], datasetSlugs: string[]): boolean =>
