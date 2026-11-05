@@ -401,7 +401,7 @@ const submission: PluginDataRequestSubmission = {
 
 - **One point is one location of one dataset.** An x value and a y value pair when they have the same dataset, location, standard depth range and period. A location that has only one of the two properties gives no point. Layers without depth are left out.
 - **`measure`** (`mean` or `median`) reduces several values of one property at one location, depth range and period to one value.
-- **Statistics are per dataset.** Each `overall` row is one dataset × period × depth range, with the units combined. Each `results` row is one dataset × unit × period × depth range. Datasets are never pooled. A location in two overlapping units shows in both units' rows, and counts once in `overall`.
+- **Statistics are per dataset.** Each `overall` row is one dataset × period × depth range, with the units combined. Each `results` row is one dataset × period × depth range × unit. Datasets are never pooled. A location in two overlapping units shows in both units' rows, and counts once in `overall`.
 - **A statistic can be absent.** `n_points` is always there. `pearson_r`, `spearman_rho`, `r_squared`, `slope` and `intercept` are absent when `n_points` is below `min_points`, or when they cannot be computed: for example, 500 points that all have `clay = 20` have no variance in x, so they have no `pearson_r` and no `slope`. Show "not enough data", not "r = undefined".
 - **Points are two columns.** `x[i]` and `y[i]` are one location. A row has at most `max_points` points. When it has more, `points_truncated` is `true` and `x`/`y` are a fixed-seed sample; the statistics still use all `n_points`.
 - **A missing `results` row means no points.** `depth_start` is never `null`; `depth_end` is `null` for deeper than 200 cm.

@@ -164,7 +164,7 @@ export interface PluginCorrelationRowKeys extends PluginYearKeys {
   depth_end: number | null; // null: deeper than 200 cm
 }
 
-// Each is absent when n_points < min_points, or when it cannot be computed (no variance).
+// n_points is always present. Each statistic is absent when n_points < min_points, or when it cannot be computed (no variance).
 export interface PluginCorrelationStatistics {
   n_points: number;
   pearson_r?: number;
@@ -190,7 +190,7 @@ export interface PluginCorrelation {
   min_points: number;
   max_points: number;
   overall: PluginCorrelationOverallRow[]; // per dataset × period × depth, units combined
-  results: PluginCorrelationResultRow[]; // per dataset × unit × period × depth; a missing row means no points
+  results: PluginCorrelationResultRow[]; // per dataset × period × depth × unit; a missing row means no points
 }
 
 // The data type follows statistics_type.
