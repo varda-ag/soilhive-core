@@ -13,36 +13,39 @@ interface UnfinishedJobRow extends QueuedJob {
   dataset_id: string;
 }
 
-/** The Queued job of each of the given Datasets, keyed by slug. At most one each: the lock refuses a second. */
-export async function getQueuedJobs(entityManager: EntityManager, slugs: string[]): Promise<Map<string, QueuedJob>> {
-  const rows: UnfinishedJobRow[] = await entityManager.query(
-    `SELECT id, name AS queue, data->>'dataset_id' AS dataset_id
-     FROM ${PG_BOSS_SCHEMA}.job
-     WHERE name = ANY($1) AND state = 'created' AND data->>'dataset_id' = ANY($2)`,
-    [DATASET_LOCKING_QUEUES, slugs],
-  );
-  return new Map(rows.map(({ id, queue, dataset_id }) => [dataset_id, { id, queue }]));
-}
-
 /** Queues whose running job is a Dataset's `active_job`: bulk-delete is left out, since its Dataset leaves the list. */
 export const DATASET_LOAD_QUEUES: string[] = [JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD];
 
 /**
- * The running load of each of the given Datasets, keyed by slug. At most one each: the lock refuses
- * a second. Read from pg-boss rather than from the Dataset's status, which a load no longer changes,
- * so it is cleared whichever way the job ends: completed, failed, cancelled or reaped.
+ * Each of the given Datasets' unfinished work, keyed by slug, in one query:
+ * - `queued`: its job pg-boss has not picked up yet, on any locking queue (its `queued_job`);
+ * - `active`: its running job on one of `activeQueues`, its loads by default (its `active_job`).
+ *
+ * At most one of each per Dataset: the lock refuses a second. Read from pg-boss rather than from the
+ * Dataset's status, which a load no longer changes, so each clears whichever way its job ends:
+ * completed, failed, cancelled or reaped.
  */
-export async function getActiveLoads(entityManager: EntityManager, slugs: string[]): Promise<Map<string, QueuedJob>> {
+export async function getUnfinishedJobs(
+  entityManager: EntityManager,
+  slugs: string[],
+  activeQueues: string[] = DATASET_LOAD_QUEUES,
+): Promise<{ queued: Map<string, QueuedJob>; active: Map<string, QueuedJob> }> {
+  const queued = new Map<string, QueuedJob>();
+  const active = new Map<string, QueuedJob>();
   if (slugs.length === 0) {
-    return new Map();
+    return { queued, active };
   }
   const rows: UnfinishedJobRow[] = await entityManager.query(
-    `SELECT id, name AS queue, data->>'dataset_id' AS dataset_id
+    `SELECT id, name AS queue, state, data->>'dataset_id' AS dataset_id
      FROM ${PG_BOSS_SCHEMA}.job
-     WHERE name = ANY($1) AND state = 'active' AND data->>'dataset_id' = ANY($2)`,
-    [DATASET_LOAD_QUEUES, slugs],
+     WHERE data->>'dataset_id' = ANY($3)
+       AND ((state = 'created' AND name = ANY($1)) OR (state = 'active' AND name = ANY($2)))`,
+    [DATASET_LOCKING_QUEUES, activeQueues, slugs],
   );
-  return new Map(rows.map(({ id, queue, dataset_id }) => [dataset_id, { id, queue }]));
+  for (const { id, queue, state, dataset_id } of rows) {
+    (state === 'created' ? queued : active).set(dataset_id, { id, queue });
+  }
+  return { queued, active };
 }
 
 /** The running (`active`) job on one of the given queues for any of the given Datasets, by slug, or null. */
