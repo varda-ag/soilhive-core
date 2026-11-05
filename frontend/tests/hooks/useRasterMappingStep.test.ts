@@ -364,6 +364,43 @@ describe('useRasterMappingStep', () => {
       });
       expect(result.current.isImporting).toBe(true);
     });
+
+    describe('when Continue fails', () => {
+      // mockReturnValue outlives the test: put back the module defaults, or a rejecting mock leaks
+      // into every later test that doesn't set its own.
+      afterEach(() => {
+        (useCreateMappingsMutation as jest.Mock).mockReturnValue({
+          mutateAsync: jest.fn().mockResolvedValue({ id: 'mapping-1', data_mapping: {} }),
+        });
+        (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: jest.fn().mockResolvedValue({ id: 'job-1' }) });
+      });
+
+      it.each([
+        ['saving the mapping', 'save'],
+        ['creating the raster-load', 'job'],
+      ])('is false again, with no loading panel, when %s fails', async (_case, failing) => {
+        setupWithColumns(['col1']);
+        const mockCreateMapping = jest
+          .fn()
+          .mockImplementation(() =>
+            failing === 'save' ? Promise.reject(new Error('409')) : Promise.resolve({ id: 'mapping-1', data_mapping: {} }),
+          );
+        (useCreateMappingsMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateMapping });
+        const mockCreateJob = jest
+          .fn()
+          .mockImplementation(() => (failing === 'job' ? Promise.reject(new Error('409')) : Promise.resolve({ id: 'job-1' })));
+        (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+        const { result } = renderHook(() => useRasterMappingStep('42'));
+
+        await act(async () => {
+          await result.current.handleContinue();
+        });
+
+        expect(result.current.isImporting).toBe(false);
+        expect(result.current.showLoadingPanel).toBe(false);
+        expect(mockNavigate).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('auto-redirect', () => {

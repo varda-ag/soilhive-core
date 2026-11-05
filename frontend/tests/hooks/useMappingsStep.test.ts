@@ -310,6 +310,38 @@ describe('useMappingsStep', () => {
       });
       expect(result.current.isImporting).toBe(true);
     });
+
+    describe('when Continue fails', () => {
+      // mockReturnValue outlives the test: put back the module defaults, or a rejecting mock leaks
+      // into every later test that doesn't set its own.
+      afterEach(() => {
+        (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
+        (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: jest.fn().mockResolvedValue({ id: 'job-1' }) });
+      });
+
+      it.each([
+        ['saving the mapping', 'update'],
+        ['creating a job', 'job'],
+      ])('is false again when %s fails, so the step is usable', async (_case, failing) => {
+        setupWithFileStatuses(['PENDING']);
+        const mockUpdate = jest
+          .fn()
+          .mockImplementation(() => (failing === 'update' ? Promise.reject(new Error('409')) : Promise.resolve()));
+        (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: mockUpdate });
+        const mockCreateJob = jest
+          .fn()
+          .mockImplementation(() => (failing === 'job' ? Promise.reject(new Error('409')) : Promise.resolve({ id: 'job-1' })));
+        (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+        const { result } = renderHook(() => useMappingsStep('42'));
+
+        await act(async () => {
+          await result.current.handleContinue();
+        });
+
+        expect(result.current.isImporting).toBe(false);
+        expect(mockNavigate).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('auto-redirect', () => {

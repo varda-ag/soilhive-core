@@ -506,11 +506,17 @@ export function useMappingsStep(datasetId?: string) {
     }
 
     setIsImportingState(true);
-    await save();
-    const jobs = await Promise.all(
-      pendingFileMappings.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
-    );
-    setActiveJobIds(jobs.map(j => j.id));
+    try {
+      await save();
+      const jobs = await Promise.all(
+        pendingFileMappings.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
+      );
+      setActiveJobIds(jobs.map(j => j.id));
+    } catch {
+      // The request already showed the error. Back to the step, or it stays on "Mapping fields" for good:
+      // only the jobs finishing clears the importing state.
+      setIsImportingState(false);
+    }
   }, [
     columnMappings,
     existingMappings,

@@ -639,22 +639,29 @@ export function useRasterMappingStep(datasetId?: string) {
     // Raster loading happens as a background job, so tell the user it has started right away
     // instead of showing the "mapping fields" spinner for the whole save + job duration.
     if (isRaster) setShowLoadingPanel(true);
-    await save();
+    try {
+      await save();
 
-    // Only Files not yet loaded go through a Raster Load, so with none of them there is no load
-    // to start, and the "loading started" panel would be misleading.
-    const hasPendingFile = (files ?? []).some(f => isRasterFile(f) && !loadedFileIds.has(f.id));
-    if (!hasPendingFile || (!changed && allFilesStaged)) {
+      // Only Files not yet loaded go through a Raster Load, so with none of them there is no load
+      // to start, and the "loading started" panel would be misleading.
+      const hasPendingFile = (files ?? []).some(f => isRasterFile(f) && !loadedFileIds.has(f.id));
+      if (!hasPendingFile || (!changed && allFilesStaged)) {
+        setIsImportingState(false);
+        setShowLoadingPanel(false);
+        navigate(isRaster ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
+        return;
+      }
+
+      // Unlike the vector flow's file-to-db job, raster-load is scoped to the whole dataset
+      // (not per file), so we fire a single job and track it as the sole active job id.
+      const job = await createJob({ type: 'raster-load', dataset_id: datasetId });
+      setActiveJobIds([job.id]);
+    } catch {
+      // The request already showed the error. Back to the step, or it stays on the loading panel for
+      // good: only the job finishing clears the importing state.
       setIsImportingState(false);
       setShowLoadingPanel(false);
-      navigate(isRaster ? ADMIN_PATHS.DATASETS : `${ADMIN_PATHS.DATASETS}/edit/${datasetId}/preview`);
-      return;
     }
-
-    // Unlike the vector flow's file-to-db job, raster-load is scoped to the whole dataset
-    // (not per file), so we fire a single job and track it as the sole active job id.
-    const job = await createJob({ type: 'raster-load', dataset_id: datasetId });
-    setActiveJobIds([job.id]);
   }, [
     columnMappings,
     dataMappingByFileId,
