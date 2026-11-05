@@ -112,7 +112,7 @@ POST /jobs
 }
 ```
 
-`anonymous`, `public_homepage_url`, and `public_metadata_urls` are optional. The `DOWNLOAD` capability is enforced for each dataset in `dataset_ids`.
+`anonymous`, `public_homepage_url`, and `public_metadata_urls` are optional. The `DOWNLOAD` capability is enforced for each dataset in `dataset_ids`. While administrators require a signed-in user to export (`exportRequiresSignIn` in the theme config's `exportLimits`), a request without a token is refused with 401 before any dataset is checked (ADR 0075).
 
 A signed-in caller submitting an export identical to one of theirs still queued or running gets that job back with `200` instead of a new one (ADR 0074). Anonymous exports always start a new job.
 

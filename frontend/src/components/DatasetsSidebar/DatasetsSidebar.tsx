@@ -9,10 +9,12 @@ import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useTranslation } from 'react-i18next';
 import { Capability, EntitlementScope } from 'types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
+import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 
 import styles from './DatasetsSidebar.module.scss';
 import { useNavigate } from 'react-router';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 interface Props {
   isOpened: boolean;
@@ -27,6 +29,8 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
     useAvailability();
   const { selectionType, locationName } = useAvailabilityMap();
   const { can } = useEntitlements(EntitlementScope.DATASETS);
+  const isSignInRequired = useIsSignInRequiredToDownload();
+  const [isSignInDialogOpen, setIsSignInDialogOpen] = useState(false);
 
   const navigate = useNavigate();
 
@@ -51,6 +55,11 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
   );
 
   const handleDownloadClick = () => {
+    // The Datasets a signed-in user may download can differ, so they click again once back on the map
+    if (isSignInRequired) {
+      setIsSignInDialogOpen(true);
+      return;
+    }
     navigate({ pathname: '/download', search: `?${getSearchParams(downloadDatasetIds, { source: 'availability' }).toString()}` });
   };
 
@@ -104,6 +113,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
         </div>
       </div>
+      <DownloadSignInDialog visible={isSignInDialogOpen} onClose={() => setIsSignInDialogOpen(false)} />
     </PageSidebar>
   );
 }

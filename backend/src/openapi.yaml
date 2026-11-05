@@ -605,6 +605,8 @@ paths:
         those queued or running, and its dataset_id is stored as the dataset's current id.
         An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
         within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
+        While administrators require a signed-in user to export (exportRequiresSignIn in the theme config's exportLimits),
+        an export without a token is refused with 401, before its datasets are checked.
         An export identical to an unfinished one from the same signed-in caller returns that job with 200
         instead of starting another. Anonymous exports always start a new job.
       tags:

@@ -51,6 +51,22 @@ describe('Dialog', () => {
     expect(screen.getByText('dialog.continue')).toBeInTheDocument();
   });
 
+  it('renders no title bar nor close button without a header, and Esc still closes it', () => {
+    const onClose = jest.fn();
+    render(
+      <Dialog {...defaultProps} header={undefined} onClose={onClose}>
+        <p>Test content</p>
+      </Dialog>,
+    );
+
+    expect(screen.getByText('Test content')).toBeInTheDocument();
+    expect(screen.queryByText('Test header')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'dialog.close_aria' })).not.toBeInTheDocument();
+
+    callLatestOnHide();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onSecondary when close button is clicked', () => {
     const onSecondary = jest.fn();
     render(

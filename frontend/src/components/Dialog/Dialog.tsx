@@ -10,7 +10,8 @@ import { Loader } from '../UI/Loader/Loader';
 
 interface Props {
   visible: boolean;
-  header: ReactNode;
+  // Without one, the dialog has no title bar nor close button: Esc, the secondary button or the overlay close it
+  header?: ReactNode;
   removeTransition?: boolean;
   primaryText?: string;
   secondaryText?: string;
@@ -87,17 +88,19 @@ export function Dialog({
       onMaskClick={closeOnOverlay ? onMaskClick : undefined}
       content={({ contentRef, headerRef, footerRef }) => (
         <>
-          <div className={classnames(styles.Header, headerClassName)} ref={headerRef as RefObject<HTMLDivElement>}>
-            {header}
-            <button
-              className={styles.CloseButton}
-              onClick={onClose ?? onSecondary}
-              disabled={isLoading}
-              aria-label={t('dialog.close_aria')}
-            >
-              <CloseIcon />
-            </button>
-          </div>
+          {header !== undefined && (
+            <div className={classnames(styles.Header, headerClassName)} ref={headerRef as RefObject<HTMLDivElement>}>
+              {header}
+              <button
+                className={styles.CloseButton}
+                onClick={onClose ?? onSecondary}
+                disabled={isLoading}
+                aria-label={t('dialog.close_aria')}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          )}
           <div className={classnames(styles.Content, contentClassName)} ref={contentRef as RefObject<HTMLDivElement>}>
             {children}
           </div>
