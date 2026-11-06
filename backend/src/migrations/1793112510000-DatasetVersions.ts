@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
- * Version Datasets (docs/backend/dataset-version-plan.md, phase 3): data added to a PUBLISHED Dataset
+ * Version Datasets (docs/adr/0075): data added to a PUBLISHED Dataset
  * (v1) goes into a Dataset row of its own (v2) with `version_of = v1`, hidden by its status until it
  * is published into v1. Every existing Dataset is version 1.
  *

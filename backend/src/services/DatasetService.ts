@@ -258,6 +258,7 @@ export default class DatasetService {
       dataset.pending_version = version
         ? {
             slug: version.slug,
+            name: version.name,
             number: version.version_number,
             status: version.status,
             updated_at: version.updated_at,

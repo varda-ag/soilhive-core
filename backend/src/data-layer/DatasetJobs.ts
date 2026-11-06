@@ -21,6 +21,13 @@ interface UnfinishedJobRow extends QueuedJob {
   dataset_id: string;
 }
 
+/**
+ * Queues whose Queued job is a Dataset's `queued_job`: every locking queue but version-publish. A
+ * publish locks the Dataset it publishes into, but it's the Version's work, shown on the Version as
+ * `pending_version.publishing`: the Dataset itself isn't queued, and keeps showing PUBLISHED.
+ */
+export const QUEUED_JOB_QUEUES: string[] = DATASET_LOCKING_QUEUES.filter(queue => queue !== JobQueues.VERSION_PUBLISH);
+
 /** Queues whose running job is a Dataset's `active_job`: bulk-delete is left out, since its Dataset leaves the list. */
 export const DATASET_LOAD_QUEUES: string[] = [JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD];
 
@@ -32,7 +39,7 @@ export const VERSION_ACTIVE_QUEUES: string[] = [...DATASET_LOAD_QUEUES, JobQueue
 
 /**
  * Each of the given Datasets' unfinished work, keyed by slug, in one query:
- * - `queued`: its job pg-boss has not picked up yet, on any locking queue (its `queued_job`);
+ * - `queued`: its job pg-boss has not picked up yet, on any locking queue but version-publish (its `queued_job`, see QUEUED_JOB_QUEUES);
  * - `active`: its running job on one of `activeQueues`, its loads by default (its `active_job`).
  *
  * At most one of each per Dataset: the lock refuses a second. Read from pg-boss rather than from the
@@ -54,7 +61,7 @@ export async function getUnfinishedJobs(
      FROM ${PG_BOSS_SCHEMA}.job
      WHERE data->>'dataset_id' = ANY($3)
        AND ((state = 'created' AND name = ANY($1)) OR (state = 'active' AND name = ANY($2)))`,
-    [DATASET_LOCKING_QUEUES, activeQueues, slugs],
+    [QUEUED_JOB_QUEUES, activeQueues, slugs],
   );
   for (const { id, queue, state, dataset_id } of rows) {
     (state === 'created' ? queued : active).set(dataset_id, { id, queue });

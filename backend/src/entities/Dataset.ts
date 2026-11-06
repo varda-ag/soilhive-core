@@ -113,7 +113,7 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', nullable: true, array: true })
   related_resources?: string[] | null;
 
-  // The PUBLISHED Dataset this one is a Version of, or null (docs/backend/dataset-version-plan.md)
+  // The PUBLISHED Dataset this one is a Version of, or null (docs/adr/0075)
   @Column({ type: 'uuid', nullable: true })
   @Index('IDX_datasets_version_of_open', { unique: true, where: '"version_of" IS NOT NULL AND "deleted_at" IS NULL' })
   version_of?: string | null;

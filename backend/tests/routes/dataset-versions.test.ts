@@ -101,6 +101,7 @@ describe('Testing /datasets/{datasetId}/versions routes', () => {
       expect(res.body.map((d: { id: string }) => d.id)).toEqual([v1.slug]);
       expect(res.body[0].pending_version).toEqual({
         slug: 'route-survey-v2-increment',
+        name: 'route-survey v2 increment',
         number: 2,
         status: IngestionStatus.PENDING,
         updated_at: v2.updated_at,
@@ -361,6 +362,9 @@ describe('Testing /datasets/{datasetId}/versions routes', () => {
       });
       const listed = await request(app).get('/datasets').set('Authorization', `Bearer ${token}`);
       expect(listed.body[0].pending_version.publishing).toBe(true);
+      // The publish locks the dataset, but it's the version's work: the dataset isn't shown as queued
+      expect(listed.body[0].queued_job).toBeNull();
+      expect(listed.body[0].status).toBe(IngestionStatus.PUBLISHED);
 
       // Every job on the version, and a second publish, wait for it
       const refused = [

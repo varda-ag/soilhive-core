@@ -24,7 +24,7 @@ import { getErrorMessage } from '../../utils/error';
 // Postgres: query_canceled — raised when a statement exceeds the `statement_timeout` set below.
 const STATEMENT_TIMEOUT_CODE = '57014';
 
-// bulk-delete's until Measure first sets it from the largest real increment (dataset-version-plan.md)
+// bulk-delete's, until publish times measured on the largest real increments set it
 const PUBLISH_STATEMENT_TIMEOUT = '5min';
 
 /**

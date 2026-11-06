@@ -15,9 +15,11 @@ export interface ProcessingSteps {
   cleaning_steps?: Record<string, CleaningReport>;
 }
 
-/** A Dataset's open Version, as the admin listing shows it on the Dataset (docs/backend/dataset-version-plan.md) */
+/** A Dataset's open Version, as the admin listing shows it on the Dataset (docs/adr/0075) */
 export interface PendingVersion {
   slug: string;
+  // `<v1 name> v<number> increment`: too long for the list's cell, shown as its tooltip
+  name: string;
   number: number;
   status: IngestionStatus;
   queued_job: QueuedJob | null;

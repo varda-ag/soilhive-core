@@ -13,7 +13,7 @@ import JobService from './JobService';
 
 /**
  * The descriptive metadata a Version starts with, copied from v1. The rollup a load writes is left
- * out, and so are the publication settings, which the publish request carries (phase 4). A Version
+ * out, and so are the publication settings, which the publish request carries (publishVersion). A Version
  * can't change them (DatasetService.updateDataset): v1's are edited on v1.
  */
 export const COPIED_FIELDS = [
@@ -35,7 +35,7 @@ export const COPIED_FIELDS = [
 ] as const;
 
 /**
- * Version Datasets (docs/backend/dataset-version-plan.md): data added to a PUBLISHED Dataset (v1) is
+ * Version Datasets (docs/adr/0075): data added to a PUBLISHED Dataset (v1) is
  * loaded into a Version (v2), a Dataset row of its own that stays hidden by its status. The ingestion
  * steps, routes and loaders work on it by its slug like on any unpublished Dataset.
  */

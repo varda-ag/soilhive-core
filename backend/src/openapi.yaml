@@ -3880,17 +3880,17 @@ components:
           nullable: true
           readOnly: true
           description: >-
-            The bulk-load, raster-load, bulk-delete, version-reset, version-discard or version-publish job
-            pg-boss has not picked up yet, or null. A version-publish is the dataset's while it publishes
-            one of its versions into it. Returned by GET /datasets and GET /datasets/{datasetId} to
-            data-admin, super-admin and internal-request callers only.
+            The bulk-load, raster-load, bulk-delete, version-reset or version-discard job pg-boss has not
+            picked up yet, or null. A version-publish locks the dataset it publishes into but isn't its
+            queued_job: it shows on the version, as pending_version.publishing. Returned by GET /datasets
+            and GET /datasets/{datasetId} to data-admin, super-admin and internal-request callers only.
           properties:
             id:
               type: string
               format: uuid
             queue:
               type: string
-              enum: [bulk-load, raster-load, bulk-delete, version-reset, version-discard, version-publish]
+              enum: [bulk-load, raster-load, bulk-delete, version-reset, version-discard]
         active_job:
           type: object
           nullable: true
@@ -3940,6 +3940,9 @@ components:
             slug:
               type: string
               description: The version's id
+            name:
+              type: string
+              description: The version's name, "<dataset name> v<number> increment"
             number:
               type: integer
             status:

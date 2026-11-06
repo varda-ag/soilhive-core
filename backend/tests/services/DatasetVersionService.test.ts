@@ -168,6 +168,7 @@ describe('DatasetVersionService', () => {
       const byId = new Map(listed.map(d => [d.slug, d]));
       expect(byId.get(v1.slug)!.pending_version).toEqual({
         slug: v2.slug,
+        name: v2.name,
         number: 2,
         status: IngestionStatus.PENDING,
         updated_at: v2.updated_at,
