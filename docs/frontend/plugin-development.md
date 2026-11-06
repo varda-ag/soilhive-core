@@ -407,6 +407,7 @@ const submission: PluginDataRequestSubmission = {
 - **A chart can have more than `max_points` points.** `max_points` limits one row. A chart that combines N datasets or units can have up to N × `max_points` points, so plan how to draw them.
 - **A request can be too large.** When the whole reply would send more than 500,000 points, the request fails with a message that says how to make it smaller (fewer areas or datasets, or `time_aggregation: 'none'`).
 - **A missing `results` row means no points.** `depth_start` is never `null`; `depth_end` is `null` for deeper than 200 cm.
+- **Take the statistics from the row that matches the view.** For one unit, use its `results` row: the statistics and the points. For "all units", use the `overall` row with the same dataset, period and depth range, and draw the fit line from its `slope` and `intercept`. The per-unit statistics cannot be combined into the overall ones. The points for "all units" are the `x`/`y` of those `results` rows put together. They can contain a location twice (overlapping units), or be a sample (`points_truncated`), so the plotted count can differ from `overall.n_points`.
 
 ### Computing a soil index (Soil Index Runs)
 
