@@ -18,6 +18,7 @@ import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES, hasRasterFileToLoad } from '../data-layer/DatasetJobs';
+import { assertNotVersioned } from '../data-layer/DatasetVersions';
 import { getEntity } from '../utils/slugs';
 import { JobError } from '../errors/JobError';
 import { checkExportLimitsAtSubmission } from '../jobs/soil-export/submissionCheck';
@@ -76,7 +77,10 @@ export default class JobService {
       data.type === JobQueues.RASTER_LOAD ||
       data.type === JobQueues.FILE_TO_DB ||
       data.type === JobQueues.BULK_DELETE ||
-      data.type === JobQueues.RASTER_FILTER_INSTALL
+      data.type === JobQueues.RASTER_FILTER_INSTALL ||
+      data.type === JobQueues.VERSION_RESET ||
+      data.type === JobQueues.VERSION_DISCARD ||
+      data.type === JobQueues.VERSION_PUBLISH
     ) {
       if (!sub) {
         throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);
@@ -170,19 +174,33 @@ export default class JobService {
    * dataset_id is rewritten to the current slug: an old one resolves here but would never match
    * the Queued lookup, which compares slugs as stored in the job data.
    */
-  private lockDataset = async (requestData: RequestData, data: { dataset_id: string; type: string }): Promise<void> => {
+  private lockDataset = async (
+    requestData: RequestData,
+    data: { dataset_id: string; type: string; delete_source_files?: boolean },
+  ): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
     data.dataset_id = dataset.slug;
     await assertNoUnfinishedJob(requestData.entityManager, dataset);
     if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.RASTER_LOAD) {
       await this.assertLoadable(requestData, dataset, data.type);
+      // Resetting a Version loads its Files again from their uploads; publishing it takes the flag instead
+      if (dataset.version_of && data.delete_source_files) {
+        throw new ErrorResponse(
+          `Dataset '${dataset.name}' is a version, whose uploads are kept until it is published: leave delete_source_files unset`,
+          StatusCodes.BAD_REQUEST,
+        );
+      }
+    }
+    if (data.type === JobQueues.BULK_DELETE) {
+      await assertNotVersioned(requestData.entityManager, dataset);
     }
   };
 
   /**
    * Refuses a load into a PUBLISHED Dataset with 409: loads no longer hide the Dataset while they
-   * run, so its readers would see it half-loaded. A Raster Load with no File to ingest is let
-   * through, since all it does is remove the layers of removed Files (removeUnmappedLayers in RasterLoader).
+   * run, so its readers would see it half-loaded. Data is added to it through a Version instead
+   * (DatasetVersionService). A Raster Load with no File to ingest is let through, since all it does
+   * is remove the layers of removed Files (removeUnmappedLayers in RasterLoader).
    */
   private assertLoadable = async (requestData: RequestData, dataset: DatasetEntity, queue: JobQueues): Promise<void> => {
     if (dataset.status !== IngestionStatus.PUBLISHED) {

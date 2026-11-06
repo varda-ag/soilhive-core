@@ -152,6 +152,18 @@ _Avoid_: Bounding box (the edges on the globe), geographical extent (a free-text
 The narrowest west, south, east and north edges on the globe around a **Dataset**'s data or a georeferenced raster **File**, west greater than east when that box crosses the antimeridian, even if no single File does. What a map shows; never used to select data.
 _Avoid_: Spatial extent (what queries test), Georeference (four corners in the File's own CRS), bounds, envelope
 
+**Dataset Version** (`version_of`):
+A Dataset row of its own that holds data being added to a PUBLISHED Dataset until an admin publishes it (ADR 0075). It is private, never PUBLISHED, and its name and descriptive metadata are its Dataset's, read-only. It goes through the usual ingestion steps by its own slug. **Publishing** it moves its rows into its Dataset in one transaction and deletes it; the Dataset keeps its id, slug and grants, and takes the next **Revision**. **Resetting** it removes everything loaded into it and puts its Files back to PENDING. **Discarding** it removes it with its Files and data, as a bulk delete removes a Dataset. A Dataset has at most one open Dataset Version, and a published one never has its data loaded into directly.
+_Avoid_: Draft, copy, staging dataset, Load Buffer (a rejected design), version (bare — see Flagged ambiguities)
+
+**Revision** (`version_number`):
+How many times a Dataset has had data published into it, starting at 1. A Dataset Version carries the Revision its Dataset takes when the Version is published. Read-only; shown on the metadata page as "Revision".
+_Avoid_: Version (the free-text `version` metadata field — see Flagged ambiguities)
+
+**Data update date** (`data_updated_at`):
+When a Dataset's published data last changed: a publish, a Dataset Version published into it, or a Raster Load that removed layers from it. Unlike `updated_at`, which any metadata or settings edit moves.
+_Avoid_: Last update (that's `updated_at`)
+
 **Bulk Load**:
 The Dataset-scoped operation that turns a Dataset's staged files into Features, Layers, DatasetLayers and Observations. Operates on point and polygonal Datasets. Scoped to exactly one Dataset; the files it consumes are whichever staged files that Dataset has.
 _Avoid_: Import, upload (a separate earlier step), ingest (reserved for the per-file raster operation)
@@ -333,6 +345,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Layer** carries the `sampling_date`, `min_depth`, and `max_depth` for its associated **Observations** — there is no date on **Observation** itself
 - A **Filter** defines the scope for **DAI** computation; the effective **AOI** is the intersection of the Filter's geometries with the map viewport
 - A **Raster Load** is scoped to one **Dataset** and performs one **Raster Ingest** per **Band** named by each raster File's **Band Mapping**; a **Bulk Load** is the equivalent for point and polygonal **Datasets**
+- A PUBLISHED **Dataset** has at most one open **Dataset Version**; data is added to it only through one. Publishing the Version moves its **DatasetLayers**, **Raster Layers** and **Dataset File Mappings** into the Dataset and increments its **Revision**; a DatasetLayer both already have keeps the Dataset's row and gains the Version's Observations
 - A Spatial **File** has at most one **Georeference** and at most one **CRS**; it is georeferenced only with both, and a Georeference without a CRS cannot be placed on a map
 - A **File** has one or more **Dataset File Mappings** per **Dataset** it belongs to, of which exactly one is **Current**; both loads consult only the Current one
 - A **Raster Layer** belongs to one **Dataset** and names exactly one **Band** of exactly one **File**; a **File** has as many **Raster Layers** as it has mapped **Bands**
@@ -409,6 +422,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **"scope" names both storage namespaces and Config Kinds.** `GET /entitlements?scope=` accepts `datasets`, `configs` and `dashboards`, but only the first two are namespaces. Resolved: `dashboards` is a **Config Kind**, a filtered view over `configs`; the query param keeps its name because it is API.
 - **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: for a non-privileged caller it means both, because an unpublished Dataset is absent everywhere. It was once "listed only" (ADR 0034), leaving `/soil-data` open by slug; that is superseded.
 - **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.
+- **"Version" names three things.** The Dataset's `version` field is free-text descriptive metadata an admin types in, such as "2.1" or "2024 release"; a **Dataset Version** is a Dataset row holding data not yet published; `version_number` is the **Revision**, counting publishes. The API keeps the field names; in domain discussions say **Dataset Version** and **Revision**, and "the version field" for the metadata.
 - **"Preview" names both a Capability and a view.** Resolved: `preview` is the **Capability**; the table on the Data Explorer page is the **Preview table**, which needs that Capability. Never say "the preview" for the table.
 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.

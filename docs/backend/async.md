@@ -26,7 +26,9 @@ DELETE /jobs/{jobId}
 
 Job status values: `created`, `active`, `completed`, `cancelled`, `failed`.
 
-**Dataset lock.** While a dataset has a `bulk-load`, `raster-load` or `bulk-delete` job `created` or `active`, another job on those queues and every dataset edit (`PATCH`/`DELETE /datasets/{id}`, the `dataset-file-mapping` writes, `POST …/soil-data` except the bulk load's own internal-request batches) return 409. `file-to-db` neither locks nor is refused. A `created` job is shown to privileged callers as the dataset's `queued_job` (ADR 0042).
+**Dataset lock.** While a dataset has a `bulk-load`, `raster-load`, `bulk-delete`, `version-reset`, `version-discard` or `version-publish` job `created` or `active`, another job on those queues and every dataset edit (`PATCH`/`DELETE /datasets/{id}`, the `dataset-file-mapping` writes, `POST …/soil-data` except the bulk load's own internal-request batches) return 409. A `version-publish` locks two datasets: the one it publishes into, named by `dataset_id`, and the dataset version it publishes, named by `version_id`. `file-to-db` neither locks nor is refused. A `created` job is shown to privileged callers as the dataset's `queued_job` (ADR 0042).
+
+**Published datasets.** A `bulk-load` or `raster-load` of a PUBLISHED dataset is refused with 409: data is added to it through a dataset version (ADR 0075). The one exception is a `raster-load` with no file to ingest, which only removes the layers of removed files and leaves the dataset PUBLISHED. A load no longer hides the dataset while it runs: it ends LOADED, and a failed one leaves the status as it was.
 
 **Job identity.** A job records the **Subject** of whoever submitted it in `created_by` — the token's `email` claim, else `client_id`, else `sub` (ADR 0022). The same value governs two things: which jobs `GET /jobs` lists and who may poll or cancel one, and which entitlements the processor resolves. Processors hold no raw token, so they re-derive entitlements from `everyone` plus the Subject's local rows; entitlements that exist only at the external endpoint are visible at enqueue time but not to the processor.
 
@@ -75,20 +77,20 @@ POST /jobs
 }
 ```
 
-`delete_source_files` is optional. When `true`, the original uploaded files are removed from storage after ingestion.
+`delete_source_files` is optional. When `true`, the original uploaded files are removed from storage after ingestion. A load into a dataset version refuses it with 400: a `version-reset` loads the version's files again from their uploads, so they're deleted at publish instead.
 
 **Sequence of operations**
 
-1. Set the dataset status to `ONGOING`.
-2. Retrieve all pending file-to-dataset mappings for the dataset.
-3. For each pending file:
+1. Refuse a PUBLISHED dataset (see **Published datasets** above). The dataset's status is left as it is while the load runs.
+2. Retrieve the dataset's staged files and their file-to-dataset mappings. Files already LOADED are skipped.
+3. For each staged file:
    - Fetch the data mapping configuration.
    - Read records from the raw staging table in batches of 100.
    - Group every 10 records into a payload and send it to the internal endpoint `POST /datasets/{datasetSlug}/dataset-file-mapping/{datasetFileMappingId}/soil-data` using an internal service token.
-   - Mark the file mapping as `LOADED`.
+   - Mark the file as `LOADED`.
    - Drop the raw staging table (`raw_<file_id>`).
    - Delete source files from storage if requested.
-4. Recalculate and persist dataset metadata: observation count, depth range, sampling date range, spatial extent, measured properties, and licence information.
+4. Recalculate and persist dataset metadata: observation count, depth range, sampling date range, spatial extent, measured properties, and licence information. The dataset ends LOADED.
 
 ---
 
@@ -466,3 +468,89 @@ POST /jobs
 5. For a vector dataset, queue `sweep-orphan-rows`, which deletes the `features` and `layers` no `dataset_layers` row references any more.
 
 Chunked deletion keeps each statement under the statement timeout. The orphan sweep, rather than the purge, removes features and layers: it only removes those no remaining dataset references, so shared ones stay, and a load referencing one at the same moment fails a sweep batch (retried by the next run) rather than the whole purge.
+
+---
+
+## Dataset versions
+
+Data is added to a PUBLISHED dataset through a **dataset version** (ADR 0075): a dataset row of its own, private and never PUBLISHED, loaded with the usual `file-to-db`, `bulk-load` and `raster-load` jobs by its own id. Three jobs act on a version as a whole. They aren't submitted through `POST /jobs`, which refuses their types, but by the version routes, all for data-admin and super-admin callers:
+
+| Route | Job |
+|---|---|
+| `POST /datasets/{datasetId}/versions` | none: opens the version (201) |
+| `POST /datasets/{datasetId}/versions/{versionId}/reset` | `version-reset` (202) |
+| `DELETE /datasets/{datasetId}/versions/{versionId}` | `version-discard` (202) |
+| `POST /datasets/{datasetId}/versions/{versionId}/publish` | `version-publish` (202) |
+
+While a version has a job unfinished, its loads, file edits and the other version jobs return 409 (see **Dataset lock**). The admin listing shows a version on its dataset as `pending_version`, with its jobs and `publishing`.
+
+---
+
+## `version-reset`
+
+Removes everything loaded into a version, so its files can be mapped and loaded again. This is how a loaded vector file of a version is corrected: observations don't record their source file, so one can't be removed on its own.
+
+**Job data:** `{ "dataset_id": "<version id>" }`
+
+**Sequence of operations**, in one transaction with a 5-minute statement timeout:
+
+1. Delete the version's `dataset_layers` in chunks of 1 000 (`deleteDatasetLayers`), their observations by cascade, and its `raster_layers` (`deleteRasterLayers`).
+2. Put its files back to PENDING and drop the raw tables of staged ones.
+3. Put the version back to PENDING and clear its metadata rollup. The descriptive metadata copied from its dataset stays.
+4. After commit, queue `sweep-orphan-rows`.
+
+A timeout fails with `VERSION_TIMEOUT`, and nothing is removed.
+
+---
+
+## `version-discard`
+
+Removes a version with its files and data. The route works like a bulk delete: it queues the job, then soft-deletes the version (ARCHIVED, `deleted_at` set). The version leaves the admin list at once, and a new version can be opened straight away, under the same name.
+
+**Job data:** `{ "dataset_id": "<version id>", "previous_status": "<its status before the discard>" }`
+
+**Sequence of operations**, in one transaction with a 5-minute statement timeout:
+
+1. Find the version by its id, soft-deleted rows included. If it's gone already, there's nothing to do.
+2. Delete the grants on the version's id.
+3. Reset it as `version-reset` does, delete its dataset file mappings and soft-delete its files.
+4. Hard-delete the version. Its slug history stays, so its id is never reused: the next version of the dataset gets a suffixed one.
+5. After commit, queue `sweep-orphan-rows`.
+
+**On failure** nothing is removed, and the version is put back with its previous status, so it shows again with its error and can be discarded again. When a new version of the dataset was opened in the meantime it can't be put back: it stays soft-deleted, and the next `sweep-orphan-rows` queues its discard again.
+
+---
+
+## `version-publish`
+
+Publishes a version into its dataset. The dataset keeps its id, slug and grants unless the settings replace them, and its readers see its current data until the job commits.
+
+**Request body** (all optional): `visibility` (`public` | `private`), `entitlements` (the same map as `PUT /datasets/{datasetId}/entitlements`, replacing the dataset's grants), `delete_source_files`. Settings left out keep the dataset's.
+
+**Job data:** `{ "dataset_id": "<dataset id>", "version_id": "<version id>", …settings }`
+
+Refused with 409 unless the dataset is PUBLISHED and the version LOADED with no file left to load: a vector file not LOADED, or a raster file waiting with a band mapped.
+
+**Sequence of operations**, in one transaction with a 5-minute statement timeout (to be set from production measurements):
+
+1. A version `dataset_layers` row the dataset already has, on (feature, layer, soil property), adds its observations to the dataset's row, skipping identical ones as a load does, and is deleted. The rest of the version's `dataset_layers`, its `raster_layers` and its `dataset_file_mappings` are re-pointed to the dataset.
+2. Delete the grants on the version's id, and replace the dataset's if `entitlements` was sent.
+3. The dataset takes `visibility` if sent, the version's `version_number`, `data_updated_at = now()`, and the version's cleaning reports added to its own.
+4. Hard-delete the version. Its slug history stays.
+5. Recompute the dataset's metadata from its rows, and keep it PUBLISHED.
+6. After commit: refresh the DAI statistics for a vector dataset, invalidate cached queries, and delete the version's uploads if `delete_source_files` was set (a raster file's original upload only; the converted copy is its layers' data).
+
+**On failure** nothing is published: the version stays LOADED and can be published again. The job's error is shown on the version, not on the dataset (`GET /errors/datasets` keys a `version-publish` failure by `version_id`). A timeout fails with `VERSION_PUBLISH_TIMEOUT`.
+
+---
+
+## `sweep-orphan-rows`
+
+Deletes the `features` and `layers` no `dataset_layers` row references any more, which a bulk delete, a `version-reset` or a `version-discard` leaves behind. Scheduled daily at 01:00, and queued after each of those jobs.
+
+**Sequence of operations**
+
+1. Queue the discard again of each dataset version a failed discard left soft-deleted, unless one is already queued or running. It reuses the last discard's job data.
+2. Delete unreferenced `features`, then `layers`, 1 000 per statement, each in its own transaction, skipping rows another transaction has locked.
+
+A load that has just referenced a row in a batch makes that batch fail its foreign key check. The sweep then stops, and the next run retries. Licences aren't swept: they're managed on their own and named by `datasets.licenses`.

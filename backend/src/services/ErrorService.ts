@@ -17,12 +17,19 @@ export interface DatasetError {
 
 type StoredError = { code: string; params?: Record<string, unknown>; detail?: string };
 
+// The queues whose failures are a Dataset's errors
+const DATASET_ERROR_QUEUES = `('file-to-db', 'bulk-load', 'raster-load', 'bulk-delete', 'version-reset', 'version-discard', 'version-publish')`;
+
+// The Dataset a failed job's errors belong to, by slug. A version-publish locks the Dataset it
+// publishes into by dataset_id, but its errors are the Version's, where it's published from.
+const ERROR_DATASET = `CASE WHEN name = 'version-publish' THEN data->>'version_id' ELSE data->>'dataset_id' END`;
+
 export default class ErrorService {
   // Clearing leaves an empty `errors` array rather than dropping the key: a job without the key is
   // read as a pg-boss reap, so dropping it would bring a cleared reap back.
   async clearDatasetErrors(dataset_id: string, entityManager: RequestData['entityManager']): Promise<void> {
     await entityManager.query(
-      `UPDATE ${PG_BOSS_SCHEMA}.job SET data = jsonb_set(data, '{errors}', '[]'::jsonb) WHERE name IN ('file-to-db', 'bulk-load', 'raster-load', 'bulk-delete') AND state = 'failed' AND data->>'dataset_id' = $1`,
+      `UPDATE ${PG_BOSS_SCHEMA}.job SET data = jsonb_set(data, '{errors}', '[]'::jsonb) WHERE name IN ${DATASET_ERROR_QUEUES} AND state = 'failed' AND ${ERROR_DATASET} = $1`,
       [dataset_id],
     );
   }
@@ -35,19 +42,19 @@ export default class ErrorService {
   async getDatasetErrors(requestData: RequestData): Promise<DatasetError[]> {
     const rows: Array<{ dataset_id: string; errors: StoredError[] | null; output_message: string | null }> =
       await requestData.entityManager.query(
-        `SELECT DISTINCT ON (data->>'dataset_id')
-           data->>'dataset_id' AS dataset_id,
+        `SELECT DISTINCT ON (${ERROR_DATASET})
+           ${ERROR_DATASET} AS dataset_id,
            data->'errors' AS errors,
            COALESCE(output->>'message', output->'value'->>'message') AS output_message
          FROM ${PG_BOSS_SCHEMA}.job
-         WHERE name IN ('file-to-db', 'bulk-load', 'raster-load', 'bulk-delete')
+         WHERE name IN ${DATASET_ERROR_QUEUES}
            AND state = 'failed'
-           AND data->>'dataset_id' IS NOT NULL
+           AND ${ERROR_DATASET} IS NOT NULL
            AND (
              (data->'errors' IS NOT NULL AND data->'errors' <> '[]'::jsonb)
              OR (NOT data ? 'errors' AND COALESCE(output->>'message', output->'value'->>'message') = ANY($1::text[]))
            )
-         ORDER BY data->>'dataset_id', created_on DESC`,
+         ORDER BY ${ERROR_DATASET}, created_on DESC`,
         [QUEUE_REAP_MESSAGES],
       );
 

@@ -125,7 +125,13 @@ export const addDataset = async (
     spatial_extent: getPolygonFromBbox(spatial_extent),
     visibility: 'public',
   });
-  return await repo.save(dataset);
+  const saved = await repo.save(dataset);
+  // The slug trigger replaces the slug given with one made from the name, and records that one in
+  // slug_history. Returned as stored, so a caller that requests the Dataset by it, or saves the entity
+  // again, uses the real one: saving the one given breaks the deferred FK to slug_history at commit.
+  const { slug } = await repo.findOneOrFail({ where: { id: saved.id }, select: { id: true, slug: true } });
+  saved.slug = slug;
+  return saved;
 };
 
 /** A Dataset not published yet (PENDING), as one reaching its first load is: loads into a PUBLISHED Dataset are refused. */

@@ -8,15 +8,22 @@ import { getNewPath, idToSlug } from '../utils/slugs';
 import DatasetFileMappingService from '../services/DatasetFileMappingService';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
 import { refreshDaiStats } from '../data-layer/DaiStats';
+import DatasetVersionService, { PublishSettings } from '../services/DatasetVersionService';
+import { assertNotVersioned } from '../data-layer/DatasetVersions';
+import { getEntity } from '../utils/slugs';
+import DatasetEntity from '../entities/Dataset';
+import { EntityType } from '../types/data';
 
 const vectorDataLoad = new VectorDataLoad();
 const dataMappingService = new DataMappingService();
 const datasetService = new DatasetService();
 const datasetFileMappingService = new DatasetFileMappingService();
+const datasetVersionService = new DatasetVersionService();
 
 export const getDatasets = async (req: Request, res: Response) => {
   const data = await datasetService.getDatasets(req.customData);
   await datasetService.decorateWithJobs(req.customData, data);
+  await datasetService.decorateWithVersions(req.customData, data);
   await datasetService.decorateWithBbox(req.customData, data);
   res.json(idToSlug(data));
 };
@@ -32,6 +39,7 @@ export const getDataset = async (req: Request, res: Response) => {
   }
 
   await datasetService.decorateWithJobs(req.customData, [data]);
+  await datasetService.decorateWithVersions(req.customData, [data]);
   await datasetService.decorateWithBbox(req.customData, [data]);
   res.json(idToSlug(data));
 };
@@ -50,9 +58,47 @@ export const updateDataset = async (req: Request, res: Response) => {
 };
 
 export const deleteDataset = async (req: Request, res: Response) => {
-  await datasetService.assertEditable(req.customData, req.params['datasetId']! as string);
-  await datasetService.deleteDataset(req.customData, req.params['datasetId']! as string);
+  const slug = req.params['datasetId']! as string;
+  await datasetService.assertEditable(req.customData, slug);
+  const dataset = await getEntity(req.customData, DatasetEntity, EntityType.DATASET, slug);
+  await assertNotVersioned(req.customData.entityManager, dataset);
+  await datasetService.deleteDataset(req.customData, slug);
   res.status(StatusCodes.NO_CONTENT).send();
+};
+
+export const createDatasetVersion = async (req: Request, res: Response) => {
+  const version = await datasetVersionService.openVersion(req.customData, req.params['datasetId']! as string);
+  await datasetService.decorateWithVersions(req.customData, [version]);
+  res.status(StatusCodes.CREATED).json(idToSlug(version));
+};
+
+export const resetDatasetVersion = async (req: Request, res: Response) => {
+  const job = await datasetVersionService.resetVersion(
+    req.customData,
+    req.params['datasetId']! as string,
+    req.params['versionId']! as string,
+  );
+  res.status(StatusCodes.ACCEPTED).json(job);
+};
+
+export const discardDatasetVersion = async (req: Request, res: Response) => {
+  const job = await datasetVersionService.discardVersion(
+    req.customData,
+    req.params['datasetId']! as string,
+    req.params['versionId']! as string,
+  );
+  res.status(StatusCodes.ACCEPTED).json(job);
+};
+
+export const publishDatasetVersion = async (req: Request, res: Response) => {
+  const settings: PublishSettings = req.body ?? {};
+  const job = await datasetVersionService.publishVersion(
+    req.customData,
+    req.params['datasetId']! as string,
+    req.params['versionId']! as string,
+    settings,
+  );
+  res.status(StatusCodes.ACCEPTED).json(job);
 };
 
 export const postSoilData = async (req: Request, res: Response) => {

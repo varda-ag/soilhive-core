@@ -371,9 +371,10 @@ const resetToSourceFile = async (entityManager: EntityManager, fileId: string, s
  * file_path. source_file_path is kept as a record of where the file came from.
  *
  * Best-effort, as in a bulk load: the layers are already in, and a leftover source file is not
- * worth failing the load over.
+ * worth failing the load over. Also run by version-publish, for the raster Files of a Version, whose
+ * loads keep their uploads.
  */
-const deleteSourceFiles = async (entityManager: EntityManager, fileIds: string[]): Promise<void> => {
+export const deleteSourceFiles = async (entityManager: EntityManager, fileIds: string[]): Promise<void> => {
   if (fileIds.length === 0) {
     return;
   }

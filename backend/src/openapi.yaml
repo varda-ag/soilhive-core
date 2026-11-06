@@ -465,7 +465,9 @@ paths:
       x-eov-operation-id: getDatasets
       x-entitlements-required: true
       summary: Get metadata for datasets
-      description: Returns PUBLISHED datasets only unless caller has data-admin, super-admin or internal-request scopes.
+      description: >-
+        Returns PUBLISHED datasets only unless caller has data-admin, super-admin or internal-request scopes.
+        Versions are left out: each shows on its dataset as pending_version.
       tags:
         - datasets
       responses:
@@ -559,7 +561,12 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: >-
+            The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or the dataset
+            is a version and the update sets its status to PUBLISHED (a version goes live by being published
+            into the dataset it is a version of), or changes its general information: its name, descriptive
+            metadata or preprocessing steps, which are edited on the dataset it is a version of. Sending
+            a field unchanged is accepted.
           content:
             application/json:
               schema:
@@ -586,7 +593,213 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: >-
+            The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /datasets/{datasetId}/versions:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The id of the published dataset
+    post:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: createDatasetVersion
+      summary: Open a version of a published dataset, to add data to it
+      description: >-
+        Creates the version: a dataset of its own, named "<dataset name> v<number> increment", PENDING and private,
+        with the dataset's descriptive metadata. Data is added to it through the usual ingestion steps,
+        by its id, and goes live only when the version is published. Refused with 409 unless the dataset
+        is PUBLISHED, isn't a version itself, has no open version and no job queued or running.
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      responses:
+        '201':
+          description: The version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            The dataset isn't PUBLISHED, is a version, already has an open version, has a job queued or
+            running, or another dataset already has the version's name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /datasets/{datasetId}/versions/{versionId}:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The id of the published dataset
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The id of its open version
+    delete:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: discardDatasetVersion
+      summary: Discard a dataset's open version
+      description: >-
+        Discards the version the way a bulk delete removes a dataset. The version is marked deleted at
+        once: it leaves GET /datasets (pending_version is null), its id returns 404, and a new version
+        can be opened straight away, under the same name and a new id. A version-discard job then
+        removes its files and data in the background. The published dataset is left as it is. Refused
+        with 409 while the version has a load or reset queued or running.
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      responses:
+        '202':
+          description: The version-discard job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The version has a bulk-load, raster-load or version-reset job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /datasets/{datasetId}/versions/{versionId}/reset:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The id of the published dataset
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The id of its open version
+    post:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: resetDatasetVersion
+      summary: Remove the data loaded into a version
+      description: >-
+        Queues a version-reset job, which removes everything loaded into the version and returns it and
+        its files to PENDING, so they can be mapped and loaded again. This is how a loaded vector file of
+        a version is corrected or removed. Refused with 409 while the version has a job queued or running.
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      responses:
+        '202':
+          description: The version-reset job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: The version has a bulk-load, raster-load or version-reset job queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /datasets/{datasetId}/versions/{versionId}/publish:
+    parameters:
+      - name: datasetId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The id of the published dataset
+      - name: versionId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: The id of its open version
+    post:
+      x-eov-operation-handler: controllers/datasets
+      x-eov-operation-id: publishDatasetVersion
+      summary: Publish a version into its dataset
+      description: >-
+        Queues a version-publish job, which in one transaction adds the version's data to the dataset,
+        applies the publication settings to it, increments its version_number, sets its data_updated_at,
+        rolls its metadata up again and deletes the version. The dataset keeps its id. Its readers see
+        its current data until the job commits, and a failed job publishes nothing: the version stays
+        LOADED with the job's error, and can be published again. While the job is queued or running,
+        pending_version.publishing is true, and the dataset and the version are locked.
+      tags:
+        - datasets
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                visibility:
+                  type: string
+                  enum: [public, private]
+                  description: The dataset's visibility once published; kept as it is when absent
+                entitlements:
+                  allOf:
+                    - $ref: '#/components/schemas/Entitlements'
+                  description: >-
+                    The grants to the dataset once published, replacing its current ones as PUT
+                    /datasets/{datasetId}/entitlements does; kept as they are when absent
+                delete_source_files:
+                  type: boolean
+                  description: >-
+                    Deletes the uploads of the version's files once published, as a load does when it
+                    is set. A version's loads keep them, since a reset loads its files again.
+      responses:
+        '202':
+          description: The version-publish job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Job'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: >-
+            The dataset isn't PUBLISHED, the version isn't LOADED or has files not loaded yet, or either
+            has a job queued or running, a version-publish included
           content:
             application/json:
               schema:
@@ -602,7 +815,9 @@ paths:
         bulk-load, raster-load, file-to-db and bulk-delete jobs require data-admin or super-admin scope.
         Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
         A bulk-load, raster-load or bulk-delete job is refused with 409 while its dataset already has one of
-        those queued or running, and its dataset_id is stored as the dataset's current id.
+        those, or a version-reset or version-discard, queued or running, and its dataset_id is stored as the
+        dataset's current id. A bulk-load or raster-load into a version is refused with 400 when it sets
+        delete_source_files: resetting the version loads its files again from their uploads.
         An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
         within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
         While administrators require a signed-in user to export (exportRequiresSignIn in the theme config's exportLimits),
@@ -662,9 +877,10 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: >-
-            The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or a
-            bulk-load or raster-load targets a published dataset. A raster-load of a published dataset
-            with no file waiting for a load is accepted: it only removes the layers of removed files.
+            The dataset has a bulk-load, raster-load, bulk-delete, version-reset or version-discard job
+            queued or running, or a bulk-load or raster-load targets a published dataset, or a bulk-delete targets a version or a dataset with an open version.
+            A raster-load of a published dataset with no file waiting for a load is accepted: it only
+            removes the layers of removed files.
           content:
             application/json:
               schema:
@@ -3641,16 +3857,17 @@ components:
           nullable: true
           readOnly: true
           description: >-
-            The bulk-load, raster-load or bulk-delete job pg-boss has not picked up yet, or null.
-            Returned by GET /datasets and GET /datasets/{datasetId} to data-admin, super-admin and
-            internal-request callers only.
+            The bulk-load, raster-load, bulk-delete, version-reset, version-discard or version-publish job
+            pg-boss has not picked up yet, or null. A version-publish is the dataset's while it publishes
+            one of its versions into it. Returned by GET /datasets and GET /datasets/{datasetId} to
+            data-admin, super-admin and internal-request callers only.
           properties:
             id:
               type: string
               format: uuid
             queue:
               type: string
-              enum: [bulk-load, raster-load, bulk-delete]
+              enum: [bulk-load, raster-load, bulk-delete, version-reset, version-discard, version-publish]
         active_job:
           type: object
           nullable: true
@@ -3666,6 +3883,75 @@ components:
             queue:
               type: string
               enum: [bulk-load, raster-load]
+        version_of:
+          type: string
+          nullable: true
+          readOnly: true
+          description: >-
+            For a version, the id of the published dataset it is a version of; null otherwise. A version
+            is never PUBLISHED, so only data-admin, super-admin and internal-request callers see one.
+        version_number:
+          type: integer
+          readOnly: true
+          description: >-
+            The dataset's version: 1 until a version of it is first published. A version has the number
+            the dataset takes when it is published.
+        data_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          readOnly: true
+          description: >-
+            When the dataset's published data last changed: its first publish, a version published into
+            it, or a raster load that removed layers from it. Metadata edits move only updated_at. Null
+            for a dataset that has never been published.
+        pending_version:
+          type: object
+          nullable: true
+          readOnly: true
+          description: >-
+            The dataset's open version, or null. Versions are left out of GET /datasets and show here
+            instead. Returned by GET /datasets and GET /datasets/{datasetId} to data-admin, super-admin
+            and internal-request callers only.
+          properties:
+            slug:
+              type: string
+              description: The version's id
+            number:
+              type: integer
+            status:
+              type: string
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the version last changed, shown in its row of the admin list
+            publishing:
+              type: boolean
+              description: >-
+                Whether a version-publish of the version is queued or running. While it is, the
+                version's loads, reset, discard and a second publish are refused with 409, and the
+                dataset keeps serving its current data until the publish commits.
+            queued_job:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                queue:
+                  type: string
+                  enum: [bulk-load, raster-load, version-reset]
+            active_job:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                queue:
+                  type: string
+                  enum: [bulk-load, raster-load, version-reset]
 
     SoilProperty:
       type: object

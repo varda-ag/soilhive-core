@@ -345,6 +345,22 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
     actions: ['Try deleting again; if it keeps timing out, contact support'],
   },
+  VERSION_NOT_A_VERSION: {
+    message: "Dataset '{dataset_name}' is not a version of another dataset.",
+    actions: ['Delete the dataset instead.'],
+  },
+  VERSION_TIMEOUT: {
+    message: "Removing the data of '{dataset_name}' took too long and was stopped. Nothing was removed.",
+    actions: ['Try again; if it keeps timing out, contact support'],
+  },
+  VERSION_NOT_PUBLISHABLE: {
+    message: "Version '{version_name}' can't be published into '{dataset_name}': {reason}.",
+    actions: ['Open the version, load its files, then publish it again.'],
+  },
+  VERSION_PUBLISH_TIMEOUT: {
+    message: "Publishing '{version_name}' into '{dataset_name}' took too long and was stopped. Nothing was published.",
+    actions: ['Try publishing again; if it keeps timing out, contact support'],
+  },
   // Not thrown as a JobError: see QUEUE_REAP_CODES
   QUEUE_HEARTBEAT_TIMEOUT: {
     message: 'The job was interrupted before it could finish.',

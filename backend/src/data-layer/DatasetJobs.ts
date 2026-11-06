@@ -6,7 +6,15 @@ import { ErrorResponse } from '../utils/error';
 import { QueuedJob } from '../interfaces/Job';
 
 /** Queues whose unfinished jobs lock their Dataset. file-to-db is left out on purpose (docs/adr/0042). */
-export const DATASET_LOCKING_QUEUES: string[] = [JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD, JobQueues.BULK_DELETE];
+export const DATASET_LOCKING_QUEUES: string[] = [
+  JobQueues.BULK_LOAD,
+  JobQueues.RASTER_LOAD,
+  JobQueues.BULK_DELETE,
+  JobQueues.VERSION_RESET,
+  JobQueues.VERSION_DISCARD,
+  // Locks the Dataset it publishes into by dataset_id, and the Version by version_id (assertNoUnfinishedJob)
+  JobQueues.VERSION_PUBLISH,
+];
 
 interface UnfinishedJobRow extends QueuedJob {
   state: 'created' | 'active';
@@ -15,6 +23,12 @@ interface UnfinishedJobRow extends QueuedJob {
 
 /** Queues whose running job is a Dataset's `active_job`: bulk-delete is left out, since its Dataset leaves the list. */
 export const DATASET_LOAD_QUEUES: string[] = [JobQueues.BULK_LOAD, JobQueues.RASTER_LOAD];
+
+/**
+ * Queues whose running job is a Version's `active_job`: its loads, and resetting it. Not discarding
+ * it: the discard route soft-deletes the Version, so it has left the list before its job runs.
+ */
+export const VERSION_ACTIVE_QUEUES: string[] = [...DATASET_LOAD_QUEUES, JobQueues.VERSION_RESET];
 
 /**
  * Each of the given Datasets' unfinished work, keyed by slug, in one query:
@@ -46,6 +60,23 @@ export async function getUnfinishedJobs(
     (state === 'created' ? queued : active).set(dataset_id, { id, queue });
   }
   return { queued, active };
+}
+
+/**
+ * The Versions, by slug, that a `version-publish` is publishing: queued or running. Read from pg-boss
+ * rather than stored, like a load's `active_job`, so it clears however the job ends.
+ */
+export async function getPublishingVersions(entityManager: EntityManager, versionSlugs: string[]): Promise<Set<string>> {
+  if (versionSlugs.length === 0) {
+    return new Set();
+  }
+  const rows: { version_id: string }[] = await entityManager.query(
+    `SELECT DISTINCT data->>'version_id' AS version_id
+     FROM ${PG_BOSS_SCHEMA}.job
+     WHERE name = $1 AND state IN ('created', 'active') AND data->>'version_id' = ANY($2)`,
+    [JobQueues.VERSION_PUBLISH, versionSlugs],
+  );
+  return new Set(rows.map(row => row.version_id));
 }
 
 /** The running (`active`) job on one of the given queues for any of the given Datasets, by slug, or null. */
@@ -88,7 +119,8 @@ export async function hasRasterFileToLoad(entityManager: EntityManager, datasetI
 }
 
 /**
- * Refuses with 409 while the Dataset has a job on a locking queue that is Queued or running.
+ * Refuses with 409 while the Dataset has a job on a locking queue that is Queued or running. A
+ * Version is also locked by the `version-publish` publishing it, which names it by `version_id`.
  *
  * The advisory lock makes concurrent submissions and edits on one Dataset check one at a time. It is
  * released when the request commits; pg-boss enqueues through its own connection, so by then the
@@ -102,10 +134,11 @@ export async function assertNoUnfinishedJob(
   const [job]: UnfinishedJobRow[] = await entityManager.query(
     `SELECT id, name AS queue, state
      FROM ${PG_BOSS_SCHEMA}.job
-     WHERE name = ANY($1) AND state IN ('created', 'active') AND data->>'dataset_id' = $2
+     WHERE name = ANY($1) AND state IN ('created', 'active')
+       AND (data->>'dataset_id' = $2 OR (name = $3 AND data->>'version_id' = $2))
      ORDER BY created_on
      LIMIT 1`,
-    [DATASET_LOCKING_QUEUES, dataset.slug],
+    [DATASET_LOCKING_QUEUES, dataset.slug, JobQueues.VERSION_PUBLISH],
   );
   if (job) {
     const state = job.state === 'created' ? 'queued' : 'running';
