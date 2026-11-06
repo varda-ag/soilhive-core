@@ -1,4 +1,4 @@
-import type { StatisticsType, SoilIndexType, VariableType, DepthRanges, ValueType, ClassMethod } from '../types/enums';
+import type { StatisticsType, SoilIndexType, VariableType, DepthRanges, ValueType, ClassMethod, CorrelationMeasure } from '../types/enums';
 import type { AggregationUnit } from '../jobs/runs/types';
 import type { SamplingRange } from '../jobs/soil-indexes/samplingRange';
 import type { IngestionStatus } from '../types/data';
@@ -158,8 +158,14 @@ export interface DataRequestJobParameters extends RunJobParameters {
   statistics_type: StatisticsType;
   /** Dataset slugs. Absent means every dataset the filter matches that the caller can preview. */
   dataset_ids?: string[];
-  /** Required by every Statistics Type. */
+  /** Required by every Statistics Type except `correlation`. */
   variable?: ClassDistributionVariable;
+  /** `correlation` only (required there): a Soil Property, different from `variable_y`. */
+  variable_x?: ClassDistributionVariable;
+  /** `correlation` only (required there): a Soil Property, different from `variable_x`. */
+  variable_y?: ClassDistributionVariable;
+  /** `correlation` only (required there). */
+  measure?: CorrelationMeasure;
   /** `class-distribution` only; exclusive with `class_count`. */
   classes?: ClassDefinition[];
   /** `class-distribution` only: total Classes to generate, 3-20. */
@@ -168,7 +174,7 @@ export interface DataRequestJobParameters extends RunJobParameters {
   class_method?: ClassMethod;
   /** Required by every Statistics Type: Year Window in years (1-10), or `none`. */
   time_aggregation?: TimeAggregation;
-  /** `descriptive` and `class-distribution`, default `none`. */
+  /** `descriptive` and `class-distribution`, default `none`; `correlation` requires `standard`. */
   depth_ranges?: DepthRanges;
   /** `class-distribution` only (required there). */
   value_type?: ValueType;

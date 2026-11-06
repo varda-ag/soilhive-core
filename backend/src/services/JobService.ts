@@ -2,7 +2,16 @@ import { createHash } from 'node:crypto';
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
-import { AnyJob, ExportJob, Job, DataRequestJob, SoilIndexJob, RunJobData, BulkLoadJob } from '../interfaces/Job';
+import {
+  AnyJob,
+  ExportJob,
+  Job,
+  DataRequestJob,
+  SoilIndexJob,
+  RunJobData,
+  BulkLoadJob,
+  ClassDistributionVariable,
+} from '../interfaces/Job';
 import { Capability, JobQueues, SoilIndexType, StatisticsType, VariableType } from '../types/enums';
 import { getPgBoss } from './PgBoss';
 import { JobWithMetadata, SendOptions } from 'pg-boss';
@@ -12,7 +21,7 @@ import FilterService from './FilterService';
 import FileService from './FileService';
 import SoilPropertyService from './SoilPropertyService';
 import { DataFilter } from '../interfaces/DatasetFilter';
-import { misplacedParameter, notASoilIndexRun, parametersProblem } from '../jobs/data-requests/parameters';
+import { misplacedParameter, notASoilIndexRun, parametersProblem, SAME_CORRELATION_VARIABLES } from '../jobs/data-requests/parameters';
 import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
@@ -285,7 +294,15 @@ export default class JobService {
     const filter = await this.validateRunJob(requestData, data);
 
     if (data.variable) {
-      await this.validateVariable(requestData, data, filter);
+      await this.validateVariable(requestData, data.variable, data.filter_id, filter);
+    }
+    if (data.variable_x && data.variable_y) {
+      const x = await this.validateSoilPropertyVariable(requestData, 'variable_x', data.variable_x.id, data.filter_id, filter);
+      const y = await this.validateSoilPropertyVariable(requestData, 'variable_y', data.variable_y.id, data.filter_id, filter);
+      // An old slug and the current one name the same Soil Property.
+      if (x === y) {
+        throw new ErrorResponse(SAME_CORRELATION_VARIABLES, StatusCodes.BAD_REQUEST);
+      }
     }
 
     if (data.dataset_ids && data.dataset_ids.length > 0) {
@@ -293,8 +310,13 @@ export default class JobService {
     }
   };
 
-  private validateVariable = async (requestData: RequestData, data: DataRequestJob, filter: DataFilter): Promise<void> => {
-    const { id, type } = data.variable!;
+  private validateVariable = async (
+    requestData: RequestData,
+    variable: ClassDistributionVariable,
+    filterId: string,
+    filter: DataFilter,
+  ): Promise<void> => {
+    const { id, type } = variable;
 
     // Needs an attached partition. The Filter's criteria other than its sampling dates are ignored (docs/adr/0058).
     if (type === VariableType.SOIL_INDEX) {
@@ -304,20 +326,32 @@ export default class JobService {
       return;
     }
 
+    await this.validateSoilPropertyVariable(requestData, 'variable', id, filterId, filter);
+  };
+
+  /** Checks that the Soil Property exists and that the Filter admits it. Returns its current slug. */
+  private validateSoilPropertyVariable = async (
+    requestData: RequestData,
+    name: string,
+    id: string,
+    filterId: string,
+    filter: DataFilter,
+  ): Promise<string> => {
     let slug: string;
     try {
       ({ slug } = await new SoilPropertyService().getSoilProperty(requestData, id));
     } catch {
-      throw new ErrorResponse(`Parameter variable.id '${id}' is not a soil property`, StatusCodes.BAD_REQUEST);
+      throw new ErrorResponse(`Parameter ${name}.id '${id}' is not a soil property`, StatusCodes.BAD_REQUEST);
     }
 
     const admitted = filter.parameters.soil_properties;
     if (admitted && admitted.length > 0 && !admitted.includes(slug)) {
       throw new ErrorResponse(
-        `Soil property '${id}' is excluded by filter '${data.filter_id}', which admits only: ${admitted.join(', ')}`,
+        `Soil property '${id}' is excluded by filter '${filterId}', which admits only: ${admitted.join(', ')}`,
         StatusCodes.BAD_REQUEST,
       );
     }
+    return slug;
   };
 
   /**

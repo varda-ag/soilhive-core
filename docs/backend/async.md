@@ -146,6 +146,7 @@ Computes an analytical product over the spatial areas matching a filter. `statis
 | `descriptive` | Count, extremes, mean, spread and percentiles of one variable, per dataset, area, year window and depth bucket | `data` on `GET /data-requests/{id}` |
 | `class-distribution` | Percentage or number of one soil property's observations in each caller-supplied class, per dataset, area, year window and depth bucket | `data` on `GET /data-requests/{id}` |
 | `value-range` | How many observations of one soil property match, at how many locations, and their lowest and highest values, for the whole request and per dataset | `data` on `GET /data-requests/{id}` |
+| `correlation` | Pearson r, Spearman rho and the least-squares fit between two soil properties at the same locations, plus a sample of the points, per dataset, area, year window and depth range | `data` on `GET /data-requests/{id}` |
 
 > **This queue is not reached through `/jobs`.** A data request is submitted, read and deleted through `/data-requests`, which applies a different rule at every point: anyone holding the id may read it, and `DELETE` destroys the record rather than only cancelling the run. `GET` and `DELETE /jobs/{jobId}` report a data-requests job as **not found** (docs/adr/0037).
 
@@ -165,7 +166,7 @@ POST /data-requests
 }
 ```
 
-`statistics_type`, `filter_id`, `variable` and `time_aggregation` are required — there is **no default**. Parameters the chosen type does not use are **rejected with a `400`, not ignored**: `depth_ranges` applies to `descriptive` and `class-distribution`, and `classes`, `class_count`, `class_method` and `value_type` to `class-distribution` only. `dataset_ids` applies to every type. Unknown properties are rejected by the same rule, which includes `type` and `anonymous`: both were `/jobs` concepts and neither has a meaning here. A missing or unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor without a usable one fails rather than falling back to `descriptive`.
+`statistics_type`, `filter_id`, `variable` and `time_aggregation` are required — there is **no default**. `correlation` takes `variable_x`, `variable_y` and `measure` instead of `variable`. Parameters the chosen type does not use are **rejected with a `400`, not ignored**: `variable` applies to every type except `correlation`, `depth_ranges` to `descriptive`, `class-distribution` and `correlation`, `classes`, `class_count`, `class_method` and `value_type` to `class-distribution` only, and `variable_x`, `variable_y` and `measure` to `correlation` only. `dataset_ids` applies to every type. Unknown properties are rejected by the same rule, which includes `type` and `anonymous`: both were `/jobs` concepts and neither has a meaning here. A missing or unrecognised `statistics_type` is a `400` on submission, and a job that somehow reaches the processor without a usable one fails rather than falling back to `descriptive`.
 
 **No token is required.** A token, if sent, decides only which datasets the run may read — without one it resolves public datasets only — and is never consulted again. It does not decide who may read or delete the result: the returned `id` is the whole of that permission, so passing it on passes on the data *and* the power to erase it.
 
@@ -359,6 +360,48 @@ POST /data-requests
 - The top-level figures always span all years: the same values generated classes come from.
 - Only datasets and windows with matches are listed. With no match: `n_observations: 0`, `n_features: 0`, no `min`/`max`, empty lists.
 - No size limit, since output grows with datasets only.
+
+## `data-requests` — `correlation`
+
+How two soil properties vary together at the same locations: the data for a scatter plot.
+
+```json
+POST /data-requests
+{
+  "statistics_type": "correlation",
+  "filter_id": "<uuid>",
+  "variable_x": { "type": "soil-property", "id": "clay" },
+  "variable_y": { "type": "soil-property", "id": "soc" },
+  "measure": "median",
+  "depth_ranges": "standard",
+  "time_aggregation": 3
+}
+```
+
+```jsonc
+{
+  "x": { "soil_property": "clay", "standard_unit": "%" },
+  "y": { "soil_property": "soc", "standard_unit": "g/kg" },
+  "min_points": 10,
+  "max_points": 1000,
+  "overall": [                                     // per dataset × window × depth range, each location once
+    { "dataset_id": "lucas-2018", "year_start": 2018, "year_end": 2020, "depth_start": 0, "depth_end": 5,
+      "n_points": 1240, "pearson_r": -0.412, "spearman_rho": -0.398, "r_squared": 0.17, "slope": -0.21, "intercept": 31.5 }
+  ],
+  "results": [                                     // the same per area, with the points
+    { "dataset_id": "lucas-2018", "unit_id": "<uuid>", "year_start": 2018, "year_end": 2020, "depth_start": 0, "depth_end": 5,
+      "n_points": 1240, "pearson_r": -0.412, "spearman_rho": -0.398, "r_squared": 0.17, "slope": -0.21, "intercept": 31.5,
+      "points_truncated": true, "x": [12.1, 30.4, "…"], "y": [25.3, 18.9, "…"] }
+  ]
+}
+```
+
+- **Rules.** Both variables must be soil properties (soil indexes are a `400`), exist, be admitted by the filter's `soil_properties`, and be different (an old slug and the current slug of one property are the same property). `measure` (`mean` or `median`) and `depth_ranges: "standard"` are required.
+- **Pairs.** Per dataset, location, year window and standard depth range, each property's values are reduced with `measure`, then x and y are paired. A location with only one of the two gives no point. Layers pair by midpoint, so clay at 0–30 cm pairs with soc at 10–30 cm (both in 15–30), not with soc at 0–10 cm. Layers without depth are left out; undated layers go to the null year window. Datasets are never pooled.
+- **Statistics.** `n_points` is always present. `pearson_r`, `spearman_rho` (Pearson of average ranks), `r_squared` (`pearson_r²`), and `slope`/`intercept` (least squares of y on x) are absent together below `min_points` or when x or y does not vary. `slope` and `intercept` keep 3 significant digits, so a small slope (mg/kg against %) is not rounded to 0, and are 0 when they are within floating-point error of 0 for the scale of the data (an exact y = 3x has intercept 0, not 2.84e-15); the other statistics and the points are rounded to 3 decimals.
+- **Points.** `x[i]` and `y[i]` are one location; their order has no meaning. A `results` row sends at most `max_points`. Above it `points_truncated` is `true` and the points are a fixed-seed sample (the same request gives the same sample); the statistics still use every point. `overall` rows carry no points.
+- **Overlapping areas.** A location is in each area's row, and counts once in `overall`.
+- **Size.** The run fails before the statistics when `overall` + `results` rows exceed `DATA_REQUESTS_MAX_CELLS`, or when the points sent (over all rows, at most `max_points` each) exceed `DATA_REQUESTS_MAX_CORRELATION_POINTS` (default 500,000; docs/adr/0076). Use fewer areas or datasets, or `time_aggregation: "none"`. A chart that combines N datasets or areas can still have N × `max_points` points.
 
 ## `data-requests` — over a soil index run's scores
 

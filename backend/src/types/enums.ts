@@ -52,6 +52,7 @@ export enum StatisticsType {
   DESCRIPTIVE = 'descriptive',
   CLASS_DISTRIBUTION = 'class-distribution',
   VALUE_RANGE = 'value-range',
+  CORRELATION = 'correlation',
 }
 
 /** What a Class Distribution or Value Range is computed for. */
@@ -70,6 +71,12 @@ export enum DepthRanges {
 export enum ValueType {
   PERCENTAGE = 'percentage',
   COUNT = 'count',
+}
+
+/** How a correlation reduces several values of one location in one row to one. */
+export enum CorrelationMeasure {
+  MEAN = 'mean',
+  MEDIAN = 'median',
 }
 
 /** How Classes are generated from `class_count`. */

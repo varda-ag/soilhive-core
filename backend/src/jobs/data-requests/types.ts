@@ -146,5 +146,52 @@ export type SoilIndexValueRange = ValueRangeCounts &
 
 export type ValueRangeOutput = SoilPropertyValueRange | SoilIndexValueRange;
 
+/** Values not final: the science team must confirm. */
+export const CORRELATION_MIN_POINTS = 10;
+/** Values not final: the science team must confirm. */
+export const CORRELATION_MAX_POINTS = 1000;
+
+/** Keys of a correlation row: layers without depth are left out, so a depth bucket is always set. */
+export type CorrelationRowKeys = Omit<BucketKeys, 'depth_start' | 'depth_end'> & {
+  dataset_id: string;
+  depth_start: number;
+  /** Null for > 200 cm. */
+  depth_end: number | null;
+};
+
+/** The five statistics are absent together below `CORRELATION_MIN_POINTS` or without variance. */
+export interface CorrelationStatistics {
+  n_points: number;
+  pearson_r?: number;
+  spearman_rho?: number;
+  r_squared?: number;
+  /** Least-squares fit of y on x. */
+  slope?: number;
+  intercept?: number;
+}
+
+export type CorrelationOverallRow = CorrelationRowKeys & CorrelationStatistics;
+
+export type CorrelationResultRow = CorrelationRowKeys &
+  CorrelationStatistics & {
+    unit_id: string;
+    /** True: x/y are a fixed-seed sample of `max_points`; the statistics still use all points. */
+    points_truncated: boolean;
+    /** x[i] and y[i] are one location. */
+    x: number[];
+    y: number[];
+  };
+
+/** The `correlation` payload. */
+export interface CorrelationOutput {
+  x: SoilPropertyVariableHeader;
+  y: SoilPropertyVariableHeader;
+  min_points: number;
+  max_points: number;
+  /** Per (Dataset, Year Window, depth bucket), each location counted once. */
+  overall: CorrelationOverallRow[];
+  results: CorrelationResultRow[];
+}
+
 /** Which one is told by `request.statistics_type`. */
-export type DataRequestOutput = SoilStatisticsOutput | ClassDistributionOutput | ValueRangeOutput;
+export type DataRequestOutput = SoilStatisticsOutput | ClassDistributionOutput | ValueRangeOutput | CorrelationOutput;

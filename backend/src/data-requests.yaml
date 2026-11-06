@@ -15,20 +15,22 @@ components:
       required:
         - statistics_type
         - filter_id
-        - variable
         - time_aggregation
       properties:
         statistics_type:
           type: string
-          enum: [descriptive, class-distribution, value-range]
+          enum: [descriptive, class-distribution, value-range, correlation]
           description: >-
-            Which product to compute, always for one variable. `descriptive` gives count,
+            Which product to compute, for one variable (two for `correlation`). `descriptive` gives count,
             extremes, mean, spread and percentiles per dataset, aggregation area, year window and
             depth bucket, plus the same per dataset over the whole request. `class-distribution` gives the percentage or number of one
             soil property's observations in each of the given classes, per dataset, aggregation
             area, year window and depth bucket. `value-range` gives just how many observations
             of one soil property match, at how many locations, and their lowest and highest
-            values, for the whole request and per dataset. Required, and never defaulted.
+            values, for the whole request and per dataset. `correlation` pairs two soil
+            properties at the same locations and gives Pearson r, Spearman rho, r squared and the
+            least-squares fit of y on x, plus a sample of the points, per dataset, aggregation
+            area, year window and depth bucket. Required, and never defaulted.
         filter_id:
           type: string
           format: uuid
@@ -53,6 +55,17 @@ components:
             reported back — it reaches the server log only.
         variable:
           $ref: '#/components/schemas/ClassDistributionVariable'
+        variable_x:
+          $ref: '#/components/schemas/CorrelationVariable'
+        variable_y:
+          $ref: '#/components/schemas/CorrelationVariable'
+        measure:
+          type: string
+          enum: [mean, median]
+          description: >-
+            Required for, and only accepted with, statistics_type `correlation`: how the values of
+            one soil property at one location, in one year window and depth range, are reduced to
+            one value before pairing.
         classes:
           type: array
           minItems: 1
@@ -97,7 +110,8 @@ components:
           type: string
           enum: [none, standard]
           description: >-
-            `descriptive` and `class-distribution` only. `none` (the default) pools
+            `descriptive`, `class-distribution` and `correlation` only; `correlation` requires
+            `standard`. `none` (the default) pools
             every depth into one bucket, which mixes horizons. `standard` sorts each observation
             into the GlobalSoilMap range (0-5, 5-15, 15-30, 30-60, 60-100, 100-200 cm, and deeper
             than 200) holding its layer's depth midpoint, so a 0-30 cm composite is reported at
@@ -138,7 +152,7 @@ components:
       properties:
         statistics_type:
           type: string
-          enum: [descriptive, class-distribution, value-range]
+          enum: [descriptive, class-distribution, value-range, correlation]
         filter_id:
           type: string
           format: uuid
@@ -150,6 +164,13 @@ components:
             type: string
         variable:
           $ref: '#/components/schemas/ClassDistributionVariable'
+        variable_x:
+          $ref: '#/components/schemas/CorrelationVariable'
+        variable_y:
+          $ref: '#/components/schemas/CorrelationVariable'
+        measure:
+          type: string
+          enum: [mean, median]
         classes:
           type: array
           items:
@@ -272,6 +293,7 @@ components:
             - $ref: '#/components/schemas/SoilStatistics'
             - $ref: '#/components/schemas/ClassDistribution'
             - $ref: '#/components/schemas/ValueRange'
+            - $ref: '#/components/schemas/Correlation'
 
     ValueRangeFigures:
       type: object
@@ -356,7 +378,7 @@ components:
     ClassDistributionVariable:
       type: object
       description: >-
-        Required by every statistics_type: what it is computed for. A `soil-property` must exist and be admitted by
+        Required by every statistics_type except `correlation`: what it is computed for. A `soil-property` must exist and be admitted by
         the filter's own soil property criterion, if it has one. A `soil-index` names a completed
         soil index run, whose scores are read in place of observations: each score belongs to the
         areas containing its representative point, only scores whose year falls within the filter's
@@ -374,6 +396,24 @@ components:
         id:
           type: string
           description: ID of the soil property, or the id of the soil index run.
+
+    CorrelationVariable:
+      type: object
+      description: >-
+        One axis of a `correlation`, required there and rejected otherwise. Only `soil-property`
+        is supported: soil indexes are rejected. It must exist, be admitted by the filter's own
+        soil property criterion, if it has one, and differ from the other axis.
+      additionalProperties: false
+      required:
+        - type
+        - id
+      properties:
+        type:
+          type: string
+          enum: [soil-property, soil-index]
+        id:
+          type: string
+          description: ID of the soil property.
 
     ClassDefinition:
       type: object
@@ -645,3 +685,128 @@ components:
           items:
             type: string
           description: More than one means the figures mix measurement methods.
+
+    CorrelationAxis:
+      type: object
+      required:
+        - soil_property
+        - standard_unit
+      properties:
+        soil_property:
+          type: string
+        standard_unit:
+          type: string
+          nullable: true
+
+    CorrelationStatistics:
+      type: object
+      description: >-
+        n_points is always present. The other five are absent together when n_points is below
+        min_points, or when x or y does not vary. pearson_r, spearman_rho and r_squared are rounded
+        to 3 decimals. slope and intercept keep 3 significant digits, so a small slope (mg/kg
+        against %) is not rounded to 0, and are 0 when they are within floating-point error of 0
+        for the scale of the data.
+      required:
+        - n_points
+      properties:
+        dataset_id:
+          type: string
+        year_start:
+          type: integer
+          nullable: true
+          description: Null for layers with no sampling year; absent when time_aggregation is none.
+        year_end:
+          type: integer
+          nullable: true
+        depth_start:
+          type: integer
+          description: Standard depth range holding the layer's midpoint. Layers without depth are left out.
+        depth_end:
+          type: integer
+          nullable: true
+          description: Null for the range deeper than 200 cm.
+        n_points:
+          type: integer
+          description: Locations with both values in this row.
+        pearson_r:
+          type: number
+        spearman_rho:
+          type: number
+          description: Pearson r of the ranks; tied values share their average rank.
+        r_squared:
+          type: number
+          description: pearson_r squared.
+        slope:
+          type: number
+          description: Least-squares fit of y on x.
+        intercept:
+          type: number
+
+    Correlation:
+      type: object
+      description: >-
+        The result of a `correlation` data request. Per location, year window and standard depth
+        range, the values of each soil property are reduced with request.measure, then x and y are
+        paired. Pairs never mix datasets. A missing row means no points.
+      required:
+        - x
+        - y
+        - min_points
+        - max_points
+        - overall
+        - results
+      properties:
+        x:
+          $ref: '#/components/schemas/CorrelationAxis'
+        y:
+          $ref: '#/components/schemas/CorrelationAxis'
+        min_points:
+          type: integer
+          description: Fewest points for which the statistics are given.
+        max_points:
+          type: integer
+          description: Most points a results row sends.
+        overall:
+          type: array
+          description: Per dataset, year window and depth range over the whole request, each location counted once.
+          items:
+            allOf:
+              - $ref: '#/components/schemas/CorrelationStatistics'
+              - type: object
+                required:
+                  - dataset_id
+                  - depth_start
+                  - depth_end
+        results:
+          type: array
+          description: Per dataset, aggregation area, year window and depth range.
+          items:
+            allOf:
+              - $ref: '#/components/schemas/CorrelationStatistics'
+              - type: object
+                required:
+                  - dataset_id
+                  - depth_start
+                  - depth_end
+                  - unit_id
+                  - points_truncated
+                  - x
+                  - y
+                properties:
+                  unit_id:
+                    type: string
+                    format: uuid
+                  points_truncated:
+                    type: boolean
+                    description: >-
+                      True when n_points is above max_points: x and y are then a fixed-seed sample
+                      of max_points locations, while the statistics still use every point.
+                  x:
+                    type: array
+                    items:
+                      type: number
+                    description: x[i] and y[i] are one location. The order has no meaning.
+                  y:
+                    type: array
+                    items:
+                      type: number
