@@ -1,5 +1,9 @@
 # Datasets support incremental ingestion
 
+> **Superseded in part by #962 and docs/adr/0077.** Still current: a load takes only the Files waiting for one, a failed Raster Load removes the layers of the Files it had started writing to and puts them back to PENDING, and a normalization always starts from the File's source. No longer current:
+> - **Editing a loaded raster File** (#962). A loaded File's Band Mapping is read-only, raster as well as vector (409), and a wrong raster File is removed and uploaded again. "How a raster edit is applied", `loaded_bands`, and the edit cases under "What a load picks up" and in the Consequences are gone.
+> - **Hiding the Dataset during a load** (#962). Loads no longer move the Dataset to ONGOING, so a worker that dies mid-load leaves it as it was, and a failed load of either kind leaves its status as it was. A load into a PUBLISHED Dataset is refused instead. Data is added to one through a Dataset Version (docs/adr/0077), so new records still never appear in a published Dataset partway through a load.
+
 A Dataset that is already LOADED or PUBLISHED can take more Files, and a loaded raster File can have its Band Mapping edited. A load ingests only what is new or changed since the last one, and leaves loaded Files that nobody touched as they are.
 
 - **What a load picks up.** Only Files waiting for a load. A bulk load already took only STAGED Files. A Raster Load now takes only PENDING ones, where it used to re-ingest every mapped File on every run. Editing a loaded raster File's Band Mapping puts the File back to PENDING, which `updateMapping` does only when the mapping's content changed, since the mapping steps post a fresh data mapping on every save. A loaded vector File cannot be re-mapped, because its raw table is dropped once it is loaded.

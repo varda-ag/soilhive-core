@@ -28,7 +28,7 @@ Job status values: `created`, `active`, `completed`, `cancelled`, `failed`.
 
 **Dataset lock.** While a dataset has a `bulk-load`, `raster-load`, `bulk-delete`, `version-reset`, `version-discard` or `version-publish` job `created` or `active`, another job on those queues and every dataset edit (`PATCH`/`DELETE /datasets/{id}`, the `dataset-file-mapping` writes, `POST …/soil-data` except the bulk load's own internal-request batches) return 409. A `version-publish` locks two datasets: the one it publishes into, named by `dataset_id`, and the dataset version it publishes, named by `version_id`. `file-to-db` neither locks nor is refused. A `created` job is shown to privileged callers as the dataset's `queued_job` (ADR 0042).
 
-**Published datasets.** A `bulk-load` or `raster-load` of a PUBLISHED dataset is refused with 409: data is added to it through a dataset version (ADR 0075). The one exception is a `raster-load` with no file to ingest, which only removes the layers of removed files and leaves the dataset PUBLISHED. A load no longer hides the dataset while it runs: it ends LOADED, and a failed one leaves the status as it was.
+**Published datasets.** A `bulk-load` or `raster-load` of a PUBLISHED dataset is refused with 409: data is added to it through a dataset version (ADR 0077). The one exception is a `raster-load` with no file to ingest, which only removes the layers of removed files and leaves the dataset PUBLISHED. A load no longer hides the dataset while it runs: it ends LOADED, and a failed one leaves the status as it was.
 
 **Job identity.** A job records the **Subject** of whoever submitted it in `created_by` — the token's `email` claim, else `client_id`, else `sub` (ADR 0022). The same value governs two things: which jobs `GET /jobs` lists and who may poll or cancel one, and which entitlements the processor resolves. Processors hold no raw token, so they re-derive entitlements from `everyone` plus the Subject's local rows; entitlements that exist only at the external endpoint are visible at enqueue time but not to the processor.
 
@@ -516,7 +516,7 @@ Chunked deletion keeps each statement under the statement timeout. The orphan sw
 
 ## Dataset versions
 
-Data is added to a PUBLISHED dataset through a **dataset version** (ADR 0075): a dataset row of its own, private and never PUBLISHED, loaded with the usual `file-to-db`, `bulk-load` and `raster-load` jobs by its own id. Three jobs act on a version as a whole. They aren't submitted through `POST /jobs`, which refuses their types, but by the version routes, all for data-admin and super-admin callers:
+Data is added to a PUBLISHED dataset through a **dataset version** (ADR 0077): a dataset row of its own, private and never PUBLISHED, loaded with the usual `file-to-db`, `bulk-load` and `raster-load` jobs by its own id. Three jobs act on a version as a whole. They aren't submitted through `POST /jobs`, which refuses their types, but by the version routes, all for data-admin and super-admin callers:
 
 | Route | Job |
 |---|---|

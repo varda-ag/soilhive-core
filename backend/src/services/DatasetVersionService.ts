@@ -35,7 +35,7 @@ export const COPIED_FIELDS = [
 ] as const;
 
 /**
- * Version Datasets (docs/adr/0075): data added to a PUBLISHED Dataset (v1) is
+ * Version Datasets (docs/adr/0077): data added to a PUBLISHED Dataset (v1) is
  * loaded into a Version (v2), a Dataset row of its own that stays hidden by its status. The ingestion
  * steps, routes and loaders work on it by its slug like on any unpublished Dataset.
  */

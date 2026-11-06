@@ -15,7 +15,7 @@ export interface ProcessingSteps {
   cleaning_steps?: Record<string, CleaningReport>;
 }
 
-/** A Dataset's open Version, as the admin listing shows it on the Dataset (docs/adr/0075) */
+/** A Dataset's open Version, as the admin listing shows it on the Dataset (docs/adr/0077) */
 export interface PendingVersion {
   slug: string;
   // `<v1 name> v<number> increment`: too long for the list's cell, shown as its tooltip
