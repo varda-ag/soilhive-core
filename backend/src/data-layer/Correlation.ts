@@ -198,6 +198,9 @@ const rowKeys = (raw: RawStatistics, timeAggregation: TimeAggregation): Correlat
   return { dataset_id: raw.dataset_slug, ...yearKeys, depth_start: raw.depth_start, depth_end: depth_end ?? null };
 };
 
+/** The fit can be tiny (mg/kg against %), so it keeps 3 significant digits, not 3 decimals. */
+const round3Significant = (value: number): number => Number(value.toPrecision(3));
+
 /** Only `n_points` below the minimum or when x or y does not vary. */
 const statisticsOf = (raw: RawStatistics): CorrelationStatistics => {
   if (raw.n_points < CORRELATION_MIN_POINTS || raw.pearson_r === null) {
@@ -208,7 +211,7 @@ const statisticsOf = (raw: RawStatistics): CorrelationStatistics => {
     pearson_r: round3(raw.pearson_r),
     spearman_rho: round3(raw.spearman_rho!),
     r_squared: round3(raw.pearson_r * raw.pearson_r),
-    slope: round3(raw.slope!),
-    intercept: round3(raw.intercept!),
+    slope: round3Significant(raw.slope!),
+    intercept: round3Significant(raw.intercept!),
   };
 };

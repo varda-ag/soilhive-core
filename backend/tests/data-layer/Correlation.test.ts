@@ -192,9 +192,22 @@ describe('computeCorrelation — statistics', () => {
       pearson_r: round3(r),
       spearman_rho: round3(pearson(ranks(xs), ranks(ys))),
       r_squared: round3(r * r),
-      slope: round3(slope),
-      intercept: round3(my - slope * mx),
+      slope: Number(slope.toPrecision(3)),
+      intercept: Number((my - slope * mx).toPrecision(3)),
     });
+  });
+
+  it('keeps a small slope: 3 significant digits, not 3 decimals', async () => {
+    const { dataset, x, y, location } = await seed();
+    for (let i = 1; i <= 12; i += 1) {
+      await location({ x: [100 * i], y: [0.0004 * 100 * i + 0.5] });
+    }
+    const unitId = await bboxUnit([0, 0, 2, 2]);
+
+    const { overall, results } = await run({ unitIds: [unitId], datasetSlugs: [dataset.slug], x: x.slug, y: y.slug });
+
+    expect(overall[0]).toMatchObject({ slope: 0.0004, intercept: 0.5 });
+    expect(results[0]).toMatchObject({ slope: 0.0004, intercept: 0.5 });
   });
 
   it('reduces the values of one location with the measure', async () => {
