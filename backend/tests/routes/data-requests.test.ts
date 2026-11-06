@@ -455,6 +455,95 @@ describe('Testing /data-requests routes', () => {
     });
   });
 
+  describe('POST /data-requests — correlation', () => {
+    let propertyCounter = 0;
+    const addProperty = async () => {
+      const category = await addCategory(`cr-route-cat-${propertyCounter}`);
+      return addSoilProperty(`cr-route-prop-${propertyCounter++}`, category.id, '%');
+    };
+
+    const submitCorrelation = async (overrides: Record<string, unknown> = {}, filterParameters: object = {}) => {
+      const x = await addProperty();
+      const y = await addProperty();
+      const filterId = await createFilter([polygon], filterParameters);
+      return submit({
+        statistics_type: StatisticsType.CORRELATION,
+        filter_id: filterId,
+        variable_x: { type: 'soil-property', id: x.slug },
+        variable_y: { type: 'soil-property', id: y.slug },
+        measure: 'median',
+        depth_ranges: 'standard',
+        time_aggregation: 3,
+        ...overrides,
+      });
+    };
+
+    it('accepts a valid request and echoes both axes and the measure back', async () => {
+      const res = await submitCorrelation();
+      expect(res.statusCode).toBe(201);
+      expect(res.body.request.statistics_type).toBe(StatisticsType.CORRELATION);
+      expect(res.body.request.variable_x.type).toBe('soil-property');
+      expect(res.body.request.variable_y.type).toBe('soil-property');
+      expect(res.body.request.measure).toBe('median');
+      expect(res.body.request.depth_ranges).toBe('standard');
+
+      const read = await request(app).get(`/data-requests/${res.body.id}`).expect(200);
+      expect(read.body.request).toMatchObject({ variable_x: res.body.request.variable_x, measure: 'median' });
+    });
+
+    it('rejects the same soil property on both axes', async () => {
+      const property = await addProperty();
+      const variable = { type: 'soil-property', id: property.slug };
+      const res = await submitCorrelation({ variable_x: variable, variable_y: variable });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('must name different soil properties');
+    });
+
+    it.each([
+      ['a soil-index variable', { variable_y: { type: 'soil-index', id: uuidv4() } }, 'soil indexes are not supported for correlation'],
+      ['depth_ranges none', { depth_ranges: 'none' }, "depth_ranges must be 'standard'"],
+      ['no measure', { measure: undefined }, 'measure is required'],
+      ['an unknown measure', { measure: 'mode' }, 'measure'],
+      ['variable', { variable: { type: 'soil-property', id: 'ph' } }, "variable does not apply to statistics_type 'correlation'"],
+      ['classes', { classes: [{ name: 'All', min: 0 }] }, "classes does not apply to statistics_type 'correlation'"],
+      [
+        'an unknown soil property',
+        { variable_x: { type: 'soil-property', id: 'no-such-property' } },
+        "variable_x.id 'no-such-property' is not a soil property",
+      ],
+    ])('rejects %s', async (_name, overrides, reason) => {
+      const res = await submitCorrelation(overrides);
+      expect(res.statusCode).toBe(400);
+      expect(JSON.stringify(res.body)).toContain(reason);
+    });
+
+    it('rejects a soil property the filter excludes', async () => {
+      const other = await addProperty();
+      const res = await submitCorrelation({}, { soil_properties: [other.slug] });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('is excluded by filter');
+    });
+
+    it('rejects an old slug and the current slug of one soil property', async () => {
+      const property = await addProperty();
+      const oldSlug = property.slug;
+      const entityManager = await getEntityManager();
+      await entityManager.query(`UPDATE soil_properties SET property_name = $1 WHERE id = $2`, [
+        `${property.property_name}-renamed`,
+        property.id,
+      ]);
+      const [{ slug: currentSlug }] = await entityManager.query(`SELECT slug FROM soil_properties WHERE id = $1`, [property.id]);
+      expect(currentSlug).not.toBe(oldSlug);
+
+      const res = await submitCorrelation({
+        variable_x: { type: 'soil-property', id: oldSlug },
+        variable_y: { type: 'soil-property', id: currentSlug },
+      });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('must name different soil properties');
+    });
+  });
+
   describe('POST /data-requests — soil-index variables', () => {
     const writeRun = async (): Promise<string> => {
       const run = uuidv4();

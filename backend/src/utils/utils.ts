@@ -302,6 +302,11 @@ export const getDataRequestsMaxCells = (): number => {
   return Number(process.env['DATA_REQUESTS_MAX_CELLS']) || 200_000;
 };
 
+/** Correlation limit on the points of all rows together; exceeding it fails the Run (docs/adr/0076). */
+export const getDataRequestsMaxCorrelationPoints = (): number => {
+  return Number(process.env['DATA_REQUESTS_MAX_CORRELATION_POINTS']) || 500_000;
+};
+
 /** Class Distribution size limit, in rows × (classes + 1); exceeding it fails the Run (docs/adr/0038). */
 export const getDataRequestsMaxClassEntries = (): number => {
   return Number(process.env['DATA_REQUESTS_MAX_CLASS_ENTRIES']) || 1_000_000;

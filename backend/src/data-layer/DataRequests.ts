@@ -32,8 +32,8 @@ export interface StageObservationsOptions {
   unitIds: string[];
   /** Dataset slugs to aggregate: already entitlement-filtered and raster-free. */
   datasetSlugs: string[];
-  /** Narrows to one Soil Property, in addition to the Filter's own criteria. */
-  soilPropertySlug?: string;
+  /** Narrows to these Soil Properties, in addition to the Filter's own criteria. */
+  soilPropertySlugs?: [string, ...string[]];
   onPhase: (description: string, percentage: number) => Promise<void>;
   assertNotCancelled: () => Promise<void>;
 }
@@ -43,7 +43,7 @@ export const stageObservations = async (
   em: EntityManager,
   options: StageObservationsOptions,
 ): Promise<{ usesMatchingFeatures: boolean }> => {
-  const { filter, unitIds, datasetSlugs, soilPropertySlug } = options;
+  const { filter, unitIds, datasetSlugs, soilPropertySlugs } = options;
   const schema = process.env.POSTGRES_SCHEMA;
   const progress = options.onPhase;
   const checkCancelled = options.assertNotCancelled;
@@ -91,8 +91,8 @@ export const stageObservations = async (
     { dataset: 'ds', layer: 'layer', soilProperty: 'sp', license: 'license' },
     { includeVisibility: true },
   );
-  if (soilPropertySlug !== undefined) {
-    whereClauses.push(`sp.slug = ${p(soilPropertySlug)}`);
+  if (soilPropertySlugs !== undefined) {
+    whereClauses.push(`sp.slug = ANY(${p(soilPropertySlugs)}::text[])`);
   }
 
   await em.query(SST_OBS_DDL);
@@ -226,7 +226,7 @@ export const stageVariable = async (em: EntityManager, options: StageVariableOpt
     });
     return;
   }
-  await stageObservations(em, { ...options, soilPropertySlug: variable.soilPropertySlug });
+  await stageObservations(em, { ...options, soilPropertySlugs: [variable.soilPropertySlug] });
 };
 
 export const nothingToStage = (variable: StagedVariable, unitIds: string[], datasetSlugs: string[]): boolean =>
@@ -260,6 +260,9 @@ export const toDataRequestParameters = (data: DataRequestJob): DataRequestParame
   ...(data.label_field !== undefined ? { label_field: data.label_field } : {}),
   ...(data.dataset_ids !== undefined ? { dataset_ids: data.dataset_ids } : {}),
   ...(data.variable !== undefined ? { variable: data.variable } : {}),
+  ...(data.variable_x !== undefined ? { variable_x: data.variable_x } : {}),
+  ...(data.variable_y !== undefined ? { variable_y: data.variable_y } : {}),
+  ...(data.measure !== undefined ? { measure: data.measure } : {}),
   ...(data.classes !== undefined ? { classes: data.classes } : {}),
   ...(data.class_count !== undefined ? { class_count: data.class_count } : {}),
   ...(data.class_method !== undefined ? { class_method: data.class_method } : {}),
