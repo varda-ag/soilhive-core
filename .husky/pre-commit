@@ -1,15 +1,30 @@
 cd "$(git rev-parse --show-toplevel)"
 
+STAGED=$(git diff --cached --name-only)
+changed() { echo "$STAGED" | grep -qE "$1"; }
+
 pnpm i -r --quiet
 
 npm run lint:fix
 
 # husky runs this with sh -e, which ignores a failure inside an && chain: each suite exits on its own
-(cd backend && npm i && npm test) || exit 1
+if changed '^backend/'; then
+  (cd backend && npm i && npm test) || exit 1
+fi
 
-(cd frontend && pnpm test) || exit 1
+# The frontend runs only the tests that import its staged files. Changes the import graph cannot see run the whole suite:
+# config, setup, mocks, the linked plugin types, and deleted or renamed files whose importers would go unselected
+if changed '^(frontend-plugin-types/|frontend/(jest\.config\.js|package\.json|pnpm-lock\.yaml|tsconfig[^/]*\.json|tests/(setupTests\.ts|__mocks__/)))' \
+  || [ -n "$(git diff --cached --name-only --diff-filter=DR -- frontend)" ]; then
+  (cd frontend && pnpm test) || exit 1
+else
+  FRONTEND_FILES=$(git diff --cached --name-only --diff-filter=ACM -- frontend/src frontend/tests | sed 's#^frontend/##')
+  if [ -n "$FRONTEND_FILES" ]; then
+    (cd frontend && pnpm exec jest --bail --passWithNoTests --findRelatedTests $FRONTEND_FILES) || exit 1
+  fi
+fi
 
 # The Plugin Backend example is a package of its own: tested only by a commit that touches it
-if git diff --cached --name-only | grep -q '^plugin-backend-example/'; then
+if changed '^plugin-backend-example/'; then
   (cd plugin-backend-example && pnpm install --frozen-lockfile --silent && pnpm test) || exit 1
 fi
