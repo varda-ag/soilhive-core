@@ -16,7 +16,7 @@ import { RequestData } from '../interfaces/RequestData';
 import EntitlementService from '../services/EntitlementService';
 import RasterLayerAssetEntity from '../entities/RasterLayerAsset';
 import { RasterLayerAssetFile } from '../interfaces/RasterLayer';
-import { GISDataType } from '../types/data';
+import { GISDataType, IngestionStatus } from '../types/data';
 import { getVectorMaskCtes, renderCtes, type CteDef } from './FilteringMasks';
 import { readRasterPixels, type LocatedPixel } from './RasterPixels';
 import { viewportAoiParams, viewportAoiSql } from './ViewportAoi';
@@ -30,7 +30,16 @@ const SET_LOCAL_WORK_MEM_SQL = "SET LOCAL work_mem = '512MB';";
 const entitlementService = new EntitlementService();
 
 export default class SoilDataStorage {
-  filterVector = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDatasetSummary[]> => {
+  /**
+   * The vector Datasets with data matching the filter, summarised: a filter's coverage. `statuses` are
+   * the Ingestion Statuses included (listedDatasetStatuses), PUBLISHED alone unless given.
+   */
+  filterVector = async (
+    entityManager: EntityManager,
+    filter: DataFilter,
+    signal?: AbortSignal,
+    statuses: IngestionStatus[] = [IngestionStatus.PUBLISHED],
+  ): Promise<FilteredDatasetSummary[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
@@ -78,7 +87,7 @@ export default class SoilDataStorage {
     // both key on a GROUP BY column of the stage below them (dataset_id / layer_id),
     // so filtering after the per_layer collapse is equivalent to filtering the raw
     // dataset_layers rows. Soil-property filtering happens in active_soil_properties.
-    const datasetWhere: string[] = ['ds.deleted_at IS NULL', `ds.status = 'PUBLISHED'`];
+    const datasetWhere: string[] = ['ds.deleted_at IS NULL', datasetStatusIn(statuses, p)];
     const layerWhere: string[] = [];
     const effective = effectiveLayer('layer', 'ds');
 
@@ -189,6 +198,7 @@ export default class SoilDataStorage {
         ds.name AS dataset_name,
         ds.slug AS dataset_slug,
         ds.visibility,
+        ds.status,
         -- Recorded licences plus the Dataset's when some matched Layer has none; the mapper dedupes.
         array_to_string(
           ARRAY_AGG(license.slug) FILTER (WHERE license.slug IS NOT NULL)
@@ -206,7 +216,7 @@ export default class SoilDataStorage {
       INNER JOIN ${schema}.datasets ds ON ds.id = base_agg.dataset_id
       LEFT JOIN ${schema}.licenses license ON license.id = base_agg.license AND license.deleted_at IS NULL
       WHERE ${outerWhere.join('\n        AND ')}
-      GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses
+      GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.status, ds.licenses
     `;
 
     const results = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
@@ -219,6 +229,7 @@ export default class SoilDataStorage {
       name: row.dataset_name,
       data_type: row.gis_datatype,
       visibility: row.visibility,
+      status: row.status,
       licenses: row.licenses ? [...new Set(row.licenses.split(','))] : [],
       min_sampling_date: row.min_sampling_date,
       max_sampling_date: row.max_sampling_date,
@@ -231,7 +242,13 @@ export default class SoilDataStorage {
     }));
   };
 
-  filterVectorDatasets = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDataset[]> => {
+  /** The vector Datasets with data matching the filter: a filter's dataset list. `statuses` as in filterVector. */
+  filterVectorDatasets = async (
+    entityManager: EntityManager,
+    filter: DataFilter,
+    signal?: AbortSignal,
+    statuses: IngestionStatus[] = [IngestionStatus.PUBLISHED],
+  ): Promise<FilteredDataset[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
@@ -249,7 +266,7 @@ export default class SoilDataStorage {
       return `$${params.length}`;
     };
 
-    const { outerWhere, lateralJoins, lateralWhere } = buildDatasetFilterClauses(filters, p, schema!);
+    const { outerWhere, lateralJoins, lateralWhere } = buildDatasetFilterClauses(filters, p, schema!, statuses);
 
     const enabledRasterFilterTables = await getEnabledRasterFilterTables(entityManager);
     const { ctes: rasterCtes, usesMatchingFeatures } = buildRasterSql(filter, enabledRasterFilterTables);
@@ -288,7 +305,7 @@ export default class SoilDataStorage {
         ${lateralJoins.join('\n        ')}
         WHERE ${matchingDatasetsWhere.join('\n          AND ')}
       )
-      SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type, ds.visibility
+      SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type, ds.visibility, ds.status
       FROM ${schema}.datasets ds
       WHERE ${outerWhere.join('\n        AND ')}
         AND ds.id IN (SELECT dataset_id FROM matching_datasets)
@@ -301,7 +318,13 @@ export default class SoilDataStorage {
   };
 
   // Assess whether a simplified version (as filterVectorDatasets) is needed
-  filterRaster = async (entityManager: EntityManager, filter: DataFilter, signal?: AbortSignal): Promise<FilteredDatasetSummary[]> => {
+  /** The raster Datasets with layers matching the filter, summarised: both coverage and dataset list. `statuses` as in filterVector. */
+  filterRaster = async (
+    entityManager: EntityManager,
+    filter: DataFilter,
+    signal?: AbortSignal,
+    statuses: IngestionStatus[] = [IngestionStatus.PUBLISHED],
+  ): Promise<FilteredDatasetSummary[]> => {
     const { geometryIds, parameters: filters } = filter;
     if (geometryIds.length === 0) {
       return [];
@@ -326,7 +349,7 @@ export default class SoilDataStorage {
 
     const candidateWhere: string[] = [
       'ds.deleted_at IS NULL',
-      `ds.status = 'PUBLISHED'`,
+      datasetStatusIn(statuses, p),
       `ds.gis_datatype = ${p(GISDataType.RASTER)}`,
       'ds.spatial_extent && aoi_extent.geom',
       'rl.bbox && aoi_extent.geom',
@@ -358,6 +381,7 @@ export default class SoilDataStorage {
         ds.name AS name,
         ds.gis_datatype AS data_type,
         ds.visibility AS visibility,
+        ds.status AS status,
         ds.licenses AS licenses,
         COUNT(rl.id) AS raster_layer_count,
         MIN(${EFFECTIVE_RASTER_LAYER.minDepth}) AS min_depth,
@@ -369,7 +393,7 @@ export default class SoilDataStorage {
       INNER JOIN ${schema}.raster_layers rl ON rl.id = sl.id
       INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
       INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
-      GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.licenses
+      GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.status, ds.licenses
     `;
 
     const rows = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
@@ -382,6 +406,7 @@ export default class SoilDataStorage {
       name: row.name,
       data_type: row.data_type,
       visibility: row.visibility,
+      status: row.status,
       licenses: Array.isArray(row.licenses) ? row.licenses : [],
       min_sampling_date: row.min_sampling_date ?? null,
       max_sampling_date: row.max_sampling_date ?? null,
@@ -1324,15 +1349,23 @@ export const buildObservationCriteria = (
   return { whereClauses, needsLayerJoin, needsSoilPropertyJoin, needsLicenseJoin };
 };
 
+/**
+ * The predicate keeping a filter's coverage and dataset list to Datasets at the given Ingestion
+ * Statuses (listedDatasetStatuses). Bound as a parameter rather than inlined, so a query the cache
+ * keys by its SQL and parameters keeps a Privileged caller's results apart from everyone else's.
+ */
+export const datasetStatusIn = (statuses: IngestionStatus[], p: (val: any) => string): string => `ds.status = ANY(${p(statuses)}::text[])`;
+
 export const buildDatasetFilterClauses = (
   filters: FilterCriteria,
   p: (val: any) => string,
   schema: string,
+  statuses: IngestionStatus[] = [IngestionStatus.PUBLISHED],
 ): { outerWhere: string[]; lateralJoins: string[]; lateralWhere: string[] } => {
   const outerWhere: string[] = [
     'ds.deleted_at IS NULL',
     `ds.spatial_extent && (SELECT ST_SetSRID(ST_Extent(geom), 4326) FROM aoi)`,
-    `ds.status = 'PUBLISHED'`,
+    datasetStatusIn(statuses, p),
   ];
   const lateralJoins: string[] = [];
   const lateralWhere: string[] = [];

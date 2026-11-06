@@ -2070,6 +2070,10 @@ paths:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterCoverage
       summary: Retrieves what data is available for the given filter
+      description: >-
+        Lists the PUBLISHED datasets matching the filter. A data-admin, super-admin or
+        internal-request caller is also shown LOADED ones, dataset versions included, to review
+        them before they're published; each dataset's status says which it is.
       tags:
         - data-filters
       security:
@@ -2098,6 +2102,9 @@ paths:
       x-eov-operation-handler: controllers/data-filters
       x-eov-operation-id: getDataFilterDatasets
       summary: Retrieves available datasets matching the area of interest
+      description: >-
+        Lists the PUBLISHED datasets matching the filter, and LOADED ones too for a data-admin,
+        super-admin or internal-request caller, as the coverage does.
       tags:
         - data-filters
       security:
@@ -3495,6 +3502,13 @@ components:
           type: string
           enum: [public, private]
           default: private
+        status:
+          type: string
+          enum: [PUBLISHED, LOADED]
+          description: >-
+            The dataset's ingestion status. LOADED only for a data-admin, super-admin or
+            internal-request caller, who is shown loaded datasets not yet published, dataset versions
+            included; PUBLISHED for everyone else.
 
     FilteredDatasetSummary:
       allOf:
@@ -3518,6 +3532,13 @@ components:
               type: string
               enum: [public, private]
               description: Dataset visibility
+            status:
+              type: string
+              enum: [PUBLISHED, LOADED]
+              description: >-
+                The dataset's ingestion status. LOADED only for a data-admin, super-admin or
+                internal-request caller, who is shown loaded datasets not yet published, dataset
+                versions included; PUBLISHED for everyone else.
             dataset_layer_count:
               type: integer
               description: Number of features matching the filter in this dataset
