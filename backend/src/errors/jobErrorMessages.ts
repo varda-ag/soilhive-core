@@ -69,7 +69,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   },
   BL_DATASET_PUBLISHED: {
     message: "Dataset '{dataset_name}' is published, so data can't be loaded into it.",
-    actions: ['Unpublish the dataset, then retry data loading.'],
+    actions: ['Open a new version of the dataset and add the data to it.'],
   },
   BL_RAW_TABLE_NOT_FOUND: {
     message: "One or more files haven't been staged yet and can't be loaded.",
@@ -90,7 +90,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   },
   RL_DATASET_PUBLISHED: {
     message: "Dataset '{dataset_name}' is published, so files can't be loaded into it.",
-    actions: ['Unpublish the dataset, then retry data loading.'],
+    actions: ['Open a new version of the dataset and add the files to it.'],
   },
   RL_MAPPING_NOT_CONFIGURED: {
     message: "The band mapping for '{file_name}' has not been configured yet.",

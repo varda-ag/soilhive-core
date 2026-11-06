@@ -116,13 +116,13 @@ Normalisation happens once per file, before any of its bands are ingested, becau
 
 **5. Additional resources are attached** to their layers, once every band has been ingested successfully.
 
-**6. Dataset metadata is rolled up** from the layers that were loaded (see below), and the dataset is marked **Loaded**. A dataset that was already **Published** is published again instead.
+**6. Dataset metadata is rolled up** from the layers that were loaded (see below), and the dataset is marked **Loaded**.
 
-While a load runs, the dataset is hidden from the catalog and from searches, even if it was published, so nobody sees it half-loaded.
+A load doesn't change the dataset's status while it runs: the dataset list shows it as **Loading**. A **Published** dataset is never loaded into, so nobody sees one half-loaded: files are added to it through a version (see [Adding data to a published dataset](1-data-management-portal.md#adding-data-to-a-published-dataset)). The one load that runs on a published dataset only removes the layers of files you removed, and leaves it published.
 
 ### Loading again: new files, and correcting a loaded file
 
-A load only processes files that are waiting for one: files that have never been loaded, and files left over from a load that failed. A loaded file is skipped, so adding a file to a dataset, published or not, costs only what loading that file costs.
+A load only processes files that are waiting for one: files that have never been loaded, and files left over from a load that failed. A loaded file is skipped, so adding a file to a dataset costs only what loading that file costs. To add a file to a **published** dataset, open a version of it with **Add files**: the version's band mappings start from those of the dataset's files with the same bands.
 
 A loaded file's band mapping can't be changed: the mapping step shows it read-only. To correct it, remove the file in the **Soil data** step and upload it again. Removing a loaded file deletes its layers, their footprints and additional resources, and updates the dataset's metadata. The removal is applied when you save, and the layers leave a published dataset straight away, so the step asks you to confirm it first. Deleting the layers and updating the metadata run as a raster load in the background: the save starts one when no file is left to map, and otherwise the load started from the mapping step does it. The file uploaded again is a new file: map it and load it like any other.
 
@@ -153,7 +153,7 @@ What a failure leaves behind depends on how far the load got:
 
 - **Files the load had started on** (normalising or ingesting their layers) have all their layers removed and go back to waiting for a load. Nothing half-loaded is kept, and retrying ingests them from scratch, starting from your original upload rather than from a converted copy.
 - **Files the load had not reached** are still waiting for a load. Files loaded before keep their layers.
-- **The dataset** returns to the status it had before the load: **Published**, **Loaded**, or **Draft**. Because the files the load had started on lost their layers, a published dataset is shown again without them until a retry succeeds.
+- **The dataset** keeps the status it had before the load: **Loaded** or **Draft**. A published dataset is never loaded into, so its layers are never touched by a failed load.
 
 Every mapping is checked before anything is written, so a mistake in a mapping fails the load with nothing changed at all.
 

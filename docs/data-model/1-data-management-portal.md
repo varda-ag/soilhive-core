@@ -83,7 +83,7 @@ Both end with the data in the SoilHive database and the dataset marked **Loaded*
 
 ## Publication
 
-Loading your data and publishing it are two separate things. Once the load finishes, the dataset exists in the SoilHive database but no one outside the Admin console can see it: it does not appear in the search results, on the map, in downloads, or in any statistics. **Publishing is the step that makes a dataset live.**
+Loading your data and publishing it are two separate things. Once the load finishes, the dataset exists in the SoilHive database but users can't see it: it does not appear in their search results, on their map, in downloads, or in any statistics. Data administrators can: a loaded dataset shows on their map and in the data explorer, marked **Unpublished**, so they can review the data before it goes live. **Publishing is the step that makes a dataset live.**
 
 **Finding your dataset in the list**
 
@@ -92,10 +92,12 @@ Every dataset you have created is listed in the Admin console, with a status tha
 | Status | What it means | What you can do |
 |---|---|---|
 | **Draft** | The dataset was created but the upload wizard was never completed | Edit (resumes the wizard at the furthest step you reached), Delete |
-| **Queued** | A load has been submitted and is waiting to start. A published dataset stays live until then | Wait for it to start; nothing can be edited meanwhile |
-| **Loading** | The file is being processed and loaded | Wait for it to finish |
+| **Queued** | A load has been submitted and is waiting to start | Wait for it to start; nothing can be edited meanwhile |
+| **Loading** | The file is being processed and loaded. The dataset keeps the status it had | Wait for it to finish |
 | **Loaded** | The data is in the database but is not visible to users | **Publish**, Delete |
-| **Published** | The dataset is live | Edit (opens the settings page), Delete |
+| **Published** | The dataset is live | Edit (opens the settings page), **Add files** (opens a new version, see [Adding data to a published dataset](#adding-data-to-a-published-dataset)), Delete |
+
+A published dataset with a version in progress shows that version in a row of its own just below it, with the version's own status and actions.
 
 If something went wrong during loading, the row is marked with a warning icon and an **Error details** link that opens a summary of what failed and how to fix it. Deleting a dataset requires the delete entitlement, so the bin icon is not shown to every administrator.
 
@@ -145,6 +147,50 @@ On confirmation the platform sets the status to **Published**, records today's d
 
 **After publication**
 
-The dataset is now included in everything the consumer portal does: search, preview, downloads. Only published datasets are ever returned by these queries.
+The dataset is now included in everything the consumer portal does: search, preview, downloads. Users are only ever shown published datasets; data administrators also see loaded ones, marked **Unpublished**.
 
 Publication is not final. Clicking the edit icon on a published dataset takes you straight back to the same settings page, where you can correct metadata, switch between public and private, or change who has access. Press **Publish** again to save your changes. There is no separate "unpublish" action: to withdraw a dataset from circulation, either switch it to private or delete it.
+
+The dataset's metadata page shows two dates: **Last update**, when anything about the dataset last changed, metadata included, and **Last data update**, when its published data last changed. It also shows the dataset's **Revision**: 1 when first published, and one more each time a version is published into it. Revision is unrelated to the **Version** field, which is free text you fill in yourself.
+
+---
+
+## Adding data to a published dataset
+
+A published dataset's data is never loaded into directly, so its users never see it half-loaded. New data goes into a **version** of the dataset instead: a working copy that only data administrators can see, loaded and reviewed like any new dataset, and published into the dataset when it's ready. Until then, the dataset stays exactly as it was.
+
+**Opening a version**
+
+Click **Add files** on a published dataset. This opens a version, named after the dataset with "v2 increment" (or the next revision number) added, and takes you straight to its **Soil data** step. A dataset has at most one version at a time.
+
+**Loading it**
+
+The version goes through the usual steps, with a few differences:
+
+- **General Info** shows the dataset's information, read-only. To change it, edit the dataset itself.
+- **Soil data** lists the dataset's own files too, read-only, above the files you upload to the version. A file already in the dataset can't be removed from a version; remove a loaded raster file from the dataset itself (see [Loading again](1b-raster-data-ingestion.md#loading-again-new-files-and-correcting-a-loaded-file)).
+- **Field mapping** for point and polygonal data is the dataset's, read-only: every file you add must have the columns that mapping uses, and a file missing one is flagged until you remove it. Band mappings for raster files start from those of the dataset's files with the same bands, and you can change them.
+
+Loading the version is the same as loading any dataset. While the version is in progress, its row under the dataset shows its status: **Pending**, **Queued**, **Loading**, **Loaded**, and also **Resetting** or **Publishing** while one of those runs.
+
+**Reviewing it**
+
+A loaded version is visible to data administrators only. Check its data in the soil-data table, or on the map, where it appears alongside the dataset's published data, marked **Unpublished**.
+
+To correct a version, use **Reset version data** in the mapping or preview step. It removes everything loaded into the version and takes you back to the mapping step, with its files waiting to be loaded again. For point and polygonal data this is the only way to fix a wrong file: remove it after the reset, then load the rest again.
+
+**Publishing it**
+
+Click **Publish** on the version's row. The settings page opens, filled in with the dataset's current settings. Change them if you need to, then press **Publish**. A dialog asks you to confirm: it lists the settings that will change on the dataset, and reminds you that the version's data will go live for the dataset's users.
+
+Publishing runs in the background. While it runs, the version shows **Publishing**, and the dataset keeps serving its current data, with its actions disabled. When it finishes:
+
+- the version's data is part of the dataset: records the dataset already had are kept once, not twice;
+- the dataset takes the settings you confirmed, its **Revision** goes up by one, and its **Last data update** is set;
+- the version is gone.
+
+Publishing can't be undone: there's no going back to the dataset's previous data. If publishing fails, nothing changes: the version stays **Loaded**, with an error you can open, and you can publish it again.
+
+**Discarding it**
+
+Click **Discard** on the version's row to drop it. The version disappears from the list at once, and its files and data are removed in the background. The dataset is untouched, and you can open a new version straight away.

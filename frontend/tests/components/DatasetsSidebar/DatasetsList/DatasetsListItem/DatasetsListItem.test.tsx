@@ -84,6 +84,27 @@ describe('DatasetsListItem', () => {
     expect(screen.getByTestId('tag-Private')).not.toHaveAttribute('data-type');
   });
 
+  it('marks a LOADED dataset, which only an admin is shown, as unpublished', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, status: 'LOADED' }} />);
+
+    expect(screen.getByTestId('tag-Unpublished')).toBeInTheDocument();
+    expect(screen.getByTestId('sh-datasets-list-item')).toHaveClass('Unpublished');
+  });
+
+  it('shows both tags on a private LOADED dataset', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, status: 'LOADED', visibility: 'private' }} />);
+
+    expect(screen.getByTestId('tag-Unpublished')).toBeInTheDocument();
+    expect(screen.getByTestId('tag-Private')).toBeInTheDocument();
+  });
+
+  it('does not mark a PUBLISHED dataset', () => {
+    render(<DatasetsListItem dataset={{ ...mockDataset, status: 'PUBLISHED' }} />);
+
+    expect(screen.queryByTestId('tag-Unpublished')).not.toBeInTheDocument();
+    expect(screen.getByTestId('sh-datasets-list-item')).not.toHaveClass('Unpublished');
+  });
+
   it('renders tags with correct types', () => {
     render(<DatasetsListItem dataset={mockDataset} />);
 

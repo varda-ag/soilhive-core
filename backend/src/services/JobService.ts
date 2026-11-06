@@ -210,7 +210,7 @@ export default class JobService {
       return;
     }
     throw new ErrorResponse(
-      `Dataset '${dataset.name}' is published, so data can't be loaded into it: unpublish it first`,
+      `Dataset '${dataset.name}' is published, so data can't be loaded into it: open a version of it to add data`,
       StatusCodes.CONFLICT,
     );
   };

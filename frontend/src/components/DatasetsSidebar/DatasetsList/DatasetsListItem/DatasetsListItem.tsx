@@ -14,7 +14,7 @@ import styles from './DatasetsListItem.module.scss';
 import useAvailability from 'hooks/useAvailability';
 import { useTranslation } from 'react-i18next';
 import { MetaItem } from './MetaItem/MetaItem';
-import { Capability, EntitlementScope, GISDataType } from '../../../../types/backend';
+import { Capability, EntitlementScope, GISDataType, IngestionStatus } from '../../../../types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { metadataPath } from 'configuration/routes';
 
@@ -27,9 +27,14 @@ export function DatasetsListItem({ dataset }: Props) {
   const [isOpened, setIsOpened] = useState<boolean>(false);
   const { t } = useTranslation('availability');
   const isSelectable = dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id);
+  // Loaded but not published yet: only a data administrator is shown one, to review it
+  const isUnpublished = dataset.status === IngestionStatus.LOADED;
 
   return (
-    <div data-testid="sh-datasets-list-item" className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened })}>
+    <div
+      data-testid="sh-datasets-list-item"
+      className={classnames(styles.DatasetsListItem, { [styles.Opened]: isOpened, [styles.Unpublished]: isUnpublished })}
+    >
       <div className={styles.Main}>
         <div className={styles.Top}>
           <div className={styles.Title}>
@@ -55,7 +60,12 @@ export function DatasetsListItem({ dataset }: Props) {
           <Button size="tiny" type="custom" className={styles.MetadataButton} href={metadataPath(dataset.id)}>
             <NewTabIcon /> {t('datasets_list.metadata')}
           </Button>
-          {dataset.visibility === 'private' && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}
+          {(isUnpublished || dataset.visibility === 'private') && (
+            <div className={styles.StatusTags}>
+              {isUnpublished && <Tag className={styles.UnpublishedTag} text={t('datasets_list.unpublished')} />}
+              {dataset.visibility === 'private' && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}
+            </div>
+          )}
         </div>
       </div>
       <div className={styles.MetaWrapper}>

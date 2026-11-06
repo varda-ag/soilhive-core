@@ -878,7 +878,9 @@ paths:
         '409':
           description: >-
             The dataset has a bulk-load, raster-load, bulk-delete, version-reset or version-discard job
-            queued or running, or a bulk-load or raster-load targets a published dataset, or a bulk-delete targets a version or a dataset with an open version.
+            queued or running, or a bulk-load or raster-load targets a published dataset (data is added
+            to it through a version: POST /datasets/{datasetId}/versions), or a bulk-delete targets a
+            version or a dataset with an open version.
             A raster-load of a published dataset with no file waiting for a load is accepted: it only
             removes the layers of removed files.
           content:
