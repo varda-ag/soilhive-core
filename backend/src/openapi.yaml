@@ -798,7 +798,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           description: >-
-            The dataset isn't PUBLISHED, the version isn't LOADED or has files not loaded yet, or either
+            The dataset isn't PUBLISHED, the version isn't LOADED or has files not loaded yet, the
+            version holds another data type than the dataset (point, polygonal or raster), or either
             has a job queued or running, a version-publish included
           content:
             application/json:

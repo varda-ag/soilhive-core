@@ -369,6 +369,11 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "Version '{version_name}' can't be published into '{dataset_name}': {reason}.",
     actions: ['Open the version, load its files, then publish it again.'],
   },
+  VERSION_DATA_TYPES_MIXED: {
+    message:
+      "Version '{version_name}' can't be published into '{dataset_name}': together they would hold {data_types} data, and a dataset holds one data type.",
+    actions: ["Reset the version, remove its files that aren't of the dataset's data type, then load it and publish it again."],
+  },
   VERSION_PUBLISH_TIMEOUT: {
     message: "Publishing '{version_name}' into '{dataset_name}' took too long and was stopped. Nothing was published.",
     actions: ['Try publishing again; if it keeps timing out, contact support'],

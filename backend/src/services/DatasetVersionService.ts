@@ -8,13 +8,12 @@ import { ErrorResponse } from '../utils/error';
 import { getEntity } from '../utils/slugs';
 import { getSubject } from '../utils/auth';
 import { assertNoUnfinishedJob } from '../data-layer/DatasetJobs';
-import { getOpenVersions, publishableReason, softDeleteVersion } from '../data-layer/DatasetVersions';
+import { getOpenVersions, mixedDataTypes, publishableReason, softDeleteVersion } from '../data-layer/DatasetVersions';
 import JobService from './JobService';
 
 /**
  * The descriptive metadata a Version starts with, copied from v1. The rollup a load writes is left
- * out, and so are the publication settings, which the publish request carries (publishVersion). A Version
- * can't change them (DatasetService.updateDataset): v1's are edited on v1.
+ * out, and so are the publication settings, which the publish request carries (publishVersion).
  */
 export const COPIED_FIELDS = [
   'full_name',
@@ -33,6 +32,14 @@ export const COPIED_FIELDS = [
   'service_location',
   'related_resources',
 ] as const;
+
+/**
+ * The copied fields a Version can't change (DatasetService.updateDataset): v1's are edited on v1. All
+ * but gis_datatype, which isn't descriptive: the soil-data step saves it from the Files it lists, null
+ * for vector ones, and a vector load derives it from the Features. A Version holding another data type
+ * than its Dataset's is refused at publish instead (mixedDataTypes).
+ */
+export const VERSION_READ_ONLY_FIELDS = COPIED_FIELDS.filter(field => field !== 'gis_datatype');
 
 /**
  * Version Datasets (docs/adr/0077): data added to a PUBLISHED Dataset (v1) is
@@ -143,8 +150,8 @@ export default class DatasetVersionService {
    * has them when absent. Nothing goes live until the job's transaction commits (VersionPublishJob).
    *
    * Refused with 409 unless the Dataset is PUBLISHED and the Version LOADED with no File left to load
-   * (publishableReason), and while either has a job unfinished. The Version's lock is taken before
-   * the Dataset's, which creating the job takes.
+   * (publishableReason) and of the Dataset's data type (mixedDataTypes), and while either has a job
+   * unfinished. The Version's lock is taken before the Dataset's, which creating the job takes.
    */
   publishVersion = async (requestData: RequestData, datasetSlug: string, versionSlug: string, settings: PublishSettings): Promise<Job> => {
     const version = await this.getVersion(requestData, datasetSlug, versionSlug);
@@ -152,6 +159,13 @@ export default class DatasetVersionService {
     const reason = await publishableReason(requestData.entityManager, dataset, version);
     if (reason) {
       throw new ErrorResponse(`Version '${version.name}' can't be published into '${dataset.name}': ${reason}`, StatusCodes.CONFLICT);
+    }
+    const mixed = await mixedDataTypes(requestData.entityManager, dataset.id, version.id);
+    if (mixed) {
+      throw new ErrorResponse(
+        `Version '${version.name}' can't be published into '${dataset.name}': together they would hold ${mixed.join(' and ')} data, and a dataset holds one data type`,
+        StatusCodes.CONFLICT,
+      );
     }
     await assertNoUnfinishedJob(requestData.entityManager, version);
     const { job } = await new JobService().createJob(requestData, {

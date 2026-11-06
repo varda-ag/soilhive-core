@@ -7,14 +7,14 @@ import { getEntityManager } from '../../utils/data-source';
 import { getEntity } from '../../utils/slugs';
 import { EntityType, GISDataType, IngestionStatus } from '../../types/data';
 import { JobError } from '../../errors/JobError';
-import { moveVersionRows, publishableReason } from '../../data-layer/DatasetVersions';
+import { mixedDataTypes, moveVersionRows, publishableReason } from '../../data-layer/DatasetVersions';
 import { refreshDaiStats } from '../../data-layer/DaiStats';
 import ErrorService from '../../services/ErrorService';
 import EntitlementService from '../../services/EntitlementService';
 import FileService from '../../services/FileService';
 import { EntitlementScope } from '../../types/Entitlements';
 import { jobRequestData } from '../jobRequestData';
-import { updateDatasetMetadata } from '../bulk-load/UpdateDatasetMetadata';
+import { MixedDataTypesError, updateDatasetMetadata } from '../bulk-load/UpdateDatasetMetadata';
 import { updateRasterDatasetMetadata } from '../raster-load/UpdateDatasetMetadata';
 import { deleteSourceFiles } from '../raster-load/RasterLoader';
 import { getSubject } from '../../utils/auth';
@@ -48,6 +48,10 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
   const reason = await publishableReason(entityManager, dataset, version);
   if (reason) {
     throw new JobError('VERSION_NOT_PUBLISHABLE', { version_name: version.name, dataset_name: dataset.name, reason });
+  }
+  const mixed = await mixedDataTypes(entityManager, dataset.id, version.id);
+  if (mixed) {
+    throw mixedDataTypesError(version, dataset, mixed);
   }
   const updatedBy = data.created_by ? getSubject(requestData) : null;
   const isRaster = dataset.gis_datatype === GISDataType.RASTER;
@@ -101,6 +105,11 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
     if (error instanceof QueryFailedError && (error.driverError as { code?: string })?.code === STATEMENT_TIMEOUT_CODE) {
       throw new JobError('VERSION_PUBLISH_TIMEOUT', { version_name: version.name, dataset_name: dataset.name });
     }
+    // The rollup found two data types among v1's rows once moved, which mixedDataTypes' one feature of
+    // each missed: a Version a failed load left holding two. Nothing was published.
+    if (error instanceof MixedDataTypesError) {
+      throw mixedDataTypesError(version, dataset, error.dataTypes);
+    }
     throw error;
   }
 
@@ -114,6 +123,9 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
     await deleteUploads(entityManager, fileIds, isRaster);
   }
 }
+
+const mixedDataTypesError = (version: DatasetEntity, dataset: DatasetEntity, dataTypes: GISDataType[]): JobError =>
+  new JobError('VERSION_DATA_TYPES_MIXED', { version_name: version.name, dataset_name: dataset.name, data_types: dataTypes.join(' and ') });
 
 /**
  * Deletes the uploads of a Version's Files, which its loads keep for a reset (JobService.lockDataset

@@ -62,11 +62,27 @@ const jobFor = <T>(type: JobQueues, dataset_id: string): Job<T> =>
 let layerDepth = 0;
 
 /** One feature with one observation in the Dataset, on its own layer. Returns the feature's and layer's ids. */
-const addVectorRows = async (datasetId: string, tag: string): Promise<{ featureId: string; layerId: string }> => {
-  // Features are unique by their geometry, so each call gets its own point: a shared one would be
-  // referenced by every Dataset that has rows, and never left to sweep
+const addVectorRows = async (
+  datasetId: string,
+  tag: string,
+  type: GISDataType = GISDataType.POINT,
+): Promise<{ featureId: string; layerId: string }> => {
+  // Features are unique by their geometry, so each call gets its own point or square: a shared one
+  // would be referenced by every Dataset that has rows, and never left to sweep
   layerDepth += 1;
-  const [feature] = await addFeatures(GISDataType.POINT, [[1 + layerDepth / 1000, 1]]);
+  const x = 1 + layerDepth / 1000;
+  const coordinates =
+    type === GISDataType.POINT
+      ? [x, 1]
+      : [
+          [
+            [x, 1],
+            [x, 2],
+            [x + 1, 2],
+            [x, 1],
+          ],
+        ];
+  const [feature] = await addFeatures(type, [coordinates]);
   // Layers are unique by their depth among other fields
   const layer = await addLayer(undefined, undefined, layerDepth, layerDepth + 1);
   const category = await addCategory(`category-${tag}`);
@@ -207,6 +223,27 @@ describe('DatasetVersionService', () => {
       await expect((await getDataSource()).query(`UPDATE datasets SET status = 'PUBLISHED' WHERE id = $1`, [v2.id])).rejects.toMatchObject({
         driverError: { code: '23514' },
       });
+    });
+  });
+
+  describe('mixedDataTypes', () => {
+    it("names the dataset's and the version's data types when they differ, read from their rows", async () => {
+      const v1 = await addDataset('typed-survey', [0, 0, 1, 1]);
+      const v2 = await versionService.openVersion(await requestDataFor(adminToken), v1.slug);
+      const entityManager = await getEntityManager();
+      const mixed = () => DatasetVersionsModule.mixedDataTypes(entityManager, v1.id, v2.id);
+
+      // Neither holds data yet
+      expect(await mixed()).toBeNull();
+      await addVectorRows(v1.id, 'v1');
+      expect(await mixed()).toBeNull();
+
+      await addVectorRows(v2.id, 'v2', GISDataType.POLYGONAL);
+      expect(await mixed()).toEqual([GISDataType.POINT, GISDataType.POLYGONAL]);
+
+      // Not gis_datatype, which the soil-data step saves before a load
+      await (await getDataSource()).query(`UPDATE datasets SET gis_datatype = $2 WHERE id = $1`, [v2.id, GISDataType.POINT]);
+      expect(await mixed()).toEqual([GISDataType.POINT, GISDataType.POLYGONAL]);
     });
   });
 

@@ -572,7 +572,7 @@ Publishes a version into its dataset. The dataset keeps its id, slug and grants 
 
 **Job data:** `{ "dataset_id": "<dataset id>", "version_id": "<version id>", …settings }`
 
-Refused with 409 unless the dataset is PUBLISHED and the version LOADED with no file left to load: a vector file not LOADED, or a raster file waiting with a band mapped.
+Refused with 409 unless the dataset is PUBLISHED and the version LOADED with no file left to load: a vector file not LOADED, or a raster file waiting with a band mapped. Also refused while the version holds another data type than the dataset (point, polygonal or raster), read from one feature or raster layer of each rather than from `gis_datatype`, which the soil-data step saves on a version too.
 
 **Sequence of operations**, in one transaction with a 5-minute statement timeout (to be set from production measurements):
 
@@ -583,7 +583,7 @@ Refused with 409 unless the dataset is PUBLISHED and the version LOADED with no 
 5. Recompute the dataset's metadata from its rows, and keep it PUBLISHED.
 6. After commit: refresh the DAI statistics for a vector dataset, invalidate cached queries, and delete the version's uploads if `delete_source_files` was set (a raster file's original upload only; the converted copy is its layers' data).
 
-**On failure** nothing is published: the version stays LOADED and can be published again. The job's error is shown on the version, not on the dataset (`GET /errors/datasets` keys a `version-publish` failure by `version_id`). A timeout fails with `VERSION_PUBLISH_TIMEOUT`.
+**On failure** nothing is published: the version stays LOADED and can be published again. The job's error is shown on the version, not on the dataset (`GET /errors/datasets` keys a `version-publish` failure by `version_id`). A timeout fails with `VERSION_PUBLISH_TIMEOUT`, and a version holding another data type than the dataset with `VERSION_DATA_TYPES_MIXED`: refused before the transaction, or by the metadata rollup when a failed load left the version holding two.
 
 ---
 

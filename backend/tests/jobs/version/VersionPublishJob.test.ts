@@ -117,6 +117,24 @@ const setUpVersion = async (name: string, id: number) => {
 const getDataset = async (id: string): Promise<DatasetEntity | null> =>
   (await getDataSource()).getRepository(DatasetEntity).findOne({ where: { id }, withDeleted: true });
 
+/** The records with a square of their own each in place of their point, so they load as polygonal features. */
+const asPolygons = (records: SoilRecord[]): SoilRecord[] =>
+  records.map((record, i) => ({
+    ...record,
+    geometry: {
+      type: 'Polygon',
+      coordinates: [
+        [
+          [i, 0],
+          [i, 1],
+          [i + 1, 1],
+          [i + 1, 0],
+          [i, 0],
+        ],
+      ],
+    },
+  }));
+
 describe('version-publish', () => {
   afterEach(() => {
     jest.restoreAllMocks();
@@ -264,6 +282,42 @@ describe('version-publish', () => {
     await expect(processVersionPublish(publishJob(v1.slug, v2.slug))).rejects.toMatchObject({
       code: 'VERSION_NOT_PUBLISHABLE',
       params: expect.objectContaining({ reason }),
+    });
+    expect(await rowsOf(v1.id)).toEqual(v1Rows);
+    expect(await getDataset(v2.id)).not.toBeNull();
+  });
+
+  it('fails without publishing when the version holds another data type than the dataset', async () => {
+    const { config, a, b } = await recordsAB(308);
+    const v1 = await addDataset('publish-mixed', [0, 0, 1, 1]);
+    await load(config, a, v1.id);
+    const v2 = await versionService.openVersion(await requestDataFor(), v1.slug);
+    await load(config, asPolygons(b), v2.id);
+    // As the soil-data step saves it for vector files: the check reads the rows, not this
+    await (
+      await getDataSource()
+    ).query(`UPDATE datasets SET status = $2, gis_datatype = NULL WHERE id = $1`, [v2.id, IngestionStatus.LOADED]);
+    const v1Rows = await rowsOf(v1.id);
+
+    await expect(processVersionPublish(publishJob(v1.slug, v2.slug))).rejects.toMatchObject({
+      code: 'VERSION_DATA_TYPES_MIXED',
+      params: expect.objectContaining({ data_types: 'point and polygonal' }),
+    });
+    expect(await rowsOf(v1.id)).toEqual(v1Rows);
+    expect((await getDataset(v2.id))!.status).toBe(IngestionStatus.LOADED);
+  });
+
+  it("names the data types when the publish's rollup finds two, and publishes nothing", async () => {
+    // A version a failed load left holding both, which the check before the transaction missed
+    const { v1, v2 } = await setUpVersion('publish-mixed-rollup', 309);
+    const v1Rows = await rowsOf(v1.id);
+    jest
+      .spyOn(UpdateDatasetMetadataModule, 'updateDatasetMetadata')
+      .mockRejectedValueOnce(new UpdateDatasetMetadataModule.MixedDataTypesError([GISDataType.POINT, GISDataType.POLYGONAL]));
+
+    await expect(processVersionPublish(publishJob(v1.slug, v2.slug))).rejects.toMatchObject({
+      code: 'VERSION_DATA_TYPES_MIXED',
+      params: expect.objectContaining({ data_types: 'point and polygonal' }),
     });
     expect(await rowsOf(v1.id)).toEqual(v1Rows);
     expect(await getDataset(v2.id)).not.toBeNull();

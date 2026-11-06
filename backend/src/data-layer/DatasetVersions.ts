@@ -6,6 +6,7 @@ import { hasRasterFileToLoad } from './DatasetJobs';
 import { ErrorResponse } from '../utils/error';
 import { getRawTableName } from '../utils/utils';
 import { deleteDatasetLayers, deleteRasterLayers } from './DatasetRows';
+import { toGisDatatype } from '../utils/geometry';
 
 // Postgres: unique_violation
 const UNIQUE_VIOLATION_CODE = '23505';
@@ -79,6 +80,45 @@ export async function publishableReason(manager: EntityManager, dataset: Dataset
         ).length > 0;
   return filesToLoad ? 'the version has files not loaded yet' : null;
 }
+
+/**
+ * The data types the Dataset and its Version hold, when they differ, or null: also while either holds
+ * no data. Publishing them would put two in one Dataset, which holds one: points and polygons fail the
+ * publish's rollup (updateDatasetMetadata), and raster layers would sit in a vector Dataset, or
+ * features in a raster one. Checked by the publish route and again by the job, as publishableReason is.
+ */
+export async function mixedDataTypes(
+  manager: EntityManager,
+  datasetId: string,
+  versionId: string,
+): Promise<[GISDataType, GISDataType] | null> {
+  const datasetType = await dataTypeOf(manager, datasetId);
+  const versionType = await dataTypeOf(manager, versionId);
+  return datasetType && versionType && datasetType !== versionType ? [datasetType, versionType] : null;
+}
+
+/**
+ * The data type the Dataset holds, read from its rows rather than its gis_datatype, which the soil-data
+ * step saves before a load: raster with a Raster Layer, else the type of one of its features, or null
+ * with no data. One feature stands for them all, so this costs two index lookups however large the
+ * Dataset: a load that adds a second type fails its rollup, and a Version such a failed load left
+ * holding two is caught by the publish's own rollup (VersionPublishJob).
+ */
+const dataTypeOf = async (manager: EntityManager, datasetId: string): Promise<GISDataType | null> => {
+  const [raster] = await manager.query(`SELECT 1 FROM raster_layers WHERE dataset_id = $1 AND deleted_at IS NULL LIMIT 1`, [datasetId]);
+  if (raster) {
+    return GISDataType.RASTER;
+  }
+  const [feature]: { geometry_type: string }[] = await manager.query(
+    `SELECT ST_GeometryType(f.geom) AS geometry_type
+     FROM dataset_layers dl
+     JOIN features f ON f.id = dl.feature_id
+     WHERE dl.dataset_id = $1
+     LIMIT 1`,
+    [datasetId],
+  );
+  return feature ? toGisDatatype(feature.geometry_type) : null;
+};
 
 /**
  * Moves everything loaded into a Version (v2) into the Dataset it is a version of (v1), the same rows

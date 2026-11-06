@@ -10,8 +10,8 @@ import * as VersionJobsModule from '../../src/jobs/version/VersionJobs';
 import * as VersionPublishJobModule from '../../src/jobs/version/VersionPublishJob';
 import { DATASET_LOCKING_QUEUES } from '../../src/data-layer/DatasetJobs';
 import { requeueUnfinishedDiscards } from '../../src/jobs/orphan-cleanup/SweepOrphanRowsJob';
-import { addDataset, addFile } from '../../src/utils/mock';
-import { IngestionStatus } from '../../src/types/data';
+import { addCategory, addDataset, addDatasetLayer, addFeatures, addFile, addLayer, addSoilProperty } from '../../src/utils/mock';
+import { GISDataType, IngestionStatus } from '../../src/types/data';
 
 describe('Testing /datasets/{datasetId}/versions routes', () => {
   beforeAll(async () => {
@@ -211,6 +211,19 @@ describe('Testing /datasets/{datasetId}/versions routes', () => {
       expect(res.statusCode).toBe(200);
     });
 
+    it('accepts the data type the soil-data step saves, which is no general information', async () => {
+      const token = await getDataAdminToken();
+      const v1 = await addDataset('route-survey', [0, 0, 1, 1]);
+      const { body: v2 } = await openVersion(token, v1.slug);
+      expect(v2.gis_datatype).toBe(GISDataType.POINT);
+
+      // What the soil-data step sends on every save for vector files (useDatasetsSoilData)
+      const res = await request(app).patch(`/datasets/${v2.id}`).set('Authorization', `Bearer ${token}`).send({ gis_datatype: null });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.gis_datatype).toBeNull();
+    });
+
     it('is 404 for a version of another dataset', async () => {
       const token = await getDataAdminToken();
       const v1 = await addDataset('route-survey', [0, 0, 1, 1]);
@@ -339,6 +352,32 @@ describe('Testing /datasets/{datasetId}/versions routes', () => {
       await (await getDataSource()).query(`UPDATE datasets SET status = $2 WHERE slug = $1`, [v2.id, IngestionStatus.LOADED]);
       return { v1, v2 };
     };
+
+    it('is refused with 409 for a version holding another data type than the dataset', async () => {
+      const token = await getDataAdminToken();
+      const { v1, v2 } = await loadedVersion(token);
+      const [{ id: versionId }] = await (await getDataSource()).query(`SELECT id FROM datasets WHERE slug = $1`, [v2.id]);
+      const layer = await addLayer();
+      const property = await addSoilProperty('route-property', (await addCategory()).id);
+      const [point] = await addFeatures(GISDataType.POINT, [[10, 10]]);
+      const [polygon] = await addFeatures(GISDataType.POLYGONAL, [
+        [
+          [
+            [10, 10],
+            [10, 11],
+            [11, 11],
+            [10, 10],
+          ],
+        ],
+      ]);
+      await addDatasetLayer(v1.id, layer.id, point.id, property.id);
+      await addDatasetLayer(versionId, layer.id, polygon.id, property.id);
+
+      const res = await publish(token, v1.slug, v2.id);
+
+      expect(res.statusCode).toBe(409);
+      expect(res.body.detail).toContain('point and polygonal');
+    });
 
     it('queues a version-publish that locks the dataset and the version, and shows as publishing until it ends', async () => {
       const token = await getDataAdminToken();

@@ -189,6 +189,8 @@ Publishing runs in the background. While it runs, the version shows **Publishing
 - the dataset takes the settings you confirmed, its **Revision** goes up by one, and its **Last data update** is set;
 - the version is gone.
 
+A version's data must be of the dataset's type: points into a point dataset, polygons into a polygon one, rasters into a raster one. A version holding another type can't be published: reset it, remove the files of the other type, and load it again.
+
 Publishing can't be undone: there's no going back to the dataset's previous data. If publishing fails, nothing changes: the version stays **Loaded**, with an error you can open, and you can publish it again.
 
 **Discarding it**

@@ -26,7 +26,7 @@ import { GdalCLI, type Envelope } from '../utils/GdalCLI';
 import * as turf from '@turf/turf';
 import { substituteClassLabels } from '../utils/soilPropertyClasses';
 import { isDeepStrictEqual } from 'util';
-import { COPIED_FIELDS } from './DatasetVersionService';
+import { VERSION_READ_ONLY_FIELDS } from './DatasetVersionService';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -158,7 +158,7 @@ export default class DatasetService {
     const current: Record<string, unknown> = {
       name: version.name,
       preprocessing_steps: (version.processing_steps as ProcessingSteps | null)?.description ?? null,
-      ...Object.fromEntries(COPIED_FIELDS.map(field => [field, version[field] ?? null])),
+      ...Object.fromEntries(VERSION_READ_ONLY_FIELDS.map(field => [field, version[field] ?? null])),
     };
     const changed = Object.keys(current).filter(
       field => field in data && !isDeepStrictEqual(data[field as keyof UpdateDatasetInput] ?? null, current[field]),
