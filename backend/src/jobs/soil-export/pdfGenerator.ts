@@ -92,6 +92,31 @@ interface TocEntry {
 
 // ─── Public helpers (exported for unit testing) ─────────────────────────────
 
+// Nulls sort last. Reference periods are ISO dates, so string order is chronological.
+const compareNullable = <T extends string | number>(a: T | null, b: T | null): number => {
+  if (a === b) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return typeof a === 'number' ? a - (b as number) : (a as string).localeCompare(b as string);
+};
+
+/**
+ * Orders the raster layers table by dataset, soil property, reference period and depth, then by
+ * layer name so the order is fully deterministic. Returns a copy; the input is left untouched.
+ */
+export function sortRasterLayers(rasterLayers: RasterLayerPdfInfo[]): RasterLayerPdfInfo[] {
+  return [...rasterLayers].sort(
+    (a, b) =>
+      a.dataset_name.localeCompare(b.dataset_name) ||
+      a.soil_property_name.localeCompare(b.soil_property_name) ||
+      compareNullable(a.reference_period_start, b.reference_period_start) ||
+      compareNullable(a.reference_period_stop, b.reference_period_stop) ||
+      compareNullable(a.min_depth, b.min_depth) ||
+      compareNullable(a.max_depth, b.max_depth) ||
+      a.layer_name.localeCompare(b.layer_name),
+  );
+}
+
 export function drawHeader(doc: PDFKit.PDFDocument, logoBuffer: Buffer | null): void {
   const y = MARGIN - 20;
   doc.font(FONT.regular).fontSize(14).fillColor(COLOR.gray).text('Data download summary', y, y, { lineBreak: false });
@@ -503,7 +528,7 @@ function drawRasterLayersSection(doc: PDFKit.PDFDocument, params: GeneratePdfPar
     doc,
     'Each raster layer in this data package, by the name it is delivered under: its file name without extension (GeoTIFF), or its raster table (GeoPackage).',
   );
-  drawTable(doc, params, RASTER_LAYER_COLUMNS, rasterLayers);
+  drawTable(doc, params, RASTER_LAYER_COLUMNS, sortRasterLayers(rasterLayers));
 }
 
 function drawStandardsSection(doc: PDFKit.PDFDocument): void {
