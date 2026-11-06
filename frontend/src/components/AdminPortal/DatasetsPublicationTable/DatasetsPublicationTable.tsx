@@ -25,7 +25,11 @@ const statusSortingMap = {
 const QUEUED_SORT_ORDER = 1;
 
 const statusSortValue = (dataset: DatasetsPublicationListItem) =>
-  dataset.isQueued ? QUEUED_SORT_ORDER : (statusSortingMap[dataset.status] ?? 0);
+  dataset.isQueued
+    ? QUEUED_SORT_ORDER
+    : dataset.isLoading
+      ? statusSortingMap[IngestionStatus.ONGOING]
+      : (statusSortingMap[dataset.status] ?? 0);
 
 interface Props {
   datasets: DatasetsPublicationListItem[];
@@ -104,7 +108,7 @@ export function DatasetsPublicationTable({ datasets, isSearch, onEdit, onDelete,
 
   const rowClassName = (row: DatasetsPublicationListItem) => {
     if (row.hasErrors) return 'sh-row-error';
-    if (row.status === IngestionStatus.LOADED && !row.isQueued) return 'sh-row-highlighted';
+    if (row.status === IngestionStatus.LOADED && !row.isQueued && !row.isLoading) return 'sh-row-highlighted';
     return undefined;
   };
   return (

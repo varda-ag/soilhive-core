@@ -6,6 +6,7 @@ import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../../src/entities/File';
 import { FileMetadata } from '../../src/interfaces/File';
 import { DetectableFields } from '../../src/types/DataMapping';
+import { IngestionStatus } from '../../src/types/data';
 
 jest.mock('../../src/utils/db-credentials', () => ({
   getDBPassword: jest.fn().mockResolvedValue('test-password' as never),
@@ -81,6 +82,18 @@ describe('FileService.fileToDB — JobError surfacing', () => {
       name: 'JobError',
       code: 'FTD_RASTER_NOT_SUPPORTED',
     });
+  });
+
+  it('FTD_FILE_ALREADY_LOADED for a loaded file, leaving it LOADED', async () => {
+    jest.spyOn(fileService, 'getFile').mockResolvedValue({ ...makeFileEntity(), status: IngestionStatus.LOADED } as FileEntity);
+    const entityManager = makeEntityManager();
+
+    await expect(fileService.fileToDB({ entityManager, entitlements: {} }, 'file-id')).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'FTD_FILE_ALREADY_LOADED',
+    });
+    // Refused before the file is set ONGOING, so its status is never written
+    expect(entityManager.getRepository().update).not.toHaveBeenCalled();
   });
 
   it('E03 — FTD_NO_DATA_COLUMNS when the mapping names no non-geometry columns', async () => {

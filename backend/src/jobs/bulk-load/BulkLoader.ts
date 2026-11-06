@@ -21,7 +21,6 @@ import { ErrorResponse, getErrorMessage } from '../../utils/error';
 import { log } from '../../utils/logger';
 import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
-import { hideDatasetForLoad, statusAfterLoad } from '../LoadStatus';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import { jobRequestData } from '../jobRequestData';
@@ -48,82 +47,79 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
   const requestData = await jobRequestData(entityManager, data);
   const dataset = await datasetService.getDataset(requestData, data.dataset_id);
   const reportProgress = progressReporter(jobId);
-  const previousStatus = dataset.status;
-  try {
-    await reportProgress(0, `Bulk load started for dataset '${dataset.name}'`);
+  await reportProgress(0, `Bulk load started for dataset '${dataset.name}'`);
 
-    await hideDatasetForLoad(entityManager, dataset);
-
-    const mappingService = new DatasetFileMappingService();
-    const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
-
-    // Process all pending files associated with this mapping
-    const files = await getStagedFilesWithMapping(entityManager, datasetFileMappings);
-
-    // Resolve every mapping and count every file before writing anything, so the progress
-    // denominator spans the whole job and a missing mapping aborts before a partial load.
-    await reportProgress(0, `Counting records in ${files.length} file(s)...`);
-    const stagedFiles = await prepareStagedFiles(requestData, files, datasetFileMappings);
-    const totalRecords = stagedFiles.reduce((sum, staged) => sum + staged.recordCount, 0);
-
-    const cleaningSteps: Record<string, CleaningReport> = {};
-    let recordsProcessed = 0;
-    let lastPercentage = 0;
-    for (const [index, staged] of stagedFiles.entries()) {
-      const { file, datasetFileMapping, dataMappingConfig } = staged;
-      const loading = `Loading '${file.name}' (${index + 1} of ${stagedFiles.length})...`;
-      await reportProgress(loadPercentage(recordsProcessed, totalRecords), loading);
-      await processFile(file, requestData, datasetFileMapping, dataMappingConfig, data.dataset_id, async recordsLoaded => {
-        recordsProcessed += recordsLoaded;
-        const percentage = loadPercentage(recordsProcessed, totalRecords);
-        // Only write when the rendered percentage actually moves — batches are far
-        // shorter than the client poll interval, so per-batch writes are invisible.
-        if (percentage !== lastPercentage) {
-          lastPercentage = percentage;
-          await reportProgress(percentage, loading);
-        }
-      });
-      await reportProgress(loadPercentage(recordsProcessed, totalRecords), `Computing cleaning statistics for '${file.name}'...`);
-      try {
-        cleaningSteps[file.slug] = await datasetService.getSoilDataStats(requestData, datasetFileMapping.id);
-      } catch (error: any) {
-        throw new JobError('BL_STATS_FETCH_FAILED', {}, error?.detail ?? error?.message);
-      }
-      file.status = IngestionStatus.LOADED;
-      await file.save();
-      // Delete raw table
-      const rawTableName = getRawTableName(file.id);
-      await entityManager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${rawTableName}"`);
-      if (data.delete_source_files) {
-        // Delete source files
-        const storage: FileStorage = FileService.getStorageEngine();
-        // Awaited so a failure cannot surface as an unhandled rejection, but only logged: the file's
-        // records are already in, and a leftover source file is not worth failing the load over.
-        await storage
-          .deleteFile(file.file_path)
-          .catch(error => log.warn('Failed to delete source file after bulk load', { file_id: file.id, error: getErrorMessage(error) }));
-      }
-    }
-
-    const existingSteps = (dataset.processing_steps ?? {}) as ProcessingSteps;
-    dataset.processing_steps = {
-      ...existingSteps,
-      cleaning_steps: { ...existingSteps.cleaning_steps, ...cleaningSteps },
-    };
-    await dataset.save();
-
-    // Calculate new dataset metadata and update status
-    await reportProgress(LOAD_PROGRESS_CEILING, 'Computing dataset metadata...');
-    await updateDatasetMetadata(entityManager, dataset.id, statusAfterLoad(previousStatus));
-
-    // The job is still active here, so this last write lands; once the processor
-    // returns, updateJobState's `state = 'active'` guard makes it a no-op.
-    await reportProgress(100, 'Bulk load complete');
-  } catch (error: any) {
-    dataset.status = IngestionStatus.PENDING;
-    await dataset.save();
-    throw error;
+  // Refused when the job was created (JobService.assertLoadable); this catches one queued before that check
+  if (dataset.status === IngestionStatus.PUBLISHED) {
+    throw new JobError('BL_DATASET_PUBLISHED', { dataset_name: dataset.name });
   }
+
+  const mappingService = new DatasetFileMappingService();
+  const datasetFileMappings = await mappingService.getMappings(requestData, dataset.slug);
+
+  // Process all pending files associated with this mapping
+  const files = await getStagedFilesWithMapping(entityManager, datasetFileMappings);
+
+  // Resolve every mapping and count every file before writing anything, so the progress
+  // denominator spans the whole job and a missing mapping aborts before a partial load.
+  await reportProgress(0, `Counting records in ${files.length} file(s)...`);
+  const stagedFiles = await prepareStagedFiles(requestData, files, datasetFileMappings);
+  const totalRecords = stagedFiles.reduce((sum, staged) => sum + staged.recordCount, 0);
+
+  const cleaningSteps: Record<string, CleaningReport> = {};
+  let recordsProcessed = 0;
+  let lastPercentage = 0;
+  for (const [index, staged] of stagedFiles.entries()) {
+    const { file, datasetFileMapping, dataMappingConfig } = staged;
+    const loading = `Loading '${file.name}' (${index + 1} of ${stagedFiles.length})...`;
+    await reportProgress(loadPercentage(recordsProcessed, totalRecords), loading);
+    await processFile(file, requestData, datasetFileMapping, dataMappingConfig, data.dataset_id, async recordsLoaded => {
+      recordsProcessed += recordsLoaded;
+      const percentage = loadPercentage(recordsProcessed, totalRecords);
+      // Only write when the rendered percentage actually moves — batches are far
+      // shorter than the client poll interval, so per-batch writes are invisible.
+      if (percentage !== lastPercentage) {
+        lastPercentage = percentage;
+        await reportProgress(percentage, loading);
+      }
+    });
+    await reportProgress(loadPercentage(recordsProcessed, totalRecords), `Computing cleaning statistics for '${file.name}'...`);
+    try {
+      cleaningSteps[file.slug] = await datasetService.getSoilDataStats(requestData, datasetFileMapping.id);
+    } catch (error: any) {
+      throw new JobError('BL_STATS_FETCH_FAILED', {}, error?.detail ?? error?.message);
+    }
+    file.status = IngestionStatus.LOADED;
+    await file.save();
+    // Delete raw table
+    const rawTableName = getRawTableName(file.id);
+    await entityManager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${rawTableName}"`);
+    if (data.delete_source_files) {
+      // Delete source files
+      const storage: FileStorage = FileService.getStorageEngine();
+      // Awaited so a failure cannot surface as an unhandled rejection, but only logged: the file's
+      // records are already in, and a leftover source file is not worth failing the load over.
+      await storage
+        .deleteFile(file.file_path)
+        .catch(error => log.warn('Failed to delete source file after bulk load', { file_id: file.id, error: getErrorMessage(error) }));
+    }
+  }
+
+  const existingSteps = (dataset.processing_steps ?? {}) as ProcessingSteps;
+  dataset.processing_steps = {
+    ...existingSteps,
+    cleaning_steps: { ...existingSteps.cleaning_steps, ...cleaningSteps },
+  };
+  await dataset.save();
+
+  // Calculate new dataset metadata. A failed load leaves the status alone, partial rows included: the
+  // Dataset is never public (see above), and a retry is idempotent
+  await reportProgress(LOAD_PROGRESS_CEILING, 'Computing dataset metadata...');
+  await updateDatasetMetadata(entityManager, dataset.id, IngestionStatus.LOADED);
+
+  // The job is still active here, so this last write lands; once the processor
+  // returns, updateJobState's `state = 'active'` guard makes it a no-op.
+  await reportProgress(100, 'Bulk load complete');
 }
 
 const getStagedFilesWithMapping = async (entityManager: EntityManager, mappings: DatasetFileMappingEntity[]): Promise<FileEntity[]> => {

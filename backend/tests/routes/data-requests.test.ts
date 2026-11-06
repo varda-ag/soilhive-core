@@ -10,7 +10,7 @@ import { sleep } from '../../src/utils/utils';
 import { getDataAdminToken, getUserToken } from '../helper';
 import { EVERYONE } from '../../src/constants/constants';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
-import { addCategory, addDataset, addFile, addSoilProperty, linkMapping } from '../../src/utils/mock';
+import { addCategory, addDataset, addFile, addSoilProperty, addUnpublishedDataset, linkMapping } from '../../src/utils/mock';
 import { GISDataType } from '../../src/types/data';
 import SoilPropertyEntity from '../../src/entities/SoilProperty';
 
@@ -575,7 +575,7 @@ describe('Testing /data-requests routes', () => {
 
       // A job on a served queue from the same caller, so an empty list cannot pass for a filter
       // that dropped everything.
-      await addDataset('dr-jobs-list-dataset', [0, 0, 1, 1]);
+      await addUnpublishedDataset('dr-jobs-list-dataset', [0, 0, 1, 1]);
       const bulk = await request(app)
         .post('/jobs')
         .set('Authorization', `Bearer ${token}`)

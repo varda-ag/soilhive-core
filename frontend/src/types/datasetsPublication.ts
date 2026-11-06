@@ -10,6 +10,8 @@ export type DatasetsPublicationListItem = {
   gis_datatype?: GISDataType | null;
   hasErrors?: boolean;
   isQueued?: boolean;
+  // A load is running: it no longer changes the dataset's status
+  isLoading?: boolean;
 };
 
 export type SoilDataSummary = {

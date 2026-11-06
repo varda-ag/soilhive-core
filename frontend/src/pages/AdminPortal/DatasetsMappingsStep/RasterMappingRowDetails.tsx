@@ -23,6 +23,8 @@ interface Props {
   onReferencePeriodStopChange: (columnName: string, value: string) => void;
   onLayerDescriptionChange: (columnName: string, value: string) => void;
   onAdditionalResourcesChange: (columnName: string, value: { file_id: string }[]) => void;
+  // A loaded File's mapping is shown but can't be changed.
+  isReadOnly?: boolean;
 }
 
 export function RasterMappingRowDetails({
@@ -39,6 +41,7 @@ export function RasterMappingRowDetails({
   onReferencePeriodStopChange,
   onLayerDescriptionChange,
   onAdditionalResourcesChange,
+  isReadOnly = false,
 }: Props) {
   const { t } = useTranslation('admin');
 
@@ -57,7 +60,8 @@ export function RasterMappingRowDetails({
             value={details.laboratoryMethod ?? undefined}
             placeholder={t('datasets.mappings.details.laboratory_method_placeholder')}
             onChange={value => onDetailChange(columnName, 'laboratoryMethod', value as string)}
-            onClear={() => onDetailChange(columnName, 'laboratoryMethod', '')}
+            onClear={isReadOnly ? undefined : () => onDetailChange(columnName, 'laboratoryMethod', '')}
+            isDisabled={isReadOnly}
           />
         </div>
         {/* Text, not number: the catalogue stores a year, a year and month, or a full date, and a
@@ -71,6 +75,7 @@ export function RasterMappingRowDetails({
             placeholder={t('datasets.mappings.details.reference_period_start_placeholder')}
             value={referencePeriodStart ?? ''}
             isError={referencePeriodErrors.start}
+            isReadOnly={isReadOnly}
             onChange={value => onReferencePeriodStartChange(columnName, value)}
           />
           <TextInput
@@ -80,6 +85,7 @@ export function RasterMappingRowDetails({
             placeholder={t('datasets.mappings.details.reference_period_stop_placeholder')}
             value={referencePeriodStop ?? ''}
             isError={referencePeriodErrors.stop}
+            isReadOnly={isReadOnly}
             onChange={value => onReferencePeriodStopChange(columnName, value)}
           />
         </div>
@@ -92,6 +98,7 @@ export function RasterMappingRowDetails({
         value={layerDescription ?? ''}
         maxLength={LAYER_DESCRIPTION_MAX_LENGTH}
         showCounter
+        isReadOnly={isReadOnly}
         onChange={value => onLayerDescriptionChange(columnName, value)}
       />
       <div className={styles.AdditionalResources}>
@@ -100,7 +107,11 @@ export function RasterMappingRowDetails({
           <span className={styles.AdditionalResourcesSubtitle}>{t('datasets.mappings.details.additional_resources_subtitle')}</span>
         </p>
         <div className={styles.AdditionalResourcesContent}>
-          <AdditionalResourcesUpload value={additionalResources} onChange={value => onAdditionalResourcesChange(columnName, value)} />
+          <AdditionalResourcesUpload
+            value={additionalResources}
+            onChange={value => onAdditionalResourcesChange(columnName, value)}
+            isReadOnly={isReadOnly}
+          />
         </div>
       </div>
     </div>

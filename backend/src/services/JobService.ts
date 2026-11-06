@@ -17,13 +17,13 @@ import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
-import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/DatasetJobs';
+import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES, hasRasterFileToLoad } from '../data-layer/DatasetJobs';
 import { getEntity } from '../utils/slugs';
 import { JobError } from '../errors/JobError';
 import { checkExportLimitsAtSubmission } from '../jobs/soil-export/submissionCheck';
 import { getExportLimits } from '../jobs/soil-export/exportLimits';
 import DatasetEntity from '../entities/Dataset';
-import { EntityType } from '../types/data';
+import { EntityType, IngestionStatus } from '../types/data';
 
 const entitlementService = new EntitlementService();
 
@@ -170,10 +170,31 @@ export default class JobService {
    * dataset_id is rewritten to the current slug: an old one resolves here but would never match
    * the Queued lookup, which compares slugs as stored in the job data.
    */
-  private lockDataset = async (requestData: RequestData, data: { dataset_id: string }): Promise<void> => {
+  private lockDataset = async (requestData: RequestData, data: { dataset_id: string; type: string }): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
     data.dataset_id = dataset.slug;
     await assertNoUnfinishedJob(requestData.entityManager, dataset);
+    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.RASTER_LOAD) {
+      await this.assertLoadable(requestData, dataset, data.type);
+    }
+  };
+
+  /**
+   * Refuses a load into a PUBLISHED Dataset with 409: loads no longer hide the Dataset while they
+   * run, so its readers would see it half-loaded. A Raster Load with no File to ingest is let
+   * through, since all it does is remove the layers of removed Files (removeUnmappedLayers in RasterLoader).
+   */
+  private assertLoadable = async (requestData: RequestData, dataset: DatasetEntity, queue: JobQueues): Promise<void> => {
+    if (dataset.status !== IngestionStatus.PUBLISHED) {
+      return;
+    }
+    if (queue === JobQueues.RASTER_LOAD && !(await hasRasterFileToLoad(requestData.entityManager, dataset.id))) {
+      return;
+    }
+    throw new ErrorResponse(
+      `Dataset '${dataset.name}' is published, so data can't be loaded into it: unpublish it first`,
+      StatusCodes.CONFLICT,
+    );
   };
 
   /**

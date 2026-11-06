@@ -55,9 +55,21 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       `Check your file is compliant with the guidelines in the documentation: ${VECTOR_DOCS_URL}#what-your-file-should-contain`,
     ],
   },
+  FTD_FILE_ALREADY_LOADED: {
+    message: "'{file_name}' is already loaded, so it can't be staged again.",
+    actions: ['Only files that are not loaded yet go through staging. To add more data, upload a new file.'],
+  },
+  FTD_DATASET_LOADING: {
+    message: "'{file_name}' can't be staged while its dataset is loading.",
+    actions: ['Wait for the data load to finish, then retry file staging.'],
+  },
   FTD_STALE_STAGING_TABLE: {
     message: 'A previous import attempt left behind incomplete staging data.',
     actions: ['Wait a few minutes for automatic cleanup, then try again. If it persists, contact support.'],
+  },
+  BL_DATASET_PUBLISHED: {
+    message: "Dataset '{dataset_name}' is published, so data can't be loaded into it.",
+    actions: ['Unpublish the dataset, then retry data loading.'],
   },
   BL_RAW_TABLE_NOT_FOUND: {
     message: "One or more files haven't been staged yet and can't be loaded.",
@@ -75,6 +87,10 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
       'Try starting data loading again.',
       `If it keeps failing, double check your data against the guidelines in the documentation at: ${VECTOR_DOCS_URL}#what-your-file-should-contain`,
     ],
+  },
+  RL_DATASET_PUBLISHED: {
+    message: "Dataset '{dataset_name}' is published, so files can't be loaded into it.",
+    actions: ['Unpublish the dataset, then retry data loading.'],
   },
   RL_MAPPING_NOT_CONFIGURED: {
     message: "The band mapping for '{file_name}' has not been configured yet.",

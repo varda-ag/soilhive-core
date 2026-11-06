@@ -17,4 +17,5 @@ export interface SoilDataFile {
   rasterBands?: FileRasterBandDescriptor[];
   georeferenceWgs84?: Georeference; // Where the file sits on a map, once its CRS is known
   isUngeoreferencedRaster?: boolean; // A raster no CRS can place: it has no geotransform
+  isLoaded?: boolean; // Already loaded into the dataset: a vector one can't be removed, a raster one leaves with its layers
 }

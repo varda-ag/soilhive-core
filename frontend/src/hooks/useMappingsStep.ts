@@ -210,7 +210,7 @@ export function useMappingsStep(datasetId?: string) {
     datasetGisDataType,
     files,
     isLoadingFiles,
-    datasetFileMappings,
+    pendingFileMappings,
     isLoadingDatasetFileMappings,
     isImporting,
     allFilesStaged,
@@ -465,9 +465,10 @@ export function useMappingsStep(datasetId?: string) {
     const mappingResponse = await createMapping(buildDataMappingRequest(columnMappings, procedureIds));
     resetChanges();
 
-    if (datasetId && datasetFileMappings?.length) {
+    // A loaded File keeps the mapping it was loaded with; the backend refuses changing it.
+    if (datasetId && pendingFileMappings.length) {
       await Promise.all(
-        datasetFileMappings.map(dfm =>
+        pendingFileMappings.map(dfm =>
           updateDatasetFileMapping({ datasetId, datasetFileMappingId: dfm.id, mappingId: mappingResponse.id }),
         ),
       );
@@ -484,7 +485,7 @@ export function useMappingsStep(datasetId?: string) {
     createMapping,
     updateDatasetFileMapping,
     datasetId,
-    datasetFileMappings,
+    pendingFileMappings,
     queryClient,
     resetChanges,
   ]);
@@ -494,7 +495,8 @@ export function useMappingsStep(datasetId?: string) {
   const handleContinue = useCallback(async () => {
     const changed = isMappingChanged(columnMappings, existingMappings?.[0]?.data_mapping, procedureByColumn);
 
-    if (!changed && allFilesStaged) {
+    // With no File left to load, there is nothing to stage: the mapping governs new Files only.
+    if (pendingFileMappings.length === 0 || (!changed && allFilesStaged)) {
       if (datasetGisDataType === GISDataType.RASTER) {
         setShowLoadingPanel(true);
       } else {
@@ -504,11 +506,17 @@ export function useMappingsStep(datasetId?: string) {
     }
 
     setIsImportingState(true);
-    await save();
-    const jobs = await Promise.all(
-      datasetFileMappings!.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
-    );
-    setActiveJobIds(jobs.map(j => j.id));
+    try {
+      await save();
+      const jobs = await Promise.all(
+        pendingFileMappings.map(dfm => createJob({ type: 'file-to-db', file_id: dfm.fileID, dataset_id: datasetId })),
+      );
+      setActiveJobIds(jobs.map(j => j.id));
+    } catch {
+      // The request already showed the error. Back to the step, or it stays on "Mapping fields" for good:
+      // only the jobs finishing clears the importing state.
+      setIsImportingState(false);
+    }
   }, [
     columnMappings,
     existingMappings,
@@ -517,7 +525,7 @@ export function useMappingsStep(datasetId?: string) {
     save,
     navigate,
     datasetId,
-    datasetFileMappings,
+    pendingFileMappings,
     createJob,
     datasetGisDataType,
     setShowLoadingPanel,
