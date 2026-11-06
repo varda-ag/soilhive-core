@@ -701,8 +701,11 @@ components:
     CorrelationStatistics:
       type: object
       description: >-
-        Rounded to 3 decimals. n_points is always present. The other five are absent together when
-        n_points is below min_points, or when x or y does not vary.
+        n_points is always present. The other five are absent together when n_points is below
+        min_points, or when x or y does not vary. pearson_r, spearman_rho and r_squared are rounded
+        to 3 decimals. slope and intercept keep 3 significant digits, so a small slope (mg/kg
+        against %) is not rounded to 0, and are 0 when they are within floating-point error of 0
+        for the scale of the data.
       required:
         - n_points
       properties:

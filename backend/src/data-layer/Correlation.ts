@@ -29,7 +29,7 @@ export interface CorrelationOptions {
   timeAggregation: TimeAggregation;
   /** Limit on `overall` + `results` rows; see docs/adr/0040. */
   maxRows: number;
-  /** Limit on the points of all `results` rows together; see docs/adr/0075. */
+  /** Limit on the points of all `results` rows together; see docs/adr/0076. */
   maxTotalPoints: number;
   workMem: string;
   statementTimeoutMs: number;
@@ -52,6 +52,10 @@ interface RawStatistics {
   spearman_rho: number | null;
   slope: number | null;
   intercept: number | null;
+  /** The data's scale, which tells rounding error from a value in the fit. */
+  mean_y: number;
+  sd_x: number;
+  sd_y: number;
 }
 
 interface RawResultRow extends RawStatistics {
@@ -82,7 +86,10 @@ const STATISTICS = `
   corr(y, x) AS pearson_r,
   corr(rank_y::float8, rank_x::float8) AS spearman_rho,
   regr_slope(y, x) AS slope,
-  regr_intercept(y, x) AS intercept`;
+  regr_intercept(y, x) AS intercept,
+  AVG(y) AS mean_y,
+  STDDEV_POP(x) AS sd_x,
+  STDDEV_POP(y) AS sd_y`;
 
 /** Aggregated in one order, so x[i] and y[i] stay one location. */
 const POINTS = `
@@ -198,8 +205,16 @@ const rowKeys = (raw: RawStatistics, timeAggregation: TimeAggregation): Correlat
   return { dataset_id: raw.dataset_slug, ...yearKeys, depth_start: raw.depth_start, depth_end: depth_end ?? null };
 };
 
-/** The fit can be tiny (mg/kg against %), so it keeps 3 significant digits, not 3 decimals. */
-const round3Significant = (value: number): number => Number(value.toPrecision(3));
+/** Below this share of the data's scale, a slope or intercept is floating-point error. */
+const FIT_TOLERANCE = 1e-9;
+
+/**
+ * The fit can be tiny (mg/kg against %), so it keeps 3 significant digits, not 3 decimals. Those
+ * would keep floating-point error too, so a term within FIT_TOLERANCE of `scale` is 0: y = 3x
+ * has intercept 0, not 2.84e-15.
+ */
+export const roundFitTerm = (value: number, scale: number): number =>
+  Math.abs(value) <= FIT_TOLERANCE * scale ? 0 : Number(value.toPrecision(3));
 
 /** Only `n_points` below the minimum or when x or y does not vary. */
 const statisticsOf = (raw: RawStatistics): CorrelationStatistics => {
@@ -211,7 +226,8 @@ const statisticsOf = (raw: RawStatistics): CorrelationStatistics => {
     pearson_r: round3(raw.pearson_r),
     spearman_rho: round3(raw.spearman_rho!),
     r_squared: round3(raw.pearson_r * raw.pearson_r),
-    slope: round3Significant(raw.slope!),
-    intercept: round3Significant(raw.intercept!),
+    // sd_x is not 0 here: corr is null when x does not vary.
+    slope: roundFitTerm(raw.slope!, raw.sd_y / raw.sd_x),
+    intercept: roundFitTerm(raw.intercept!, Math.max(Math.abs(raw.mean_y), raw.sd_y)),
   };
 };

@@ -12,7 +12,7 @@ import {
   addProcedure,
   addSoilProperty,
 } from '../../src/utils/mock';
-import { computeCorrelation, CorrelationOptions } from '../../src/data-layer/Correlation';
+import { computeCorrelation, CorrelationOptions, roundFitTerm } from '../../src/data-layer/Correlation';
 import FilterService from '../../src/services/FilterService';
 import { GISDataType } from '../../src/types/data';
 import { FilterCriteria } from '../../src/interfaces/DatasetFilter';
@@ -208,6 +208,16 @@ describe('computeCorrelation — statistics', () => {
 
     expect(overall[0]).toMatchObject({ slope: 0.0004, intercept: 0.5 });
     expect(results[0]).toMatchObject({ slope: 0.0004, intercept: 0.5 });
+  });
+
+  // Unit-tested: the error depends on the order Postgres adds the rows, so a seeded fit shows it only sometimes.
+  it('gives 0 for a slope or intercept within floating-point error of the data scale', () => {
+    expect(roundFitTerm(2.84e-15, 30)).toBe(0);
+    expect(roundFitTerm(-1.1e-13, 1000)).toBe(0);
+    expect(roundFitTerm(1e-7, 1000)).toBe(0);
+    expect(roundFitTerm(1e-7, 1)).toBe(1e-7);
+    expect(roundFitTerm(0.000412345, 0.01)).toBe(0.000412);
+    expect(roundFitTerm(-1234.567, 50)).toBe(-1230);
   });
 
   it('reduces the values of one location with the measure', async () => {
