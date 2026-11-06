@@ -30,6 +30,17 @@ export const datasetExistsFor = (token: Token | undefined, status: IngestionStat
 };
 
 /**
+ * The Ingestion Statuses of the Datasets a filter's coverage and dataset list include for the caller:
+ * PUBLISHED, and LOADED too for a Privileged caller, so an admin can review a loaded Dataset, a
+ * Dataset Version included, on the map and in the explorer before it's published. A PENDING or STAGED
+ * Dataset may hold a partial first load, so it's left out. Bound as a query parameter, so the query
+ * cache keeps the two callers' results apart.
+ */
+export const listedDatasetStatuses = (token: Token | undefined): IngestionStatus[] => {
+  return isPrivilegedCaller(token) ? [IngestionStatus.PUBLISHED, IngestionStatus.LOADED] : [IngestionStatus.PUBLISHED];
+};
+
+/**
  * What the caller may do with a Dataset: preview and download if it is public or the caller is
  * privileged, else what is granted on its current slug.
  */

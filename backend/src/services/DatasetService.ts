@@ -1,6 +1,7 @@
 import { StatusCodes } from 'http-status-codes';
 import { RequestData } from '../interfaces/RequestData';
 import { ErrorResponse } from '../utils/error';
+import FileEntity from '../entities/File';
 import { datasetCapabilities, datasetExistsFor, getSubject, isPrivilegedCaller } from '../utils/auth';
 import DatasetEntity from '../entities/Dataset';
 import { CreateDatasetInput, UpdateDatasetInput } from '../types/DatasetInput';
@@ -17,11 +18,15 @@ import { refreshDaiStats } from '../data-layer/DaiStats';
 import JobService from './JobService';
 import { RefreshDaiStatsJob } from '../interfaces/Job';
 import { ProcessingSteps } from '../interfaces/Dataset';
-import { assertNoUnfinishedJob, getUnfinishedJobs } from '../data-layer/DatasetJobs';
+import { assertNoUnfinishedJob, getPublishingVersions, getUnfinishedJobs, VERSION_ACTIVE_QUEUES } from '../data-layer/DatasetJobs';
+import { getOpenVersions } from '../data-layer/DatasetVersions';
+import { In, IsNull } from 'typeorm';
 import { getRasterFileBboxes } from '../data-layer/DatasetBbox';
 import { GdalCLI, type Envelope } from '../utils/GdalCLI';
 import * as turf from '@turf/turf';
 import { substituteClassLabels } from '../utils/soilPropertyClasses';
+import { isDeepStrictEqual } from 'util';
+import { VERSION_READ_ONLY_FIELDS } from './DatasetVersionService';
 
 const vdl = new VectorDataLoad();
 const dmService = new DataMappingService();
@@ -32,11 +37,14 @@ const dfmService = new DatasetFileMappingService();
 const DAI_REFRESH_START_AFTER_SECONDS = 5;
 export default class DatasetService {
   /**
-   * The catalog listing. Only a Privileged caller is shown Datasets that are not PUBLISHED
+   * The catalog listing. Only a Privileged caller is shown Datasets that are not PUBLISHED. Versions
+   * are left out: each shows on the Dataset it is a version of, as `pending_version`.
    */
   getDatasets = async (requestData: RequestData): Promise<DatasetEntity[]> => {
     const repo = requestData.entityManager.getRepository(DatasetEntity);
-    const entities = await repo.find(isPrivilegedCaller(requestData.token) ? {} : { where: { status: IngestionStatus.PUBLISHED } });
+    const entities = await repo.find({
+      where: isPrivilegedCaller(requestData.token) ? { version_of: IsNull() } : { status: IngestionStatus.PUBLISHED },
+    });
     entities.map(e => {
       this.decorateWithCapabilities(e, requestData);
       this.decoratePreprocessingSteps(e);
@@ -88,17 +96,32 @@ export default class DatasetService {
     const subject = getSubject(requestData);
 
     const dataset: DatasetEntity = await getEntity(requestData, DatasetEntity, EntityType.DATASET, slug);
+    if (dataset.version_of && data.status === IngestionStatus.PUBLISHED) {
+      // The CHECK constraint refuses it too; this says what to do instead
+      throw new ErrorResponse(
+        `Dataset '${dataset.name}' is a version, which goes live by being published into the dataset it is a version of`,
+        StatusCodes.CONFLICT,
+      );
+    }
+    if (dataset.version_of) {
+      this.assertVersionInfoUnchanged(dataset, data);
+    }
 
     const existingSteps = (dataset.processing_steps ?? {}) as ProcessingSteps;
     const nextProcessingSteps: ProcessingSteps | null = data.preprocessing_steps
       ? { ...existingSteps, description: data.preprocessing_steps }
       : (dataset.processing_steps ?? null);
 
+    const now = new Date();
+    // Publishing puts the Dataset's data live. That includes a re-publish: an unpublished Dataset can be
+    // loaded into, so its data may have changed while it was down.
+    const isPublish = data.status === IngestionStatus.PUBLISHED && dataset.status !== IngestionStatus.PUBLISHED;
     repo.merge(dataset, {
       ...data,
       processing_steps: nextProcessingSteps,
       updated_by: subject,
-      updated_at: new Date(),
+      updated_at: now,
+      ...(isPublish ? { data_updated_at: now } : {}),
     });
 
     const saved = await repo.save(dataset);
@@ -124,6 +147,28 @@ export default class DatasetService {
     this.decorateWithCapabilities(reloaded!, requestData);
     this.decoratePreprocessingSteps(reloaded!);
     return reloaded!;
+  };
+
+  /**
+   * A Version's general information is read-only: its name is the placeholder openVersion gives it,
+   * and its descriptive metadata is v1's, which is edited on v1. Sending a field unchanged is accepted,
+   * so a form that posts every field still saves.
+   */
+  private assertVersionInfoUnchanged = (version: DatasetEntity, data: UpdateDatasetInput): void => {
+    const current: Record<string, unknown> = {
+      name: version.name,
+      preprocessing_steps: (version.processing_steps as ProcessingSteps | null)?.description ?? null,
+      ...Object.fromEntries(VERSION_READ_ONLY_FIELDS.map(field => [field, version[field] ?? null])),
+    };
+    const changed = Object.keys(current).filter(
+      field => field in data && !isDeepStrictEqual(data[field as keyof UpdateDatasetInput] ?? null, current[field]),
+    );
+    if (changed.length > 0) {
+      throw new ErrorResponse(
+        `Dataset '${version.name}' is a version, whose general information can't be changed (${changed.join(', ')}): edit it on the dataset it is a version of`,
+        StatusCodes.CONFLICT,
+      );
+    }
   };
 
   deleteDataset = async (requestData: RequestData, slug: string, syncDaiRefresh = false): Promise<void> => {
@@ -179,6 +224,53 @@ export default class DatasetService {
   };
 
   /**
+   * For a Privileged caller, the only one shown a Version:
+   * - sets `pending_version` on each Dataset: its open Version, with that Version's Queued and
+   *   running job, or null;
+   * - on a Version, replaces `version_of` with that Dataset's slug, since responses never expose a
+   *   Dataset's primary key.
+   * Called by the read endpoints only: it rewrites `version_of`, so the entity must not be saved after.
+   */
+  decorateWithVersions = async (requestData: RequestData, datasets: DatasetEntity[]): Promise<void> => {
+    if (!isPrivilegedCaller(requestData.token) || datasets.length === 0) {
+      return;
+    }
+    const em = requestData.entityManager;
+    const versions = await getOpenVersions(
+      em,
+      datasets.filter(d => !d.version_of).map(d => d.id),
+    );
+    const slugs = [...versions.values()].map(v => v.slug);
+    const { queued, active } = await getUnfinishedJobs(em, slugs, VERSION_ACTIVE_QUEUES);
+    // A publish locks v1 by dataset_id, so it's none of the Version's jobs above: it names the Version by version_id
+    const publishing = await getPublishingVersions(em, slugs);
+    const parentIds = datasets.map(d => d.version_of).filter((id): id is string => !!id);
+    const parents =
+      parentIds.length > 0 ? await em.getRepository(DatasetEntity).find({ where: { id: In(parentIds) }, withDeleted: true }) : [];
+    const parentSlugs = new Map(parents.map(p => [p.id, p.slug]));
+    for (const dataset of datasets) {
+      if (dataset.version_of) {
+        dataset.version_of = parentSlugs.get(dataset.version_of) ?? null;
+        dataset.pending_version = null;
+        continue;
+      }
+      const version = versions.get(dataset.id);
+      dataset.pending_version = version
+        ? {
+            slug: version.slug,
+            name: version.name,
+            number: version.version_number,
+            status: version.status,
+            updated_at: version.updated_at,
+            queued_job: queued.get(version.slug) ?? null,
+            active_job: active.get(version.slug) ?? null,
+            publishing: publishing.has(version.slug),
+          }
+        : null;
+    }
+  };
+
+  /**
    * Sets `bbox`, the Dataset's Bounding box: for a raster Dataset the narrowest one around its
    * Raster Layers' Files, for any other its spatial_extent's own. Null exactly when spatial_extent is.
    */
@@ -211,6 +303,24 @@ export default class DatasetService {
   private toProcessingSteps = (value: string | null): ProcessingSteps | null => {
     return value ? { description: value } : null;
   };
+
+  /**
+   * Refuses with 409 previewing a File that isn't STAGED. Only a STAGED File has the raw table the
+   * preview reads: file-to-db creates it, and a bulk load drops it once the File is LOADED. Without
+   * this, the preview fails on the missing table with Postgres's "relation … does not exist".
+   *
+   * Checked by the preview routes only: the bulk load reads a File's stats while it is still STAGED.
+   */
+  async assertFileStaged(requestData: RequestData, datasetFileMappingId: string): Promise<void> {
+    const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);
+    const file = datasetFileMapping.file_id
+      ? await requestData.entityManager.getRepository(FileEntity).findOneBy({ id: datasetFileMapping.file_id })
+      : null;
+    if (file && file.status !== IngestionStatus.STAGED) {
+      const reason = file.status === IngestionStatus.LOADED ? 'it is already loaded' : "it hasn't been processed yet";
+      throw new ErrorResponse(`File '${file.slug}' has no staged data to preview: ${reason}`, StatusCodes.CONFLICT);
+    }
+  }
 
   async getSoilData(requestData: RequestData, datasetFileMappingId: string, limit: number, cursor?: string, sort?: string) {
     const datasetFileMapping = await dfmService.getDatasetFileMapping(requestData, datasetFileMappingId);

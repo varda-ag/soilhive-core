@@ -1,6 +1,8 @@
 import type { StatisticsType, SoilIndexType, VariableType, DepthRanges, ValueType, ClassMethod, CorrelationMeasure } from '../types/enums';
 import type { AggregationUnit } from '../jobs/runs/types';
 import type { SamplingRange } from '../jobs/soil-indexes/samplingRange';
+import type { IngestionStatus } from '../types/data';
+import type { CapabilityGrants } from '../types/Entitlements';
 
 export type AnyJob =
   | BulkLoadJob
@@ -11,7 +13,10 @@ export type AnyJob =
   | RefreshDaiStatsJob
   | DataRequestJob
   | SoilIndexJob
-  | RasterFilterInstallJob;
+  | RasterFilterInstallJob
+  | VersionResetJob
+  | VersionDiscardJob
+  | VersionPublishJob;
 
 /** A job pg-boss has not picked up yet, as a Dataset's `queued_job` exposes it (docs/adr/0042). */
 export interface QueuedJob {
@@ -89,6 +94,33 @@ export interface FileToDbJob extends CommonJobData {
 
 export interface BulkDeleteJob extends CommonJobData {
   dataset_id: string;
+}
+
+/** Removes a Version's loaded data, so its Files can be loaded again. dataset_id is the Version's slug. */
+export interface VersionResetJob extends CommonJobData {
+  dataset_id: string;
+}
+
+/** Removes a Version, its Files and its data. dataset_id is the Version's slug. */
+export interface VersionDiscardJob extends CommonJobData {
+  dataset_id: string;
+  // The Version's status before the discard route soft-deleted it, put back if the discard fails
+  previous_status?: IngestionStatus;
+}
+
+/**
+ * Publishes a Version into the Dataset it is a version of. dataset_id is that Dataset's slug, so the
+ * job locks it; version_id is the Version's, which the Version's own lock checks too
+ * (DatasetJobs.assertNoUnfinishedJob). The publication settings are applied to the Dataset.
+ */
+export interface VersionPublishJob extends CommonJobData {
+  dataset_id: string;
+  version_id: string;
+  // Left as the Dataset has it when absent
+  visibility?: 'public' | 'private';
+  // Replaces the Dataset's grants when present, as PUT /datasets/{datasetId}/entitlements does
+  entitlements?: CapabilityGrants;
+  delete_source_files?: boolean;
 }
 
 export interface RefreshDaiStatsJob extends CommonJobData {

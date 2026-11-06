@@ -72,7 +72,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   },
   BL_DATASET_PUBLISHED: {
     message: "Dataset '{dataset_name}' is published, so data can't be loaded into it.",
-    actions: ['Unpublish the dataset, then retry data loading.'],
+    actions: ['Open a new version of the dataset and add the data to it.'],
   },
   BL_RAW_TABLE_NOT_FOUND: {
     message: "One or more files haven't been staged yet and can't be loaded.",
@@ -93,7 +93,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   },
   RL_DATASET_PUBLISHED: {
     message: "Dataset '{dataset_name}' is published, so files can't be loaded into it.",
-    actions: ['Unpublish the dataset, then retry data loading.'],
+    actions: ['Open a new version of the dataset and add the files to it.'],
   },
   RL_MAPPING_NOT_CONFIGURED: {
     message: "The band mapping for '{file_name}' has not been configured yet.",
@@ -356,6 +356,27 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
   BD_TIMEOUT: {
     message: "Deleting '{dataset_name}' took too long and was stopped partway through.",
     actions: ['Try deleting again; if it keeps timing out, contact support'],
+  },
+  VERSION_NOT_A_VERSION: {
+    message: "Dataset '{dataset_name}' is not a version of another dataset.",
+    actions: ['Delete the dataset instead.'],
+  },
+  VERSION_TIMEOUT: {
+    message: "Removing the data of '{dataset_name}' took too long and was stopped. Nothing was removed.",
+    actions: ['Try again; if it keeps timing out, contact support'],
+  },
+  VERSION_NOT_PUBLISHABLE: {
+    message: "Version '{version_name}' can't be published into '{dataset_name}': {reason}.",
+    actions: ['Open the version, load its files, then publish it again.'],
+  },
+  VERSION_DATA_TYPES_MIXED: {
+    message:
+      "Version '{version_name}' can't be published into '{dataset_name}': together they would hold {data_types} data, and a dataset holds one data type.",
+    actions: ["Reset the version, remove its files that aren't of the dataset's data type, then load it and publish it again."],
+  },
+  VERSION_PUBLISH_TIMEOUT: {
+    message: "Publishing '{version_name}' into '{dataset_name}' took too long and was stopped. Nothing was published.",
+    actions: ['Try publishing again; if it keeps timing out, contact support'],
   },
   // Not thrown as a JobError: see QUEUE_REAP_CODES
   QUEUE_HEARTBEAT_TIMEOUT: {

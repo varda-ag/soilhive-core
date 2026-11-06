@@ -9,6 +9,17 @@ import { latestEnding } from '../../data-layer/SoilDataStorage';
 // Degrees (about a metre) a zero-area extent is padded by, so that it is stored as a Polygon
 const EXTENT_PADDING_DEG = 0.00001;
 
+/** Thrown by the rollup when the Dataset's features are of more than one data type: a Dataset holds one. */
+export class MixedDataTypesError extends Error {
+  readonly dataTypes: GISDataType[];
+
+  constructor(dataTypes: GISDataType[]) {
+    super(`Expected at most one data type, got ${dataTypes.join(', ')}`);
+    this.name = 'MixedDataTypesError';
+    this.dataTypes = dataTypes;
+  }
+}
+
 export const updateDatasetMetadata = async (entityManager: EntityManager, datasetId: string, status: IngestionStatus): Promise<void> => {
   // Run inside a transaction to apply local statement_timeout override
   return await entityManager.transaction(async manager => {
@@ -47,7 +58,9 @@ export const updateDatasetMetadata = async (entityManager: EntityManager, datase
     // GIS datatype check — one data type per dataset; Polygon and MultiPolygon both count as polygonal
     const geomTypes = data.gis_datatypes.filter(Boolean);
     const dataTypes = Array.from(new Set<GISDataType>(geomTypes.map((t: string) => toGisDatatype(t))));
-    assert(dataTypes.length <= 1, `Expected at most one data type, got ${dataTypes.join(', ')}`);
+    if (dataTypes.length > 1) {
+      throw new MixedDataTypesError(dataTypes);
+    }
     const gis_datatype = dataTypes[0] ?? null;
 
     const hasContent = (arr: unknown[] | null): boolean => Array.isArray(arr) && arr.some(v => v !== null);

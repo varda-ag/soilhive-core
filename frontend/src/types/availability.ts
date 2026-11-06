@@ -14,6 +14,8 @@ export type AvailabilityDataset = {
   tags: string[];
   dataType?: string;
   visibility?: string;
+  // LOADED for a dataset a data administrator is shown before it's published
+  status?: string;
   properties: DatasetProperties;
 };
 

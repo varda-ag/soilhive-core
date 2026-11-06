@@ -55,6 +55,8 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   name: string;
   data_type: GISDataType;
   visibility: 'public' | 'private';
+  // PUBLISHED, or LOADED for a data administrator, who is shown loaded datasets before they're published
+  status?: IngestionStatus;
   dataset_layer_count: number;
   raster_layer_count: number;
 }
@@ -69,6 +71,8 @@ export interface FilteredDataset {
   name: string;
   data_type: GISDataType;
   visibility: string;
+  // As in FilteredDatasetSummary
+  status?: IngestionStatus;
 }
 
 export interface ResultItem {

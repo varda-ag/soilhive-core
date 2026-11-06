@@ -1,5 +1,5 @@
 import { Polygon, MultiPolygon } from 'geojson';
-import { GISDataType } from '../types/data';
+import { GISDataType, IngestionStatus } from '../types/data';
 import { SoilPropertyClasses } from './SoilProperty';
 
 export interface FilterCriteria {
@@ -38,6 +38,8 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   name: string;
   data_type: GISDataType;
   visibility: 'public' | 'private';
+  // PUBLISHED, or LOADED for a Privileged caller (listedDatasetStatuses)
+  status: IngestionStatus;
   dataset_layer_count?: number;
   raster_layer_count?: number;
 }
@@ -52,6 +54,8 @@ export interface FilteredDataset {
   name: string;
   data_type: GISDataType;
   visibility: 'public' | 'private';
+  // PUBLISHED, or LOADED for a Privileged caller (listedDatasetStatuses)
+  status: IngestionStatus;
 }
 
 export interface FilteredRasterLayer {

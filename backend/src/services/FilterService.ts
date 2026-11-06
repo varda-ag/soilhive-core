@@ -26,6 +26,7 @@ import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
 import { DaiPointRow, getDaiPointDataPrecomputed, isPrecomputableDaiParameters } from '../data-layer/DaiStats';
 import { GISDataType } from '../types/data';
 import { getEntityManager } from '../utils/data-source';
+import { listedDatasetStatuses } from '../utils/auth';
 
 const sds = new SoilDataStorage();
 
@@ -335,12 +336,18 @@ export default class FilterService {
   getCoverage = async (requestData: RequestData, filterId: string, geometryOnly: boolean): Promise<FilteredData> => {
     const filter = await timed('coverage.getFilterById', () => this.getFilterById(requestData, filterId), { filterId });
     const effectiveFilter = geometryOnly ? { ...filter, parameters: {} } : filter;
+    // LOADED Datasets too for an admin, to review them before they're published
+    const statuses = listedDatasetStatuses(requestData.token);
     // These 3 long-running reads borrow connections from the pool's default manager
     // instead of the request's single transactional entityManager, so they run concurrently.
     const pooledEntityManager = await getEntityManager();
     const [vectorDatasets, rasterDatasets, rasterCoverage] = await Promise.all([
-      timed('coverage.filterVector', () => sds.filterVector(pooledEntityManager, effectiveFilter, requestData.signal), { filterId }),
-      timed('coverage.filterRaster', () => sds.filterRaster(pooledEntityManager, effectiveFilter, requestData.signal), { filterId }),
+      timed('coverage.filterVector', () => sds.filterVector(pooledEntityManager, effectiveFilter, requestData.signal, statuses), {
+        filterId,
+      }),
+      timed('coverage.filterRaster', () => sds.filterRaster(pooledEntityManager, effectiveFilter, requestData.signal, statuses), {
+        filterId,
+      }),
       timed('coverage.getRasterCoverage', () => sds.getRasterCoverage(pooledEntityManager, effectiveFilter, requestData.signal), {
         filterId,
       }),
@@ -352,12 +359,14 @@ export default class FilterService {
   // See getCoverage: same borrowed-connection + cancel-on-disconnect pattern.
   getDatasets = async (requestData: RequestData, filterId: string): Promise<FilteredDataset[]> => {
     const filter = await this.getFilterById(requestData, filterId);
+    // As in getCoverage: LOADED Datasets too for an admin
+    const statuses = listedDatasetStatuses(requestData.token);
     const pooledEntityManager = await getEntityManager();
     const [vectorDatasets, rasterDatasets] = await Promise.all([
-      sds.filterVectorDatasets(pooledEntityManager, filter, requestData.signal),
+      sds.filterVectorDatasets(pooledEntityManager, filter, requestData.signal, statuses),
       sds
-        .filterRaster(pooledEntityManager, filter, requestData.signal)
-        .then(results => results.map(({ id, name, data_type, visibility }) => ({ id, name, data_type, visibility }))),
+        .filterRaster(pooledEntityManager, filter, requestData.signal, statuses)
+        .then(results => results.map(({ id, name, data_type, visibility, status }) => ({ id, name, data_type, visibility, status }))),
     ]);
     return [...vectorDatasets, ...rasterDatasets];
   };

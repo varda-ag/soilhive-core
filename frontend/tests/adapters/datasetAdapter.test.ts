@@ -1,6 +1,6 @@
 import { register, unregister, type TimeZone } from 'timezone-mock';
 import type { AvailabilityDataset } from 'types/availability';
-import { GISDataType, type FilteredDataset, type FilteredDatasetSummary } from 'types/backend';
+import { GISDataType, IngestionStatus, type FilteredDataset, type FilteredDatasetSummary } from 'types/backend';
 import {
   getYear,
   mapFilteredDatasetToAvailabilityDataset,
@@ -65,6 +65,20 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       const actualAvailabilityDataset = mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset);
 
       expect(actualAvailabilityDataset).toEqual(expectedAvailabilityDataset);
+    });
+
+    it('passes the status through, which marks a LOADED dataset shown to an admin', () => {
+      const filteredDataset: FilteredDatasetSummary = {
+        id: 'dataset-loaded',
+        name: 'dataset-loaded',
+        data_type: GISDataType.POINT,
+        dataset_layer_count: 1,
+        raster_layer_count: 0,
+        visibility: 'public',
+        status: IngestionStatus.LOADED,
+      };
+
+      expect(mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset).status).toBe(IngestionStatus.LOADED);
     });
 
     it('should adapt valid object', () => {

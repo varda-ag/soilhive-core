@@ -11,6 +11,9 @@ import {
   SoilIndexJob,
   SoilIndexTilesJob,
   RasterFilterInstallJob,
+  VersionResetJob,
+  VersionDiscardJob,
+  VersionPublishJob,
 } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
 import {
@@ -27,6 +30,9 @@ import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
 import { processRasterLoad } from '../jobs/raster-load/RasterLoader';
 import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
 import { processOrphanCleanup } from '../jobs/orphan-cleanup/OrphanCleanupJob';
+import { processSweepOrphanRows } from '../jobs/orphan-cleanup/SweepOrphanRowsJob';
+import { processVersionDiscard, processVersionReset } from '../jobs/version/VersionJobs';
+import { processVersionPublish } from '../jobs/version/VersionPublishJob';
 import { log } from '../utils/logger';
 import { JobError } from '../errors/JobError';
 import { UNEXPECTED_JOB_ERROR_CODE } from '../errors/jobErrorMessages';
@@ -99,12 +105,17 @@ const setupQueues = async () => {
 // It needs no DAI refresh, though: raster datasets are excluded from DAI scoring.
 // RASTER_FILTER_INSTALL is included because a deleted Raster Filter's id can be installed again,
 // and a cached mask query names the table, not what it holds.
+// VERSION_RESET and VERSION_DISCARD remove a Version's rows, which a Privileged caller can read.
+// VERSION_PUBLISH moves them into a published Dataset, which everyone reads.
 const DATA_MUTATING_QUEUES: JobQueues[] = [
   JobQueues.BULK_LOAD,
   JobQueues.RASTER_LOAD,
   JobQueues.BULK_DELETE,
   JobQueues.REFRESH_DAI_STATS,
   JobQueues.RASTER_FILTER_INSTALL,
+  JobQueues.VERSION_RESET,
+  JobQueues.VERSION_DISCARD,
+  JobQueues.VERSION_PUBLISH,
 ];
 
 export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: Job<T>) => Promise<void>): Promise<void> => {
@@ -260,12 +271,34 @@ const setupWorkers = async () => {
       }
     },
   );
+  await boss.work<VersionResetJob>(JobQueues.VERSION_RESET, options, async (jobs: Job<VersionResetJob>[]) => {
+    for (const job of jobs) {
+      await runJob(JobQueues.VERSION_RESET, job, processVersionReset);
+    }
+  });
+  await boss.work<VersionDiscardJob>(JobQueues.VERSION_DISCARD, options, async (jobs: Job<VersionDiscardJob>[]) => {
+    for (const job of jobs) {
+      await runJob(JobQueues.VERSION_DISCARD, job, processVersionDiscard);
+    }
+  });
+  await boss.work<VersionPublishJob>(JobQueues.VERSION_PUBLISH, options, async (jobs: Job<VersionPublishJob>[]) => {
+    for (const job of jobs) {
+      await runJob(JobQueues.VERSION_PUBLISH, job, processVersionPublish);
+    }
+  });
+  // One sweep at a time per node: it only frees space, and SKIP LOCKED already keeps nodes apart
+  await boss.work(JobQueues.SWEEP_ORPHAN_ROWS, { ...options, localConcurrency: 1 }, async (jobs: Job<object>[]) => {
+    for (const job of jobs) {
+      await runJob(JobQueues.SWEEP_ORPHAN_ROWS, job, processSweepOrphanRows);
+    }
+  });
   log.info('PgBoss workers registered', { queues: Object.values(JobQueues) });
 };
 
 const setupSchedules = async () => {
   const boss = getPgBoss();
   await boss.schedule(JobQueues.CLEANUP_ORPHAN_FILES, '0 0 * * *');
+  await boss.schedule(JobQueues.SWEEP_ORPHAN_ROWS, '0 1 * * *');
   log.info('PgBoss schedules registered');
 };
 

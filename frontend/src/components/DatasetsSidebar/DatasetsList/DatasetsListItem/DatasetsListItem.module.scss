@@ -64,12 +64,29 @@
         background-color: var(--color-neutral-dark-300);
       }
 
-      > .VisibilityTag {
-        color: var(--color-neutral-white);
-        background-color: var(--color-neutral-black);
-        border-color: var(--color-neutral-black);
+      > .StatusTags {
+        display: flex;
+        gap: 0.25rem;
+
+        > .VisibilityTag {
+          color: var(--color-neutral-white);
+          background-color: var(--color-neutral-black);
+          border-color: var(--color-neutral-black);
+        }
+
+        > .UnpublishedTag {
+          color: var(--color-neutral-white);
+          background-color: var(--color-dataset-unpublished-tag);
+          border-color: var(--color-dataset-unpublished-tag);
+        }
       }
     }
+  }
+
+  // Loaded but not published yet, shown to data administrators only
+  &.Unpublished {
+    border-color: var(--color-dataset-unpublished-border);
+    background-color: var(--color-dataset-unpublished-bg);
   }
 
   > .MetaWrapper {

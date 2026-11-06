@@ -92,6 +92,7 @@
         "metadata": "Metadata",
         "private": "Private",
         "public": "Public",
+        "unpublished": "Unpublished",
         "points_suffix": "points",
         "polygons_suffix": "polygons",
         "raster_layers_suffix": "raster layers",

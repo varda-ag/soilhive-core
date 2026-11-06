@@ -691,6 +691,8 @@ describe('Testing /jobs routes', () => {
 
         expect(res.statusCode).toBe(409);
         expect(res.body.detail).toContain('published');
+        // Data is added to a published dataset through a version (docs/adr/0077)
+        expect(res.body.detail).toContain('open a version');
       });
 
       /** Maps a PENDING File into the Dataset with the given data mapping. */

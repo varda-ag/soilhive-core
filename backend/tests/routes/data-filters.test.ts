@@ -617,6 +617,68 @@ describe('Testing /data-filters routes', () => {
     datasets.forEach(ds => expect(ds.visibility).toBe('private'));
   });
 
+  describe('LOADED datasets', () => {
+    // A dataset's id mapped to the status the response gives it
+    const statusById = (datasets: { id: string; status: string }[]) => Object.fromEntries(datasets.map(ds => [ds.id, ds.status]));
+
+    it('coverage and datasets show an admin LOADED datasets with their status, and everyone else PUBLISHED ones only', async () => {
+      const { dataset: published } = await addSyntheticData({ ...syntheticDataOptions, id: 60, soilPropertyNames: ['prop_published'] });
+      const { dataset: loaded } = await addSyntheticData({ ...syntheticDataOptions, id: 61, soilPropertyNames: ['prop_loaded'] });
+      // A first load may have left a PENDING or STAGED dataset half-loaded: nobody is shown it
+      const { dataset: pending } = await addSyntheticData({ ...syntheticDataOptions, id: 62, soilPropertyNames: ['prop_pending'] });
+      const dataSource = await getDataSource();
+      await dataSource.query(`UPDATE datasets SET status = $2 WHERE id = $1`, [loaded.id, IngestionStatus.LOADED]);
+      await dataSource.query(`UPDATE datasets SET status = $2 WHERE id = $1`, [pending.id, IngestionStatus.PENDING]);
+      const { body: filter } = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [filteringPolygon] });
+      const admin = { Authorization: `Bearer ${await getDataAdminToken()}` };
+      const everyone = { [published.slug]: IngestionStatus.PUBLISHED };
+      const admins = { [published.slug]: IngestionStatus.PUBLISHED, [loaded.slug]: IngestionStatus.LOADED };
+
+      const anonymousCoverage = await request(app).get(`/data-filters/${filter.id}/coverage`);
+      expect(statusById(anonymousCoverage.body.datasets)).toEqual(everyone);
+      const anonymousDatasets = await request(app).get(`/data-filters/${filter.id}/datasets`);
+      expect(statusById(anonymousDatasets.body)).toEqual(everyone);
+
+      const adminCoverage = await request(app).get(`/data-filters/${filter.id}/coverage`).set(admin);
+      expect(statusById(adminCoverage.body.datasets)).toEqual(admins);
+      const adminDatasets = await request(app).get(`/data-filters/${filter.id}/datasets`).set(admin);
+      expect(statusById(adminDatasets.body)).toEqual(admins);
+
+      // Asked again after the admin, so the admin's cached result is there to be served: it isn't
+      const anonymousAgain = await request(app).get(`/data-filters/${filter.id}/coverage`);
+      expect(statusById(anonymousAgain.body.datasets)).toEqual(everyone);
+    });
+
+    it('coverage and datasets show an admin a LOADED raster dataset, and nobody else', async () => {
+      const layer = await addRasterData(undefined, { dataset_status: IngestionStatus.LOADED });
+      const rasterPolygon = {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [-82, -35],
+            [-82, -33],
+            [-80, -33],
+            [-80, -35],
+            [-82, -35],
+          ],
+        ],
+      };
+      const { body: filter } = await request(app)
+        .post('/data-filters')
+        .send({ parameters: {}, geometries: [rasterPolygon] });
+      const admin = { Authorization: `Bearer ${await getDataAdminToken()}` };
+
+      const anonymousCoverage = await request(app).get(`/data-filters/${filter.id}/coverage`);
+      expect(statusById(anonymousCoverage.body.datasets)).toEqual({});
+      const adminCoverage = await request(app).get(`/data-filters/${filter.id}/coverage`).set(admin);
+      expect(statusById(adminCoverage.body.datasets)).toEqual({ [layer.dataset.slug]: IngestionStatus.LOADED });
+      const adminDatasets = await request(app).get(`/data-filters/${filter.id}/datasets`).set(admin);
+      expect(statusById(adminDatasets.body)).toEqual({ [layer.dataset.slug]: IngestionStatus.LOADED });
+    });
+  });
+
   describe('GET /data-filters/{filterId}/geometries', () => {
     const secondPolygon = {
       type: 'Polygon',

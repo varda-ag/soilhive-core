@@ -15,6 +15,20 @@ export interface ProcessingSteps {
   cleaning_steps?: Record<string, CleaningReport>;
 }
 
+/** A Dataset's open Version, as the admin listing shows it on the Dataset (docs/adr/0077) */
+export interface PendingVersion {
+  slug: string;
+  // `<v1 name> v<number> increment`: too long for the list's cell, shown as its tooltip
+  name: string;
+  number: number;
+  status: IngestionStatus;
+  queued_job: QueuedJob | null;
+  active_job: QueuedJob | null;
+  updated_at: Date | null;
+  // A version-publish of it is queued or running (DatasetJobs.getPublishingVersions)
+  publishing: boolean;
+}
+
 export interface Dataset {
   id: string;
   slug: string;
@@ -51,4 +65,8 @@ export interface Dataset {
   queued_job?: QueuedJob | null;
   active_job?: QueuedJob | null;
   bbox?: Envelope | null; // [west, south, east, north], west > east across the antimeridian
+  version_of?: string | null;
+  version_number: number;
+  data_updated_at?: Date | null;
+  pending_version?: PendingVersion | null;
 }

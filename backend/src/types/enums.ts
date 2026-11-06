@@ -37,6 +37,12 @@ export enum JobQueues {
   SOIL_INDEX_TILES = 'soil-index-tiles',
   // Enqueued only by POST /raster-filters (docs/adr/0067)
   RASTER_FILTER_INSTALL = 'raster-filter-install',
+  // Enqueued only by the version routes (docs/adr/0077)
+  VERSION_RESET = 'version-reset',
+  VERSION_DISCARD = 'version-discard',
+  VERSION_PUBLISH = 'version-publish',
+  // Deletes the features and layers no Dataset references any more, left by a reset or discarded Version
+  SWEEP_ORPHAN_ROWS = 'sweep-orphan-rows',
 }
 
 /**

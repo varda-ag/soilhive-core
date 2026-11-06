@@ -124,12 +124,14 @@ Once you're satisfied with the preview, confirm to load the data into the SoilHi
 
 When the load finishes the dataset is marked **Loaded** and is ready to publish. See [Publication](1-data-management-portal.md#publication).
 
-While a load runs, the dataset is hidden from the catalog and from searches, even if it was already published. Once the load finishes, a published dataset is published again. If the load fails, the dataset is left as **Draft**, even if it was published, because any records written before the failure stay in it. Retry the load, then publish the dataset again.
+A load doesn't change the dataset's status while it runs: the dataset list shows it as **Loading**. If the load fails, the dataset keeps the status it had. Records written before the failure stay in it, and a retry doesn't write them twice. A published dataset is never loaded into, so a failed load never touches published data.
 
 ### Loading more files later
 
 A load only processes files that have not been loaded yet. A file that is already loaded is not loaded again, so its records are never duplicated.
 
 Once a file is loaded it no longer appears in the preview and its field mapping can no longer be changed.
+
+To add files to a **published** dataset, open a version of it with **Add files** (see [Adding data to a published dataset](1-data-management-portal.md#adding-data-to-a-published-dataset)). A version uses the dataset's field mapping, read-only, so the files you add must have the same columns. A loaded file's records don't record which file they came from, so a wrong file can't be removed from a version on its own: **Reset version data** removes everything loaded into the version, and then you can remove the file and load the rest again.
 
 > **Note:** Data cleaning should ideally be done before upload. The portal supports row-level deletion as a final check but does not yet provide a full cleaning environment.

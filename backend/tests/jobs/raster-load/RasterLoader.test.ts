@@ -1242,6 +1242,24 @@ describe('RasterLoader', () => {
       expect((await getDataset(dataset.id)).status).toBe(IngestionStatus.PUBLISHED);
     });
 
+    it('sets data_updated_at on a PUBLISHED dataset when it removes layers, and not when it removes none', async () => {
+      const { dataset, file } = await setUpRasterLoad(uniqueName('published-removal'), slug => ({ '1': bandEntry(slug, 0, 5) }));
+      await processRasterLoad(getJob(dataset.slug));
+      const dataSource = await getDataSource();
+      await dataSource.query(`UPDATE datasets SET status = 'PUBLISHED', data_updated_at = NULL WHERE id = $1`, [dataset.id]);
+
+      await processRasterLoad(getJob(dataset.slug));
+      expect((await getDataset(dataset.id)).data_updated_at).toBeNull();
+
+      await dataSource.query(`UPDATE files SET deleted_at = now() WHERE id = $1`, [file.id]);
+      await processRasterLoad(getJob(dataset.slug));
+
+      expect(await getLayers(file.id)).toHaveLength(0);
+      const after = await getDataset(dataset.id);
+      expect(after.status).toBe(IngestionStatus.PUBLISHED);
+      expect(after.data_updated_at).toBeInstanceOf(Date);
+    });
+
     it('never makes a LOADED dataset ONGOING while it loads', async () => {
       const { dataset, property } = await setUpRasterLoad(uniqueName('loaded-visible'), slug => ({ '1': bandEntry(slug, 0, 5) }));
       await processRasterLoad(getJob(dataset.slug));

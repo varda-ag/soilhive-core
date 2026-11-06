@@ -37,6 +37,7 @@ export function mapFilteredDatasetSummaryToAvailabilityDataset(dataset: Filtered
     tags: [], // TODO: tags not supported at the moment
     dataType: dataset.data_type,
     visibility: dataset.visibility,
+    status: dataset.status,
     properties: {
       points: dataset.dataset_layer_count,
       layers: dataset.raster_layer_count,
