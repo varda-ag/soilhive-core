@@ -13,9 +13,11 @@ import styles from './AdditionalResourcesUpload.module.scss';
 interface Props {
   value: { file_id: string }[];
   onChange: (value: { file_id: string }[]) => void;
+  // Lists the resources without the upload box or remove buttons.
+  isReadOnly?: boolean;
 }
 
-export function AdditionalResourcesUpload({ value, onChange }: Props) {
+export function AdditionalResourcesUpload({ value, onChange, isReadOnly = false }: Props) {
   const { t } = useTranslation('admin');
   const { storageConfig } = useStorageConfig();
   const maxUploadSizeMB = storageConfig?.maxUploadSizeMB;
@@ -64,19 +66,21 @@ export function AdditionalResourcesUpload({ value, onChange }: Props) {
 
   return (
     <div className={styles.AdditionalResourcesUpload}>
-      <FileUploadBox
-        files={uploadingFiles}
-        uploadProgress={uploadProgress}
-        fileInputRef={fileInputRef}
-        caption={
-          maxUploadSizeMB !== undefined
-            ? `${t('datasets.mappings.details.additional_resources_upload_caption')} ${t('datasets.mappings.details.additional_resources_max_size_caption', { size: formatUploadSize(maxUploadSizeMB) })}`
-            : t('datasets.mappings.details.additional_resources_upload_caption')
-        }
-        handleFiles={handleFiles}
-        accept={ADDITIONAL_RESOURCE_EXTENSIONS.join(', ')}
-        errorMessage={uploadErrors}
-      />
+      {!isReadOnly && (
+        <FileUploadBox
+          files={uploadingFiles}
+          uploadProgress={uploadProgress}
+          fileInputRef={fileInputRef}
+          caption={
+            maxUploadSizeMB !== undefined
+              ? `${t('datasets.mappings.details.additional_resources_upload_caption')} ${t('datasets.mappings.details.additional_resources_max_size_caption', { size: formatUploadSize(maxUploadSizeMB) })}`
+              : t('datasets.mappings.details.additional_resources_upload_caption')
+          }
+          handleFiles={handleFiles}
+          accept={ADDITIONAL_RESOURCE_EXTENSIONS.join(', ')}
+          errorMessage={uploadErrors}
+        />
+      )}
       {value.length > 0 && (
         <div className={styles.AddedResources}>
           <p className={styles.AddedResourcesTitle}>{t('datasets.mappings.details.additional_resources_added_title')}</p>
@@ -86,14 +90,16 @@ export function AdditionalResourcesUpload({ value, onChange }: Props) {
                 <FileIcon width={20} height={20} className={styles.FileIcon} />
                 <span className={styles.ResourceName}>{resourceNames[fileId] ?? fileId}</span>
                 <span className={styles.ResourceType}>{t('datasets.mappings.details.additional_resources_file_badge')}</span>
-                <button
-                  type="button"
-                  className={styles.RemoveButton}
-                  onClick={() => handleRemove(fileId)}
-                  aria-label={t('datasets.mappings.details.additional_resources_remove_aria')}
-                >
-                  <CrossIcon width={20} height={20} />
-                </button>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    className={styles.RemoveButton}
+                    onClick={() => handleRemove(fileId)}
+                    aria-label={t('datasets.mappings.details.additional_resources_remove_aria')}
+                  >
+                    <CrossIcon width={20} height={20} />
+                  </button>
+                )}
               </li>
             ))}
           </ul>

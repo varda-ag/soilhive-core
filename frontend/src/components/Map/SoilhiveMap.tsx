@@ -99,6 +99,8 @@ interface SoilhiveMapProps {
   initialViewBoundingBox?: [number, number, number, number];
   showGeocoder?: boolean;
   geocoder?: 'nominatim' | 'mapbox';
+  /** The search box's text when the map opens on a place searched before, as after a sign-in (docs/adr/0075). */
+  geocoderInitialValue?: string;
   showNavigation?: boolean;
   showGeolocation?: boolean;
   showScale?: boolean;
@@ -188,6 +190,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     initialViewBoundingBox,
     showGeocoder = false,
     geocoder = 'nominatim',
+    geocoderInitialValue,
     showNavigation = true,
     showGeolocation = true,
     showScale = true,
@@ -574,7 +577,14 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
           </>
         )}
 
-        {showGeocoder && <GeocoderControl position="top-left" geocoder={geocoder} onFeatureSelect={onSearchResultSelect} />}
+        {showGeocoder && (
+          <GeocoderControl
+            position="top-left"
+            geocoder={geocoder}
+            initialValue={geocoderInitialValue}
+            onFeatureSelect={onSearchResultSelect}
+          />
+        )}
         {showGeolocation && <GeolocateControl position="bottom-right" />}
         {showNavigation && (
           <NavigationControl

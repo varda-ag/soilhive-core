@@ -49,5 +49,6 @@ export interface Dataset {
   preprocessing_steps?: string | null;
   related_resources?: string[] | null;
   queued_job?: QueuedJob | null;
+  active_job?: QueuedJob | null;
   bbox?: Envelope | null; // [west, south, east, north], west > east across the antimeridian
 }

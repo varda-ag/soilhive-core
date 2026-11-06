@@ -17,7 +17,7 @@ import { refreshDaiStats } from '../data-layer/DaiStats';
 import JobService from './JobService';
 import { RefreshDaiStatsJob } from '../interfaces/Job';
 import { ProcessingSteps } from '../interfaces/Dataset';
-import { assertNoUnfinishedJob, getQueuedJobs } from '../data-layer/DatasetJobs';
+import { assertNoUnfinishedJob, getUnfinishedJobs } from '../data-layer/DatasetJobs';
 import { getRasterFileBboxes } from '../data-layer/DatasetBbox';
 import { GdalCLI, type Envelope } from '../utils/GdalCLI';
 import * as turf from '@turf/turf';
@@ -163,19 +163,18 @@ export default class DatasetService {
   };
 
   /**
-   * Sets `queued_job` for a Privileged caller, the only one shown a Dataset's pending work.
-   * Called by the read endpoints rather than getDataset, which the job processors also use.
+   * Sets `queued_job` and `active_job` for a Privileged caller, the only one shown a Dataset's
+   * pending work. Called by the read endpoints rather than getDataset, which the job processors also use.
    */
-  decorateWithQueuedJobs = async (requestData: RequestData, datasets: DatasetEntity[]): Promise<void> => {
+  decorateWithJobs = async (requestData: RequestData, datasets: DatasetEntity[]): Promise<void> => {
     if (!isPrivilegedCaller(requestData.token) || datasets.length === 0) {
       return;
     }
-    const queued = await getQueuedJobs(
-      requestData.entityManager,
-      datasets.map(d => d.slug),
-    );
+    const slugs = datasets.map(d => d.slug);
+    const { queued, active } = await getUnfinishedJobs(requestData.entityManager, slugs);
     for (const dataset of datasets) {
       dataset.queued_job = queued.get(dataset.slug) ?? null;
+      dataset.active_job = active.get(dataset.slug) ?? null;
     }
   };
 

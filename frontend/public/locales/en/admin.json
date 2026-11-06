@@ -309,6 +309,14 @@
             "nodata_type_min": "{{type}} min",
             "nodata_type_max": "{{type}} max",
             "no_georeference_error": "This raster has no georeferencing: remove it and upload a georeferenced version.",
+            "loaded_vector_not_removable": "This file is already loaded and can't be removed: its observations don't record which file they came from.",
+            "remove_loaded_raster_modal": {
+                "title": "Remove loaded file?",
+                "message_one": "This file is already loaded. When you save, its layers are removed from the dataset, and from the published dataset straight away. To add it back, upload it again.",
+                "message_other": "{{count}} of these files are already loaded. When you save, those files' layers are removed from the dataset, and from the published dataset straight away. To add them back, upload them again.",
+                "confirm": "Remove",
+                "cancel": "Cancel"
+            },
             "map_preview": {
                 "button": "Map preview",
                 "header": "Map preview - {{name}}",
@@ -609,6 +617,14 @@
         "exempt_admins": {
             "label": "Exempt administrators",
             "description": "Data admins and super admins can export without limits."
+        },
+        "access": {
+            "subtitle": "Download access",
+            "description": "Choose whether visitors must log in before they can download data."
+        },
+        "export_requires_sign_in": {
+            "label": "Require login to download",
+            "description": "Visitors who are not logged in are asked to log in when they click Download."
         },
         "errors": {
             "positive_number": "Enter a number greater than zero",

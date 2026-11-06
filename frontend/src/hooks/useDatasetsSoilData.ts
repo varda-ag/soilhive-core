@@ -14,13 +14,17 @@ import { BACKEND_BASE_URL } from '../configuration/api';
 import { useRequest } from '../api-client';
 import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileDescriptor } from 'types/backend';
-import { GISDataType } from 'types/backend';
+import { GISDataType, IngestionStatus } from 'types/backend';
 import { useTranslation } from 'react-i18next';
 import useIngestionFlow from './useIngestionFlow';
 import { useDataset } from './useDatasets';
+import { useCreateJobMutation } from './useJobsApi';
 
 // No '.shp' or '.gdb': ZIP archive is required
 export const ALLOWED_EXTENSIONS = ['.csv', '.gpkg', '.geojson', '.xlsx', '.kml', '.kmz', '.gml', '.zip', '.tif', '.tiff'];
+
+// A loaded vector File's observations don't record which File they came from, so it can't be removed
+export const isRemovable = (file: SoilDataFile): boolean => !(file.isLoaded && !file.isRaster);
 
 export function useDatasetsSoilData() {
   const { t } = useTranslation('admin');
@@ -31,6 +35,7 @@ export function useDatasetsSoilData() {
   const queryClient = useQueryClient();
   const { mutateAsync: createFileMapping } = useCreateDatasetFileMapping();
   const { mutateAsync: updateDataset } = useUpdateDatasetMutation(datasetId ?? '');
+  const { mutateAsync: createJob } = useCreateJobMutation({ showErrorNotification: true });
   const { isLoading: isIngestionLoading, updateFurthestStep } = useIngestionStatus();
 
   const hasTracked = useRef(false);
@@ -49,6 +54,8 @@ export function useDatasetsSoilData() {
   const [soilDataFiles, setSoilDataFiles] = useState<SoilDataFile[]>([]);
   const [dataFormatErrors, setDataFormatErrors] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  // Loaded raster Files waiting for the user to confirm their removal
+  const [removalToConfirm, setRemovalToConfirm] = useState<string[] | null>(null);
   const existingFileIds = useRef<Set<string>>(new Set());
   // Saved files the user removed: deleted on save, so leaving without saving keeps them
   const pendingRemovalIds = useRef<Set<string>>(new Set());
@@ -185,6 +192,7 @@ export function useDatasetsSoilData() {
           fieldNames: f.metadata && !f.metadata.is_raster ? f.metadata.field_names : undefined,
           isRaster: f.metadata?.is_raster,
           rasterBands: f.metadata?.is_raster ? f.metadata.raster_bands : undefined,
+          isLoaded: f.status === IngestionStatus.LOADED,
           ...georeferenceOf(f.metadata),
           progress: 100,
         };
@@ -194,17 +202,19 @@ export function useDatasetsSoilData() {
     setSoilDataFiles(mapped);
   }, [existingFiles, setIsRaster]);
 
-  const removeFile = useCallback(
-    async (id: string) => {
-      if (existingFileIds.current.has(id)) {
-        pendingRemovalIds.current.add(id);
-      } else {
-        await deleteFileAndMapping(id);
-      }
+  // Saved files are removed on save; files uploaded in this visit are deleted straight away, and
+  // leave the list only once that succeeded, to avoid a mismatch with the backend
+  const removeFiles = useCallback(
+    async (ids: string[]) => {
+      const savedIds = ids.filter(id => existingFileIds.current.has(id));
+      const toDeleteIds = ids.filter(id => !existingFileIds.current.has(id));
+      savedIds.forEach(id => pendingRemovalIds.current.add(id));
+      const results = await Promise.allSettled(toDeleteIds.map(id => deleteFileAndMapping(id)));
+      const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled');
+      const removedIds = new Set([...savedIds, ...deletedIds]);
       setSoilDataFiles(prev => {
-        const wasFirst = prev[0]?.id === id;
-        const newFiles = prev.filter(f => f.id !== id);
-        if (wasFirst) {
+        const newFiles = prev.filter(f => !removedIds.has(f.id));
+        if (prev[0] && removedIds.has(prev[0].id)) {
           // Update established format to the new first file, or reset if list is now empty
           establishedIsRasterRef.current = newFiles[0]?.isRaster;
           setIsRaster(newFiles[0]?.isRaster);
@@ -215,21 +225,49 @@ export function useDatasetsSoilData() {
     [deleteFileAndMapping, setIsRaster],
   );
 
+  // Removing a loaded raster File takes its layers out of the dataset on save, and out of a
+  // published one's reads straight away, so it is confirmed first
+  const needsConfirmation = useCallback(
+    (ids: string[]) =>
+      (dataset?.status === IngestionStatus.LOADED || dataset?.status === IngestionStatus.PUBLISHED) &&
+      soilDataFiles.some(f => ids.includes(f.id) && f.isLoaded && f.isRaster),
+    [dataset?.status, soilDataFiles],
+  );
+
+  const requestRemoval = useCallback(
+    async (ids: string[]) => {
+      if (ids.length === 0) return;
+      if (needsConfirmation(ids)) {
+        setRemovalToConfirm(ids);
+        return;
+      }
+      await removeFiles(ids);
+    },
+    [needsConfirmation, removeFiles],
+  );
+
+  const removeFile = useCallback(
+    async (id: string) => {
+      const file = soilDataFiles.find(f => f.id === id);
+      if (file && !isRemovable(file)) return;
+      await requestRemoval([id]);
+    },
+    [soilDataFiles, requestRemoval],
+  );
+
+  // Loaded vector files stay: they can't be removed
   const clearAll = useCallback(async () => {
-    const ids = soilDataFiles.map(f => f.id).filter(Boolean) as string[];
-    const savedIds = ids.filter(id => existingFileIds.current.has(id));
-    const toDeleteIds = ids.filter(id => !existingFileIds.current.has(id));
-    savedIds.forEach(id => pendingRemovalIds.current.add(id));
-    const results = await Promise.allSettled(toDeleteIds.map(id => deleteFileAndMapping(id)));
-    const deletedIds = toDeleteIds.filter((_, i) => results[i]!.status === 'fulfilled'); // only remove from UI if successfully deleted from backend to avoid mismatch
-    const removedIds = [...savedIds, ...deletedIds];
-    setSoilDataFiles(prev => prev.filter(f => !removedIds.includes(f.id)));
     setDataFormatErrors([]);
-    if (removedIds.length >= soilDataFiles.length) {
-      establishedIsRasterRef.current = undefined;
-      setIsRaster(undefined);
-    }
-  }, [soilDataFiles, deleteFileAndMapping, setIsRaster]);
+    await requestRemoval(soilDataFiles.filter(f => f.id && isRemovable(f)).map(f => f.id));
+  }, [soilDataFiles, requestRemoval]);
+
+  const confirmRemoval = useCallback(async () => {
+    const ids = removalToConfirm;
+    setRemovalToConfirm(null);
+    if (ids) await removeFiles(ids);
+  }, [removalToConfirm, removeFiles]);
+
+  const cancelRemoval = useCallback(() => setRemovalToConfirm(null), []);
 
   // Resolves false if a removal fails: it stays pending, nothing else is saved, and the next save retries it
   const handleSave = useCallback(async () => {
@@ -240,6 +278,20 @@ export function useDatasetsSoilData() {
       if (removalResults[i]!.status === 'fulfilled') pendingRemovalIds.current.delete(id);
     });
     if (pendingRemovalIds.current.size > 0) return false;
+
+    // A removed loaded raster File's layers are hidden straight away, and taken out of the dataset by
+    // the next raster-load. With a File still to map, the mappings step starts that load; otherwise
+    // it is started here.
+    const removedLoadedRaster = (existingFiles ?? []).some(
+      f => f !== null && removals.includes(f.id) && f.status === IngestionStatus.LOADED && f.metadata?.is_raster,
+    );
+    if (removedLoadedRaster && !soilDataFiles.some(f => f.isRaster && !f.isLoaded)) {
+      try {
+        await createJob({ type: 'raster-load', dataset_id: datasetId });
+      } catch {
+        // Already notified; the next raster-load removes them
+      }
+    }
 
     resetChanges();
     const newFiles = soilDataFiles.filter(f => !existingFileIds.current.has(f.id));
@@ -271,7 +323,19 @@ export function useDatasetsSoilData() {
     // until its own background refetch resolves.
     queryClient.setQueryData(['dataset', datasetId], updatedDataset);
     return true;
-  }, [datasetId, deleteFileAndMapping, soilDataFiles, createFileMapping, request, queryClient, resetChanges, isRaster, updateDataset]);
+  }, [
+    datasetId,
+    deleteFileAndMapping,
+    existingFiles,
+    soilDataFiles,
+    createJob,
+    createFileMapping,
+    request,
+    queryClient,
+    resetChanges,
+    isRaster,
+    updateDataset,
+  ]);
 
   const saveAndNavigate = async (path: string) => {
     setIsSaving(true);
@@ -302,6 +366,9 @@ export function useDatasetsSoilData() {
     handleCrsSelect,
     removeFile,
     clearAll,
+    removalToConfirm,
+    confirmRemoval,
+    cancelRemoval,
     isSaving,
     handlePrevious: () => saveAndNavigate(`${ADMIN_PATHS.DATASETS}/edit/${datasetId}/general-info`),
     handleSaveAndContinueLater: () => saveAndNavigate(ADMIN_PATHS.DATASETS),

@@ -6,10 +6,24 @@ import { useNavigate } from 'react-router';
 import { AvailabilityContext } from '../../../src/contexts/AvailabilityContext';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, GISDataType } from 'types/backend';
+import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownload';
 
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('hooks/useIsSignInRequiredToDownload', () => ({
+  useIsSignInRequiredToDownload: jest.fn(),
+}));
+
+jest.mock('components/DownloadSignInDialog/DownloadSignInDialog', () => ({
+  DownloadSignInDialog: ({ visible, onClose }: any) =>
+    visible ? (
+      <div data-testid="download-sign-in-dialog">
+        <button onClick={onClose}>cancel sign-in</button>
+      </div>
+    ) : null,
 }));
 
 jest.mock('hooks/useEntitlementsHook', () => ({
@@ -90,6 +104,7 @@ describe('DatasetsSidebar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCan({});
+    (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(false);
   });
 
   it('renders the sidebar with header on desktop layout', () => {
@@ -207,6 +222,28 @@ describe('DatasetsSidebar', () => {
 
     const downloadButton = screen.getByRole('button', { name: /download/i });
     expect(downloadButton).toBeEnabled();
+  });
+
+  it('asks a signed-out visitor to log in instead of navigating, while a signed-in user is required to download', () => {
+    (useDevice as jest.Mock).mockReturnValue({ isDesktopLayout: true, isMobileLayout: false, isMobileDevice: false });
+    (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(true);
+    const navigateMockFn = jest.fn();
+    (useNavigate as jest.Mock).mockReturnValue(navigateMockFn);
+
+    render(<DatasetsSidebar isOpened={true} onClose={() => {}} />);
+    expect(screen.queryByTestId('download-sign-in-dialog')).not.toBeInTheDocument();
+
+    const downloadButton = screen.getByRole('button', { name: /download/i });
+    expect(downloadButton).toBeEnabled();
+    fireEvent.click(downloadButton);
+
+    // The sign-in comes back to the map, where the signed-in user clicks Download again
+    expect(navigateMockFn).not.toHaveBeenCalled();
+    expect(screen.getByTestId('download-sign-in-dialog')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'cancel sign-in' }));
+    expect(screen.queryByTestId('download-sign-in-dialog')).not.toBeInTheDocument();
+    expect(navigateMockFn).not.toHaveBeenCalled();
   });
 
   it('calls navigate when clicking on download button on desktop', () => {

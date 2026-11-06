@@ -1,5 +1,5 @@
 /* global fetch */
-import { useState, useMemo, useEffect, type JSX, useCallback } from 'react';
+import { useState, useMemo, useEffect, useRef, type JSX, useCallback } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import SearchIcon from 'assets/icons/small-search-icon.svg?react';
 import SmallPolygonIcon from 'assets/icons/small-polygon-icon.svg?react';
@@ -28,6 +28,8 @@ type GeocoderControlProps = Omit<MaplibreGeocoderOptions, 'maplibregl' | 'marker
   onResult?: (e: object) => void;
   onError?: (e: object) => void;
   onFeatureSelect?: (feature: any) => void;
+  // Written in the search box when the control mounts, without searching: the place the selection was searched as
+  initialValue?: string;
 };
 
 function PrependPortal({ children, targetSelector, className }: { children: React.ReactNode; targetSelector: string; className?: string }) {
@@ -145,6 +147,7 @@ const mapboxGeocoderAPI: MaplibreGeocoderApi = {
 export default function GeocoderControl(props: GeocoderControlProps) {
   const { t } = useTranslation('availability');
   const [marker, setMarker] = useState<JSX.Element | null>(null);
+  const initialValue = useRef(props.initialValue);
 
   const geocoderAPI = useMemo(() => {
     if (props.geocoder === 'nominatim') {
@@ -257,6 +260,10 @@ export default function GeocoderControl(props: GeocoderControlProps) {
 
     const input = (geocoder as any).container?.querySelector('input') as HTMLInputElement | null;
     if (!input) return;
+
+    // As the control leaves it after a result is picked. Not setInput, which searches as it types for Mapbox.
+    if (initialValue.current && !input.value) input.value = initialValue.current;
+    initialValue.current = undefined;
 
     input.addEventListener('keyup', onKeyUp);
     input.addEventListener('input', onInput);

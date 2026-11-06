@@ -44,12 +44,8 @@ describe('parseExportLimits', () => {
   });
 
   it('keeps valid limits', () => {
-    expect(parseExportLimits({ maxAreaM2: 1e9, maxObservations: 500_000, maxRasterLayers: 10, exemptAdmins: true })).toEqual({
-      maxAreaM2: 1e9,
-      maxObservations: 500_000,
-      maxRasterLayers: 10,
-      exemptAdmins: true,
-    });
+    const exportLimits = { maxAreaM2: 1e9, maxObservations: 500_000, maxRasterLayers: 10, exemptAdmins: true, exportRequiresSignIn: true };
+    expect(parseExportLimits(exportLimits)).toEqual(exportLimits);
   });
 
   it('ignores only the invalid limits', () => {
@@ -59,6 +55,10 @@ describe('parseExportLimits', () => {
 
   it('treats a non-boolean exemptAdmins as false', () => {
     expect(parseExportLimits({ maxRasterLayers: 3, exemptAdmins: 'yes' }).exemptAdmins).toBe(false);
+  });
+
+  it('treats a non-boolean exportRequiresSignIn as false', () => {
+    expect(parseExportLimits({ exportRequiresSignIn: 'yes' }).exportRequiresSignIn).toBe(false);
   });
 
   it('is unlimited when the value is not an object', () => {
@@ -80,6 +80,14 @@ describe('getExportLimits', () => {
 
   it.each([{ isDataAdmin: true }, { isSuperAdmin: true }])('exempts an admin when exemptAdmins is set (%o)', async submitter => {
     expect(await getExportLimits(entityManagerWithTheme({ exportLimits }), submitter)).toEqual(NO_EXPORT_LIMITS);
+  });
+
+  it('keeps exportRequiresSignIn for an exempt admin: it is not an Export Limit', async () => {
+    const theme = { exportLimits: { ...exportLimits, exportRequiresSignIn: true } };
+    expect(await getExportLimits(entityManagerWithTheme(theme), { isDataAdmin: true })).toEqual({
+      ...NO_EXPORT_LIMITS,
+      exportRequiresSignIn: true,
+    });
   });
 
   it('applies the limits to an admin when exemptAdmins is not set', async () => {

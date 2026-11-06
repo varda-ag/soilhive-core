@@ -189,16 +189,6 @@ describe('Testing /datasets/{datasetId}/dataset-file-mapping routes', () => {
         return { loadedMappingId: loaded.body.id as string, editedMappingId: edited.body.id as string, patch, fileStatus };
       };
 
-      it('puts a raster file back to PENDING when the mapping content changed', async () => {
-        const { editedMappingId, patch, fileStatus } = await setUpLoadedFile(true);
-
-        const response = await patch(editedMappingId);
-
-        expect(response.statusCode).toBe(StatusCodes.OK);
-        expect(response.body.mappingId).toBe(editedMappingId);
-        expect(await fileStatus()).toBe(IngestionStatus.PENDING);
-      });
-
       it('leaves a raster file LOADED when the mapping is unchanged', async () => {
         const { loadedMappingId, patch, fileStatus } = await setUpLoadedFile(true);
 
@@ -210,6 +200,15 @@ describe('Testing /datasets/{datasetId}/dataset-file-mapping routes', () => {
 
       it('refuses with 409 for a loaded vector file, whose staged records are gone', async () => {
         const { editedMappingId, patch, fileStatus } = await setUpLoadedFile(false);
+
+        const response = await patch(editedMappingId);
+
+        expect(response.statusCode).toBe(StatusCodes.CONFLICT);
+        expect(await fileStatus()).toBe(IngestionStatus.LOADED);
+      });
+
+      it('refuses with 409 for a loaded raster file', async () => {
+        const { editedMappingId, patch, fileStatus } = await setUpLoadedFile(true);
 
         const response = await patch(editedMappingId);
 

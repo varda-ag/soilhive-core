@@ -119,6 +119,7 @@ export function useDatasetsPublicationList(): DatasetsPublicationListType {
           gis_datatype: dataset.gis_datatype,
           hasErrors: errorIds.has(dataset.id),
           isQueued: Boolean(dataset.queued_job),
+          isLoading: Boolean(dataset.active_job),
         })) || []
     );
   }, [datasets, datasetErrors]);

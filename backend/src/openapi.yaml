@@ -605,6 +605,8 @@ paths:
         those queued or running, and its dataset_id is stored as the dataset's current id.
         An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
         within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
+        While administrators require a signed-in user to export (exportRequiresSignIn in the theme config's exportLimits),
+        an export without a token is refused with 401, before its datasets are checked.
         An export identical to an unfinished one from the same signed-in caller returns that job with 200
         instead of starting another. Anonymous exports always start a new job.
       tags:
@@ -659,7 +661,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: >-
+            The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or a
+            bulk-load or raster-load targets a published dataset. A raster-load of a published dataset
+            with no file waiting for a load is accepted: it only removes the layers of removed files.
           content:
             application/json:
               schema:
@@ -1125,6 +1130,12 @@ paths:
       x-eov-operation-handler: controllers/dataset-file-mappings
       x-eov-operation-id: deleteDatasetFileMappingByFileId
       summary: Delete a dataset file mapping by file ID
+      description: >
+        Removes a file from the dataset. When the file is a loaded raster, its raster layers stay until
+        the next raster-load job for the dataset deletes them, along with their footprints, additional
+        resources and group memberships, and rolls the dataset's metadata up again. Delete the file too
+        (DELETE /files/{fileId}) to hide its layers from reads straight away. A loaded vector file
+        can't be removed, since its observations don't record which file they came from.
       tags:
         - datasets
       security:
@@ -1150,7 +1161,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or the file is a loaded vector file
           content:
             application/json:
               schema:
@@ -1228,7 +1239,7 @@ paths:
         '401':
           description: Unauthorized - Token subject is missing
         '409':
-          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, or the file is the source of a raster filter
+          description: The dataset has a bulk-load, raster-load or bulk-delete job queued or running, the file is the source of a raster filter, or the file is loaded and the mapping's content changes
           content:
             application/json:
               schema:
@@ -2381,6 +2392,13 @@ paths:
       x-eov-operation-handler: controllers/files
       x-eov-operation-id: deleteFile
       summary: Delete a file
+      description: >
+        Soft-deletes a file. When it is a loaded raster, reads stop serving its raster layers straight
+        away, and the next raster-load job of each dataset it is mapped to deletes them, along with
+        their footprints, additional resources and group memberships, and rolls the dataset's
+        metadata up again. Refused with 409 while one of those datasets has a load or purge queued or
+        running. A loaded vector file can't be deleted, since its observations don't record which
+        file they came from.
       tags:
         - files
       security:
@@ -2391,7 +2409,10 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
-          description: The file is the source of a raster filter, which owns it until installed
+          description: >
+            The file is the source of a raster filter, which owns it until installed; or it is a
+            loaded vector file; or a dataset it is mapped to has a bulk-load, raster-load or
+            bulk-delete job queued or running
           content:
             application/json:
               schema:
@@ -3612,6 +3633,21 @@ components:
             queue:
               type: string
               enum: [bulk-load, raster-load, bulk-delete]
+        active_job:
+          type: object
+          nullable: true
+          readOnly: true
+          description: >-
+            The bulk-load or raster-load job running on the dataset, or null. A load no longer changes
+            the dataset's status, so this is how a load in progress shows. Returned by GET /datasets
+            and GET /datasets/{datasetId} to data-admin, super-admin and internal-request callers only.
+          properties:
+            id:
+              type: string
+              format: uuid
+            queue:
+              type: string
+              enum: [bulk-load, raster-load]
 
     SoilProperty:
       type: object
@@ -3894,10 +3930,11 @@ components:
           type: boolean
           description: >
             When true, deletes the original upload of every loaded file that was converted (to a COG
-            or to the standard unit) once the load succeeds. Files used as uploaded are kept. A later
-            mapping edit that changes a unit conversion then fails with RL_SOURCE_FILE_NOT_FOUND, since
-            the file can no longer be normalized again from its original pixels.
-      description: Loads a raster dataset. The ingested files remain the raster layers' data and are never removed.
+            or to the standard unit) once the load succeeds. Files used as uploaded are kept. A loaded
+            file's mapping can't be changed afterwards, so nothing needs the original again.
+      description: >
+        Loads a raster dataset's files that are waiting for a load, and deletes the raster layers of files
+        removed from the dataset since. The ingested files remain the raster layers' data and are never removed.
 
     ExportJob:
       type: object

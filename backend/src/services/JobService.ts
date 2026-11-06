@@ -26,12 +26,13 @@ import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
-import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES } from '../data-layer/DatasetJobs';
+import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES, hasRasterFileToLoad } from '../data-layer/DatasetJobs';
 import { getEntity } from '../utils/slugs';
 import { JobError } from '../errors/JobError';
 import { checkExportLimitsAtSubmission } from '../jobs/soil-export/submissionCheck';
+import { getExportLimits } from '../jobs/soil-export/exportLimits';
 import DatasetEntity from '../entities/Dataset';
-import { EntityType } from '../types/data';
+import { EntityType, IngestionStatus } from '../types/data';
 
 const entitlementService = new EntitlementService();
 
@@ -104,6 +105,7 @@ export default class JobService {
     // Checking entitlements
     let exportDatasetSlugs: string[] = [];
     if (data.type === JobQueues.EXPORT) {
+      await this.checkExportSignIn(requestData);
       // Every named Dataset must exist now: the job reads vector rows under preview alone, so one
       // published after this check would never have download checked (docs/adr/0073)
       exportDatasetSlugs = await entitlementService.enforceDatasetEntitlements(
@@ -177,10 +179,43 @@ export default class JobService {
    * dataset_id is rewritten to the current slug: an old one resolves here but would never match
    * the Queued lookup, which compares slugs as stored in the job data.
    */
-  private lockDataset = async (requestData: RequestData, data: { dataset_id: string }): Promise<void> => {
+  private lockDataset = async (requestData: RequestData, data: { dataset_id: string; type: string }): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
     data.dataset_id = dataset.slug;
     await assertNoUnfinishedJob(requestData.entityManager, dataset);
+    if (data.type === JobQueues.BULK_LOAD || data.type === JobQueues.RASTER_LOAD) {
+      await this.assertLoadable(requestData, dataset, data.type);
+    }
+  };
+
+  /**
+   * Refuses a load into a PUBLISHED Dataset with 409: loads no longer hide the Dataset while they
+   * run, so its readers would see it half-loaded. A Raster Load with no File to ingest is let
+   * through, since all it does is remove the layers of removed Files (removeUnmappedLayers in RasterLoader).
+   */
+  private assertLoadable = async (requestData: RequestData, dataset: DatasetEntity, queue: JobQueues): Promise<void> => {
+    if (dataset.status !== IngestionStatus.PUBLISHED) {
+      return;
+    }
+    if (queue === JobQueues.RASTER_LOAD && !(await hasRasterFileToLoad(requestData.entityManager, dataset.id))) {
+      return;
+    }
+    throw new ErrorResponse(
+      `Dataset '${dataset.name}' is published, so data can't be loaded into it: unpublish it first`,
+      StatusCodes.CONFLICT,
+    );
+  };
+
+  /**
+   * Refuses an Export from a caller with no token while administrators require a signed-in user
+   * to export (docs/adr/0075). Judged before the Dataset checks: signing in may grant the download.
+   */
+  private checkExportSignIn = async (requestData: RequestData): Promise<void> => {
+    if (requestData.token?.sub) return;
+    const { exportRequiresSignIn } = await getExportLimits(requestData.entityManager, {});
+    if (exportRequiresSignIn) {
+      throw new ErrorResponse('Exports require a signed-in user', StatusCodes.UNAUTHORIZED);
+    }
   };
 
   /**

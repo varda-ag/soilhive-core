@@ -49,8 +49,6 @@ export interface IngestRasterOptions {
 /** What a file fails to satisfy, and therefore what the conversion has to fix. */
 interface FormatDeviations {
   notCog: boolean;
-  /** Regenerate overviews rather than carrying over the ones the file already has. */
-  rebuildOverviews: boolean;
   /** One factor per band of the file, in band order; 1 leaves a band untouched. */
   unitFactors: number[] | null;
 }
@@ -80,12 +78,6 @@ export interface RasterFormatCheckOptions {
    * are left at factor 1.
    */
   bands: RasterBandUnit[];
-  /**
-   * Rebuild the COG even when the file already is one, regenerating its overviews. Overviews are
-   * resampled according to whether the bands are categorical, so a band flipping between
-   * categorical and continuous leaves the existing ones wrong.
-   */
-  forceCog?: boolean;
   /** Reports 0..100 across the conversion; not called when the file already conforms. */
   onProgress?: RasterConversionProgressCallback | undefined;
 }
@@ -168,10 +160,9 @@ export async function checkFileFormat(opts: RasterFormatCheckOptions): Promise<R
 
   const deviations: FormatDeviations = {
     notCog: !isCog,
-    rebuildOverviews: Boolean(opts.forceCog),
     unitFactors: anyScaling && !alreadyUnitConverted ? unitFactors : null,
   };
-  if (!deviations.notCog && !deviations.rebuildOverviews && deviations.unitFactors === null) {
+  if (!deviations.notCog && deviations.unitFactors === null) {
     return { filePath, converted: false };
   }
 
@@ -198,7 +189,6 @@ async function convertRasterFile(
 ): Promise<string> {
   const reasons = [
     deviations.notCog ? 'not a COG' : null,
-    deviations.rebuildOverviews ? 'overviews rebuilt' : null,
     deviations.unitFactors !== null ? `unit conversion x${deviations.unitFactors.join('/x')}` : null,
   ].filter(Boolean);
   log.info('Normalizing raster before ingest', { filePath, bands: opts.bands.map(b => b.band), reasons });
@@ -351,7 +341,7 @@ async function convertRaster(
         'BLOCKSIZE=512',
         '-co',
         // AUTO carries over overviews the source already has, resampled however it was built.
-        deviations.rebuildOverviews ? 'OVERVIEWS=IGNORE_EXISTING' : 'OVERVIEWS=AUTO',
+        'OVERVIEWS=AUTO',
         '-co',
         'BIGTIFF=YES',
         '-co',

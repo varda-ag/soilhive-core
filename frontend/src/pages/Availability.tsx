@@ -130,6 +130,8 @@ function Availability() {
           ref={mapRef}
           initialViewBoundingBox={boundingBox}
           showGeocoder={true}
+          // Set only by a place picked from the search: the map may open on it again, after a sign-in for one
+          geocoderInitialValue={locationName}
           showH3Cells={true}
           onSelectionChange={handleMapSelectionChange}
           onUploadClick={() => setIsUploadModalOpen(true)}

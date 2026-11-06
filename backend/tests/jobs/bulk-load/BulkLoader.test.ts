@@ -300,13 +300,13 @@ describe('BulkLoader class', () => {
     mockMakeRequest.mockRestore();
   });
 
-  it('hides a PUBLISHED dataset while it loads more files and publishes it again afterwards', async () => {
+  it('never makes the dataset ONGOING while it loads', async () => {
     const options = JSON.parse(JSON.stringify(syntheticIngestionDataOptions));
     delete options.columnMapping.bdfi33.max_val;
     delete options.columnMapping.bdfiod.min_val;
     delete options.columnMapping.drop_records;
     const { dataset } = await addSyntheticIngestionData({ ...options });
-    dataset.status = IngestionStatus.PUBLISHED;
+    dataset.status = IngestionStatus.LOADED;
     await dataset.save();
 
     const dataSource = await getDataSource();
@@ -328,22 +328,41 @@ describe('BulkLoader class', () => {
     await BulkLoaderModule.processBulkLoad(getJob(dataset.slug));
 
     expect(statusesWhileLoading.length).toBeGreaterThan(0);
-    expect(statusesWhileLoading.every(status => status === IngestionStatus.ONGOING)).toBe(true);
-    expect(await statusOf()).toBe(IngestionStatus.PUBLISHED);
+    expect(statusesWhileLoading.every(status => status === IngestionStatus.LOADED)).toBe(true);
+    expect(await statusOf()).toBe(IngestionStatus.LOADED);
 
     mockMakeRequest.mockRestore();
   });
 
-  it('leaves a PUBLISHED dataset PENDING when a load fails, rather than publishing it half-loaded', async () => {
+  it('keeps a LOADED dataset LOADED when a load fails', async () => {
     const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
-    dataset.status = IngestionStatus.PUBLISHED;
+    dataset.status = IngestionStatus.LOADED;
     await dataset.save();
     const mockMakeRequest = jest.spyOn(BulkLoaderModule, 'makeRequest').mockRejectedValue(new Error('write failed'));
 
     await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({ code: 'BL_RECORD_WRITE_FAILED' });
 
     const dataSource = await getDataSource();
-    expect((await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id })).status).toBe(IngestionStatus.PENDING);
+    expect((await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id })).status).toBe(IngestionStatus.LOADED);
+
+    mockMakeRequest.mockRestore();
+  });
+
+  it('BL_DATASET_PUBLISHED for a PUBLISHED dataset, loading nothing', async () => {
+    const { dataset, file } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    dataset.status = IngestionStatus.PUBLISHED;
+    await dataset.save();
+    const mockMakeRequest = jest.spyOn(BulkLoaderModule, 'makeRequest');
+
+    await expect(BulkLoaderModule.processBulkLoad(getJob(dataset.slug))).rejects.toMatchObject({
+      name: 'JobError',
+      code: 'BL_DATASET_PUBLISHED',
+    });
+
+    expect(mockMakeRequest).not.toHaveBeenCalled();
+    const dataSource = await getDataSource();
+    expect((await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id })).status).toBe(IngestionStatus.PUBLISHED);
+    expect((await dataSource.getRepository(FileEntity).findOneByOrFail({ id: file.id })).status).toBe(IngestionStatus.STAGED);
 
     mockMakeRequest.mockRestore();
   });

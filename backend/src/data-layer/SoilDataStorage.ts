@@ -344,6 +344,8 @@ export default class SoilDataStorage {
         SELECT rl.id
         FROM ${schema}.raster_layers rl
         INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
+        -- A deleted File's layers are kept until the next Raster Load removes them, but never served
+        INNER JOIN ${schema}.files f ON f.id = rl.file_id AND f.deleted_at IS NULL
         INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
         CROSS JOIN aoi_extent
         WHERE ${candidateWhere.join('\n          AND ')}
