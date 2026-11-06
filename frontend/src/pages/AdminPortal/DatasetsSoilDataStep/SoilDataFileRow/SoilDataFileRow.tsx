@@ -18,6 +18,8 @@ interface Props {
   onCrsChange: (fileId: string, crs: string) => void;
   onCrsSelect: (fileId: string, crs: string) => void;
   onRemove: (fileId: string) => void;
+  // False for a loaded vector file, which can't be removed: the button stays, disabled, with the reason
+  isRemovable?: boolean;
   crsOptions: { code: number; name: string }[];
   showNoData?: boolean;
 }
@@ -45,7 +47,15 @@ function formatFileSize(bytes: number | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mb`;
 }
 
-export function SoilDataFileRow({ soilDataFile, onCrsChange, onCrsSelect, onRemove, crsOptions, showNoData = true }: Props) {
+export function SoilDataFileRow({
+  soilDataFile,
+  onCrsChange,
+  onCrsSelect,
+  onRemove,
+  isRemovable = true,
+  crsOptions,
+  showNoData = true,
+}: Props) {
   const { t } = useTranslation('admin');
   const {
     id,
@@ -168,7 +178,15 @@ export function SoilDataFileRow({ soilDataFile, onCrsChange, onCrsSelect, onRemo
           />
         </div>
 
-        <Button type="tertiary" size="tiny" onClick={() => onRemove(id)} isIconOnly>
+        <Button
+          type="tertiary"
+          size="tiny"
+          onClick={() => onRemove(id)}
+          isIconOnly
+          isDisabled={!isRemovable}
+          title={isRemovable ? undefined : t('datasets.soil_data.loaded_vector_not_removable')}
+          dataTestId="sh-soil-data-remove-file"
+        >
           <CrossIcon className={styles.RemoveButtonIcon} />
         </Button>
       </div>

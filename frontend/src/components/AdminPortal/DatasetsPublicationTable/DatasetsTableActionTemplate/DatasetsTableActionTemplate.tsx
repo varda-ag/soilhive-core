@@ -21,8 +21,8 @@ export function DatasetsTableActionTemplate({ dataset, onEdit, onDelete, onPubli
   const { t } = useTranslation('admin');
   const { can } = useEntitlements();
 
-  // The backend refuses every edit until the queued job has run
-  if (dataset.isQueued) {
+  // The backend refuses every edit until the queued or running job has finished
+  if (dataset.isQueued || dataset.isLoading) {
     return <div className={styles.TableActions} />;
   }
 

@@ -1,5 +1,5 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useDatasetsSoilData } from 'hooks/useDatasetsSoilData';
+import { useDatasetsSoilData, isRemovable } from 'hooks/useDatasetsSoilData';
 import { useFileManagement } from 'hooks/useFileManagement';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useCreateDatasetFileMapping, useUpdateDatasetMutation } from 'hooks/useDatasetMutation';
@@ -68,6 +68,12 @@ jest.mock('hooks/useIngestionFlow', () => ({
 }));
 
 jest.mock('hooks/useDatasets', () => ({ useDataset: jest.fn() }));
+
+const mockCreateJob = jest.fn();
+
+jest.mock('hooks/useJobsApi', () => ({
+  useCreateJobMutation: jest.fn(() => ({ mutateAsync: mockCreateJob })),
+}));
 
 const mockMarkAsChanged = jest.fn();
 const mockResetChanges = jest.fn();
@@ -425,6 +431,7 @@ describe('useDatasetsSoilData', () => {
             inferredCrs: 'EPSG:4326',
             hasCustomCrs: false,
             fieldNames: ['lat', 'lon'],
+            isLoaded: false,
             isUngeoreferencedRaster: false,
             progress: 100,
             error: null,
@@ -437,6 +444,7 @@ describe('useDatasetsSoilData', () => {
             inferredCrs: undefined,
             hasCustomCrs: false,
             fieldNames: undefined,
+            isLoaded: false,
             isUngeoreferencedRaster: false,
             progress: 100,
             error: null,
@@ -631,6 +639,133 @@ describe('useDatasetsSoilData', () => {
   });
 
   // --- isRaster / data format validation ------------------------------------
+
+  describe('loaded files', () => {
+    const loadedVector = { id: 'loaded-vector', name: 'a.csv', status: 'LOADED', metadata: { epsg: 4326, is_raster: false } };
+    const loadedRaster = {
+      id: 'loaded-raster',
+      name: 'a.tif',
+      status: 'LOADED',
+      metadata: { epsg: 4326, is_raster: true, raster_bands: [] },
+    };
+    const pendingVector = { id: 'pending-vector', name: 'b.csv', status: 'PENDING', metadata: { epsg: 4326, is_raster: false } };
+
+    it('offers no removal for a loaded vector file', async () => {
+      const deleteFileAndMapping = jest.fn().mockResolvedValue(undefined);
+      buildDefaultMocks({ deleteFileAndMapping, existingFiles: [loadedVector] });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      expect(isRemovable(result.current.soilDataFiles[0])).toBe(false);
+      await act(async () => {
+        await result.current.removeFile('loaded-vector');
+      });
+      await act(async () => {
+        await result.current.handleSaveAndContinueLater();
+      });
+
+      expect(result.current.soilDataFiles.map(f => f.id)).toEqual(['loaded-vector']);
+      expect(deleteFileAndMapping).not.toHaveBeenCalled();
+    });
+
+    it('clearAll leaves a loaded vector file in place', async () => {
+      buildDefaultMocks({ existingFiles: [loadedVector, pendingVector] });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(2));
+
+      await act(async () => {
+        await result.current.clearAll();
+      });
+
+      expect(result.current.soilDataFiles.map(f => f.id)).toEqual(['loaded-vector']);
+    });
+
+    it('asks for confirmation before removing a loaded raster file of a published dataset', async () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', status: 'PUBLISHED' } });
+      buildDefaultMocks({ existingFiles: [loadedRaster] });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.removeFile('loaded-raster');
+      });
+      expect(result.current.removalToConfirm).toEqual(['loaded-raster']);
+      expect(result.current.soilDataFiles).toHaveLength(1);
+
+      await act(async () => {
+        await result.current.confirmRemoval();
+      });
+      expect(result.current.removalToConfirm).toBeNull();
+      expect(result.current.soilDataFiles).toHaveLength(0);
+    });
+
+    it('keeps a loaded raster file when its removal is cancelled', async () => {
+      (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', status: 'LOADED' } });
+      buildDefaultMocks({ existingFiles: [loadedRaster] });
+      const { result } = renderHook(() => useDatasetsSoilData());
+      await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+      await act(async () => {
+        await result.current.removeFile('loaded-raster');
+      });
+      act(() => {
+        result.current.cancelRemoval();
+      });
+
+      expect(result.current.removalToConfirm).toBeNull();
+      expect(result.current.soilDataFiles).toHaveLength(1);
+    });
+
+    describe('on save', () => {
+      const pendingRaster = {
+        id: 'pending-raster',
+        name: 'b.tif',
+        status: 'PENDING',
+        metadata: { epsg: 4326, is_raster: true, raster_bands: [] },
+      };
+
+      beforeEach(() => {
+        mockCreateJob.mockReset().mockResolvedValue({ id: 'job-1' });
+        (useDataset as jest.Mock).mockReturnValue({ data: { name: 'Mock-dataset', status: 'PUBLISHED' } });
+      });
+
+      it('queues a raster-load to remove a loaded raster file when no file is left to map', async () => {
+        buildDefaultMocks({ existingFiles: [loadedRaster] });
+        const { result } = renderHook(() => useDatasetsSoilData());
+        await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(1));
+
+        await act(async () => {
+          await result.current.removeFile('loaded-raster');
+        });
+        await act(async () => {
+          await result.current.confirmRemoval();
+        });
+        await act(async () => {
+          await result.current.handleSaveAndContinueLater();
+        });
+
+        expect(mockCreateJob).toHaveBeenCalledWith({ type: 'raster-load', dataset_id: 'dataset-123' });
+      });
+
+      it('leaves the raster-load to the mappings step when a file is still to map', async () => {
+        buildDefaultMocks({ existingFiles: [loadedRaster, pendingRaster] });
+        const { result } = renderHook(() => useDatasetsSoilData());
+        await waitFor(() => expect(result.current.soilDataFiles).toHaveLength(2));
+
+        await act(async () => {
+          await result.current.removeFile('loaded-raster');
+        });
+        await act(async () => {
+          await result.current.confirmRemoval();
+        });
+        await act(async () => {
+          await result.current.handleSaveAndContinueLater();
+        });
+
+        expect(mockCreateJob).not.toHaveBeenCalled();
+      });
+    });
+  });
 
   describe('onFileUploaded — data format validation', () => {
     let mockSetIsRaster: jest.Mock;

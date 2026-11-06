@@ -74,7 +74,7 @@ describe('useDatasetsPublicationList', () => {
     expect(result.current.searchValue).toBe('');
     expect(result.current.gisDataTypeFilter).toEqual([]);
     expect(result.current.visibilityFilter).toEqual([]);
-    expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false, isQueued: false })));
+    expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false, isQueued: false, isLoading: false })));
     expect(result.current.selectedDataset).toBeNull();
     expect(result.current.isDeleteModalOpened).toBe(false);
     expect(result.current.isErrorModalOpened).toBe(false);
@@ -108,6 +108,15 @@ describe('useDatasetsPublicationList', () => {
       expect(result.current.filteredDatasets.map(d => d.isQueued)).toEqual([true, false]);
     });
 
+    it('marks a dataset with a running load as loading', () => {
+      const running = [{ ...datasets[0], active_job: { id: 'job-1', queue: 'bulk-load' } }, datasets[1]];
+      (useDatasets as jest.Mock).mockReturnValue({ datasets: running, isLoading: false });
+
+      const { result } = renderHook(() => useDatasetsPublicationList());
+
+      expect(result.current.filteredDatasets.map(d => d.isLoading)).toEqual([true, false]);
+    });
+
     it('hides a dataset whose deletion is queued', () => {
       const queued = [{ ...datasets[0], queued_job: { id: 'job-1', queue: 'bulk-delete' } }, datasets[1]];
       (useDatasets as jest.Mock).mockReturnValue({ datasets: queued, isLoading: false });
@@ -137,7 +146,7 @@ describe('useDatasetsPublicationList', () => {
         result.current.setSearchValue('');
       });
 
-      expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false, isQueued: false })));
+      expect(result.current.filteredDatasets).toEqual(datasets.map(d => ({ ...d, hasErrors: false, isQueued: false, isLoading: false })));
     });
 
     it('filteredDatasets returns empty array when datasets is undefined', () => {

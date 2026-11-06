@@ -11,6 +11,7 @@ import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../entities/File';
 import RasterFilterEntity from '../entities/RasterFilter';
 import { log } from '../utils/logger';
+import { assertNoUnfinishedJob } from '../data-layer/DatasetJobs';
 
 /**
  * Orders two mappings of the same File by when they were last touched, falling back to their ids.
@@ -162,7 +163,7 @@ export default class DatasetFileMappingService {
 
     if (payload.mappingId !== undefined) {
       updateValues.data_mapping_id = payload.mappingId;
-      await this.reopenLoadedFile(requestData, dataset.id, mappingId, payload.mappingId);
+      await this.assertMappingEditable(requestData, dataset.id, mappingId, payload.mappingId);
     }
 
     // Update existing mapping
@@ -196,18 +197,13 @@ export default class DatasetFileMappingService {
   };
 
   /**
-   * Decides what repointing a loaded File at a different data mapping means for that File.
+   * Refuses repointing a loaded File at a data mapping with different content: a loaded File keeps
+   * the mapping it was loaded with.
    *
    * Compared by content rather than by id: the mapping steps write a fresh data mapping on every
    * save, so a new id alone says nothing about whether anything was edited.
-   *
-   *   - Raster: back to PENDING, so the next Raster Load applies the edit. The loader works out from
-   *     what it recorded at the last load whether that means rewriting layer metadata or ingesting
-   *     the file again.
-   *   - Vector: refused. A bulk load drops the file's raw table once its records are in, so there is
-   *     nothing left to apply a new column mapping to.
    */
-  private reopenLoadedFile = async (
+  private assertMappingEditable = async (
     requestData: RequestData,
     datasetId: string,
     datasetFileMappingId: string,
@@ -231,13 +227,11 @@ export default class DatasetFileMappingService {
       return;
     }
 
-    if (!file.metadata?.is_raster) {
-      throw new ErrorResponse(
-        `File '${file.slug}' is already loaded, so its mapping can no longer be changed: its staged data was removed once it was loaded`,
-        StatusCodes.CONFLICT,
-      );
-    }
-    await entityManager.getRepository(FileEntity).update({ id: file.id }, { status: IngestionStatus.PENDING });
+    const remedy = file.metadata?.is_raster ? ': to correct it, remove the file and upload it again' : '';
+    throw new ErrorResponse(
+      `File '${file.slug}' is already loaded, so its mapping can no longer be changed${remedy}`,
+      StatusCodes.CONFLICT,
+    );
   };
 
   getDatasetFileMapping = async (requestData: RequestData, datasetFileMappingId: string): Promise<DatasetFileMappingEntity> => {
@@ -277,12 +271,51 @@ export default class DatasetFileMappingService {
     return await repo.find({ where: whereConditions, relations });
   };
 
+  /**
+   * Takes a File out of the Dataset. A loaded raster File's Raster Layers stay until the next Raster
+   * Load removes them (see removeUnmappedLayers in RasterLoader): deleting them and rolling the Dataset
+   * up can outlast a request.
+   */
   deleteDataMappingByFileId = async (requestData: RequestData, datasetSlug: string, fileId: string): Promise<void> => {
     const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, datasetSlug);
     const file = await getEntity(requestData, FileEntity, EntityType.FILE, fileId);
+    DatasetFileMappingService.assertRemovable(file);
 
     const repo = requestData.entityManager.getRepository(DatasetFileMappingEntity);
 
     await repo.delete({ dataset_id: dataset.id, file_id: file.id });
+  };
+
+  /**
+   * Checks a File can be deleted, ahead of FileService.deleteFile: a loaded vector File is refused,
+   * and so is any File while a Dataset it is mapped to has a load or purge Queued or running, as the
+   * mapping route's assertEditable. Raster reads hide a deleted File's layers straight away; the next
+   * Raster Load removes them.
+   *
+   * Kept out of FileService, which can't import the Dataset job lookups without an import cycle.
+   */
+  static assertFileDeletable = async (requestData: RequestData, fileSlug: string): Promise<void> => {
+    const file = await getEntity(requestData, FileEntity, EntityType.FILE, fileSlug);
+    DatasetFileMappingService.assertRemovable(file);
+    const mappings = await requestData.entityManager
+      .getRepository(DatasetFileMappingEntity)
+      .find({ where: { file_id: file.id }, relations: { dataset: true } });
+    const datasets = [...new Map(mappings.filter(m => m.dataset).map(m => [m.dataset.id, m.dataset])).values()];
+    for (const dataset of datasets) {
+      await assertNoUnfinishedJob(requestData.entityManager, dataset);
+    }
+  };
+
+  /**
+   * Refuses removing a loaded vector File with 409: its observations don't record their source
+   * File, so they could only be removed with the whole Dataset's data.
+   */
+  static assertRemovable = (file: FileEntity): void => {
+    if (file.status === IngestionStatus.LOADED && !file.metadata?.is_raster) {
+      throw new ErrorResponse(
+        `File '${file.slug}' is already loaded and can't be removed: its observations don't record which file they came from`,
+        StatusCodes.CONFLICT,
+      );
+    }
   };
 }

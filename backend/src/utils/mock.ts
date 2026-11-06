@@ -128,6 +128,18 @@ export const addDataset = async (
   return await repo.save(dataset);
 };
 
+/** A Dataset not published yet (PENDING), as one reaching its first load is: loads into a PUBLISHED Dataset are refused. */
+export const addUnpublishedDataset = async (
+  name: string,
+  spatial_extent: number[],
+  gis_datatype: GISDataType = GISDataType.POINT,
+): Promise<DatasetEntity> => {
+  const dataset = await addDataset(name, spatial_extent, gis_datatype);
+  await (await getDataSource()).getRepository(DatasetEntity).update({ id: dataset.id }, { status: IngestionStatus.PENDING });
+  dataset.status = IngestionStatus.PENDING;
+  return dataset;
+};
+
 export const addFile = async (name: string = 'test_file'): Promise<FileEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(FileEntity);
@@ -165,9 +177,19 @@ export const addRasterLayerAsset = async (rasterLayerId: string, filename: strin
   return file;
 };
 
+/** Data mappings are unique by content (data_mapping_hash), so an existing match is returned rather than duplicated. */
 export const addDataMapping = async (data_mapping: object): Promise<DataMappingEntity> => {
   const dataSource = await getDataSource();
   const repo = dataSource.getRepository(DataMappingEntity);
+  const existing = await repo
+    .createQueryBuilder('dm')
+    .where(`dm.data_mapping_hash = encode(sha256(CAST(:data_mapping AS jsonb)::TEXT::BYTEA), 'hex')`, {
+      data_mapping: JSON.stringify(data_mapping),
+    })
+    .getOne();
+  if (existing) {
+    return existing;
+  }
   const mapping = repo.create({
     data_mapping,
     created_by: 'tests',

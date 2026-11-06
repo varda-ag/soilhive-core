@@ -6,6 +6,7 @@ import { useSoilProperties } from 'hooks/useSoilProperties';
 import { useCreateProcedureMutation } from 'hooks/useCreateProcedureMutation';
 import { useCreateMappingsMutation } from 'hooks/useCreateMappingsMutation';
 import { useCreateJobMutation, useJobsQueries } from 'hooks/useJobsApi';
+import { useUpdateDatasetFileMappingMutation } from 'hooks/useDatasetMutation';
 import useIngestionFlow from 'hooks/useIngestionFlow';
 import { useDataset } from 'hooks/useDatasets';
 
@@ -251,6 +252,43 @@ describe('useMappingsStep', () => {
     });
   });
 
+  describe('loaded files', () => {
+    // Stable references — new arrays on every render would re-trigger the columnMappings useEffect.
+    const filesData = [
+      { id: 'loaded-file', status: 'LOADED', metadata: { field_names: ['col1'], geometry_detected: true } },
+      { id: 'new-file', status: 'PENDING', metadata: { field_names: ['col1'], geometry_detected: true } },
+    ];
+    const datasetFileMappings = [
+      { id: 'dfm-loaded', fileID: 'loaded-file', mappingId: 'mapping-0' },
+      { id: 'dfm-new', fileID: 'new-file', mappingId: 'mapping-0' },
+    ];
+
+    beforeEach(() => {
+      mockUseApiQuery.mockImplementation(({ endpoint }: { endpoint: string }) => {
+        if (endpoint.includes('/files')) return { data: filesData, isLoading: false };
+        if (endpoint.includes('dataset-file-mapping')) return { data: datasetFileMappings, isLoading: false };
+        return { data: undefined, isLoading: false };
+      });
+    });
+
+    it('handleContinue updates the mapping of, and stages, only the file not loaded yet', async () => {
+      const mockUpdate = jest.fn().mockResolvedValue(undefined);
+      (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: mockUpdate });
+      const mockCreateJob = jest.fn().mockResolvedValue({ id: 'job-1' });
+      (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+      const { result } = renderHook(() => useMappingsStep('42'));
+
+      await act(async () => {
+        await result.current.handleContinue();
+      });
+
+      expect(mockUpdate).toHaveBeenCalledTimes(1);
+      expect(mockUpdate).toHaveBeenCalledWith({ datasetId: '42', datasetFileMappingId: 'dfm-new', mappingId: 'mapping-1' });
+      expect(mockCreateJob).toHaveBeenCalledTimes(1);
+      expect(mockCreateJob).toHaveBeenCalledWith({ dataset_id: '42', type: 'file-to-db', file_id: 'new-file' });
+    });
+  });
+
   describe('isImporting', () => {
     it('is false when no file is ONGOING and handleContinue has not been called', () => {
       setupWithFileStatuses(['PENDING']);
@@ -271,6 +309,38 @@ describe('useMappingsStep', () => {
         await result.current.handleContinue();
       });
       expect(result.current.isImporting).toBe(true);
+    });
+
+    describe('when Continue fails', () => {
+      // mockReturnValue outlives the test: put back the module defaults, or a rejecting mock leaks
+      // into every later test that doesn't set its own.
+      afterEach(() => {
+        (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: jest.fn() });
+        (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: jest.fn().mockResolvedValue({ id: 'job-1' }) });
+      });
+
+      it.each([
+        ['saving the mapping', 'update'],
+        ['creating a job', 'job'],
+      ])('is false again when %s fails, so the step is usable', async (_case, failing) => {
+        setupWithFileStatuses(['PENDING']);
+        const mockUpdate = jest
+          .fn()
+          .mockImplementation(() => (failing === 'update' ? Promise.reject(new Error('409')) : Promise.resolve()));
+        (useUpdateDatasetFileMappingMutation as jest.Mock).mockReturnValue({ mutateAsync: mockUpdate });
+        const mockCreateJob = jest
+          .fn()
+          .mockImplementation(() => (failing === 'job' ? Promise.reject(new Error('409')) : Promise.resolve({ id: 'job-1' })));
+        (useCreateJobMutation as jest.Mock).mockReturnValue({ mutateAsync: mockCreateJob });
+        const { result } = renderHook(() => useMappingsStep('42'));
+
+        await act(async () => {
+          await result.current.handleContinue();
+        });
+
+        expect(result.current.isImporting).toBe(false);
+        expect(mockNavigate).not.toHaveBeenCalled();
+      });
     });
   });
 

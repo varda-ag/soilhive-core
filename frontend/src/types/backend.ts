@@ -173,6 +173,8 @@ export interface Dataset {
   related_resources?: string[] | null;
   // Set for data admins only: the bulk-load, raster-load or bulk-delete job pg-boss has not picked up yet
   queued_job?: QueuedJob | null;
+  // Set for data admins only: the bulk-load or raster-load running on the dataset, which no longer changes its status
+  active_job?: QueuedJob | null;
 }
 
 export interface QueuedJob {
