@@ -14,7 +14,7 @@ export const renderCtes = (ctes: CteDef[], geometryIdsParam: string): string =>
 /**
  * Returns a chain of CTEs that resolves to an `aoi` CTE containing the vector mask
  * geometry (user geometry intersected with any active raster filter values).
- * The chain is: aoi_raw → clipped raster CTEs → mask CTEs → aoi.
+ * The chain is: aoi_raw → clipped raster CTEs → mask CTEs (one row per pixel region) → aoi.
  * Pass the returned array to the query builder via addCommonTableExpression, then
  * setParameter('geometryIds', ...) to bind the UUIDs.
  *
@@ -62,12 +62,14 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
         materialized: true,
       });
 
+      // One row per connected region of selected pixels. Reclassing every selected value to 1 (the rest
+      // to nodata) first merges adjacent selected classes, so regions never share an edge.
+      const reclassExpr = values.map(v => `${Number(v)}:1`).join(',');
       ctes.push({
         name: maskCte,
-        sql: `SELECT ST_Union(dp.geom) AS geom
+        sql: `SELECT dp.geom
               FROM ${clippedRaster}
-              CROSS JOIN LATERAL ST_DumpAsPolygons(${clippedRaster}.rast) dp
-              WHERE dp.val = ANY(ARRAY[${values.join(',')}]::double precision[])`,
+              CROSS JOIN LATERAL ST_DumpAsPolygons(ST_Reclass(${clippedRaster}.rast, 1, '${reclassExpr}', '8BUI', 0)) dp`,
         materialized: true,
       });
 
@@ -75,19 +77,37 @@ export const getVectorMaskCtes = async (entityManager: EntityManager, filter: Da
     }
   }
 
-  const resultExpr = maskCteNames.reduce((acc, m) => `ST_Intersection(${acc}, ${m}.geom)`, 'aoi_raw.geom');
-  const fromTables = ['aoi_raw', ...maskCteNames].join(', ');
-  const whereClause = maskCteNames.length > 0 ? `WHERE ${maskCteNames.map(m => `${m}.geom IS NOT NULL`).join(' AND ')}` : '';
+  // Consumers treat aoi as one geometry (scalar subqueries, GeoJSON output), so it is one row.
+  if (maskCteNames.length === 0) {
+    ctes.push({
+      name: 'aoi',
+      sql: `SELECT ST_Multi(ST_CollectionExtract(ST_Union(ST_MakeValid(aoi_raw.geom, 'method=structure')), 3)) AS geom
+            FROM aoi_raw`,
+      materialized: true,
+    });
+    return ctes;
+  }
 
-  // aoi_raw holds subdivision pieces (one row each), so the masked intersections are
-  // aggregated back into a single row: consumers treat aoi as one geometry (scalar
-  // subqueries, GeoJSON output). The union is bounded by the mask extent, not the
-  // full user geometry.
+  // Region by region rather than one overlay of the AOI with the whole mask: a region inside an AOI
+  // piece is kept whole, one crossing a piece edge is cut by the pieces it meets. Regions only touch
+  // at points, so ST_Collect gives a valid MultiPolygon without a union.
+  const [firstMask, ...otherMasks] = maskCteNames;
+  const firstMaskInAoi = `ST_CollectionExtract(ST_Collect(
+            CASE WHEN EXISTS (SELECT 1 FROM aoi_raw p WHERE ST_Covers(p.geom, m.geom)) THEN m.geom
+            ELSE (SELECT ST_Union(ST_MakeValid(ST_Intersection(p.geom, m.geom), 'method=structure'))
+                  FROM aoi_raw p WHERE p.geom && m.geom)
+            END), 3)`;
+  // Further masks are on other pixel grids, so they still take a full overlay
+  const resultExpr = otherMasks.reduce(
+    (acc, m) =>
+      `ST_CollectionExtract(ST_MakeValid(ST_Intersection(${acc}, (SELECT ST_CollectionExtract(ST_Collect(geom), 3) FROM ${m})), 'method=structure'), 3)`,
+    firstMaskInAoi,
+  );
+
   ctes.push({
     name: 'aoi',
-    sql: `SELECT ST_Multi(ST_CollectionExtract(ST_Union(ST_MakeValid(${resultExpr}, 'method=structure')), 3)) AS geom
-          FROM ${fromTables}
-          ${whereClause}`,
+    sql: `SELECT ST_Multi(${resultExpr}) AS geom
+          FROM ${firstMask} m`,
     materialized: true,
   });
 
