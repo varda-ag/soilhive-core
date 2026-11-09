@@ -80,3 +80,8 @@ Soil index map tiles (ADR 0043). Budgets count vertices, so a point costs one an
 - `DATA_REQUESTS_MAX_CORRELATION_POINTS` (default `500000`): budget for a `correlation` result, in points sent over all `results` rows (each row sends at most `max_points`). Above it the job fails before the statistics (docs/adr/0076).
 - `DATA_REQUESTS_MAX_CLASS_ENTRIES` (default `1000000`): budget for a `class-distribution` result, in rows × (classes + 1). Above it the job fails before aggregating; nothing is truncated.
 - `DATA_REQUESTS_STATEMENT_TIMEOUT_MS` (default `1800000`, 30 minutes): statement timeout for the aggregation queries.
+
+## Debugging
+
+- `DEBUG_QUERY_LOG` (default `false`): writes every query of a request, parameters inlined, to one `.sql` file in `/tmp`.
+- `DEBUG_READ_ONLY` (default `false`): for pointing a local backend at a database it must not change, such as production. Every session is opened with `default_transaction_read_only=on`, so Postgres rejects any write. Startup skips migrations, pg-boss, the vocabulary sync and the cache-epoch watcher. No jobs run, the job endpoints fail, and the query cache expires on TTL only. Never set it on a deployment.

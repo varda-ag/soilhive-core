@@ -6,6 +6,9 @@ import { TokenScopes } from '../types/enums';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
+/** For debugging against a database this process must not write to, e.g. production. */
+export const isDebugReadOnly = () => process.env['DEBUG_READ_ONLY'] === 'true';
+
 export const sleep = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 };

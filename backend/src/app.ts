@@ -14,7 +14,7 @@ import { startCacheEpochWatcher } from './utils/cache-epoch';
 import { getEntityManager, initializeSchema } from './utils/data-source';
 import { log } from './utils/logger';
 import { isQueryDebugEnabled, queryDebugMiddleware } from './utils/query-debug';
-import { getServerPort, isJest, setupEnv } from './utils/utils';
+import { getServerPort, isDebugReadOnly, isJest, setupEnv } from './utils/utils';
 import { warnIfOidcAudienceUnchecked } from './utils/token-issuers';
 import ConfigService from './services/ConfigService';
 import { AuthModes } from './types/enums';
@@ -94,14 +94,19 @@ export const initApp = async (app: Application) => {
     return;
   }
 
-  await initializeSchema();
-  await initPgBoss();
-  try {
-    await syncVocabularies();
-  } catch (error) {
-    log.error('Vocabulary sync failed at startup', { error: error instanceof Error ? error.message : String(error) });
+  if (isDebugReadOnly()) {
+    // Each of these writes, and would fail on a read-only session
+    log.warn('DEBUG_READ_ONLY: database sessions are read-only; migrations, pg-boss, vocabulary sync and cache-epoch watcher are disabled');
+  } else {
+    await initializeSchema();
+    await initPgBoss();
+    try {
+      await syncVocabularies();
+    } catch (error) {
+      log.error('Vocabulary sync failed at startup', { error: error instanceof Error ? error.message : String(error) });
+    }
+    await startCacheEpochWatcher();
   }
-  await startCacheEpochWatcher();
 
   if (ConfigService.getAuthConfig().authMode === AuthModes.OIDC) {
     warnIfOidcAudienceUnchecked();

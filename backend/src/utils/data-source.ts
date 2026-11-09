@@ -5,6 +5,7 @@ import { getDBPassword, getSSL } from './db-credentials';
 import { DatabaseNamingStrategy } from './naming-strategy';
 import { isQueryDebugEnabled, QueryDebugLogger } from './query-debug';
 import { InMemoryQueryResultCache, isQueryCacheEnabled } from './query-cache';
+import { isDebugReadOnly } from './utils';
 
 // This global variable at module level
 // is used to apply lazy loading to DB connection
@@ -44,7 +45,8 @@ const createDataSource = async (schema: string, includeEntities = true): Promise
       // idle_in_transaction_session_timeout: a request stuck outside the DB (a storage read, a wait
       // on another connection) loses its session after 5 minutes rather than holding a pooled
       // connection until the pod restarts. A long-running statement is active, not idle, so it is unaffected.
-      options: `-c search_path="${schema}",public -c idle_in_transaction_session_timeout=300000`,
+      // DEBUG_READ_ONLY: Postgres rejects every write, including ones nobody thought of
+      options: `-c search_path="${schema}",public -c idle_in_transaction_session_timeout=300000${isDebugReadOnly() ? ' -c default_transaction_read_only=on' : ''}`,
     },
     cache: isQueryCacheEnabled() ? { provider: () => new InMemoryQueryResultCache() } : false,
   });
