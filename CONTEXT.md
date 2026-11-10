@@ -249,12 +249,12 @@ A named computation over soil data, such as CREA's Physical Chemical model, whos
 _Avoid_: Variant, methodology (alone), algorithm, "the index" (that is the Model's output), provider
 
 **Model Runner**:
-A service an operator registers with the core that runs one or more **Models**, as one or more instances, by pulling their **Runs** from the core.
+A service that registers itself with the core and, once an operator approves it, runs one or more **Models**, as one or more instances, by pulling their **Runs** from the core.
 _Avoid_: Soil Index Provider, provider, model server, **Plugin Backend** (a Plugin's own API), worker (one instance of a Model Runner)
 
 **Manifest**:
 What a **Model Runner** publishes to the core about the **Models** it runs — their ids, versions, the soil properties each requires, and their outputs — which the core checks submissions against and hands on to plugins.
-_Avoid_: Catalog, registration (that is the operator's entry for the Model Runner), descriptor
+_Avoid_: Catalog, registration (how a Model Runner first introduces itself to the core), descriptor
 
 **Provenance**:
 What a **Model** reports about how it produced a **Run**'s scores — its version, the **Datasets** it read and the samples it skipped — kept with the Run's record as the Model's own account.
@@ -373,7 +373,8 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Run** computes either one **Statistics Type** or one **Soil Index**, never both; either way it resolves its **Aggregation Units** from one **Filter** and at most one source file, and summarises exactly those Units or scores within them
 - A Soil Index **Run** has zero or more **Scored Geometries**, each with one year; the same location may be scored in several years
 - A **Model Runner** runs one or more **Models**, and each **Model** has exactly one Model Runner
-- A **Model Runner** is available while the core has heard from it recently, silent once it has not for a few minutes, and disabled once an operator turns it off; only an available Model Runner gets new **Runs**, and silence alone never removes it
+- A **Model Runner** is pending from its registration until an operator approves it, and while pending it gets no **Runs** and reads no data; only an operator approves it, and decides whether it may read Observations
+- An approved **Model Runner** is available while the core has heard from it recently, silent once it has not for a few minutes, and disabled once an operator turns it off; only an available Model Runner gets new **Runs**, and silence alone never removes it
 - Any signed-in user may start a **Run** of any **Model** of an available **Model Runner**; limiting a Model to some users would be an **Entitlement**, never a list kept on the Model Runner
 - A **Model Runner** has at most one **Manifest** at a time; the core refuses a **Run** naming a **Model** or a soil property its runner's Manifest does not declare
 - A **Model**'s output is one kind of result, so far always a **Soil Index**: every **Run** of the Model is a Soil Index Run, typed by the Model's id
