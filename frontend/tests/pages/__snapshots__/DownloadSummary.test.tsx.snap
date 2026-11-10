@@ -186,6 +186,8 @@ exports[`DownloadSummary renders download summary page 1`] = `
           </div>
           <button
             class="Button Primary Medium DownloadButton"
+            data-analytics="click_on_download_button"
+            data-analytics-value="summary"
             data-testid="sh-ui-button"
             disabled=""
             type="button"
@@ -390,6 +392,8 @@ exports[`DownloadSummary renders download summary page coming from availability 
           </div>
           <button
             class="Button Primary Medium DownloadButton"
+            data-analytics="click_on_download_button"
+            data-analytics-value="summary"
             data-testid="sh-ui-button"
             disabled=""
             type="button"
@@ -594,6 +598,8 @@ exports[`DownloadSummary renders download summary page coming from data explorer
           </div>
           <button
             class="Button Primary Medium DownloadButton"
+            data-analytics="click_on_download_button"
+            data-analytics-value="summary"
             data-testid="sh-ui-button"
             disabled=""
             type="button"

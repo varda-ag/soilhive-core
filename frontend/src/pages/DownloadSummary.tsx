@@ -26,6 +26,8 @@ import Skeleton from 'react-loading-skeleton';
 import { GISDataType } from '../types/backend';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 import { TERMS_OF_USE_ROUTE } from 'configuration/routes';
+import { ANALYTICS_CLICKS, ANALYTICS_EVENTS } from 'configuration/analytics';
+import { trackEvent } from 'utilities/analytics';
 
 // console.debug(numberFormatter.format(1234567));
 // Output: "1.234.567"
@@ -146,6 +148,16 @@ function DownloadSummary() {
       setIsStarting(false);
       return;
     }
+    trackEvent(ANALYTICS_EVENTS.DOWNLOAD_DATA_REQUEST, {
+      format: option.id,
+      data_scenario: scenario,
+      download_source: comingFromDataExplorer ? 'explore' : 'map',
+      dataset_count: selectedDatasets.length,
+      selection_type: selectionType,
+      // Only the map's filters: the Data Explorer passes on the map's Filter, without its own
+      filters_applied: appliedFilterCount > 0 ? 'yes' : 'no',
+      filter_count: appliedFilterCount,
+    });
     setIsOpened(true);
     navigate('/');
   };
@@ -175,7 +187,7 @@ function DownloadSummary() {
   };
 
   const loaderCell = () => <Skeleton count={1} height={12} width="100%" />;
-  const { datasets, geometryFeature, datasetsSummary, soilProperties, depthRange, isLoading } = useDownloadSummary({
+  const { datasets, geometryFeature, datasetsSummary, soilProperties, depthRange, appliedFilterCount, isLoading } = useDownloadSummary({
     filterId,
     datasetsIds,
   });
@@ -301,6 +313,8 @@ function DownloadSummary() {
               size="medium"
               type="primary"
               className={styles.DownloadButton}
+              dataAnalytics={ANALYTICS_CLICKS.DOWNLOAD_BUTTON}
+              dataAnalyticsValue="summary"
               isDisabled={isMobileDevice || isLoading || isStarting || !termsAgreed || selectedDatasets.length === 0}
               onClick={onDownloadButtonClick}
             >

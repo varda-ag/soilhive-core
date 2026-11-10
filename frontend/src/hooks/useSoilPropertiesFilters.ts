@@ -4,6 +4,7 @@ import type { NestedCheckboxItemType } from 'types/components';
 import type { Selection } from 'components/UI/types';
 import type { SoilPropertyCategory } from '../types/backend';
 import { collectAllIds, getBranchIds } from 'components/NestedCheckbox/nestedCheckboxHelpers';
+import { trackMapFilterChange } from 'utilities/analytics';
 
 type SoilPropertyCategoryWithNodes = SoilPropertyCategory & {
   nodes: NestedCheckboxItemType[];
@@ -120,6 +121,8 @@ const useSoilPropertiesFilters = (): SoilPropertiesFiltersType => {
   };
 
   const handleOnChange = (selected: string[]) => {
+    const namesOf = (ids: string[]) => ids.map(id => allSoilProperties.find(property => property.id === id)?.property_name ?? id);
+    trackMapFilterChange('soil_property', namesOf(selectedSoilProperties), namesOf(selected));
     setSelectedSoilProperties(selected);
     setDatasetFilters(prevFilters => {
       // Remove the key entirely when empty: an undefined value would still count

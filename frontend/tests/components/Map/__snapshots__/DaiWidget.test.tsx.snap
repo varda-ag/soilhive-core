@@ -25,6 +25,7 @@ exports[`DaiWidget matches snapshot on desktop 1`] = `
         class="Controls"
       >
         <button
+          data-analytics="dai_toggle"
           data-checked="true"
           data-testid="toggle-button"
         />
@@ -161,6 +162,7 @@ exports[`DaiWidget matches snapshot on mobile 1`] = `
         class="Controls"
       >
         <button
+          data-analytics="dai_toggle"
           data-checked="true"
           data-testid="toggle-button"
         />

@@ -65,4 +65,9 @@ describe('ToggleButton', () => {
     const { container } = render(<ToggleButton size="tiny" />);
     expect(container.firstChild).toHaveClass('Tiny');
   });
+  it('puts data-analytics on the checkbox, not the label around it, so a click on the label counts once', () => {
+    const { container } = render(<ToggleButton dataAnalytics="dai_toggle" />);
+    expect(getCheckbox(container)).toHaveAttribute('data-analytics', 'dai_toggle');
+    expect(container.querySelectorAll('[data-analytics]')).toHaveLength(1);
+  });
 });

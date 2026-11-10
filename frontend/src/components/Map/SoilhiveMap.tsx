@@ -32,7 +32,7 @@ import DrawControl, { type DrawControlRef } from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar, { type SoilhiveMapSelectionToolbarMode } from './SoilhiveMapSelectionToolbar';
 import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
-import type { SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
+import type { SoilhiveMapLocationSearchEvent, SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
 import type { DataAvailabilityIndex } from '../../types/backend';
@@ -116,6 +116,11 @@ interface SoilhiveMapProps {
   scrollZoom?: boolean;
   dragPan?: boolean;
   onSelectionChange?: (event: SoilhiveMapSelectionChangeEvent) => void;
+  /**
+   * Reports how the visitor picked an area, for the host's usage analytics. Only the visitor's own
+   * actions report one, not the map moving or a selection restored from outside.
+   */
+  onLocationSearch?: (event: SoilhiveMapLocationSearchEvent) => void;
   onSelectionToolbarVisibilityChange?: (isVisible: boolean) => void;
   /**
    * Optional — shows an "Upload a polygon" option in the toolbar's dropdown when provided. This
@@ -200,6 +205,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     scrollZoom = true,
     dragPan = true,
     onSelectionChange,
+    onLocationSearch,
     onSelectionToolbarVisibilityChange,
     onUploadClick,
     selectionState,
@@ -328,8 +334,9 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
       // Uploading a polygon from file
       selectionTypeRef.current = 'drawn-polygon';
       applySelection(geometry, undefined, true);
+      onLocationSearch?.({ method: 'upload' });
     },
-    [applySelection],
+    [applySelection, onLocationSearch],
   );
 
   useImperativeHandle(ref, () => ({ onUpload }), [onUpload]);
@@ -456,15 +463,17 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
         selectionTypeRef.current = 'h3-cell';
         applySelection(features[0].geometry as Polygon, { type: 'Point', coordinates: [event.lngLat.lng, event.lngLat.lat] }, false);
         setSelectedH3Cell(features[0]);
+        onLocationSearch?.({ method: 'cell' });
       }
     },
-    [showDrawControl, selection, setSelectedPoint, applySelection, setSelectedH3Cell],
+    [showDrawControl, selection, setSelectedPoint, applySelection, setSelectedH3Cell, onLocationSearch],
   );
 
   const onSearchResultSelect = useCallback(
-    ({ feature }: { feature: MapGeoJSONFeature; center: Point }) => {
+    ({ feature, placeType }: { feature: MapGeoJSONFeature; center: Point; placeType?: string }) => {
       selectionTypeRef.current = 'country';
       locationNameRef.current = feature?.properties?.display_name;
+      onLocationSearch?.({ method: 'search', placeType, placeName: feature?.properties?.display_name });
 
       if (feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon') {
         // Selecting a search result from the geocoder
@@ -476,7 +485,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
         setIsPointResultSelection(true);
       }
     },
-    [applySelection],
+    [applySelection, onLocationSearch],
   );
 
   const onFinishDrawing = useCallback(
@@ -485,8 +494,9 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
       selectionTypeRef.current = 'drawn-polygon';
       applySelection(feature.geometry as Polygon);
       setShowDrawControl(false);
+      onLocationSearch?.({ method: 'draw' });
     },
-    [applySelection, setShowDrawControl],
+    [applySelection, setShowDrawControl, onLocationSearch],
   );
 
   const toolbarMode: SoilhiveMapSelectionToolbarMode = useMemo(() => {

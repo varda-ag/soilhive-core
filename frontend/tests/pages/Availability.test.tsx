@@ -5,9 +5,13 @@ import { __setIsDesktopLayout } from 'hooks/useDevice';
 import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
 import { parseGeoJSONFile } from '../../src/utilities/parseGeoJSONFile';
 import useNotifications from 'hooks/useNotifications';
+import { trackEvent } from 'utilities/analytics';
+
+jest.mock('utilities/analytics', () => ({ trackEvent: jest.fn() }));
 
 let mockOnMapSelectionChange: ((event: any) => void) | undefined;
 let mockOnUploadClick: (() => void) | undefined;
+let mockOnLocationSearch: ((event: any) => void) | undefined;
 let mockCurrentMapStyleIndex: number | undefined;
 const mockOnUpload = jest.fn();
 const mockShowNotification = jest.fn();
@@ -15,10 +19,11 @@ const mockShowNotification = jest.fn();
 /* eslint-disable react-hooks/globals */
 jest.mock('components/Map/SoilhiveMap', () => {
   const MockSoilhiveMap = React.forwardRef(function SoilhiveMap(
-    { onSelectionChange, onUploadClick, currentMapStyleIndex, children, footer }: any,
+    { onSelectionChange, onLocationSearch, onUploadClick, currentMapStyleIndex, children, footer }: any,
     ref: any,
   ) {
     mockOnMapSelectionChange = onSelectionChange;
+    mockOnLocationSearch = onLocationSearch;
     mockOnUploadClick = onUploadClick;
     mockCurrentMapStyleIndex = currentMapStyleIndex;
     React.useImperativeHandle(ref, () => ({ onUpload: mockOnUpload }));
@@ -548,6 +553,35 @@ describe('Availability', () => {
 
       expect(parseGeoJSONFile).not.toHaveBeenCalled();
       expect(mockOnUpload).not.toHaveBeenCalled();
+    });
+  });
+  describe('usage analytics', () => {
+    it('sends location_search with the method names the earlier platform used', () => {
+      render(<Availability />);
+
+      act(() => mockOnLocationSearch!({ method: 'draw' }));
+      act(() => mockOnLocationSearch!({ method: 'upload' }));
+      act(() => mockOnLocationSearch!({ method: 'cell' }));
+
+      expect(trackEvent).toHaveBeenNthCalledWith(1, 'location_search', { method: 'shape_draw' });
+      expect(trackEvent).toHaveBeenNthCalledWith(2, 'location_search', { method: 'shape_upload' });
+      expect(trackEvent).toHaveBeenNthCalledWith(3, 'location_search', { method: 'map_cell' });
+    });
+
+    it('names a country found with the search', () => {
+      render(<Availability />);
+
+      act(() => mockOnLocationSearch!({ method: 'search', placeType: 'country', placeName: 'Italia' }));
+
+      expect(trackEvent).toHaveBeenCalledWith('location_search', { method: 'text_search', place_type: 'country', country: 'Italia' });
+    });
+
+    it('does not name another place found with the search, which can be an address', () => {
+      render(<Availability />);
+
+      act(() => mockOnLocationSearch!({ method: 'search', placeType: 'house', placeName: '1 Some Street, Rome' }));
+
+      expect(trackEvent).toHaveBeenCalledWith('location_search', { method: 'text_search', place_type: 'house', country: undefined });
     });
   });
 });

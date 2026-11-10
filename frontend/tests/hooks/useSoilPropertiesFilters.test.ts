@@ -2,6 +2,9 @@ import { act, renderHook } from '@testing-library/react';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 import useAvailability from 'hooks/useAvailability';
 import { collectAllIds, getBranchIds } from 'components/NestedCheckbox/nestedCheckboxHelpers';
+import { trackMapFilterChange } from 'utilities/analytics';
+
+jest.mock('utilities/analytics', () => ({ trackMapFilterChange: jest.fn() }));
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
@@ -172,6 +175,15 @@ describe('useSoilPropertiesFilters', () => {
     const merged = updater();
 
     expect(merged).toEqual({ soil_properties: ['2', '4'] });
+  });
+
+  it('handleOnChange sends the soil properties ticked before and after, by name', () => {
+    (useAvailability as jest.Mock).mockReturnValue({ ...defaultAvailabilityState, selectedSoilProperties: ['2'] });
+    const { result } = renderHook(() => useSoilPropertiesFilters());
+
+    act(() => result.current.handleOnChange(['2', '4']));
+
+    expect(trackMapFilterChange).toHaveBeenCalledWith('soil_property', ['Leaf A1'], ['Leaf A1', 'Leaf B1']);
   });
 
   it('handleOnChange removes the soil_properties key when selection becomes empty', () => {

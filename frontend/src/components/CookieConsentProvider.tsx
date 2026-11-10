@@ -8,7 +8,7 @@ import enTranslations from '../../public/locales/en/consent.json';
 import itTranslations from '../../public/locales/it/consent.json';
 import deTranslations from '../../public/locales/de/consent.json';
 import esTranslations from '../../public/locales/es/consent.json';
-import { loadGoogleTagManager } from 'utilities/analytics';
+import { isGoogleTagManagerLoaded, loadGoogleTagManager } from 'utilities/analytics';
 
 interface CookieConsentContextType {
   analyticsAccepted: boolean;
@@ -85,7 +85,8 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
       updateGA4Consent(isAnalyticsAccepted);
       if (isAnalyticsAccepted) {
         injectGoogleAnalytics();
-      } else if ((window as any).gtag) {
+      } else if (isGoogleTagManagerLoaded()) {
+        // GTM cannot be taken off the page: reloading without it stops the tracking at once
         window.location.reload();
       }
     };

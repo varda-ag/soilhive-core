@@ -25,11 +25,29 @@ import useNotifications from 'hooks/useNotifications';
 import useTheme from 'hooks/useTheme';
 import { useDai } from 'hooks/useDai';
 import { useDragAndDropUpload } from 'hooks/useDragAndDropUpload';
-import type { SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
+import type { SoilhiveMapLocationSearchEvent, SoilhiveMapSelectionChangeEvent } from 'components/Map/SoilhiveMapSelectionChangeEvent';
+import { trackEvent } from 'utilities/analytics';
+import { ANALYTICS_EVENTS } from 'configuration/analytics';
 
 import styles from './Availability.module.scss';
 import { useTranslation } from 'react-i18next';
 import { getMapStyles } from '../utilities/map';
+
+// The method values are the ones the earlier SoilHive platform sent for its location searches
+const LOCATION_SEARCH_METHODS: Record<SoilhiveMapLocationSearchEvent['method'], string> = {
+  search: 'text_search',
+  draw: 'shape_draw',
+  upload: 'shape_upload',
+  cell: 'map_cell',
+};
+
+// Only a country is sent by name: another place found with the search can be an address
+const trackLocationSearch = ({ method, placeType, placeName }: SoilhiveMapLocationSearchEvent) =>
+  trackEvent(ANALYTICS_EVENTS.LOCATION_SEARCH, {
+    method: LOCATION_SEARCH_METHODS[method],
+    place_type: placeType,
+    country: placeType === 'country' ? placeName : undefined,
+  });
 
 function Availability() {
   const [isDatasetsOpened, setIsDatasetsOpened] = useState<boolean>(true);
@@ -134,6 +152,7 @@ function Availability() {
           geocoderInitialValue={locationName}
           showH3Cells={true}
           onSelectionChange={handleMapSelectionChange}
+          onLocationSearch={trackLocationSearch}
           onUploadClick={() => setIsUploadModalOpen(true)}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
           mapStyles={mapStyles}

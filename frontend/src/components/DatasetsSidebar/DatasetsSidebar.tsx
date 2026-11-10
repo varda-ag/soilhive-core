@@ -13,6 +13,7 @@ import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownlo
 import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 
 import styles from './DatasetsSidebar.module.scss';
+import { ANALYTICS_CLICKS } from 'configuration/analytics';
 import { useNavigate } from 'react-router';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -91,6 +92,7 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
         <div className={styles.Action}>
           <Button
             className={styles.PreviewButton}
+            dataAnalytics={ANALYTICS_CLICKS.EXPLORE_BUTTON}
             type="secondary"
             isDisabled={!isFilterIdReady || previewDatasetIds.length === 0}
             onClick={() => {
@@ -105,6 +107,8 @@ export function DatasetsSidebar({ isOpened, onClose }: Props) {
           </Button>
           <Button
             className={styles.DownloadButton}
+            dataAnalytics={ANALYTICS_CLICKS.DOWNLOAD_BUTTON}
+            dataAnalyticsValue="map"
             isDisabled={!isFilterIdReady || isMobileDevice || downloadDatasetIds.length === 0}
             onClick={handleDownloadClick}
           >

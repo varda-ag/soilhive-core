@@ -71,7 +71,7 @@ frontend/
 ```
 QueryClientProvider          ← TanStack React Query cache
   NotificationProvider       ← Toast/banner notification queue
-    CookieConsentProvider    ← Cookie consent banner state
+    CookieConsentProvider    ← Cookie consent banner; loads GTM once analytics is accepted (analytics.md)
       AuthContextProvider    ← Authentication (OIDC / password / none)
         ThemeProvider        ← Brand colors, terms, initial map bbox
           DownloadsProvider  ← Active and historical downloads

@@ -61,6 +61,8 @@ exports[`DownloadPreview calls navigate when clicking on the back button 1`] = `
         </button>
         <button
           class="Button Primary Small DownloadButton"
+          data-analytics="click_on_download_button"
+          data-analytics-value="explore"
           data-testid="sh-ui-button"
           type="button"
         >
@@ -192,6 +194,8 @@ exports[`DownloadPreview renders download preview page 1`] = `
         </button>
         <button
           class="Button Primary Small DownloadButton"
+          data-analytics="click_on_download_button"
+          data-analytics-value="explore"
           data-testid="sh-ui-button"
           type="button"
         >

@@ -3,6 +3,9 @@ import useDataScopeFilters from 'hooks/useDataScopeFilters';
 import useAvailability from 'hooks/useAvailability';
 import { yearRangeToDatasetFilters } from '../../src/adapters';
 import { DATA_ACCESS_ITEMS, DATA_TYPE_ITEMS } from '../../src/configuration/filters';
+import { trackMapFilterChange } from 'utilities/analytics';
+
+jest.mock('utilities/analytics', () => ({ trackMapFilterChange: jest.fn() }));
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
@@ -87,6 +90,24 @@ describe('useDataScopeFilters', () => {
     updater();
 
     expect(mockYearRangeToDatasetFilters).toHaveBeenCalledWith({ min: 2001, max: 2005 });
+  });
+
+  it('handleTimeFilterChange sends the year range the visitor replaced and the one they applied', () => {
+    (useAvailability as jest.Mock).mockReturnValue({ ...defaultAvailabilityState, selectedTimeFilter: { min: 1990, max: 2000 } });
+    const { result } = renderHook(() => useDataScopeFilters());
+
+    act(() => result.current.handleTimeFilterChange({ min: 2001, max: 2005 }));
+
+    expect(trackMapFilterChange).toHaveBeenCalledWith('sampling_years', ['1990-2000'], ['2001-2005']);
+  });
+
+  it('handleTimeFilterChange sends the removal of the year range when its pill is removed', () => {
+    (useAvailability as jest.Mock).mockReturnValue({ ...defaultAvailabilityState, selectedTimeFilter: { min: 1990, max: 2000 } });
+    const { result } = renderHook(() => useDataScopeFilters());
+
+    act(() => result.current.handleTimeFilterChange({}));
+
+    expect(trackMapFilterChange).toHaveBeenCalledWith('sampling_years', ['1990-2000'], []);
   });
 
   it('timeFilterPills is null unless both min and max are set', () => {

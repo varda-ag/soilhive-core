@@ -2,7 +2,7 @@ import type { BackendStoredDataFilter, DataFilterDTO, License } from 'types/back
 import { useApiQuery } from './useApiQuery';
 import { useFilteredCoverageQuery } from './useFilteredCoverageQuery';
 import { useFilteredDatasetsQuery } from './useFilteredDatasetsQuery';
-import { computeDatasetSummary } from '../domain';
+import { computeDatasetSummary, countAppliedFilterCriteria } from '../domain';
 import { useSoilProperties } from './useSoilProperties';
 import { useMemo } from 'react';
 
@@ -88,6 +88,8 @@ export function useDownloadSummary({ filterId, datasetsIds }: { filterId: string
     datasetsSummary: computeDatasetSummary(coverageData?.datasets),
     soilProperties,
     depthRange,
+    // Read from the stored Filter, so it holds when the page was opened from a link or after a sign-in
+    appliedFilterCount: countAppliedFilterCriteria(filterData?.filter.parameters),
     isLoading: areSoilPropertiesLoading || isFilterLoading || isCoverageLoading || areLicensesLoading || isDatasetsLoading,
   };
 }

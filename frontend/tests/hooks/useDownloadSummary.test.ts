@@ -19,6 +19,7 @@ jest.mock('hooks/useFilteredDatasetsQuery', () => ({
 }));
 
 jest.mock('../../src/domain', () => ({
+  ...jest.requireActual('../../src/domain'),
   computeDatasetSummary: jest.fn(),
 }));
 
@@ -59,6 +60,7 @@ describe('useDownloadSummary', () => {
       soilProperties: undefined,
       depthRange: undefined,
       datasets: undefined,
+      appliedFilterCount: 0,
       isLoading: true,
     });
   });
@@ -93,6 +95,8 @@ describe('useDownloadSummary', () => {
       datasetsSummary: {},
       soilProperties: ['Prop 1'],
       depthRange: '0-50cm',
+      // The soil property and the depth range
+      appliedFilterCount: 2,
       isLoading: false,
     });
   });

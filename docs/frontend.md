@@ -32,4 +32,5 @@ App available at **http://localhost:3000**. See [frontend/setup.md](frontend/set
 | [frontend/module-federation.md](frontend/module-federation.md) | Plugin system, building a remote module, shared dependencies |
 | [frontend/hooks-reference.md](frontend/hooks-reference.md) | All custom hooks with descriptions |
 | [frontend/styling-theming.md](frontend/styling-theming.md) | SCSS architecture, dynamic theming, PrimeReact, UI library, i18n |
+| [frontend/analytics.md](frontend/analytics.md) | Usage analytics: consent, the events sent to Google Analytics, GTM and GA4 setup |
 | [frontend/testing.md](frontend/testing.md) | Jest setup, component testing, hook testing, mocking, patterns |

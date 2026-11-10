@@ -106,4 +106,13 @@ describe('MapStyleSwitcher', () => {
     );
     expect(container.firstChild).toHaveClass('custom-class');
   });
+  it('marks the button and each style for the GTM click trigger, a style with its name', () => {
+    render(<MapStyleSwitcher mapStyles={mapStyles} currentValue={0} onMapStyleChange={jest.fn()} />);
+    expect(screen.getByRole('button', { name: 'Map switcher button' })).toHaveAttribute('data-analytics', 'click_on_map_style_button');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Map switcher button' }));
+
+    const styleItems = document.querySelectorAll('[data-analytics="map_style_change"]');
+    expect(Array.from(styleItems).map(item => item.getAttribute('data-analytics-value'))).toEqual(['Satellite', 'Streets']);
+  });
 });

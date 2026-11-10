@@ -25,6 +25,7 @@ import { useIsSignInRequiredToDownload } from 'hooks/useIsSignInRequiredToDownlo
 import { useGoBack } from 'hooks/useGoBack';
 import { DownloadSignInDialog } from 'components/DownloadSignInDialog/DownloadSignInDialog';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
+import { ANALYTICS_CLICKS } from 'configuration/analytics';
 
 const MAXIMUM_SOIL_DATA_PER_REQUEST = 100;
 
@@ -193,7 +194,14 @@ function DownloadPreview() {
             <ArrowLeftIcon />
             {t('download_preview.back')}
           </Button>
-          <Button type="primary" className={styles.DownloadButton} isDisabled={isMobileDevice} onClick={navigateToDownload}>
+          <Button
+            type="primary"
+            className={styles.DownloadButton}
+            dataAnalytics={ANALYTICS_CLICKS.DOWNLOAD_BUTTON}
+            dataAnalyticsValue="explore"
+            isDisabled={isMobileDevice}
+            onClick={navigateToDownload}
+          >
             <DownloadIcon />
             {t('download_preview.download_button')}
           </Button>

@@ -11,6 +11,10 @@ import useDevice from 'hooks/useDevice';
 
 import styles from './DaiWidget.module.scss';
 
+// ANALYTICS_CLICKS.DAI_TOGGLE, written out so this map widget imports nothing more from the host and
+// stays vendorable into plugins with SoilhiveMap
+const DAI_TOGGLE_ANALYTICS = 'dai_toggle';
+
 const LEGEND_ITEMS = [
   { label: 'legend_very_low', color: '#E8DAD2' },
   { label: 'legend_low', color: '#EFB396' },
@@ -44,7 +48,7 @@ export function DaiWidget({ isEnabled, opacity, className, isLoading, isDefaultE
         </div>
         <div className={styles.Controls}>
           {isLoading && <ReloadIcon data-testid="sh-reload-icon" className={styles.ReloadIcon} />}
-          {!isLoading && <ToggleButton checked={isEnabled} onChange={onToggle} size="tiny" />}
+          {!isLoading && <ToggleButton checked={isEnabled} onChange={onToggle} size="tiny" dataAnalytics={DAI_TOGGLE_ANALYTICS} />}
           {isDesktopLayout && (
             <button
               className={classnames(styles.ChevronButton, { [styles.Collapsed]: !isExpanded })}

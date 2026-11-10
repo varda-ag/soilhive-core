@@ -28,7 +28,7 @@ window._env_ = {
   BACKEND_BASE_URL: 'http://localhost:4001',
   APP_BASE_URL: 'http://localhost:3000',
   MAPBOX_ACCESS_TOKEN: '<your Mapbox token, or empty string to disable the map>',
-  GTM_CONTAINER_ID: '',    // optional — Google Tag Manager container ID
+  GTM_CONTAINER_ID: '',    // optional — Google Tag Manager container ID, for usage analytics (analytics.md)
   COOKIE_DOMAIN: '',       // optional — overrides cookie domain for consent banner
   FEATURE_FLAGS: '',       // optional — frontend feature flags
 };

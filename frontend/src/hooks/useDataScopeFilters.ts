@@ -5,6 +5,7 @@ import type { AvailabilityDataset, DatasetFrontendFilters, TimeFilterState } fro
 import { mapFilteredDatasetSummaryToAvailabilityDataset, yearRangeToDatasetFilters } from '../adapters';
 import { DATA_ACCESS_ITEMS, DATA_TYPE_ITEMS } from '../configuration/filters';
 import { matchesDataScope } from '../domain';
+import { trackMapFilterChange } from 'utilities/analytics';
 
 type TimeFilterRange = {
   min: number;
@@ -76,13 +77,15 @@ const useDataScopeFilters = (): DataScopeFiltersType => {
 
   const handleTimeFilterChange = useCallback(
     (value: TimeFilterState) => {
+      const yearRange = ({ min, max }: TimeFilterState) => (min && max ? [`${min}-${max}`] : []);
+      trackMapFilterChange('sampling_years', yearRange(selectedTimeFilter), yearRange(value));
       setSelectedTimeFilter(value);
 
       setDatasetFilters(prevFilters => {
         return { ...prevFilters, ...yearRangeToDatasetFilters(value) };
       });
     },
-    [setSelectedTimeFilter, setDatasetFilters],
+    [selectedTimeFilter, setSelectedTimeFilter, setDatasetFilters],
   );
 
   const timeFilterPills = useMemo((): Selection[] | null => {

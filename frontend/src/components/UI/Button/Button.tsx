@@ -20,6 +20,10 @@ export interface Props {
   isDisabled?: boolean;
   onClick?: MouseEventHandler<HTMLButtonElement>;
   dataTestId?: string;
+  /** Rendered as data-analytics: a click on the button is sent to Google Analytics as the event of this name (docs/frontend/analytics.md) */
+  dataAnalytics?: string;
+  /** Rendered as data-analytics-value, sent with that event as click_value */
+  dataAnalyticsValue?: string;
   ariaLabel?: string;
   title?: string;
 }
@@ -36,10 +40,14 @@ export function Button({
   isDanger,
   isDisabled,
   dataTestId,
+  dataAnalytics,
+  dataAnalyticsValue,
   ariaLabel,
   title,
   onClick,
 }: Props) {
+  const analyticsAttributes = { 'data-analytics': dataAnalytics, 'data-analytics-value': dataAnalyticsValue };
+
   const typeClass = useMemo(
     () =>
       ({
@@ -74,6 +82,7 @@ export function Button({
     return (
       <Link
         data-testid={dataTestId ?? 'sh-ui-button-internal-link'}
+        {...analyticsAttributes}
         to={to}
         className={composedClassNames}
         aria-label={ariaLabel}
@@ -88,6 +97,7 @@ export function Button({
     return (
       <a
         data-testid={dataTestId ?? 'sh-ui-button-link'}
+        {...analyticsAttributes}
         href={href}
         className={composedClassNames}
         target="_blank"
@@ -103,6 +113,7 @@ export function Button({
   return (
     <button
       data-testid={dataTestId ?? 'sh-ui-button'}
+      {...analyticsAttributes}
       type={form ? 'submit' : 'button'}
       form={form}
       className={classnames(

@@ -1,12 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DaiWidget } from 'components/Map/DaiWidget/DaiWidget';
 import { __setIsDesktopLayout, __resetIsDesktopLayout } from 'hooks/useDevice';
+import { ANALYTICS_CLICKS } from 'configuration/analytics';
 
 jest.mock('hooks/useDevice');
 
 jest.mock('components/UI/ToggleButton/ToggleButton', () => ({
-  ToggleButton: ({ checked, onChange }: any) => (
-    <button data-testid="toggle-button" data-checked={String(checked)} onClick={() => onChange(!checked)} />
+  ToggleButton: ({ checked, onChange, dataAnalytics }: any) => (
+    <button data-testid="toggle-button" data-checked={String(checked)} data-analytics={dataAnalytics} onClick={() => onChange(!checked)} />
   ),
 }));
 
@@ -172,5 +173,9 @@ describe('DaiWidget', () => {
     __setIsDesktopLayout(false);
     const { container } = render(<DaiWidget {...defaultProps} />);
     expect(container).toMatchSnapshot();
+  });
+  it('marks the toggle for the GTM click trigger, with the name the host knows it by', () => {
+    render(<DaiWidget {...defaultProps} />);
+    expect(screen.getByTestId('toggle-button')).toHaveAttribute('data-analytics', ANALYTICS_CLICKS.DAI_TOGGLE);
   });
 });
