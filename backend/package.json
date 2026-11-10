@@ -24,7 +24,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
-    "@apidevtools/swagger-cli": "^4.0.4",
+    "@apidevtools/swagger-parser": "^10.1.1",
     "@aws-sdk/client-s3": "^3.1045.0",
     "@aws-sdk/credential-providers": "^3.943.0",
     "@aws-sdk/rds-signer": "^3.943.0",

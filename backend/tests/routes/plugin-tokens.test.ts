@@ -390,7 +390,15 @@ describe('Plugin tokens', () => {
 
   describe('which reads a Plugin token may make', () => {
     // Every GET must be decided here, so a new read is never opened to Plugin Backends by default
-    const DENIED = ['/configs/{configId}/entitlements', '/data-filters', '/datasets/{datasetId}/entitlements', '/files/{fileId}/download'];
+    const DENIED = [
+      '/configs/{configId}/entitlements',
+      '/data-filters',
+      '/datasets/{datasetId}/entitlements',
+      '/files/{fileId}/download',
+      '/model-runner-registrations',
+      '/model-runners/{runnerId}/claims/{claimId}/inputs',
+      '/model-runners/{runnerId}/claims/{claimId}/units',
+    ];
 
     it('denies exactly the reads listed, and nothing else', async () => {
       const doc = (await getSwaggerDocument()) as { paths: Record<string, { get?: Record<string, unknown> }> };
@@ -405,7 +413,7 @@ describe('Plugin tokens', () => {
 });
 
 // Every GET a Plugin token may make, as audited for docs/adr/0065; a new GET changes this count
-const ALLOWED_GET_COUNT = 48;
+const ALLOWED_GET_COUNT = 49;
 
 const getUserTokenExpiringIn = (seconds: number): string => {
   getUserToken('plugin-user-id', 'plugin-user@example.com'); // sets up the env the key comes from

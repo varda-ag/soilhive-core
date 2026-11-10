@@ -1,0 +1,1163 @@
+openapi: 3.0.3
+info:
+  title: Model Runner API
+  version: 0.1.0
+  description: >-
+    The registry of Model Runners and the calls a runner makes to claim and fill Soil Index Runs
+    (docs/adr/0078). Complete on its own, so a runner team can generate a client from it. Not
+    implemented yet: every operation answers 501.
+servers:
+  - url: /api/v1
+  - url: /
+tags:
+  - name: model-runners
+    description: The registry, registration, approval, keys and Manifests
+  - name: claims
+    description: Runs a runner claims, their inputs and their results
+
+paths:
+  /model-runners:
+    get:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: listModelRunners
+      summary: List the approved runners and their Manifests
+      description: Every approved runner that is not disabled, without its keys.
+      tags: [model-runners]
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: The runners
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModelRunner'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: registerModelRunner
+      summary: Register a runner, or a new key of an approved one
+      description: >-
+        The assertion carries the public key in its `jwk` header instead of a `kid`, is signed with
+        that key, and its `iss` is the body's `id`. A new runner, or a new key of an approved one,
+        stays pending until a super-admin approves it, and a registration left pending expires
+        after 7 days. Rate-limited.
+      tags: [model-runners]
+      security:
+        - runnerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunnerRegistration'
+      responses:
+        '200':
+          description: An approved runner registered again with a key the core has; its Manifest is replaced
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResult'
+        '202':
+          description: Pending until a super-admin approves it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /model-runner-registrations:
+    get:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      x-plugin-token-denied: true
+      operationId: listPendingRegistrations
+      summary: List the registrations waiting for approval
+      tags: [model-runners]
+      security:
+        - bearerAuth: [super-admin]
+      responses:
+        '200':
+          description: Pending runners and pending keys, oldest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PendingRegistration'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /model-runners/{runnerId}/approve:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: approveRegistration
+      summary: Approve a pending runner or a pending key
+      description: >-
+        Approving a pending runner drops the other pending registrations for its id. For a new key
+        of an approved runner, `reads_observations` is ignored.
+      tags: [model-runners]
+      security:
+        - bearerAuth: [super-admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalRequest'
+      responses:
+        '204':
+          description: Approved
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: No pending registration for this id and key
+          content:
+            application/json:
+              schema:
+                $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+
+  /model-runners/{runnerId}/disable:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: disableModelRunner
+      summary: Disable an approved runner
+      description: >-
+        Its Frameworks leave the generator and it can no longer claim Runs. Its waiting Runs fail at
+        the 24-hour limit, and its finished dashboards keep working.
+      tags: [model-runners]
+      security:
+        - bearerAuth: [super-admin]
+      responses:
+        '204':
+          description: Disabled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RunnerNotFound'
+
+  /model-runners/{runnerId}/enable:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: enableModelRunner
+      summary: Enable a disabled runner again
+      tags: [model-runners]
+      security:
+        - bearerAuth: [super-admin]
+      responses:
+        '204':
+          description: Enabled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RunnerNotFound'
+
+  /model-runners/{runnerId}/keys/{kid}:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+      - $ref: '#/components/parameters/Kid'
+    delete:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: deleteModelRunnerKey
+      summary: Remove a key
+      description: >-
+        By the runner, signed with a current key, or by a super-admin. A removed key stops working
+        on the next call.
+      tags: [model-runners]
+      security:
+        - runnerAuth: []
+        - bearerAuth: [super-admin]
+      responses:
+        '204':
+          description: Removed
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/RunnerNotFound'
+        '409':
+          description: A runner may not remove its last key
+          content:
+            application/json:
+              schema:
+                $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+
+  /model-runners/{runnerId}/manifest:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+    put:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: publishManifest
+      summary: Publish the runner's Manifest
+      description: >-
+        Each instance publishes it at startup. A Manifest that fails the schema, or names another
+        runner's Models, is refused and the previous one kept.
+      tags: [model-runners]
+      security:
+        - runnerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Manifest'
+      responses:
+        '204':
+          description: Published
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/RunnerNotApproved'
+        '404':
+          $ref: '#/components/responses/RunnerNotFound'
+
+  /model-runners/{runnerId}/claims:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: claimRun
+      summary: Claim the next waiting Run
+      description: >-
+        The claim is atomic, so two instances never get the same Run, and comes with a 10-minute
+        lease that each progress call renews. A runner that just finished a Run claims again at
+        once.
+      tags: [claims]
+      security:
+        - runnerAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimRequest'
+      responses:
+        '200':
+          description: A claimed Run
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Claim'
+        '204':
+          description: Nothing waits
+          headers:
+            Retry-After:
+              $ref: '#/components/headers/RetryAfter'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/RunnerNotApproved'
+        '404':
+          $ref: '#/components/responses/RunnerNotFound'
+
+  /model-runners/{runnerId}/claims/{claimId}/units:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+      - $ref: '#/components/parameters/ClaimId'
+    get:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      x-plugin-token-denied: true
+      operationId: listClaimUnits
+      summary: Read the claimed Run's Units
+      tags: [claims]
+      security:
+        - runnerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+        - name: pieces
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: >-
+            Send each Unit as its subdivision pieces of at most 64 vertices (docs/adr/0048), several
+            lines sharing one `unit_id`.
+      responses:
+        '200':
+          description: NDJSON, one `UnitLine` per line, up to 5,000 lines
+          headers:
+            Next-Cursor:
+              $ref: '#/components/headers/NextCursor'
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/RunnerNotApproved'
+        '404':
+          $ref: '#/components/responses/ClaimNotFound'
+        '409':
+          $ref: '#/components/responses/ClaimNotCurrent'
+        '410':
+          $ref: '#/components/responses/RunDestroyed'
+
+  /model-runners/{runnerId}/claims/{claimId}/inputs:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+      - $ref: '#/components/parameters/ClaimId'
+    get:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      x-plugin-token-denied: true
+      operationId: listClaimInputs
+      summary: Read the claimed Run's inputs
+      description: >-
+        The rows of the Run's `soil_properties` inside its Units, from published Datasets the
+        submitter may preview, matching every criterion of the Run's Filter. A Dataset the
+        submitter cannot preview is left out.
+      tags: [claims]
+      security:
+        - runnerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: NDJSON, one `InputLine` per line, up to 5,000 lines
+          headers:
+            Next-Cursor:
+              $ref: '#/components/headers/NextCursor'
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: The runner is pending, disabled, or not approved to read Observations
+          content:
+            application/json:
+              schema:
+                $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ClaimNotFound'
+        '409':
+          $ref: '#/components/responses/ClaimNotCurrent'
+        '410':
+          $ref: '#/components/responses/RunDestroyed'
+
+  /model-runners/{runnerId}/claims/{claimId}/progress:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+      - $ref: '#/components/parameters/ClaimId'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: reportProgress
+      summary: Report progress and renew the lease
+      description: Call at least every 2 minutes while computing.
+      tags: [claims]
+      security:
+        - runnerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Progress'
+      responses:
+        '204':
+          description: Recorded, and the lease renewed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/RunnerNotApproved'
+        '404':
+          $ref: '#/components/responses/ClaimNotFound'
+        '409':
+          $ref: '#/components/responses/ClaimNotCurrent'
+        '410':
+          $ref: '#/components/responses/RunDestroyed'
+
+  /model-runners/{runnerId}/claims/{claimId}/scores/{chunk}:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+      - $ref: '#/components/parameters/ClaimId'
+      - name: chunk
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+        description: The chunk's number, from 1
+    put:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: uploadScores
+      summary: Upload one chunk of scores
+      description: >-
+        Sending a chunk again replaces it, so an instance that lost the answer can resend it. Up to
+        10,000 lines or 10 MB, and 1,000,000 scores per Run, past which the Run fails with
+        `too-many-scores`.
+      tags: [claims]
+      security:
+        - runnerAuth: []
+      requestBody:
+        required: true
+        description: NDJSON, one `ScoreLine` per line
+        content:
+          application/x-ndjson:
+            schema:
+              type: string
+      responses:
+        '204':
+          description: Stored
+        '400':
+          description: A bad score line, named by its line number, or more scores than a Run takes
+          content:
+            application/json:
+              schema:
+                $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/RunnerNotApproved'
+        '404':
+          $ref: '#/components/responses/ClaimNotFound'
+        '409':
+          $ref: '#/components/responses/ClaimNotCurrent'
+        '410':
+          $ref: '#/components/responses/RunDestroyed'
+        '413':
+          description: Over 10 MB
+          content:
+            application/json:
+              schema:
+                $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+
+  /model-runners/{runnerId}/claims/{claimId}/complete:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+      - $ref: '#/components/parameters/ClaimId'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: completeRun
+      summary: Finish the Run with its scores
+      description: >-
+        Hands the Run to the core, which drops scores outside the sampling dates (docs/adr/0058),
+        stores the rest and queues the tiles.
+      tags: [claims]
+      security:
+        - runnerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Completion'
+      responses:
+        '202':
+          description: Accepted; the core finalizes on its own queue
+        '400':
+          description: A bad body, or a chunk from 1 to `chunks` is missing
+          content:
+            application/json:
+              schema:
+                $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/RunnerNotApproved'
+        '404':
+          $ref: '#/components/responses/ClaimNotFound'
+        '409':
+          $ref: '#/components/responses/ClaimNotCurrent'
+        '410':
+          $ref: '#/components/responses/RunDestroyed'
+
+  /model-runners/{runnerId}/claims/{claimId}/error:
+    parameters:
+      - $ref: '#/components/parameters/RunnerId'
+      - $ref: '#/components/parameters/ClaimId'
+    post:
+      x-eov-operation-handler: controllers/model-runners
+      x-eov-operation-id: notImplemented
+      operationId: failRun
+      summary: Fail the Run with the Model's error
+      tags: [claims]
+      security:
+        - runnerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelError'
+      responses:
+        '204':
+          description: The Run failed with this error
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/RunnerNotApproved'
+        '404':
+          $ref: '#/components/responses/ClaimNotFound'
+        '409':
+          $ref: '#/components/responses/ClaimNotCurrent'
+        '410':
+          $ref: '#/components/responses/RunDestroyed'
+
+components:
+  securitySchemes:
+    runnerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        A runner assertion: an ES256 JWT with `typ: model-runner+jwt`, the key's `kid`, `iss` and
+        `sub` set to the runner id, `aud` set to the core's public URL, an `instance` claim naming
+        the pod, and `exp` at most 5 minutes after `iat`. One assertion may be reused until it
+        expires. The path's `{runnerId}` must equal `iss`.
+    bearerAuth:
+      $ref: '../src/openapi.yaml#/components/securitySchemes/bearerAuth'
+
+  parameters:
+    RunnerId:
+      name: runnerId
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/RunnerId'
+    ClaimId:
+      name: claimId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Kid:
+      name: kid
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Kid'
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema:
+        type: string
+      description: The previous page's `Next-Cursor`. Omit for the first page.
+
+  headers:
+    NextCursor:
+      description: Present while more lines remain; pass it as `cursor` for the next page.
+      schema:
+        type: string
+    RetryAfter:
+      description: Seconds to wait before claiming again
+      schema:
+        type: integer
+        minimum: 0
+
+  responses:
+    BadRequest:
+      $ref: '../src/openapi.yaml#/components/responses/BadRequest'
+    Unauthorized:
+      $ref: '../src/openapi.yaml#/components/responses/Unauthorized'
+    Forbidden:
+      $ref: '../src/openapi.yaml#/components/responses/Forbidden'
+    TooManyRequests:
+      $ref: '../src/openapi.yaml#/components/responses/TooManyRequests'
+    RunnerNotApproved:
+      description: The runner is pending approval or disabled
+      content:
+        application/json:
+          schema:
+            $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+    RunnerNotFound:
+      description: The core doesn't know this runner, which then registers
+      content:
+        application/json:
+          schema:
+            $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+    ClaimNotFound:
+      description: This runner has no such claim
+      content:
+        application/json:
+          schema:
+            $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+    ClaimNotCurrent:
+      description: The claim's lease lapsed and the Run went back to the queue; drop the Run
+      content:
+        application/json:
+          schema:
+            $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+    RunDestroyed:
+      description: The Run was destroyed; drop it
+      content:
+        application/json:
+          schema:
+            $ref: '../src/openapi.yaml#/components/schemas/ErrorResponse'
+
+  schemas:
+    RunnerId:
+      type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+      maxLength: 64
+      description: Lowercase letters, digits and hyphens. Every Model id starts with it.
+      example: crea
+
+    ModelId:
+      type: string
+      pattern: '^[a-z0-9]+(-[a-z0-9]+)*/[a-z0-9]+(-[a-z0-9]+)*$'
+      maxLength: 129
+      description: "`{runnerId}/{modelId}`, which is also its Runs' `soil_index_type`"
+      example: crea/physical-chemical
+
+    Kid:
+      type: string
+      pattern: '^[A-Za-z0-9_-]{43}$'
+      description: >-
+        The public key's SHA-256 JWK thumbprint (RFC 7638), which the core computes at
+        registration. Assertions name it in their `kid` header.
+
+    SoilPropertySlug:
+      type: string
+      description: >-
+        A soil property's slug: its `id` in `GET /soil-properties`, and `soil_property` in
+        `/soil-data` rows
+      example: organic-matter
+
+    LocalizedText:
+      type: object
+      description: One text per language code, with English as the fallback
+      required: [en]
+      additionalProperties:
+        type: string
+      example:
+        en: Excellent
+
+    ModelRunner:
+      type: object
+      required: [id, name, state, manifest]
+      properties:
+        id:
+          $ref: '#/components/schemas/RunnerId'
+        name:
+          type: string
+        state:
+          type: string
+          enum: [available, silent]
+          description: Silent once the core has not heard from it for 5 minutes; it then gets no new Runs.
+        manifest:
+          $ref: '#/components/schemas/Manifest'
+
+    RunnerRegistration:
+      type: object
+      additionalProperties: false
+      required: [id, name, manifest]
+      properties:
+        id:
+          $ref: '#/components/schemas/RunnerId'
+        name:
+          type: string
+          maxLength: 100
+          description: Shown to operators only; users see who developed each Framework.
+        manifest:
+          $ref: '#/components/schemas/Manifest'
+
+    RegistrationResult:
+      type: object
+      required: [id, kid, state]
+      properties:
+        id:
+          $ref: '#/components/schemas/RunnerId'
+        kid:
+          $ref: '#/components/schemas/Kid'
+        state:
+          type: string
+          enum: [pending, approved]
+
+    PendingRegistration:
+      type: object
+      required: [runner_id, kid, kind, name, manifest, registered_at, expires_at]
+      properties:
+        runner_id:
+          $ref: '#/components/schemas/RunnerId'
+        kid:
+          $ref: '#/components/schemas/Kid'
+        kind:
+          type: string
+          enum: [runner, key]
+          description: '`runner` for an id no approved runner has, `key` for a new key of an approved runner'
+        name:
+          type: string
+        manifest:
+          $ref: '#/components/schemas/Manifest'
+        registered_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+    ApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [kid]
+      properties:
+        kid:
+          $ref: '#/components/schemas/Kid'
+        reads_observations:
+          type: boolean
+          default: false
+          description: Whether the runner may read SoilHive Observations through the inputs endpoint
+
+    Manifest:
+      type: object
+      description: >-
+        What a runner offers: its Frameworks and their Models (docs/adr/0078). Adapted from
+        crea-index-service's manifest.schema.json.
+      additionalProperties: false
+      required: [schemaVersion, frameworks]
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [1]
+        frameworks:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Framework'
+
+    Framework:
+      type: object
+      additionalProperties: false
+      required: [id, analysisType, texts, models]
+      properties:
+        id:
+          type: string
+          pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+          description: Unique within the runner
+        analysisType:
+          type: string
+          pattern: '^[a-z0-9_]+$'
+          description: >-
+            An Analysis Type id the dashboards plugin owns, such as `soil_health_index`. A Framework
+            whose type the plugin doesn't know shows under "Other".
+        texts:
+          type: object
+          description: One `FrameworkTexts` per language code, with English as the fallback
+          required: [en]
+          additionalProperties:
+            $ref: '#/components/schemas/FrameworkTexts'
+        links:
+          type: object
+          description: The URLs that `<a1>`…`<aN>` in the texts point to
+          additionalProperties:
+            type: string
+            format: uri
+            pattern: '^https://'
+        models:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Model'
+
+    FrameworkTexts:
+      type: object
+      description: >-
+        Rich text may use `<br>`, `<strong>`, `<ul>`, `<li>` and `<a1>`…`<aN>`, and nothing else.
+      additionalProperties: false
+      required: [title, developedBy]
+      properties:
+        title:
+          type: string
+        developedBy:
+          type: string
+        purpose:
+          type: string
+        methodology:
+          type: string
+        scope:
+          type: string
+        limitations:
+          type: string
+        references:
+          type: string
+
+    Model:
+      type: object
+      additionalProperties: false
+      required: [id, version, output, texts, inputs, classification]
+      properties:
+        id:
+          $ref: '#/components/schemas/ModelId'
+        version:
+          type: string
+          maxLength: 64
+          description: >-
+            Recorded on every Run. A new method or new thresholds make a new Model id, not a new
+            version.
+        output:
+          type: string
+          enum: [soil-index]
+        texts:
+          type: object
+          description: One `ModelTexts` per language code, with English as the fallback
+          required: [en]
+          additionalProperties:
+            $ref: '#/components/schemas/ModelTexts'
+        inputs:
+          type: array
+          description: Empty for a Model that uses only its own data, which then reads no inputs.
+          items:
+            $ref: '#/components/schemas/Input'
+        classification:
+          type: array
+          description: The official classes, as the dashboards plugin's Classification
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/ClassificationClass'
+        scoreFields:
+          type: array
+          description: The values from a score's metadata shown on hover, in order
+          items:
+            $ref: '#/components/schemas/ScoreField'
+
+    ModelTexts:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+
+    Input:
+      type: object
+      additionalProperties: false
+      required: [name, sources]
+      properties:
+        name:
+          type: string
+          description: The input's name inside the Model
+        sources:
+          type: array
+          minItems: 1
+          description: >-
+            The soil properties that can meet it, in order of preference. The core serves every
+            one, and the Model picks one per sample.
+          items:
+            $ref: '#/components/schemas/InputSource'
+
+    InputSource:
+      type: object
+      additionalProperties: false
+      required: [property, unit]
+      properties:
+        property:
+          $ref: '#/components/schemas/SoilPropertySlug'
+        unit:
+          type: string
+          description: The property's SoilHive standard unit
+
+    ClassificationClass:
+      type: object
+      additionalProperties: false
+      required: [name, color]
+      anyOf:
+        - required: [min]
+        - required: [max]
+      description: '`min` is included and `max` excluded; a missing bound is open.'
+      properties:
+        name:
+          $ref: '#/components/schemas/LocalizedText'
+        min:
+          type: number
+        max:
+          type: number
+        color:
+          type: string
+          pattern: '^#[0-9A-Fa-f]{6}$'
+
+    ScoreField:
+      oneOf:
+        - $ref: '#/components/schemas/MeasuredScoreField'
+        - $ref: '#/components/schemas/DepthScoreField'
+        - $ref: '#/components/schemas/UsdaTextureScoreField'
+      discriminator:
+        propertyName: kind
+        mapping:
+          measured: '#/components/schemas/MeasuredScoreField'
+          depth: '#/components/schemas/DepthScoreField'
+          usda-texture: '#/components/schemas/UsdaTextureScoreField'
+
+    ScoreFieldBase:
+      type: object
+      required: [kind, id]
+      properties:
+        kind:
+          type: string
+        id:
+          type: string
+          pattern: '^[a-z0-9_-]+$'
+          description: Unique within the Model
+        label:
+          allOf:
+            - $ref: '#/components/schemas/LocalizedText'
+          description: Without it, the plugin uses its own translation for `id`, if any.
+
+    MeasuredScoreField:
+      description: A number from the metadata, in an optional unit
+      allOf:
+        - $ref: '#/components/schemas/ScoreFieldBase'
+        - type: object
+          required: [key]
+          properties:
+            kind:
+              type: string
+              enum: [measured]
+            key:
+              type: string
+            unit:
+              type: string
+
+    DepthScoreField:
+      description: The depth range the score was sampled at
+      allOf:
+        - $ref: '#/components/schemas/ScoreFieldBase'
+        - type: object
+          required: [startKey, endKey]
+          properties:
+            kind:
+              type: string
+              enum: [depth]
+            startKey:
+              type: string
+            endKey:
+              type: string
+
+    UsdaTextureScoreField:
+      description: A USDA texture class, coded 1 to 12 as in the core's vocabulary, or already named
+      allOf:
+        - $ref: '#/components/schemas/ScoreFieldBase'
+        - type: object
+          required: [key]
+          properties:
+            kind:
+              type: string
+              enum: [usda-texture]
+            key:
+              type: string
+
+    ClaimRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        models:
+          type: array
+          minItems: 1
+          description: Claim only Runs of these Models
+          items:
+            $ref: '#/components/schemas/ModelId'
+
+    Claim:
+      type: object
+      required: [claim_id, run_id, model, model_version, attempt, lease_expires_at, unit_count, soil_properties]
+      properties:
+        claim_id:
+          type: string
+          format: uuid
+          description: Named by every later call on this Run
+        run_id:
+          type: string
+          format: uuid
+        model:
+          $ref: '#/components/schemas/ModelId'
+        model_version:
+          type: string
+          description: The Model's version when the Run was submitted
+        attempt:
+          type: integer
+          minimum: 1
+          maximum: 3
+        lease_expires_at:
+          type: string
+          format: date-time
+        unit_count:
+          type: integer
+        min_sampling_date:
+          type: string
+          nullable: true
+          description: As in the Run's request; scores outside the dates are dropped at finalize.
+        max_sampling_date:
+          type: string
+          nullable: true
+          description: As min_sampling_date
+        soil_properties:
+          type: array
+          description: The properties the inputs endpoint serves, taken from the Manifest at submission
+          items:
+            $ref: '#/components/schemas/SoilPropertySlug'
+
+    UnitLine:
+      type: object
+      description: One line of the units endpoint, in EPSG:4326
+      required: [unit_id, geometry]
+      properties:
+        unit_id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          nullable: true
+        geometry:
+          oneOf:
+            - $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Polygon'
+            - $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/MultiPolygon'
+
+    InputLine:
+      description: One line of the inputs endpoint, a `/soil-data` row. Its `soil_property` is the property's slug.
+      allOf:
+        - $ref: '../src/openapi.yaml#/components/schemas/SoilDataSample'
+
+    Progress:
+      type: object
+      additionalProperties: false
+      required: [percentage]
+      properties:
+        percentage:
+          type: integer
+          minimum: 0
+          maximum: 100
+        description:
+          type: string
+          maxLength: 200
+          description: Shown to users, such as "Scoring 3 areas"
+
+    ScoreLine:
+      type: object
+      description: One line of a score chunk
+      additionalProperties: false
+      required: [unit_id, geometry, value]
+      properties:
+        unit_id:
+          type: string
+          format: uuid
+          description: One of the Run's Units
+        geometry:
+          description: In EPSG:4326
+          oneOf:
+            - $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Point'
+            - $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/Polygon'
+            - $ref: '../src/GeoJSON-OAS3.yaml#/components/schemas/MultiPolygon'
+        value:
+          type: number
+        year:
+          type: integer
+        metadata:
+          type: object
+          additionalProperties: true
+          description: At most 4 KB. The Model's `scoreFields` read from it.
+
+    Completion:
+      type: object
+      additionalProperties: false
+      required: [chunks, provenance]
+      properties:
+        chunks:
+          type: integer
+          minimum: 0
+          description: How many chunks were sent, numbered from 1
+        provenance:
+          $ref: '#/components/schemas/Provenance'
+
+    Provenance:
+      type: object
+      description: >-
+        The Model's own account of the Run. Which Datasets the core served is recorded by the
+        core, not taken from here.
+      additionalProperties: false
+      required: [model_version]
+      properties:
+        model_version:
+          type: string
+        dataset_ids:
+          type: array
+          description: The Datasets the Model read
+          items:
+            type: string
+        skipped:
+          type: array
+          description: Samples the Model left out; they don't fail the Run.
+          items:
+            $ref: '#/components/schemas/SkippedSample'
+
+    SkippedSample:
+      type: object
+      additionalProperties: false
+      required: [ids, reason]
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          description: The `id`s of the input rows that make up the sample
+          items:
+            type: string
+        reason:
+          type: string
+
+    ModelError:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum: [insufficient-data, invalid-inputs, model-error]
+        message:
+          type: string
+          maxLength: 500
+          description: Shown to users, such as "Not enough data in this area"
+        details:
+          type: object
+          additionalProperties: true
+          description: For operators, never shown to users
