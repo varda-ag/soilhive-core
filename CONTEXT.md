@@ -374,6 +374,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A Soil Index **Run** has zero or more **Scored Geometries**, each with one year; the same location may be scored in several years
 - A **Model Runner** runs one or more **Models**, and each **Model** has exactly one Model Runner
 - A **Model Runner** is pending from its registration until an operator approves it, and while pending it gets no **Runs** and reads no data; only an operator approves it, and decides whether it may read Observations
+- A **Model Runner** may give up its own keys, but a new key, like a new Model Runner, works only once an operator approves it
 - An approved **Model Runner** is available while the core has heard from it recently, silent once it has not for a few minutes, and disabled once an operator turns it off; only an available Model Runner gets new **Runs**, and silence alone never removes it
 - Any signed-in user may start a **Run** of any **Model** of an available **Model Runner**; limiting a Model to some users would be an **Entitlement**, never a list kept on the Model Runner
 - A **Model Runner** has at most one **Manifest** at a time; the core refuses a **Run** naming a **Model** or a soil property its runner's Manifest does not declare
