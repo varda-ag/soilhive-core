@@ -1,6 +1,6 @@
 {
   "exportFormatVersion": 2,
-  "exportTime": "2026-11-10 00:00:00",
+  "exportTime": "2026-11-11 00:00:00",
   "containerVersion": {
     "path": "accounts/0/containers/0/versions/0",
     "accountId": "0",
@@ -272,6 +272,36 @@
                   {
                     "type": "TEMPLATE",
                     "key": "parameter",
+                    "value": "page_number"
+                  },
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameterValue",
+                    "value": "{{DLV - analytics.page_number}}"
+                  }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameter",
+                    "value": "total_pages"
+                  },
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameterValue",
+                    "value": "{{DLV - analytics.total_pages}}"
+                  }
+                ]
+              },
+              {
+                "type": "MAP",
+                "map": [
+                  {
+                    "type": "TEMPLATE",
+                    "key": "parameter",
                     "value": "traffic_type"
                   },
                   {
@@ -360,142 +390,6 @@
         "consentSettings": {
           "consentStatus": "NOT_SET"
         }
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "tagId": "3",
-        "name": "GA4 - Preview table pagination",
-        "type": "gaawe",
-        "parameter": [
-          {
-            "type": "BOOLEAN",
-            "key": "sendEcommerceData",
-            "value": "false"
-          },
-          {
-            "type": "TEMPLATE",
-            "key": "eventName",
-            "value": "explore_pagination"
-          },
-          {
-            "type": "TEMPLATE",
-            "key": "measurementIdOverride",
-            "value": "{{GA4 Measurement ID}}"
-          },
-          {
-            "type": "LIST",
-            "key": "eventSettingsTable",
-            "list": [
-              {
-                "type": "MAP",
-                "map": [
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameter",
-                    "value": "pagination_target"
-                  },
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameterValue",
-                    "value": "{{Pagination Target}}"
-                  }
-                ]
-              },
-              {
-                "type": "MAP",
-                "map": [
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameter",
-                    "value": "traffic_type"
-                  },
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameterValue",
-                    "value": "{{Traffic Type}}"
-                  }
-                ]
-              }
-            ]
-          }
-        ],
-        "firingTriggerId": ["3"],
-        "tagFiringOption": "ONCE_PER_EVENT",
-        "monitoringMetadata": {
-          "type": "MAP"
-        },
-        "consentSettings": {
-          "consentStatus": "NOT_SET"
-        }
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "tagId": "4",
-        "name": "GA4 - Download format select",
-        "type": "gaawe",
-        "parameter": [
-          {
-            "type": "BOOLEAN",
-            "key": "sendEcommerceData",
-            "value": "false"
-          },
-          {
-            "type": "TEMPLATE",
-            "key": "eventName",
-            "value": "download_format_select"
-          },
-          {
-            "type": "TEMPLATE",
-            "key": "measurementIdOverride",
-            "value": "{{GA4 Measurement ID}}"
-          },
-          {
-            "type": "LIST",
-            "key": "eventSettingsTable",
-            "list": [
-              {
-                "type": "MAP",
-                "map": [
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameter",
-                    "value": "format"
-                  },
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameterValue",
-                    "value": "{{Format Option}}"
-                  }
-                ]
-              },
-              {
-                "type": "MAP",
-                "map": [
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameter",
-                    "value": "traffic_type"
-                  },
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameterValue",
-                    "value": "{{Traffic Type}}"
-                  }
-                ]
-              }
-            ]
-          }
-        ],
-        "firingTriggerId": ["4"],
-        "tagFiringOption": "ONCE_PER_EVENT",
-        "monitoringMetadata": {
-          "type": "MAP"
-        },
-        "consentSettings": {
-          "consentStatus": "NOT_SET"
-        }
       }
     ],
     "trigger": [
@@ -517,7 +411,7 @@
               {
                 "type": "TEMPLATE",
                 "key": "arg1",
-                "value": "^(location_search|map_filter_change|download_data_request|dataset_name_search|explore_filter_change)$"
+                "value": "^(location_search|map_filter_change|download_data_request|dataset_name_search|explore_filter_change|explore_pagination|download_format_select)$"
               }
             ]
           }
@@ -542,84 +436,6 @@
                 "type": "TEMPLATE",
                 "key": "arg1",
                 "value": "[data-analytics], [data-analytics] *"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "triggerId": "3",
-        "name": "Click - Preview table paginator",
-        "type": "CLICK",
-        "filter": [
-          {
-            "type": "CSS_SELECTOR",
-            "parameter": [
-              {
-                "type": "TEMPLATE",
-                "key": "arg0",
-                "value": "{{Click Element}}"
-              },
-              {
-                "type": "TEMPLATE",
-                "key": "arg1",
-                "value": ".p-paginator button, .p-paginator button *"
-              }
-            ]
-          },
-          {
-            "type": "STARTS_WITH",
-            "parameter": [
-              {
-                "type": "TEMPLATE",
-                "key": "arg0",
-                "value": "{{Page Path}}"
-              },
-              {
-                "type": "TEMPLATE",
-                "key": "arg1",
-                "value": "/explore"
-              }
-            ]
-          }
-        ]
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "triggerId": "4",
-        "name": "Click - Download format option",
-        "type": "CLICK",
-        "filter": [
-          {
-            "type": "CSS_SELECTOR",
-            "parameter": [
-              {
-                "type": "TEMPLATE",
-                "key": "arg0",
-                "value": "{{Click Element}}"
-              },
-              {
-                "type": "TEMPLATE",
-                "key": "arg1",
-                "value": ".p-dropdown-item, .p-dropdown-item *"
-              }
-            ]
-          },
-          {
-            "type": "STARTS_WITH",
-            "parameter": [
-              {
-                "type": "TEMPLATE",
-                "key": "arg0",
-                "value": "{{Page Path}}"
-              },
-              {
-                "type": "TEMPLATE",
-                "key": "arg1",
-                "value": "/download"
               }
             ]
           }
@@ -1006,6 +822,56 @@
         "accountId": "0",
         "containerId": "0",
         "variableId": "16",
+        "name": "DLV - analytics.page_number",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "analytics.page_number"
+          }
+        ],
+        "formatValue": {}
+      },
+      {
+        "accountId": "0",
+        "containerId": "0",
+        "variableId": "17",
+        "name": "DLV - analytics.total_pages",
+        "type": "v",
+        "parameter": [
+          {
+            "type": "INTEGER",
+            "key": "dataLayerVersion",
+            "value": "2"
+          },
+          {
+            "type": "BOOLEAN",
+            "key": "setDefaultValue",
+            "value": "false"
+          },
+          {
+            "type": "TEMPLATE",
+            "key": "name",
+            "value": "analytics.total_pages"
+          }
+        ],
+        "formatValue": {}
+      },
+      {
+        "accountId": "0",
+        "containerId": "0",
+        "variableId": "18",
         "name": "GA4 Measurement ID",
         "type": "c",
         "parameter": [
@@ -1020,7 +886,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "17",
+        "variableId": "19",
         "name": "Traffic Type",
         "type": "smm",
         "parameter": [
@@ -1066,7 +932,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "18",
+        "variableId": "20",
         "name": "Analytics Click Name",
         "type": "jsm",
         "parameter": [
@@ -1081,7 +947,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "19",
+        "variableId": "21",
         "name": "Analytics Click Value",
         "type": "jsm",
         "parameter": [
@@ -1089,36 +955,6 @@
             "type": "TEMPLATE",
             "key": "javascript",
             "value": "function() {\n  var el = {{Click Element}};\n  el = el && el.closest ? el.closest('[data-analytics]') : null;\n  if (!el) return undefined;\n  if (el.type === 'checkbox') return el.checked ? 'on' : 'off';\n  return el.getAttribute('data-analytics-value') || undefined;\n}"
-          }
-        ],
-        "formatValue": {}
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "variableId": "20",
-        "name": "Pagination Target",
-        "type": "jsm",
-        "parameter": [
-          {
-            "type": "TEMPLATE",
-            "key": "javascript",
-            "value": "function() {\n  var el = {{Click Element}};\n  el = el && el.closest ? el.closest('.p-paginator button') : null;\n  if (!el) return undefined;\n  var c = ' ' + el.className + ' ';\n  if (c.indexOf(' p-paginator-first ') > -1) return 'first';\n  if (c.indexOf(' p-paginator-prev ') > -1) return 'previous';\n  if (c.indexOf(' p-paginator-next ') > -1) return 'next';\n  if (c.indexOf(' p-paginator-last ') > -1) return 'last';\n  return 'page_' + (el.textContent || '').replace(/\\s+/g, '');\n}"
-          }
-        ],
-        "formatValue": {}
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "variableId": "21",
-        "name": "Format Option",
-        "type": "jsm",
-        "parameter": [
-          {
-            "type": "TEMPLATE",
-            "key": "javascript",
-            "value": "function() {\n  var el = {{Click Element}};\n  el = el && el.closest ? el.closest('.p-dropdown-item') : null;\n  return el ? (el.getAttribute('aria-label') || (el.textContent || '').replace(/^\\s+|\\s+$/g, '')) : undefined;\n}"
           }
         ],
         "formatValue": {}
@@ -1136,12 +972,6 @@
         "containerId": "0",
         "type": "CLICK_ELEMENT",
         "name": "Click Element"
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "type": "PAGE_PATH",
-        "name": "Page Path"
       },
       {
         "accountId": "0",

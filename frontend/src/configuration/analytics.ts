@@ -28,6 +28,8 @@ export const ANALYTICS_EVENTS = {
   DOWNLOAD_DATA_REQUEST: 'download_data_request',
   DATASET_NAME_SEARCH: 'dataset_name_search',
   EXPLORE_FILTER_CHANGE: 'explore_filter_change',
+  EXPLORE_PAGINATION: 'explore_pagination',
+  DOWNLOAD_FORMAT_SELECT: 'download_format_select',
 } as const;
 
 export type AnalyticsEventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

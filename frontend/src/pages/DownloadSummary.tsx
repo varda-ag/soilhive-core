@@ -126,6 +126,9 @@ function DownloadSummary() {
     setSelectedFormat(e.value);
     if (e.value !== selectedFormat) {
       setShowUpdatedMessage(true);
+      // Sent from here, not caught by a GTM click trigger on the format list: that trigger would read
+      // PrimeReact's class names and labels, which an upgrade can change without any test failing
+      trackEvent(ANALYTICS_EVENTS.DOWNLOAD_FORMAT_SELECT, { format: e.value });
     }
   };
 

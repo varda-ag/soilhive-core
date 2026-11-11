@@ -275,6 +275,18 @@ describe('DownloadSummary', () => {
       expect(trackEvent).not.toHaveBeenCalled();
     });
 
+    it('sends download_format_select with the format the visitor picked, and nothing when it is the same one', () => {
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset], datasetsSummary: {} });
+      render(<DownloadSummary />);
+      const dropdown = screen.getByTestId('format-dropdown');
+
+      fireEvent.change(dropdown, { target: { value: 'gpkg' } });
+      fireEvent.change(dropdown, { target: { value: 'gpkg' } });
+
+      expect(trackEvent).toHaveBeenCalledTimes(1);
+      expect(trackEvent).toHaveBeenCalledWith('download_format_select', { format: 'gpkg' });
+    });
+
     it('marks the Download button for the GTM click trigger', () => {
       (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset], datasetsSummary: {} });
       render(<DownloadSummary />);
