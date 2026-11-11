@@ -224,6 +224,53 @@ describe('Testing GET /configs routes', () => {
     expect(res.body).toStrictEqual({ a: savedConfig(dataA) });
   });
 
+  describe('for a dashboards Config Kind id', () => {
+    const fullDashboard = {
+      name: 'D',
+      type: 'custom',
+      visibility: 'private',
+      status: 'ready',
+      soilIndexRunId: 'run-1',
+      framework: 'fw',
+      updated_by: 'someone@example.com',
+      datasets: ['ds-x'],
+      widgets: [{ id: 'w1' }],
+    };
+    const summary = Object.fromEntries(Object.entries(fullDashboard).filter(([key]) => !['datasets', 'widgets'].includes(key)));
+
+    it.each(['plugin:dashboards:dashboards:t1', 'dashboards:1'])('returns only the summary keys of %s and other ids in full', async id => {
+      const theme = { colour: 'red' };
+      const plugin = { datasets: ['ds-x'], other: 1 };
+      await request(app).put(`/configs/${id}`).set(superAdminAuthHeader).send(fullDashboard);
+      await request(app).put('/configs/theme').set(superAdminAuthHeader).send(theme);
+      await request(app).put('/configs/plugin:zones:zones:1').set(superAdminAuthHeader).send(plugin);
+
+      const res = await request(app)
+        .get('/configs')
+        .query({ ids: `${id},theme,plugin:zones:zones:1` })
+        .set(superAdminAuthHeader);
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toStrictEqual({
+        [id]: savedConfig(summary),
+        theme: savedConfig(theme),
+        'plugin:zones:zones:1': savedConfig(plugin),
+      });
+    });
+
+    it('leaves summary keys absent when the value lacks them', async () => {
+      await request(app).put('/configs/dashboards:1').set(superAdminAuthHeader).send({ name: 'D', widgets: [] });
+      const res = await request(app).get('/configs').query({ ids: 'dashboards:1' }).set(superAdminAuthHeader);
+      expect(res.body['dashboards:1'].data).toStrictEqual({ name: 'D' });
+    });
+
+    // PUT accepts only objects, so these values are written straight to the table
+    it.each([[[{ name: 'D', widgets: [] }]], ['text']])('returns a value that is not an object unchanged: %p', async data => {
+      await (await getDataSource()).getRepository('JsonStorage').save({ id: 'dashboards:1', data });
+      const res = await request(app).get('/configs').query({ ids: 'dashboards:1' }).set(superAdminAuthHeader);
+      expect(res.body['dashboards:1'].data).toStrictEqual(data);
+    });
+  });
+
   it('Missing ids query param should fail', async () => {
     const res = await request(app).get('/configs');
     expect(res.statusCode).toBe(400);

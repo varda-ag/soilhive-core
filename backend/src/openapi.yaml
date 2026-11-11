@@ -317,7 +317,10 @@ paths:
       description: >-
         No security scheme: stays anonymous-friendly, same as GET /configs/{configId}. Ids the
         caller lacks READ/WRITE on (EVERYONE's grants count) are silently omitted from the
-        response, the same precedent already used for ids that don't exist.
+        response, the same precedent already used for ids that don't exist. A `dashboards` Config
+        Kind id returns only the summary keys of its value (name, type, visibility, status,
+        soilIndexRunId, framework, updated_by), for every caller; GET /configs/{configId} and
+        POST /configs-export return the full value (ADR-0079).
       tags:
         - configs
       parameters:

@@ -8,8 +8,8 @@ import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig'
 import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
-import EntitlementService, { configForbidden } from './EntitlementService';
-import { EntitlementScope } from '../types/Entitlements';
+import EntitlementService, { configForbidden, DASHBOARD_SUMMARY_KEYS, hasConfigKind } from './EntitlementService';
+import { ConfigKind, EntitlementScope } from '../types/Entitlements';
 
 // Global Raster Filter sources run to several GB (docs/adr/0067)
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 5000;
@@ -29,6 +29,16 @@ export interface SavedConfig {
   // ISO 8601, UTC: the last save of the config.
   updated_at: string;
 }
+
+/** The summary keys of a dashboard object value; any other value is returned as it is. */
+const dashboardSummary = (data: unknown): unknown => {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return data;
+  }
+  return Object.fromEntries(
+    DASHBOARD_SUMMARY_KEYS.filter(key => Object.hasOwn(data, key)).map(key => [key, (data as Record<string, unknown>)[key]]),
+  );
+};
 
 export default class ConfigService {
   private readConfigRow = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
@@ -103,13 +113,19 @@ export default class ConfigService {
 
   /**
    * Silently omits ids the caller can't read from the result map — the same precedent
-   * `getConfigs` already sets for ids that don't exist at all (see ADR 0037).
+   * `getConfigs` already sets for ids that don't exist at all (see ADR 0037). A `dashboards`
+   * Config Kind id returns only its summary keys, for every caller (ADR-0079).
    */
   getConfigs = async (requestData: RequestData, ids: string[]): Promise<Record<string, SavedConfig>> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
     const readableRows = rows.filter(row => entitlementService.canConfig(requestData, row.id, Capability.READ));
-    return Object.fromEntries(readableRows.map(r => [r.id, { data: r.data, updated_at: r.updated_at!.toISOString() }]));
+    return Object.fromEntries(
+      readableRows.map(r => {
+        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS) ? dashboardSummary(r.data) : r.data;
+        return [r.id, { data, updated_at: r.updated_at!.toISOString() }];
+      }),
+    );
   };
 
   // Export keeps the bare `{ [id]: data }` shape, so exported files still import (ADR 0063).
