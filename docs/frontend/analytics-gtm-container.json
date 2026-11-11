@@ -12,7 +12,9 @@
       "containerId": "0",
       "name": "SoilHive usage analytics",
       "publicId": "GTM-XXXXXXX",
-      "usageContext": ["WEB"]
+      "usageContext": [
+        "WEB"
+      ]
     },
     "tag": [
       {
@@ -35,7 +37,7 @@
           {
             "type": "TEMPLATE",
             "key": "measurementIdOverride",
-            "value": "{{GA4 Measurement ID}}"
+            "value": "{{GA measurement ID}}"
           },
           {
             "type": "LIST",
@@ -314,7 +316,9 @@
             ]
           }
         ],
-        "firingTriggerId": ["1"],
+        "firingTriggerId": [
+          "1"
+        ],
         "tagFiringOption": "ONCE_PER_EVENT",
         "monitoringMetadata": {
           "type": "MAP"
@@ -343,7 +347,7 @@
           {
             "type": "TEMPLATE",
             "key": "measurementIdOverride",
-            "value": "{{GA4 Measurement ID}}"
+            "value": "{{GA measurement ID}}"
           },
           {
             "type": "LIST",
@@ -382,7 +386,9 @@
             ]
           }
         ],
-        "firingTriggerId": ["2"],
+        "firingTriggerId": [
+          "2"
+        ],
         "tagFiringOption": "ONCE_PER_EVENT",
         "monitoringMetadata": {
           "type": "MAP"
@@ -872,21 +878,6 @@
         "accountId": "0",
         "containerId": "0",
         "variableId": "18",
-        "name": "GA4 Measurement ID",
-        "type": "c",
-        "parameter": [
-          {
-            "type": "TEMPLATE",
-            "key": "value",
-            "value": "G-XXXXXXXXXX"
-          }
-        ],
-        "formatValue": {}
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "variableId": "19",
         "name": "Traffic Type",
         "type": "smm",
         "parameter": [
@@ -932,7 +923,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "20",
+        "variableId": "19",
         "name": "Analytics Click Name",
         "type": "jsm",
         "parameter": [
@@ -947,7 +938,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "21",
+        "variableId": "20",
         "name": "Analytics Click Value",
         "type": "jsm",
         "parameter": [

@@ -61,14 +61,14 @@ Visits to each page come from GA4's own `page_view`, with "Page changes based on
 
 ## Setting up the GTM container
 
-[analytics-gtm-container.json](analytics-gtm-container.json) holds everything below. Import it into a new workspace of your container (Admin → Import container → Merge, rename conflicting items), set the `GA4 Measurement ID` constant and your production host in `Traffic Type`, and check it in Preview before publishing. If the import fails, build it by hand from this list.
+[analytics-gtm-container.json](analytics-gtm-container.json) holds everything below. Import it into a new workspace of your container (Admin → Import container → Merge, rename conflicting items), set your production host in `Traffic Type`, and check it in Preview before publishing. If the import fails, build it by hand from this list.
 
 **Built-in variables:** Event, Click Element, Page Hostname.
 
 **Variables**
 
 - Data Layer Variables, version 2, one per parameter above, named `DLV - analytics.<parameter>` and reading `analytics.<parameter>`.
-- `GA4 Measurement ID`: Constant, your `G-` ID.
+- `GA measurement ID`: not in the import file. The tags read the container's own variable of that name, usually the one its Google tag uses; if your container has none, add a Constant with your `G-` ID under that exact name before importing.
 - `Traffic Type`: Lookup Table on Page Hostname. Your production host gives an empty value, anything else gives `internal`.
 - Custom JavaScript:
   - `Analytics Click Name`: the `data-analytics` attribute of `{{Click Element}}.closest('[data-analytics]')`.
@@ -79,7 +79,7 @@ Visits to each page come from GA4's own `page_view`, with "Page changes based on
 - `CE - SoilHive usage events`: Custom Event, event name matches the regex `^(location_search|map_filter_change|download_data_request|dataset_name_search|explore_filter_change|explore_pagination|download_format_select)$`.
 - `Click - data-analytics`: Click, All Elements, when Click Element matches the CSS selector `[data-analytics], [data-analytics] *`.
 
-**Tags** (GA4 Event, measurement ID `{{GA4 Measurement ID}}`, each with `traffic_type` = `{{Traffic Type}}`)
+**Tags** (GA4 Event, measurement ID `{{GA measurement ID}}`, each with `traffic_type` = `{{Traffic Type}}`)
 
 - `GA4 - SoilHive usage events`: event name `{{Event}}`, every parameter of the code events mapped to its Data Layer Variable. Fires on `CE - SoilHive usage events`.
 - `GA4 - Clicks`: event name `{{Analytics Click Name}}`, `click_value` = `{{Analytics Click Value}}`. Fires on `Click - data-analytics`.
