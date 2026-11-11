@@ -93,7 +93,6 @@ export const assertConfigAccess = async (
     throw new ErrorResponse(`${resource} requires ${capability} on its config`, StatusCodes.FORBIDDEN);
   }
   if (capability === Capability.READ) {
-    const row = await requestData.entityManager.getRepository(JsonStorage).findOneBy({ id: configId });
-    await entitlementService.assertConfigDatasets(requestData, configId, row?.data);
+    await entitlementService.assertStoredConfigDatasets(requestData, configId);
   }
 };

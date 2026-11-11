@@ -83,3 +83,9 @@ export const getSubject = (requestData: RequestData): string => {
   }
   return requestData.token?.email ?? sub;
 };
+
+/**
+ * The Subject the caller acts under, or undefined when the request carries no token. Unlike
+ * getSubject, an anonymous caller is not a 401: it is covered by EVERYONE's grants.
+ */
+export const subjectOf = (requestData: RequestData): string | undefined => (requestData.token ? getSubject(requestData) : undefined);

@@ -277,13 +277,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConfigItem'
         '403':
-          description: >-
-            Forbidden. When the caller may read the dashboard but not its Datasets, the body also
-            has `datasets` and `has_unavailable_datasets`.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DashboardDatasetsForbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -1061,13 +1055,7 @@ paths:
               schema:
                 $ref: '../src/data-requests.yaml#/components/schemas/DataRequest'
         '403':
-          description: >-
-            Forbidden. When the config item is a dashboard and the caller may read it but not its
-            Datasets, the body also has `datasets` and `has_unavailable_datasets`.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DashboardDatasetsForbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -1154,13 +1142,7 @@ paths:
               schema:
                 $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexRun'
         '403':
-          description: >-
-            Forbidden. When the config item is a dashboard and the caller may read it but not its
-            Datasets, the body also has `datasets` and `has_unavailable_datasets`.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DashboardDatasetsForbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -3033,6 +3015,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    DashboardDatasetsForbidden:
+      description: >-
+        Forbidden. When the config item is a dashboard and the caller may read it but not its
+        Datasets, the body also has `datasets` and `has_unavailable_datasets`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DashboardDatasetsForbidden'
     Conflict:
       description: Conflict
       content:

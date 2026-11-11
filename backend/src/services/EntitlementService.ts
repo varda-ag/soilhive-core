@@ -11,7 +11,7 @@ import { isCacheBypassed } from '../utils/cache-bypass';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { existingDatasets, existingDatasetsByName, getEntitySlugs } from '../utils/slugs';
-import { datasetCapabilities, getSubject, isPrivilegedCaller } from '../utils/auth';
+import { datasetCapabilities, getSubject, isPrivilegedCaller, subjectOf } from '../utils/auth';
 import { getEntitlementsCacheTtlMs } from '../utils/utils';
 import { JsonStorage } from '../entities/JsonStorage';
 
@@ -438,7 +438,7 @@ export default class EntitlementService {
     if (isPrivilegedCaller(requestData.token)) {
       return true;
     }
-    const subject = requestData.token ? getSubject(requestData) : undefined;
+    const subject = subjectOf(requestData);
     const rows: { capabilities: unknown }[] = await requestData.entityManager.query(
       `SELECT "data"->'configs'->$1::text AS capabilities FROM "entitlements" WHERE "id" = ANY($2::text[]) AND "deleted_at" IS NULL`,
       [key, subject ? [EVERYONE, subject] : [EVERYONE]],
@@ -543,7 +543,7 @@ export default class EntitlementService {
    * grants when a Dataset is private, as some routes that call it load none.
    */
   async assertConfigDatasets(requestData: RequestData, configId: string, data: unknown): Promise<void> {
-    if (isPrivilegedCaller(requestData.token) || !hasConfigKind(configId, ConfigKind.DASHBOARDS)) {
+    if (!this.checksConfigDatasets(requestData, configId)) {
       return;
     }
     const slugs = dashboardDatasetSlugs(data);
@@ -551,10 +551,7 @@ export default class EntitlementService {
     const hasUnavailable = slugs.some(slug => !datasetByName.has(slug));
     const hasPrivate = [...datasetByName.values()].some(dataset => dataset.visibility === 'private');
     const caller = hasPrivate
-      ? {
-          ...requestData,
-          entitlements: await this.getUserEntitlements(requestData, requestData.token ? getSubject(requestData) : undefined),
-        }
+      ? { ...requestData, entitlements: await this.getUserEntitlements(requestData, subjectOf(requestData)) }
       : requestData;
     // In the dashboard's order, once each
     const denied = new Set(
@@ -570,4 +567,17 @@ export default class EntitlementService {
       });
     }
   }
+
+  /** `assertConfigDatasets` on the stored config item. Reads the row only when the check applies. */
+  async assertStoredConfigDatasets(requestData: RequestData, configId: string): Promise<void> {
+    if (!this.checksConfigDatasets(requestData, configId)) {
+      return;
+    }
+    const row = await requestData.entityManager.getRepository(JsonStorage).findOneBy({ id: configId });
+    await this.assertConfigDatasets(requestData, configId, row?.data);
+  }
+
+  /** Whether the dashboard dataset check applies: a `dashboards` Config Kind id and a caller that is not privileged. */
+  private checksConfigDatasets = (requestData: RequestData, configId: string): boolean =>
+    !isPrivilegedCaller(requestData.token) && hasConfigKind(configId, ConfigKind.DASHBOARDS);
 }

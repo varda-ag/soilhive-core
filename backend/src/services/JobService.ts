@@ -23,7 +23,7 @@ import SoilPropertyService from './SoilPropertyService';
 import { DataFilter } from '../interfaces/DatasetFilter';
 import { misplacedParameter, notASoilIndexRun, parametersProblem, SAME_CORRELATION_VARIABLES } from '../jobs/data-requests/parameters';
 import { soilIndexRunExists } from '../data-layer/SoilIndex';
-import { getSubject, isPrivilegedCaller } from '../utils/auth';
+import { isPrivilegedCaller, subjectOf } from '../utils/auth';
 import { log } from '../utils/logger';
 import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES, hasRasterFileToLoad } from '../data-layer/DatasetJobs';
@@ -36,16 +36,6 @@ import DatasetEntity from '../entities/Dataset';
 import { EntityType, IngestionStatus } from '../types/data';
 
 const entitlementService = new EntitlementService();
-
-/**
- * The Subject the caller acts under, or undefined when the request carries no token.
- *
- * getSubject throws 401 on a missing sub, which is wrong for the job reads: an anonymous
- * export job (created_by null) is deliberately readable without a token, so absence of a
- * caller has to be representable rather than an error. Routes that do require a caller
- * raise their own 401 before comparing.
- */
-const subjectOf = (requestData: RequestData): string | undefined => (requestData.token ? getSubject(requestData) : undefined);
 
 const UNFINISHED_STATES: string[] = ['created', 'retry', 'active'];
 
