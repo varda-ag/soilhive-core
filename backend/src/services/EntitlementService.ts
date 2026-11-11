@@ -66,9 +66,6 @@ export const hasConfigKind = (key: string, kind: ConfigKind): boolean => {
   return id.length > prefix.length && id.startsWith(prefix);
 };
 
-/** The keys of a dashboard value that `GET /configs` returns: what the dashboard list shows (ADR-0079). */
-export const DASHBOARD_SUMMARY_KEYS = ['name', 'type', 'visibility', 'status', 'soilIndexRunId', 'framework', 'updated_by'];
-
 /** The string entries of a dashboard's top-level `datasets` array. The value is untrusted JSON. */
 const dashboardDatasetSlugs = (data: unknown): string[] => {
   const datasets = (data as { datasets?: unknown } | null)?.datasets;

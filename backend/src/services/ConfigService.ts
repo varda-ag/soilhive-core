@@ -8,7 +8,7 @@ import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig'
 import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
-import EntitlementService, { configForbidden, DASHBOARD_SUMMARY_KEYS, hasConfigKind } from './EntitlementService';
+import EntitlementService, { configForbidden, hasConfigKind } from './EntitlementService';
 import { ConfigKind, EntitlementScope } from '../types/Entitlements';
 
 // Global Raster Filter sources run to several GB (docs/adr/0067)
@@ -17,6 +17,9 @@ const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
 const DEFAULT_S3_STORAGE_QUEUE_SIZE = 4;
 
 const entitlementService = new EntitlementService();
+
+/** The keys of a dashboard value that `GET /configs` returns: what the dashboard list shows (ADR-0079). */
+const DASHBOARD_SUMMARY_KEYS = ['name', 'type', 'visibility', 'status', 'soilIndexRunId', 'framework', 'updated_by'];
 
 export interface LogoData {
   fileKey: string;
