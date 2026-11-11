@@ -3,7 +3,9 @@ import { StatusCodes } from 'http-status-codes';
 
 export const errorMiddleware = async (err: any, req: Request, res: Response, _: NextFunction) => {
   // Customize errors into RFC 7807 problem format
+  // Standard members come last, so an extension cannot replace them
   const problemDetails = {
+    ...err.extensions,
     title: err.name || 'Invalid request',
     status: err.status,
     detail: err.message || err.detail,
