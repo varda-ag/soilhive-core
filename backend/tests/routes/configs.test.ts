@@ -5,6 +5,8 @@ import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { getSuperAdminToken, getUserToken } from '../helper';
 import { IncomingHttpHeaders } from 'http';
 import { EVERYONE } from '../../src/constants/constants';
+import { addDataset } from '../../src/utils/mock';
+import DatasetEntity from '../../src/entities/Dataset';
 
 const ID = 'test-config';
 
@@ -55,6 +57,24 @@ describe('Testing /configs/{id} routes', () => {
     const res = await request(app).get('/configs/test-config').set('Authorization', `Bearer ${token}`);
     expect(res.statusCode).toBe(200);
     expect(res.body).toStrictEqual(data);
+  });
+
+  it('GET responds with 403 naming the private Datasets of a dashboard the caller may not preview', async () => {
+    const dashboardId = 'plugin:dashboards:dashboards:t1';
+    await addDataset('ds-x', [0, 0, 1, 1]);
+    await addDataset('ds-public', [0, 0, 1, 1]);
+    await (await getDataSource()).getRepository(DatasetEntity).update({ slug: 'ds-x' }, { visibility: 'private' });
+    await (await getDataSource())
+      .getRepository('JsonStorage')
+      .save({ id: dashboardId, data: { name: 'D', datasets: ['ds-x', 'ds-public'] } });
+    const subjectEmail = 'reader@example.com';
+    await grantConfigCapability(subjectEmail, dashboardId, ['read']);
+
+    const res = await request(app)
+      .get(`/configs/${dashboardId}`)
+      .set('Authorization', `Bearer ${getUserToken('reader-id', subjectEmail)}`);
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toMatchObject({ status: 403, datasets: ['ds-x'], has_unavailable_datasets: false });
   });
 
   it('DELETE removes the config', async () => {

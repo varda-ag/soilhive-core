@@ -10,7 +10,7 @@ import { Capability } from '../types/enums';
 import { isCacheBypassed } from '../utils/cache-bypass';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
-import { existingDatasets, getEntitySlugs } from '../utils/slugs';
+import { existingDatasets, existingDatasetsByName, getEntitySlugs } from '../utils/slugs';
 import { datasetCapabilities, getSubject, isPrivilegedCaller } from '../utils/auth';
 import { getEntitlementsCacheTtlMs } from '../utils/utils';
 import { JsonStorage } from '../entities/JsonStorage';
@@ -58,6 +58,19 @@ export const resetEntitlementsCache = (): void => {
 
 /** Whether `scope` is a Config Kind (a filtered view over `configs`, see `selectByScope`) rather than a storage namespace. */
 const isConfigKind = (scope: RequestScope): scope is ConfigKind => Object.values<string>(ConfigKind).includes(scope);
+
+/** Whether a config id, after any Plugin Namespace, is `${kind}:` plus a non-empty id. */
+export const hasConfigKind = (key: string, kind: ConfigKind): boolean => {
+  const prefix = `${kind}:`;
+  const id = PLUGIN_CONFIG_ID_PATTERN.exec(key)?.[2] ?? key;
+  return id.length > prefix.length && id.startsWith(prefix);
+};
+
+/** The string entries of a dashboard's top-level `datasets` array. The value is untrusted JSON. */
+const dashboardDatasetSlugs = (data: unknown): string[] => {
+  const datasets = (data as { datasets?: unknown } | null)?.datasets;
+  return Array.isArray(datasets) ? datasets.filter((slug): slug is string => typeof slug === 'string') : [];
+};
 
 /** De-duplicated, sorted union of two capability lists. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
@@ -212,12 +225,7 @@ export default class EntitlementService {
       return entitlements[scope] ?? {};
     }
     const configs = entitlements.configs ?? {};
-    const prefix = `${scope}:`;
-    const hasKind = (key: string): boolean => {
-      const id = PLUGIN_CONFIG_ID_PATTERN.exec(key)?.[2] ?? key;
-      return id.length > prefix.length && id.startsWith(prefix);
-    };
-    return Object.fromEntries(Object.entries(configs).filter(([key]) => hasKind(key)));
+    return Object.fromEntries(Object.entries(configs).filter(([key]) => hasConfigKind(key, scope)));
   };
 
   /**
@@ -525,5 +533,33 @@ export default class EntitlementService {
       throw new ErrorResponse(`User does not have ${capability} entitlement for datasets ${denied.slug}`, StatusCodes.FORBIDDEN);
     }
     return datasets.map(dataset => dataset.slug);
+  }
+
+  /**
+   * A dashboard is readable only with `preview` on each private Dataset in its `datasets` (ADR-0079).
+   * Checks only `dashboards` Config Kind ids, and a Privileged caller passes. The 403 names the
+   * private Datasets by current slug. An unpublished or deleted Dataset sets only
+   * `has_unavailable_datasets`, so its id is not revealed (docs/adr/0057).
+   */
+  async assertConfigDatasets(requestData: RequestData, configId: string, data: unknown): Promise<void> {
+    if (isPrivilegedCaller(requestData.token) || !hasConfigKind(configId, ConfigKind.DASHBOARDS)) {
+      return;
+    }
+    const slugs = dashboardDatasetSlugs(data);
+    const datasetByName = await existingDatasetsByName(requestData, slugs);
+    const hasUnavailable = slugs.some(slug => !datasetByName.has(slug));
+    // In the dashboard's order, once each
+    const denied = new Set(
+      slugs.flatMap(slug => {
+        const dataset = datasetByName.get(slug);
+        return dataset && !datasetCapabilities(requestData, dataset).includes(Capability.PREVIEW) ? [dataset.slug] : [];
+      }),
+    );
+    if (denied.size > 0 || hasUnavailable) {
+      throw new ErrorResponse(`User lacks access to datasets of dashboard ${configId}`, StatusCodes.FORBIDDEN, {
+        datasets: [...denied],
+        has_unavailable_datasets: hasUnavailable,
+      });
+    }
   }
 }

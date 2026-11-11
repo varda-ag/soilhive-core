@@ -264,7 +264,9 @@ paths:
       description: >-
         No security scheme: stays anonymous-friendly, since the frontend fetches theme/logo before
         login. Requires READ or WRITE on the config (EVERYONE's grants count), or a privileged
-        caller; an anonymous caller relies solely on an EVERYONE grant.
+        caller; an anonymous caller relies solely on an EVERYONE grant. For a `dashboards` Config
+        Kind id, a non-privileged caller also needs `preview` on each private Dataset in the
+        top-level `datasets` array, and each of those Datasets must exist (ADR-0079).
       tags:
         - configs
       responses:
@@ -275,7 +277,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConfigItem'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden. When the caller may read the dashboard but not its Datasets, the body also
+            has `datasets` and `has_unavailable_datasets`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -3160,6 +3168,21 @@ components:
 
     ConfigItem:
       type: object
+
+    DashboardDatasetsForbidden:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            datasets:
+              type: array
+              items:
+                type: string
+              description: Current slugs of the private Datasets the caller needs `preview` on.
+              example: ['ds-x']
+            has_unavailable_datasets:
+              type: boolean
+              description: True when a listed Dataset is unpublished, deleted or unknown. Its id is not given.
 
     ErrorResponse:
       type: object

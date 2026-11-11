@@ -85,6 +85,7 @@ export default class ConfigService {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const data = await this.readConfigRow(repo, id);
     entitlementService.assertConfig(requestData, id, Capability.READ);
+    await entitlementService.assertConfigDatasets(requestData, id, data);
     return data;
   };
 
