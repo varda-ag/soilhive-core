@@ -33,7 +33,7 @@ export async function getInstallStates(entityManager: EntityManager, ids: string
        (data->>'progress_percentage')::float AS progress_percentage,
        data->>'progress_description' AS progress_description,
        data->'errors' AS errors,
-       COALESCE(output->>'message', output->'value'->>'message') AS output_message
+       COALESCE(output->>'message', output->'value'->>'message', output->>'value') AS output_message
      FROM ${PG_BOSS_SCHEMA}.job
      WHERE name = $1 AND data->>'raster_filter_id' = ANY($2)
      ORDER BY data->>'raster_filter_id', created_on DESC`,
@@ -54,7 +54,8 @@ function installState(isInstalled: boolean, job: InstallJobRow | undefined): Ras
   if (isInstalled) {
     return { status: 'installed', job_id: jobId, errors: [] };
   }
-  if (job?.state === 'created') {
+  // A job waiting for its retry is queued again (docs/adr/0079)
+  if (job?.state === 'created' || job?.state === 'retry') {
     return { status: 'queued', job_id: jobId, errors: [] };
   }
   if (job?.state === 'active') {
@@ -88,12 +89,12 @@ function installState(isInstalled: boolean, job: InstallJobRow | undefined): Ras
 export async function assertNoUnfinishedInstall(entityManager: EntityManager, id: string): Promise<void> {
   const [job]: { id: string; state: string }[] = await entityManager.query(
     `SELECT id, state FROM ${PG_BOSS_SCHEMA}.job
-     WHERE name = $1 AND state IN ('created', 'active') AND data->>'raster_filter_id' = $2
+     WHERE name = $1 AND state IN ('created', 'retry', 'active') AND data->>'raster_filter_id' = $2
      LIMIT 1`,
     [JobQueues.RASTER_FILTER_INSTALL, id],
   );
   if (job) {
-    const state = job.state === 'created' ? 'queued' : 'running';
+    const state = job.state === 'active' ? 'running' : 'queued';
     throw new ErrorResponse(`Raster filter '${id}' has an install ${state} (${job.id}): try again once it finishes`, StatusCodes.CONFLICT);
   }
 }

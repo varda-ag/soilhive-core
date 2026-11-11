@@ -378,7 +378,7 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "Publishing '{version_name}' into '{dataset_name}' took too long and was stopped. Nothing was published.",
     actions: ['Try publishing again; if it keeps timing out, contact support'],
   },
-  // Not thrown as a JobError: see QUEUE_REAP_CODES
+  // Not thrown as a JobError: see QUEUE_REAP_CODES. Any Interruption, not only a heartbeat timeout.
   QUEUE_HEARTBEAT_TIMEOUT: {
     message: 'The job was interrupted before it could finish.',
     actions: ['Please try again.'],
@@ -405,12 +405,24 @@ const FALLBACK: JobErrorMessage = {
 // The code recorded for a failure that is not a JobError (check-constraint violation, statement timeout, dropped connection)
 export const UNEXPECTED_JOB_ERROR_CODE = 'UNEXPECTED_ERROR';
 
-// pg-boss kills jobs that stopped checking in (heartbeatSeconds) or that outlived its expiry (expireInSeconds)
-// from a maintenance query, so nothing lands in data.errors.
+// pg-boss fails jobs that stopped checking in (heartbeatSeconds), that outlived its expiry (expireInSeconds),
+// or that were still running when the process stopped, without running our code, so nothing lands in data.errors.
 // These raw strings in the job's output are the only explanation: here we map them to a code in JOB_ERROR_MESSAGES.
 const QUEUE_REAP_CODES: Record<string, string> = {
   'job heartbeat timeout': 'QUEUE_HEARTBEAT_TIMEOUT',
+  'pg-boss shut down while active': 'QUEUE_HEARTBEAT_TIMEOUT',
   'job timed out': 'QUEUE_JOB_TIMED_OUT',
+};
+
+// The raw output messages of an Interruption: the only failures that are retried (docs/adr/0079)
+export const INTERRUPTION_MESSAGES = ['job heartbeat timeout', 'pg-boss shut down while active'];
+
+// The raw message in a failed job's output: an Error's own, the monitor's nested one, or a plain string from fail()
+export const outputMessage = (output: unknown): string | undefined => {
+  const o = output as { message?: unknown; value?: unknown } | null | undefined;
+  const value = o?.value as { message?: unknown } | string | null | undefined;
+  const raw = o?.message ?? (typeof value === 'string' ? value : value?.message);
+  return typeof raw === 'string' ? raw : undefined;
 };
 
 // The raw output messages pg-boss writes when it reaps a job

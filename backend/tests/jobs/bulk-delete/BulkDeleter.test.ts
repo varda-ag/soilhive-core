@@ -1,4 +1,5 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { Job } from 'pg-boss';
@@ -25,9 +26,11 @@ const DEFAULT_RASTER_FIXTURE = 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017
 // these tiny fixtures. Lowering it here doesn't affect production (see computeRasterFootprints.ts).
 (computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
-const getJob = (dataset_id: string): Job<BulkDeleteJob> => {
+// A uuid: the job records the Dataset's previous status on its pg-boss row by id.
+// `later` is what an earlier Attempt recorded, making this a later Attempt.
+const getJob = (dataset_id: string, later: { previous_status?: IngestionStatus } = {}): Job<BulkDeleteJob> => {
   return {
-    id: 'mock-id',
+    id: randomUUID(),
     name: 'mock-job',
     expireInSeconds: 60,
     signal: AbortSignal.timeout(10000),
@@ -38,10 +41,14 @@ const getJob = (dataset_id: string): Job<BulkDeleteJob> => {
       dataset_id,
       isDataAdmin: true,
       isSuperAdmin: false,
+      ...later,
     },
     heartbeatSeconds: 10,
   };
 };
+
+const statementTimeout = () =>
+  new QueryFailedError('DELETE ...', [], Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' }));
 
 // A vector purge queues an orphan sweep; pg-boss isn't started in this suite
 let sendSpy: jest.Mock;
@@ -424,5 +431,92 @@ describe('BulkDeleter class - errors', () => {
       { id: 'everyone', data: { [dataset.slug]: ['download'] } },
       { id: 'user1@example.com', data: { [dataset.slug]: ['preview'] } },
     ]);
+  });
+});
+
+// A later Attempt runs after an Interruption (ADR 0079): the same job, with what the earlier one recorded
+describe('BulkDeleter class - later Attempts', () => {
+  const requestData = async () => ({ entityManager: await getEntityManager(), token: { sub: 'test-user' } as Token, entitlements: {} });
+
+  it('records the status it archives the dataset from, on its job row', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 110, featureCount: 1 });
+    const entityManager = await getEntityManager();
+    const querySpy = jest.spyOn(entityManager, 'query');
+
+    const job = getJob(dataset.slug);
+    await BulkDeleterModule.processBulkDeletion(job);
+
+    // The merge, not clearDatasetErrors' earlier jsonb_set on the same table
+    const record = querySpy.mock.calls.find(([sql]) => /UPDATE \S+\.job SET data = data \|\|/.test(String(sql)));
+    expect(record?.[1]).toEqual([JSON.stringify({ previous_status: IngestionStatus.PUBLISHED }), job.id]);
+  });
+
+  it('finishes the purge of a dataset an earlier Attempt archived', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 111, featureCount: 2 });
+    const entityManager = await getEntityManager();
+    await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ('user1@example.com', $1)`, [
+      JSON.stringify({ datasets: { [dataset.slug]: ['download'] } }),
+    ]);
+    // Where an Interruption after the archive leaves it: the purge transaction never committed
+    await new DatasetService().deleteDataset(await requestData(), dataset.slug, true);
+
+    await BulkDeleterModule.processBulkDeletion(getJob(dataset.slug, { previous_status: IngestionStatus.PUBLISHED }));
+
+    const purged = await getLoadedDataCount();
+    expect(purged.n_dataset_layers).toBe(0);
+    expect(purged.n_observations).toBe(0);
+    expect(sendSpy).toHaveBeenCalledWith(JobQueues.SWEEP_ORPHAN_ROWS, {});
+    const archived = await entityManager.getRepository(DatasetEntity).findOne({ where: { id: dataset.id }, withDeleted: true });
+    expect(archived?.status).toBe(IngestionStatus.ARCHIVED);
+    expect(archived?.deleted_at).not.toBeNull();
+    const rows = await entityManager.query(`SELECT data FROM entitlements WHERE id = 'user1@example.com'`);
+    expect(rows[0].data).toEqual({ datasets: {} });
+  });
+
+  it('archives and purges a dataset an earlier Attempt was cut off before archiving', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 112, featureCount: 1 });
+
+    await BulkDeleterModule.processBulkDeletion(getJob(dataset.slug, { previous_status: IngestionStatus.PUBLISHED }));
+
+    expect((await getLoadedDataCount()).n_dataset_layers).toBe(0);
+    const repo = (await getDataSource()).getRepository(DatasetEntity);
+    expect(await repo.findOneBy({ id: dataset.id })).toBeNull();
+    const archived = await repo.findOne({ where: { id: dataset.id }, withDeleted: true });
+    expect(archived?.status).toBe(IngestionStatus.ARCHIVED);
+  });
+
+  it('puts back the status from before the first Attempt when its purge fails', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 113, featureCount: 1 });
+    await new DatasetService().deleteDataset(await requestData(), dataset.slug, true);
+
+    const entityManager = await getEntityManager();
+    const spy = jest.spyOn(entityManager, 'transaction').mockRejectedValueOnce(statementTimeout());
+    try {
+      await expect(
+        BulkDeleterModule.processBulkDeletion(getJob(dataset.slug, { previous_status: IngestionStatus.PUBLISHED })),
+      ).rejects.toMatchObject({ name: 'JobError', code: 'BD_TIMEOUT' });
+    } finally {
+      spy.mockRestore();
+    }
+
+    // Not withDeleted, so finding it proves deleted_at was cleared
+    const reloaded = await entityManager.getRepository(DatasetEntity).findOneBy({ id: dataset.id });
+    expect(reloaded?.status).toBe(IngestionStatus.PUBLISHED);
+    expect(reloaded?.deleted_at).toBeNull();
+  });
+
+  // Purged Datasets keep their slugs, so the only way to land on another Dataset is through slug history
+  it('only purges the dataset holding its slug, never one found through slug history', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 114, featureCount: 1 });
+    const originalSlug = dataset.slug;
+    await new DatasetService().updateDataset(await requestData(), originalSlug, { name: 'renamed-before-later-attempt' });
+
+    await expect(
+      BulkDeleterModule.processBulkDeletion(getJob(originalSlug, { previous_status: IngestionStatus.PUBLISHED })),
+    ).rejects.toMatchObject({ status: 404 });
+
+    const kept = await (await getEntityManager()).getRepository(DatasetEntity).findOneBy({ id: dataset.id });
+    expect(kept?.status).toBe(IngestionStatus.PUBLISHED);
+    expect((await getLoadedDataCount()).n_dataset_layers).toBeGreaterThan(0);
   });
 });

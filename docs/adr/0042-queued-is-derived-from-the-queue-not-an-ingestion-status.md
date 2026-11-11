@@ -1,5 +1,7 @@
 # Queued is derived from the queue, not an Ingestion Status
 
+> **Amended by docs/adr/0079.** A job in `retry` is Queued and keeps the lock, so a reap with retries left no longer ends it.
+
 A Dataset is **Queued** while `pgboss.job` holds a `created` `bulk-load`, `raster-load` or `bulk-delete` job whose `data.dataset_id` is its slug. It is computed on read and exposed to Privileged callers as a read-only `queued_job: { id, queue }`. `datasets.status` never holds it. While such a job is `created` or `active`, dataset edits and further jobs on those three queues return 409. A per-dataset `pg_advisory_xact_lock` serialises the check against the enqueue or the edit. `createJob` rewrites `dataset_id` to the current slug, so an old slug still matches.
 
 ## Considered options

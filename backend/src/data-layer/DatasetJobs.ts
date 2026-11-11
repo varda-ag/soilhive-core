@@ -17,7 +17,7 @@ export const DATASET_LOCKING_QUEUES: string[] = [
 ];
 
 interface UnfinishedJobRow extends QueuedJob {
-  state: 'created' | 'active';
+  state: 'created' | 'retry' | 'active';
   dataset_id: string;
 }
 
@@ -39,7 +39,7 @@ export const VERSION_ACTIVE_QUEUES: string[] = [...DATASET_LOAD_QUEUES, JobQueue
 
 /**
  * Each of the given Datasets' unfinished work, keyed by slug, in one query:
- * - `queued`: its job pg-boss has not picked up yet, on any locking queue but version-publish (its `queued_job`, see QUEUED_JOB_QUEUES);
+ * - `queued`: its job waiting for a worker (`created`, or `retry` after an Interruption), on any locking queue but version-publish (its `queued_job`, see QUEUED_JOB_QUEUES);
  * - `active`: its running job on one of `activeQueues`, its loads by default (its `active_job`).
  *
  * At most one of each per Dataset: the lock refuses a second. Read from pg-boss rather than from the
@@ -60,11 +60,11 @@ export async function getUnfinishedJobs(
     `SELECT id, name AS queue, state, data->>'dataset_id' AS dataset_id
      FROM ${PG_BOSS_SCHEMA}.job
      WHERE data->>'dataset_id' = ANY($3)
-       AND ((state = 'created' AND name = ANY($1)) OR (state = 'active' AND name = ANY($2)))`,
+       AND ((state IN ('created', 'retry') AND name = ANY($1)) OR (state = 'active' AND name = ANY($2)))`,
     [QUEUED_JOB_QUEUES, activeQueues, slugs],
   );
   for (const { id, queue, state, dataset_id } of rows) {
-    (state === 'created' ? queued : active).set(dataset_id, { id, queue });
+    (state === 'active' ? active : queued).set(dataset_id, { id, queue });
   }
   return { queued, active };
 }
@@ -80,7 +80,7 @@ export async function getPublishingVersions(entityManager: EntityManager, versio
   const rows: { version_id: string }[] = await entityManager.query(
     `SELECT DISTINCT data->>'version_id' AS version_id
      FROM ${PG_BOSS_SCHEMA}.job
-     WHERE name = $1 AND state IN ('created', 'active') AND data->>'version_id' = ANY($2)`,
+     WHERE name = $1 AND state IN ('created', 'retry', 'active') AND data->>'version_id' = ANY($2)`,
     [JobQueues.VERSION_PUBLISH, versionSlugs],
   );
   return new Set(rows.map(row => row.version_id));
@@ -141,14 +141,14 @@ export async function assertNoUnfinishedJob(
   const [job]: UnfinishedJobRow[] = await entityManager.query(
     `SELECT id, name AS queue, state
      FROM ${PG_BOSS_SCHEMA}.job
-     WHERE name = ANY($1) AND state IN ('created', 'active')
+     WHERE name = ANY($1) AND state IN ('created', 'retry', 'active')
        AND (data->>'dataset_id' = $2 OR (name = $3 AND data->>'version_id' = $2))
      ORDER BY created_on
      LIMIT 1`,
     [DATASET_LOCKING_QUEUES, dataset.slug, JobQueues.VERSION_PUBLISH],
   );
   if (job) {
-    const state = job.state === 'created' ? 'queued' : 'running';
+    const state = job.state === 'active' ? 'running' : 'queued';
     throw new ErrorResponse(
       `Dataset '${dataset.name}' has a ${job.queue} job ${state} (${job.id}): try again once it finishes`,
       StatusCodes.CONFLICT,

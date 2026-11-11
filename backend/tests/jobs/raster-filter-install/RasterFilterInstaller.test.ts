@@ -15,7 +15,7 @@ import FileService from '../../../src/services/FileService';
 import { addDataMapping, addDataset, addDatasetFileMapping } from '../../../src/utils/mock';
 import { JobQueues } from '../../../src/types/enums';
 import { getDataSource } from '../../../src/utils/data-source';
-import { rasterFilterTables } from '../../../src/utils/raster';
+import { RASTER_FILTER_OVERVIEW_FACTORS, rasterFilterTables } from '../../../src/utils/raster';
 import { workerOutputDir } from '../../assets';
 
 const FILTER_ID = 'test_installed_filter';
@@ -289,5 +289,58 @@ describe('processRasterFilterInstall', () => {
 
   it('fails when the raster filter was deleted before it ran', async () => {
     await expect(processRasterFilterInstall(getJob())).rejects.toMatchObject({ code: 'RFI_FILTER_NOT_FOUND' });
+  });
+
+  it('drops the staging tables an interrupted Attempt of the same job left, before loading', async () => {
+    await addFilterWithSource(path.join(sourceDir, 'small.tif'));
+    const job = getJob();
+    const staging = stagingTableName(job.id);
+    const dataSource = await getDataSource();
+    for (const table of [staging, ...RASTER_FILTER_OVERVIEW_FACTORS.map(factor => `o_${factor}_${staging}`)]) {
+      await dataSource.query(`CREATE TABLE "${table}" (rid int)`);
+    }
+    await processRasterFilterInstall(job);
+
+    expect(await relationsLike(`%${FILTER_ID}`)).toEqual([...rasterFilterTables(FILTER_ID)].sort());
+    expect(await relationsLike(`%${staging}`)).toEqual([]);
+  });
+
+  describe('a retry after the rename', () => {
+    beforeAll(async () => {
+      // Started without workers: the job row only holds what the install writes to it
+      await PgBossModule.getPgBoss().start();
+      await PgBossModule.getPgBoss().createQueue(JobQueues.RASTER_FILTER_INSTALL);
+    });
+
+    afterAll(async () => {
+      await PgBossModule.getPgBoss().stop({ graceful: false });
+    });
+
+    it('only deletes the File the interrupted Attempt left, and completes', async () => {
+      const file = await addFilterWithSource(path.join(sourceDir, 'small.tif'));
+      const job = getJob();
+      const jobId = (await PgBossModule.getPgBoss().send(JobQueues.RASTER_FILTER_INSTALL, job.data, { startAfter: 3600 }))!;
+      // Stands in for an Attempt cut off between the rename and the File deletion
+      const storage = jest
+        .spyOn(FileService, 'getStorageEngine')
+        .mockReturnValue({ deleteFile: () => Promise.reject(new Error('interrupted')) } as any);
+      await processRasterFilterInstall({ ...job, id: jobId });
+      storage.mockRestore();
+
+      const dataSource = await getDataSource();
+      const [{ data }] = await dataSource.query(`SELECT data FROM ${PgBossModule.PG_BOSS_SCHEMA}.job WHERE id = $1`, [jobId]);
+      expect(data.source_file_id).toBe(file.id);
+      expect(await dataSource.getRepository(FileEntity).findOneBy({ id: file.id })).not.toBeNull();
+
+      // The retry gets the same id and the data as stored
+      await processRasterFilterInstall({ ...job, id: jobId, data });
+      expect(await relationsLike(`%${FILTER_ID}`)).toEqual([...rasterFilterTables(FILTER_ID)].sort());
+      expect(await dataSource.getRepository(FileEntity).findOneBy({ id: file.id })).toBeNull();
+      expect(fs.existsSync(path.join(process.env.LOCAL_STORAGE_ROOT_FOLDER!, file.file_path))).toBe(false);
+
+      // And one that finds the File already gone
+      await expect(processRasterFilterInstall({ ...job, id: jobId, data })).resolves.toBeUndefined();
+      await dataSource.query(`DELETE FROM ${PgBossModule.PG_BOSS_SCHEMA}.job WHERE id = $1`, [jobId]);
+    });
   });
 });

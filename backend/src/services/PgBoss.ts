@@ -1,4 +1,4 @@
-import { PgBoss, Job } from 'pg-boss';
+import { PgBoss, Job, JobResult, JobWithMetadata, StopOptions } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
 import {
   BulkLoadJob,
@@ -35,7 +35,7 @@ import { processVersionDiscard, processVersionReset } from '../jobs/version/Vers
 import { processVersionPublish } from '../jobs/version/VersionPublishJob';
 import { log } from '../utils/logger';
 import { JobError } from '../errors/JobError';
-import { UNEXPECTED_JOB_ERROR_CODE } from '../errors/jobErrorMessages';
+import { INTERRUPTION_MESSAGES, outputMessage, UNEXPECTED_JOB_ERROR_CODE } from '../errors/jobErrorMessages';
 import { getEntityManager } from '../utils/data-source';
 import { getErrorMessage } from '../utils/error';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
@@ -82,7 +82,10 @@ const startPgBoss = async () => {
 
 const setupQueues = async () => {
   const options = {
-    retryLimit: 0, // Zero retries
+    // Up to two retries, a minute apart, for an Interruption only: runAttempt makes every other failure final (docs/adr/0079)
+    retryLimit: 2,
+    retryDelay: 60,
+    retryBackoff: false,
     expireInSeconds: 60 * 60 * 24 - 1, // 24 hours (minus one according to pg-boss policy)
     retentionSeconds: 60 * 60 * 24 * 30, // 30 days - retain failed jobs for error surfacing
     // How long a job may go without its worker checking in before the monitor fails it.
@@ -177,6 +180,46 @@ export const runJob = async <T>(queue: JobQueues, job: Job<T>, processor: (job: 
   }
 };
 
+// Fields of a previous Attempt that would mislead while this one runs: its progress, and an error
+// recorded just before it was cut short
+const PREVIOUS_ATTEMPT_KEYS = ['progress_percentage', 'progress_description', 'errors'];
+
+/**
+ * One Attempt of a job (docs/adr/0079). Anything the job throws is final (`deadletter`), so only an
+ * Interruption, which pg-boss records without running our code, leaves a retry. A later Attempt runs
+ * only if the one before it was interrupted: an expiry timeout is retried by pg-boss too, and ends here.
+ */
+export const runAttempt = async <T>(
+  queue: JobQueues,
+  job: JobWithMetadata<T>,
+  processor: (job: Job<T>) => Promise<void>,
+): Promise<JobResult> => {
+  if (job.retryCount > 0) {
+    const previous = outputMessage(job.output);
+    if (!previous || !INTERRUPTION_MESSAGES.includes(previous)) {
+      log.warn('Job not retried: its previous attempt was not interrupted', { queue, job_id: job.id, previous });
+      return { id: job.id, status: 'deadletter', output: job.output };
+    }
+    log.info('Job retried after an interruption', { queue, job_id: job.id, attempt: job.retryCount + 1, previous });
+    try {
+      await getPgBoss()
+        .getDb()
+        .executeSql(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data - $1::text[] WHERE id = $2 AND state = 'active'`, [
+          PREVIOUS_ATTEMPT_KEYS,
+          job.id,
+        ]);
+    } catch (error) {
+      log.warn('Failed to clear the previous attempt', { job_id: job.id, error: getErrorMessage(error) });
+    }
+  }
+  try {
+    await runJob(queue, job, processor);
+    return { id: job.id, status: 'completed' };
+  } catch (error) {
+    return { id: job.id, status: 'deadletter', output: error };
+  }
+};
+
 const setupWorkers = async () => {
   const options = {
     // Number of workers to spawn for each queue (per-node).
@@ -187,111 +230,54 @@ const setupWorkers = async () => {
     groupConcurrency: getJobGroupConcurrency(),
   };
   const boss = getPgBoss();
-  await boss.work<BulkLoadJob>(JobQueues.BULK_LOAD, options, async (jobs: Job<BulkLoadJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.BULK_LOAD, job, processBulkLoad);
-    }
-  });
+  // Each job settles through runAttempt's result, which needs the retry count and previous output.
+  // Processors are passed as `job => processX(job)`, never `processX`: the arrow reads the import when a job runs,
+  // so a test's jest.spyOn on the module, made after the workers registered, still takes effect.
+  const work = async <T>(queue: JobQueues, queueOptions: typeof options, processor: (job: Job<T>) => Promise<void>) => {
+    const workOptions = { ...queueOptions, perJobResults: true as const, includeMetadata: true as const };
+    return boss.work<T, JobResult[], typeof workOptions>(queue, workOptions, async jobs => {
+      const results: JobResult[] = [];
+      for (const job of jobs) {
+        results.push(await runAttempt(queue, job, processor));
+      }
+      return results;
+    });
+  };
+  await work<BulkLoadJob>(JobQueues.BULK_LOAD, options, job => processBulkLoad(job));
   // Raster ingest is GDAL-, disk- and memory-heavy, so only one raster load runs
   // at a time. Note this is a per-node cap: with several backend nodes, each one
   // may run its own raster load concurrently.
-  await boss.work<RasterLoadJob>(JobQueues.RASTER_LOAD, { ...options, localConcurrency: 1 }, async (jobs: Job<RasterLoadJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.RASTER_LOAD, job, processRasterLoad);
-    }
-  });
-  await boss.work<ExportJob>(JobQueues.EXPORT, options, async (jobs: Job<ExportJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.EXPORT, job, processExportJob);
-    }
-  });
-  await boss.work<FileToDbJob>(JobQueues.FILE_TO_DB, options, async (jobs: Job<FileToDbJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.FILE_TO_DB, job, processFileToDb);
-    }
-  });
-  await boss.work<BulkDeleteJob>(JobQueues.BULK_DELETE, options, async (jobs: Job<BulkDeleteJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.BULK_DELETE, job, processBulkDeletion);
-    }
-  });
-  await boss.work(JobQueues.CLEANUP_ORPHAN_FILES, options, async (jobs: Job<object>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.CLEANUP_ORPHAN_FILES, job, processOrphanCleanup);
-    }
-  });
-  await boss.work<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS, options, async (jobs: Job<RefreshDaiStatsJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.REFRESH_DAI_STATS, job, processRefreshDaiStats);
-    }
-  });
+  await work<RasterLoadJob>(JobQueues.RASTER_LOAD, { ...options, localConcurrency: 1 }, job => processRasterLoad(job));
+  await work<ExportJob>(JobQueues.EXPORT, options, job => processExportJob(job));
+  await work<FileToDbJob>(JobQueues.FILE_TO_DB, options, job => processFileToDb(job));
+  await work<BulkDeleteJob>(JobQueues.BULK_DELETE, options, job => processBulkDeletion(job));
+  await work<object>(JobQueues.CLEANUP_ORPHAN_FILES, options, () => processOrphanCleanup());
+  await work<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS, options, job => processRefreshDaiStats(job));
   // Each run holds two staging tables and sorts them with work_mem for the percentile aggregates,
   // so concurrent runs multiply that. This is therefore a memory setting as much as a throughput
   // one and must be read together with getDataRequestsWorkMem, which comes down as this goes up
   // (ADR 0036). Same per-node caveat as RASTER_LOAD - several nodes each run this many.
-  await boss.work<DataRequestJob>(
-    JobQueues.DATA_REQUESTS,
-    { ...options, localConcurrency: getDataRequestsConcurrency() },
-    async (jobs: Job<DataRequestJob>[]) => {
-      for (const job of jobs) {
-        await runJob(JobQueues.DATA_REQUESTS, job, processDataRequest);
-      }
-    },
+  await work<DataRequestJob>(JobQueues.DATA_REQUESTS, { ...options, localConcurrency: getDataRequestsConcurrency() }, job =>
+    processDataRequest(job),
   );
   // Soil Indexes are on their own queue precisely because one Run of them is long: at one per node
   // a slow index Run can no longer starve the short Data Requests that used to queue behind it.
-  await boss.work<SoilIndexJob>(
-    JobQueues.SOIL_INDEXES,
-    { ...options, localConcurrency: getSoilIndexesConcurrency() },
-    async (jobs: Job<SoilIndexJob>[]) => {
-      for (const job of jobs) {
-        await runJob(JobQueues.SOIL_INDEXES, job, processSoilIndex);
-      }
-    },
+  await work<SoilIndexJob>(JobQueues.SOIL_INDEXES, { ...options, localConcurrency: getSoilIndexesConcurrency() }, job =>
+    processSoilIndex(job),
   );
   // One Run's tiles at a time per node: pre-rendering is a background optimisation and must not
   // compete with the tile requests it exists to spare.
-  await boss.work<SoilIndexTilesJob>(
-    JobQueues.SOIL_INDEX_TILES,
-    { ...options, localConcurrency: 1 },
-    async (jobs: Job<SoilIndexTilesJob>[]) => {
-      for (const job of jobs) {
-        await runJob(JobQueues.SOIL_INDEX_TILES, job, processSoilIndexTiles);
-      }
-    },
-  );
+  await work<SoilIndexTilesJob>(JobQueues.SOIL_INDEX_TILES, { ...options, localConcurrency: 1 }, job => processSoilIndexTiles(job));
   // GDAL-, disk- and memory-heavy like RASTER_LOAD, with the same per-node caveat. The two queues
   // are capped separately, so one node may run a raster load and a filter install at once.
-  await boss.work<RasterFilterInstallJob>(
-    JobQueues.RASTER_FILTER_INSTALL,
-    { ...options, localConcurrency: 1 },
-    async (jobs: Job<RasterFilterInstallJob>[]) => {
-      for (const job of jobs) {
-        await runJob(JobQueues.RASTER_FILTER_INSTALL, job, processRasterFilterInstall);
-      }
-    },
+  await work<RasterFilterInstallJob>(JobQueues.RASTER_FILTER_INSTALL, { ...options, localConcurrency: 1 }, job =>
+    processRasterFilterInstall(job),
   );
-  await boss.work<VersionResetJob>(JobQueues.VERSION_RESET, options, async (jobs: Job<VersionResetJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.VERSION_RESET, job, processVersionReset);
-    }
-  });
-  await boss.work<VersionDiscardJob>(JobQueues.VERSION_DISCARD, options, async (jobs: Job<VersionDiscardJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.VERSION_DISCARD, job, processVersionDiscard);
-    }
-  });
-  await boss.work<VersionPublishJob>(JobQueues.VERSION_PUBLISH, options, async (jobs: Job<VersionPublishJob>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.VERSION_PUBLISH, job, processVersionPublish);
-    }
-  });
+  await work<VersionResetJob>(JobQueues.VERSION_RESET, options, job => processVersionReset(job));
+  await work<VersionDiscardJob>(JobQueues.VERSION_DISCARD, options, job => processVersionDiscard(job));
+  await work<VersionPublishJob>(JobQueues.VERSION_PUBLISH, options, job => processVersionPublish(job));
   // One sweep at a time per node: it only frees space, and SKIP LOCKED already keeps nodes apart
-  await boss.work(JobQueues.SWEEP_ORPHAN_ROWS, { ...options, localConcurrency: 1 }, async (jobs: Job<object>[]) => {
-    for (const job of jobs) {
-      await runJob(JobQueues.SWEEP_ORPHAN_ROWS, job, processSweepOrphanRows);
-    }
-  });
+  await work<object>(JobQueues.SWEEP_ORPHAN_ROWS, { ...options, localConcurrency: 1 }, () => processSweepOrphanRows());
   log.info('PgBoss workers registered', { queues: Object.values(JobQueues) });
 };
 
@@ -313,13 +299,13 @@ export const initPgBoss = async () => {
   await setupSchedules();
 };
 
-export const stopPgBoss = async () => {
+export const stopPgBoss = async (options?: StopOptions) => {
   if (!globalInitialized) {
     return;
   }
   globalInitialized = false;
   const boss = getPgBoss();
-  await boss.stop();
+  await boss.stop(options);
 };
 
 /**

@@ -20,7 +20,7 @@ import { categoryLabels, geographicResolutionM, isGeographicCrs, RASTER_FILTER_O
 import { StorageModes } from '../../types/enums';
 import FileService from '../../services/FileService';
 import ConfigService from '../../services/ConfigService';
-import { progressReporter } from '../../services/PgBoss';
+import { PG_BOSS_SCHEMA, progressReporter } from '../../services/PgBoss';
 import { takenRasterFilterNames } from '../../data-layer/RasterFilterInstalls';
 import { loadRasterTable } from './loadRasterTable';
 
@@ -37,11 +37,14 @@ const FLOAT_PIXEL_TYPES = ['Float16', 'Float32', 'Float64', 'CFloat16', 'CFloat3
 const GTIFF_CREATION_OPTIONS = ['-co', 'COMPRESS=DEFLATE', '-co', 'TILED=YES', '-co', 'BIGTIFF=IF_SAFER'];
 
 /**
- * The staging name an install loads into before renaming. Keyed on the job, so two attempts never share
- * tables, and led by an underscore, which no Raster Filter id can start with. Its longest overview,
- * o_32__rfi_<32 hex>, is 42 characters.
+ * The staging name an install loads into before renaming. Keyed on the job, so two jobs never share
+ * tables; a retry of the same job drops them before loading. Led by an underscore, which no Raster
+ * Filter id can start with. Its longest overview, o_32__rfi_<32 hex>, is 42 characters.
  */
 export const stagingTableName = (jobId: string): string => `_rfi_${jobId.replace(/-/g, '')}`;
+
+// Written to the job's data in the rename transaction, so a retry knows the rename committed (docs/adr/0079)
+type InstallJobData = RasterFilterInstallJob & { source_file_id?: string };
 
 /**
  * Raster Filter Installation (docs/adr/0067): one band of the Raster Filter's File, in EPSG:4326 (docs/adr/0026's
@@ -49,10 +52,11 @@ export const stagingTableName = (jobId: string): string => `_rfi_${jobId.replace
  *
  * Everything is built under a staging name and renamed in one transaction at the end, so the
  * filter's base table, whose existence is what "installed" means, never exists half-built.
- * The filter stays inactive: an admin labels it and activates it.
+ * The filter stays inactive: an admin labels it and activates it. A retry after the rename only deletes the File.
  */
 export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob>): Promise<void> {
-  const { id: jobId, data } = job;
+  const { id: jobId } = job;
+  const data: InstallJobData = job.data;
   const { raster_filter_id: id, band } = data;
   const schema = process.env.POSTGRES_SCHEMA!;
   const entityManager = await getEntityManager();
@@ -63,6 +67,15 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
 
   try {
     await reportProgress(0, `Installing map-based filter '${id}'...`);
+    // An earlier Attempt of this job committed the rename and was cut off before deleting the File
+    if (data.source_file_id) {
+      const installedFrom = await entityManager.getRepository(FileEntity).findOneBy({ id: data.source_file_id });
+      if (installedFrom) {
+        await deleteSourceFile(entityManager, installedFrom, id);
+      }
+      await reportProgress(100, `Map-based filter '${id}' installed`);
+      return;
+    }
     const filter = await entityManager.getRepository(RasterFilterEntity).findOneBy({ id });
     if (!filter) {
       throw new JobError('RFI_FILTER_NOT_FOUND', { raster_filter_id: id });
@@ -146,6 +159,8 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
     }
 
     await reportProgress(EXTRACT_CEILING, `Writing map-based filter '${id}' to the database...`);
+    // A retry reuses the job id, so an interrupted Attempt's tables would be in the way
+    await dropStagingTables(entityManager, schema, staging);
     await loadRasterTable(extracted, schema, staging).catch(error => {
       throw new JobError('RFI_DB_LOAD_FAILED', { raster_filter_id: id }, getErrorMessage(error));
     });
@@ -182,6 +197,12 @@ export async function processRasterFilterInstall(job: Job<RasterFilterInstallJob
       if (!result.affected) {
         throw new JobError('RFI_FILTER_NOT_FOUND', { raster_filter_id: id });
       }
+      // The filter no longer names its File, so a retry finds it here
+      await em.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE name = $2 AND id = $3`, [
+        JSON.stringify({ source_file_id: file.id }),
+        job.name,
+        jobId,
+      ]);
     });
 
     // After the commit, as storage cannot take part in it
@@ -301,7 +322,7 @@ async function deleteSourceFile(entityManager: EntityManager, file: FileEntity, 
   }
 }
 
-/** Drops whatever this job's staging tables reached. A reaped job never gets here: orphan cleanup sweeps those. */
+/** Drops whatever this job's staging tables reached, in this Attempt or an interrupted one. */
 async function dropStagingTables(entityManager: EntityManager, schema: string, staging: string): Promise<void> {
   try {
     for (const table of [staging, ...RASTER_FILTER_OVERVIEW_FACTORS.map(f => `o_${f}_${staging}`)]) {

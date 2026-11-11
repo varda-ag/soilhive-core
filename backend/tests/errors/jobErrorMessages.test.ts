@@ -1,6 +1,13 @@
 import { describe, it, expect } from '@jest/globals';
 import { JobError } from '../../src/errors/JobError';
-import { JOB_ERROR_MESSAGES, translateJobError, translateQueueMessage, UNEXPECTED_JOB_ERROR_CODE } from '../../src/errors/jobErrorMessages';
+import {
+  INTERRUPTION_MESSAGES,
+  JOB_ERROR_MESSAGES,
+  outputMessage,
+  translateJobError,
+  translateQueueMessage,
+  UNEXPECTED_JOB_ERROR_CODE,
+} from '../../src/errors/jobErrorMessages';
 
 describe('JobError', () => {
   it('stores detail when provided', () => {
@@ -17,14 +24,36 @@ describe('JobError', () => {
 describe('translateQueueMessage', () => {
   // pg-boss writes these from a maintenance query, so no application code runs and nothing lands
   // in data.errors. They reach the client through `message` and must already be readable there.
-  it.each(['job heartbeat timeout', 'job timed out'])('replaces the raw queue string %s', raw => {
+  it.each(['job heartbeat timeout', 'pg-boss shut down while active', 'job timed out'])('replaces the raw queue string %s', raw => {
     const result = translateQueueMessage(raw);
     expect(result).not.toBe(raw);
     expect(result).toMatch(/job/i);
   });
 
+  it('shows a shutdown the same way as a heartbeat timeout: both are an Interruption', () => {
+    expect(translateQueueMessage('pg-boss shut down while active')).toBe(translateQueueMessage('job heartbeat timeout'));
+  });
+
   it('leaves anything that is not a reap message untouched', () => {
     expect(translateQueueMessage('ENOENT: no such file or directory')).toBe('ENOENT: no such file or directory');
+  });
+});
+
+describe('outputMessage', () => {
+  it.each([
+    ['a serialized Error', { name: 'Error', message: 'boom' }, 'boom'],
+    ["the monitor's nested message", { value: { message: 'job heartbeat timeout' } }, 'job heartbeat timeout'],
+    ["a shutdown's plain string", { value: 'pg-boss shut down while active' }, 'pg-boss shut down while active'],
+  ])('reads %s', (_, output, expected) => {
+    expect(outputMessage(output)).toBe(expected);
+  });
+
+  it.each([null, undefined, {}, { value: { other: 1 } }, { message: 42 }])('returns undefined for %p', output => {
+    expect(outputMessage(output)).toBeUndefined();
+  });
+
+  it('names only Interruptions as retryable, never an expiry', () => {
+    expect(INTERRUPTION_MESSAGES).toEqual(['job heartbeat timeout', 'pg-boss shut down while active']);
   });
 });
 

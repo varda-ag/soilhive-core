@@ -1,7 +1,11 @@
-import { describe, it, expect, jest, afterEach } from '@jest/globals';
+import { describe, it, expect, jest, afterEach, beforeAll, afterAll } from '@jest/globals';
+import { randomUUID } from 'crypto';
 import { Job } from 'pg-boss';
 import { processVersionPublish } from '../../../src/jobs/version/VersionPublishJob';
 import * as UpdateDatasetMetadataModule from '../../../src/jobs/bulk-load/UpdateDatasetMetadata';
+import * as DatasetVersionsModule from '../../../src/data-layer/DatasetVersions';
+import * as DaiStatsModule from '../../../src/data-layer/DaiStats';
+import { getPgBoss, PG_BOSS_SCHEMA } from '../../../src/services/PgBoss';
 import DatasetVersionService from '../../../src/services/DatasetVersionService';
 import DataMappingService from '../../../src/services/DataMappingService';
 import EntitlementService from '../../../src/services/EntitlementService';
@@ -36,7 +40,8 @@ const requestDataFor = async (): Promise<RequestData> => ({ entityManager: await
 
 const publishJob = (datasetSlug: string, versionSlug: string, settings: Partial<VersionPublishJob> = {}): Job<VersionPublishJob> =>
   ({
-    id: 'mock-id',
+    // A uuid with no job row: the publish's marker write then matches nothing
+    id: randomUUID(),
     name: JobQueues.VERSION_PUBLISH,
     expireInSeconds: 60,
     heartbeatSeconds: 10,
@@ -353,5 +358,67 @@ describe('version-publish', () => {
     expect(after.n_raster_layers).toBe(1);
     expect(after.version_number).toBe(2);
     expect(await getDataset(version.id)).toBeNull();
+  });
+
+  describe('after an interruption', () => {
+    // Started without workers: a sent job only holds the data the publish writes into
+    beforeAll(async () => {
+      await getPgBoss().start();
+      await getPgBoss().createQueue(JobQueues.VERSION_PUBLISH);
+    });
+
+    afterAll(async () => {
+      await getPgBoss().stop({ graceful: false });
+    });
+
+    /** The job with a pg-boss row of its own, so the publish can write into its data. */
+    const sent = async (job: Job<VersionPublishJob>): Promise<Job<VersionPublishJob>> => ({
+      ...job,
+      id: (await getPgBoss().send(JobQueues.VERSION_PUBLISH, job.data))!,
+    });
+
+    const savedData = async (jobId: string): Promise<VersionPublishJob & { published_file_ids?: string[] }> => {
+      const [row] = await (await getDataSource()).query(`SELECT data FROM ${PG_BOSS_SCHEMA}.job WHERE id = $1`, [jobId]);
+      return row.data;
+    };
+
+    it("saves the moved files in the job's data with the publish", async () => {
+      const { v1, v2 } = await setUpVersion('publish-marker', 310);
+      const file = await addFile('publish-marker.csv');
+      const dataSource = await getDataSource();
+      await dataSource.query(`UPDATE files SET status = 'LOADED' WHERE id = $1`, [file.id]);
+      await dataSource.query(`INSERT INTO dataset_file_mappings (dataset_id, file_id) VALUES ($1, $2)`, [v2.id, file.id]);
+      const job = await sent(publishJob(v1.slug, v2.slug));
+
+      await processVersionPublish(job);
+
+      expect((await savedData(job.id)).published_file_ids).toEqual([file.id]);
+    });
+
+    it('runs only the steps after the commit when an earlier attempt committed', async () => {
+      const { v1, v2 } = await setUpVersion('publish-resume', 311);
+      const job = await sent(publishJob(v1.slug, v2.slug));
+      await processVersionPublish(job);
+      const published = await rowsOf(v1.id);
+      const move = jest.spyOn(DatasetVersionsModule, 'moveVersionRows');
+      const refresh = jest.spyOn(DaiStatsModule, 'refreshDaiStats');
+
+      // As the next attempt gets it: with the data the first one saved
+      await processVersionPublish({ ...job, data: await savedData(job.id) });
+
+      expect(move).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledWith(expect.anything(), [v1.id]);
+      expect(await rowsOf(v1.id)).toEqual(published);
+      expect((await getDataset(v1.id))!.version_number).toBe(2);
+    });
+
+    it('still fails when the version is gone and no publish was saved', async () => {
+      const { v1, v2 } = await setUpVersion('publish-gone', 312);
+      // No job row, so nothing is saved
+      const job = publishJob(v1.slug, v2.slug);
+      await processVersionPublish(job);
+
+      await expect(processVersionPublish(job)).rejects.toMatchObject({ status: 404 });
+    });
   });
 });

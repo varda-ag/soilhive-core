@@ -110,8 +110,8 @@ async function processOrphanStagingTableCleanup(entityManager: Awaited<ReturnTyp
 }
 
 // Drops the staging tables (_rfi_<job id> and its o_<factor>__rfi_<job id> overviews) of Raster Filter
-// installs that are no longer queued or running. A failed install drops its own; these are left by a
-// worker that died mid-install (OOM kill, node eviction), which pg-boss reaps without running our code.
+// installs that are no longer queued, waiting for a retry or running. A failed install drops its own; these
+// are left by a worker that died mid-install with no retry left to drop them.
 async function processOrphanRasterFilterStagingCleanup(entityManager: Awaited<ReturnType<typeof getEntityManager>>): Promise<void> {
   const schema = process.env.POSTGRES_SCHEMA!;
   const orphans: { table: string }[] = await entityManager.query(
@@ -121,7 +121,7 @@ async function processOrphanRasterFilterStagingCleanup(entityManager: Awaited<Re
        AND substring(c.relname FROM '^(?:o_[0-9]+_)?_rfi_([0-9a-f]{32})$') IS NOT NULL
        AND NOT EXISTS (
          SELECT 1 FROM ${PG_BOSS_SCHEMA}.job j
-         WHERE j.name = $2 AND j.state IN ('created', 'active')
+         WHERE j.name = $2 AND j.state IN ('created', 'retry', 'active')
            AND replace(j.id::text, '-', '') = substring(c.relname FROM '^(?:o_[0-9]+_)?_rfi_([0-9a-f]{32})$')
        )`,
     [schema, JobQueues.RASTER_FILTER_INSTALL],

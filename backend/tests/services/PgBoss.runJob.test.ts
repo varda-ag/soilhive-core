@@ -1,8 +1,8 @@
 import { describe, it, expect, jest, beforeAll, beforeEach } from '@jest/globals';
-import type { Job } from 'pg-boss';
+import type { Job, JobWithMetadata, PgBoss } from 'pg-boss';
 import type { EntityManager } from 'typeorm';
 import type { getEntityManager as GetEntityManager } from '../../src/utils/data-source';
-import type { runJob as RunJob } from '../../src/services/PgBoss';
+import type { runJob as RunJob, runAttempt as RunAttempt, getPgBoss as GetPgBoss } from '../../src/services/PgBoss';
 
 import { JobError } from '../../src/errors/JobError';
 import { UNEXPECTED_JOB_ERROR_CODE } from '../../src/errors/jobErrorMessages';
@@ -23,11 +23,13 @@ const mockQuery = jest.fn<(sql: string, parameters?: unknown[]) => Promise<unkno
 // would write to the live pg-boss table and mockQuery would never see a call. Dropping the
 // registry and re-requiring both together binds runJob to the mock we assert on.
 let runJob: typeof RunJob;
+let runAttempt: typeof RunAttempt;
+let getPgBoss: typeof GetPgBoss;
 let mockedGetEntityManager: jest.MockedFunction<typeof GetEntityManager>;
 
 beforeAll(async () => {
   jest.resetModules();
-  ({ runJob } = await import('../../src/services/PgBoss'));
+  ({ runJob, runAttempt, getPgBoss } = await import('../../src/services/PgBoss'));
   mockedGetEntityManager = jest.mocked((await import('../../src/utils/data-source')).getEntityManager);
 });
 
@@ -91,5 +93,75 @@ describe('runJob failure recording', () => {
         throw new Error('original failure');
       }),
     ).rejects.toThrow('original failure');
+  });
+});
+
+// docs/adr/0079: only an Interruption is retried
+describe('runAttempt', () => {
+  const mockExecuteSql = jest.fn<(sql: string, values?: unknown[]) => Promise<unknown>>();
+  const attempt = (retryCount: number, output: object | null = null) =>
+    ({ ...job, retryCount, output }) as unknown as JobWithMetadata<unknown>;
+
+  beforeEach(() => {
+    mockQuery.mockReset();
+    mockQuery.mockResolvedValue([]);
+    mockedGetEntityManager.mockReset();
+    mockedGetEntityManager.mockResolvedValue({ query: mockQuery } as unknown as EntityManager);
+    mockExecuteSql.mockReset();
+    mockExecuteSql.mockResolvedValue({ rows: [] });
+    jest.spyOn(getPgBoss(), 'getDb').mockReturnValue({ executeSql: mockExecuteSql } as unknown as ReturnType<PgBoss['getDb']>);
+  });
+
+  it('completes a first attempt that succeeds', async () => {
+    await expect(runAttempt(queue, attempt(0), async () => {})).resolves.toEqual({ id: job.id, status: 'completed' });
+    expect(mockExecuteSql).not.toHaveBeenCalled();
+  });
+
+  it('makes a thrown failure final, so pg-boss does not retry it', async () => {
+    const error = new JobError('RL_INVALID_BAND', { band: '5' });
+
+    const result = await runAttempt(queue, attempt(0), async () => {
+      throw error;
+    });
+
+    expect(result).toEqual({ id: job.id, status: 'deadletter', output: error });
+  });
+
+  it.each([
+    ['a heartbeat timeout', { value: { message: 'job heartbeat timeout' } }],
+    ['a shutdown', { value: 'pg-boss shut down while active' }],
+  ])('runs a retry after %s, clearing the previous attempt first', async (_, output) => {
+    const processor = jest.fn(async () => {});
+
+    const result = await runAttempt(queue, attempt(1, output), processor);
+
+    expect(result).toEqual({ id: job.id, status: 'completed' });
+    expect(processor).toHaveBeenCalledTimes(1);
+    expect(mockExecuteSql).toHaveBeenCalledTimes(1);
+    expect(mockExecuteSql.mock.calls[0]![1]).toEqual([['progress_percentage', 'progress_description', 'errors'], job.id]);
+  });
+
+  it('still runs the retry when clearing the previous attempt fails', async () => {
+    mockExecuteSql.mockRejectedValue(new Error('connection terminated'));
+    const processor = jest.fn(async () => {});
+
+    const result = await runAttempt(queue, attempt(1, { value: { message: 'job heartbeat timeout' } }), processor);
+
+    expect(result.status).toBe('completed');
+    expect(processor).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['an expiry timeout', { value: { message: 'job timed out' } }],
+    ['an in-process expiry', { name: 'Error', message: 'handler execution exceeded 86399s' }],
+    ['no recorded output', null],
+  ])('ends a retry after %s without running it, keeping that output', async (_, output) => {
+    const processor = jest.fn(async () => {});
+
+    const result = await runAttempt(queue, attempt(1, output), processor);
+
+    expect(result).toEqual({ id: job.id, status: 'deadletter', output });
+    expect(processor).not.toHaveBeenCalled();
+    expect(mockExecuteSql).not.toHaveBeenCalled();
   });
 });

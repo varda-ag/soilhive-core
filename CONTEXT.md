@@ -297,8 +297,16 @@ The Ingestion Status a Dataset must hold to exist for a caller who is not a **Pr
 _Avoid_: Live, public (that is a **Visibility** value), released, available, approved
 
 **Queued**:
-A Dataset with a Bulk Load, Raster Load or **Purge** submitted but not yet started. A fact about its pending work, not an **Ingestion Status**: it holds alongside whatever status the Dataset has, and ends when the work starts or is withdrawn (docs/adr/0042).
+A Dataset with a Bulk Load, Raster Load or **Purge** submitted but not yet started, or waiting to start again after an **Interruption**. A fact about its pending work, not an **Ingestion Status**: it holds alongside whatever status the Dataset has, and ends when the work starts or is withdrawn (docs/adr/0042).
 _Avoid_: QUEUED status, pending (an Ingestion Status), waiting
+
+**Attempt**:
+One go at running a job, from a worker taking it until that worker finishes, fails or goes away. A job can take several Attempts, all under the same id.
+_Avoid_: Retry (the wait between Attempts), run (a **Run** is the whole job), execution
+
+**Interruption**:
+The end of an **Attempt** because the worker running it went away (crash, OOM kill, eviction, deploy, scale-down), not because the job failed. Users see it as "interrupted".
+_Avoid_: Pod crash (one cause of several), heartbeat timeout (how one is noticed), failure
 
 **Privileged caller**:
 A caller acting under an internal-request, data-admin or super-admin token scope — the single notion of privilege in the system, bypassing both the **Entitlement** checks and the **Published** requirement. It does not bypass **Export Limits** unless administrators are exempted from them. Not an **Entitlement** and not a **Subject** attribute: privilege comes from the token's scopes, while Entitlements are keyed by Subject. A **Plugin token** is never one, whatever its user's scopes, unless the deployment lists its Plugin, and never with internal-request.
@@ -408,6 +416,8 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
 - An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
 - A **Dataset** accepts no edits while it has a Bulk Load, Raster Load or **Purge** Queued or running; being **Queued** is only the first part of that window
+- A **Run**, **Export** or **Data Request** is one job however many **Attempts** it takes, and keeps its id across them
+- Only an **Interruption** earns another **Attempt**; any other failure is final
 - **Ingestion Status**, **Visibility** and **Entitlement** are three independent attributes of a Dataset: the first decides whether it exists for a non-privileged caller, the other two decide what that caller may do with its data
 
 ## Example dialogue
@@ -451,6 +461,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **"Published" was used to mean both "listed in the catalog" and "the data is released."** Resolved: for a non-privileged caller it means both, because an unpublished Dataset is absent everywhere. It was once "listed only" (ADR 0034), leaving `/soil-data` open by slug; that is superseded.
 - **"Admin" names three different token scopes and one human role.** `internal-request`, `data-admin` and `super-admin` are collapsed into one **Privileged caller** predicate for both the Entitlement bypass and the **Published** requirement; "data admin" in prose elsewhere in this glossary means the *person* curating Datasets, not the scope. Say **Privileged caller** for the predicate and name the scope explicitly when the distinction matters.
 - **"Version" names three things.** The Dataset's `version` field is free-text descriptive metadata an admin types in, such as "2.1" or "2024 release"; a **Dataset Version** is a Dataset row holding data not yet published; `version_number` is the **Revision**, counting publishes. The API keeps the field names; in domain discussions say **Dataset Version** and **Revision**, and "the version field" for the metadata.
+- **"Pod crash" was used for every "job heartbeat timeout".** Resolved: the timeout only says the worker stopped checking in, and a deploy or scale-down is an Interruption too, so say **Interruption**.
 - **"Preview" names both a Capability and a view.** Resolved: `preview` is the **Capability**; the table on the Data Explorer page is the **Preview table**, which needs that Capability. Never say "the preview" for the table.
 
 - The UI's **"Data access"** filter (options "Private"/"Public") filters by **Visibility** — the entitlement-agnostic Dataset attribute. Selecting "Private" means "datasets whose visibility is private", never "datasets I have access to". Likewise the UI's **"Data type"** filter maps to the `data_types` criterion (`gis_datatype`). In domain discussions prefer **Visibility** and **data type**; "access" is a UI label only.

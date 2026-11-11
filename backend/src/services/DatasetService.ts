@@ -131,7 +131,7 @@ export default class DatasetService {
       // Async DAI refresh. startAfter keeps the worker from picking the job up
       // before this request's transaction commits (the enqueue goes through
       // pg-boss's own connection): a refresh computed from pre-commit state
-      // would never be retried (retryLimit is 0).
+      // would never be retried (only an Interruption is).
       const jobService = new JobService();
       await jobService.createJob(
         requestData,
