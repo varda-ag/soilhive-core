@@ -1,5 +1,62 @@
 # Changelog
 
+## 1.8.0 (2026-11-11)
+
+## What's Changed
+* feat: sp-5806 add usesoilindexes hook for plugins by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/919
+* fix: dataset list text filtering by @svaccari in https://github.com/varda-ag/soilhive-core/pull/920
+* fix: leaked connections, getEnabledRasterFilterTables deadlock by @d-rom in https://github.com/varda-ag/soilhive-core/pull/923
+* feat(be): sp-5528 check the issuer, audience and scopes of every token by @cristbello in https://github.com/varda-ag/soilhive-core/pull/912
+* feat: sp-5863 get /configs returns each config with its updated_at by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/922
+* fix(be): sp-5528 OIDC_AUDIENCE stays unset until tokens carry an audience by @cristbello in https://github.com/varda-ag/soilhive-core/pull/924
+* feat: sp-5528 plugins call their backend directly with a plugin token by @cristbello in https://github.com/varda-ag/soilhive-core/pull/911
+* fix: POST /files does not go through transaction middleware by @d-rom in https://github.com/varda-ag/soilhive-core/pull/925
+* feat: adding raster2pgsql to backend image by @svaccari in https://github.com/varda-ag/soilhive-core/pull/928
+* chore: add ecr role by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/929
+* fix(fe): dataset editing flow by @svaccari in https://github.com/varda-ag/soilhive-core/pull/930
+* feat: sp-5802 stop refetching coverage on data type and visibility filters by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/931
+* fix(fe): sp-5864 the area info popup's tip lands on the clicked cell by @cristbello in https://github.com/varda-ag/soilhive-core/pull/932
+* fix(fe): sp-5864 the area info popup opens beneath the map's overlays by @cristbello in https://github.com/varda-ag/soilhive-core/pull/934
+* chore(backend): create dedicated tag package by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/935
+* chore(CI): fix ci image facts naming by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/937
+* chore(ci): fix docker cleanup on pr close by @Butterneck in https://github.com/varda-ag/soilhive-core/pull/938
+* chore(CI): fix docker cleanup package name by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/939
+* chore(CI): fix dockert build and push by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/940
+* fix(be): export raster to avoid layer overwrite, include layer descri… by @d-rom in https://github.com/varda-ag/soilhive-core/pull/936
+* fix: unit conversions typo by @d-rom in https://github.com/varda-ag/soilhive-core/pull/942
+* fix: sp-5883 bump node to 24.22.2 for cve-2026-111497 by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/945
+* feat: sp-5644 - add new raster filter entry point by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/946
+* feat: checking export limits before enqueueing job by @svaccari in https://github.com/varda-ag/soilhive-core/pull/948
+* feat: sp-5538 open a plugin from the map area info card by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/947
+* fix(fe): sp-5892 the download format list shows above the datasets table in Safari by @cristbello in https://github.com/varda-ag/soilhive-core/pull/949
+* feat: sp-5764 search in the UI Dropdown by @cristbello in https://github.com/varda-ag/soilhive-core/pull/952
+* fix: sp-5881 the plugin CLI vendors the continent boundaries with Map/ by @cristbello in https://github.com/varda-ag/soilhive-core/pull/950
+* fix: entitlement security checks by @svaccari in https://github.com/varda-ag/soilhive-core/pull/951
+* fix: entitlements improvements by @svaccari in https://github.com/varda-ag/soilhive-core/pull/953
+* feat: incremental ingestion sp-5825 by @d-rom in https://github.com/varda-ag/soilhive-core/pull/954
+* feat: deduplicating exports by @svaccari in https://github.com/varda-ag/soilhive-core/pull/958
+* feat: sp-5645 - map based filters creation flow by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/957
+* feat: raster filter install backend work by @svaccari in https://github.com/varda-ag/soilhive-core/pull/933
+* feat: SP-5798 - install raster filters in their Supplied CRS, document Admin console flow by @svaccari in https://github.com/varda-ag/soilhive-core/pull/959
+* fix: sp-5854 show a Dataset's true extent across the antimeridian by @svaccari in https://github.com/varda-ag/soilhive-core/pull/956
+* feat: sp-5645 - menu component update: description for options by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/960
+* fix: add metadata_only param to POST /soil-data, fix gdalinfo rat str… by @d-rom in https://github.com/varda-ag/soilhive-core/pull/961
+* feat: sp-5920 add correlation data request types for plugins by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/963
+* feat: sp-5889 administrators can require a signed-in user to download by @cristbello in https://github.com/varda-ag/soilhive-core/pull/955
+* feat: incremental ingestion (dataset versioning) by @d-rom in https://github.com/varda-ag/soilhive-core/pull/962
+* chore: selective test runs by @d-rom in https://github.com/varda-ag/soilhive-core/pull/965
+* feat: sp-5920 compute correlation data requests by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/964
+* feat: sp-5870 dataset versions by @d-rom in https://github.com/varda-ag/soilhive-core/pull/966
+* fix: raster layers table in pdf sorted by @d-rom in https://github.com/varda-ag/soilhive-core/pull/967
+* feat: adding DEBUG_READ_ONLY flag by @svaccari in https://github.com/varda-ag/soilhive-core/pull/970
+* feat: filtering mask performance by @svaccari in https://github.com/varda-ag/soilhive-core/pull/971
+* feat: model runner glossary by @svaccari in https://github.com/varda-ag/soilhive-core/pull/972
+* docs: endpoint fix by @svaccari in https://github.com/varda-ag/soilhive-core/pull/973
+* feat: model runners spec by @svaccari in https://github.com/varda-ag/soilhive-core/pull/975
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.7.0...v1.8.0
+
 ## 1.7.0 (2026-10-22)
 
 ## What's Changed
