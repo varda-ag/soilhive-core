@@ -297,21 +297,6 @@
                     "value": "{{DLV - analytics.total_pages}}"
                   }
                 ]
-              },
-              {
-                "type": "MAP",
-                "map": [
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameter",
-                    "value": "traffic_type"
-                  },
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameterValue",
-                    "value": "{{Traffic Type}}"
-                  }
-                ]
               }
             ]
           }
@@ -365,21 +350,6 @@
                     "type": "TEMPLATE",
                     "key": "parameterValue",
                     "value": "{{Analytics Click Value}}"
-                  }
-                ]
-              },
-              {
-                "type": "MAP",
-                "map": [
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameter",
-                    "value": "traffic_type"
-                  },
-                  {
-                    "type": "TEMPLATE",
-                    "key": "parameterValue",
-                    "value": "{{Traffic Type}}"
                   }
                 ]
               }
@@ -878,52 +848,6 @@
         "accountId": "0",
         "containerId": "0",
         "variableId": "18",
-        "name": "Traffic Type",
-        "type": "smm",
-        "parameter": [
-          {
-            "type": "BOOLEAN",
-            "key": "setDefaultValue",
-            "value": "true"
-          },
-          {
-            "type": "TEMPLATE",
-            "key": "input",
-            "value": "{{Page Hostname}}"
-          },
-          {
-            "type": "TEMPLATE",
-            "key": "defaultValue",
-            "value": "internal"
-          },
-          {
-            "type": "LIST",
-            "key": "map",
-            "list": [
-              {
-                "type": "MAP",
-                "map": [
-                  {
-                    "type": "TEMPLATE",
-                    "key": "key",
-                    "value": "your-production-host.example"
-                  },
-                  {
-                    "type": "TEMPLATE",
-                    "key": "value",
-                    "value": ""
-                  }
-                ]
-              }
-            ]
-          }
-        ],
-        "formatValue": {}
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "variableId": "19",
         "name": "Analytics Click Name",
         "type": "jsm",
         "parameter": [
@@ -938,7 +862,7 @@
       {
         "accountId": "0",
         "containerId": "0",
-        "variableId": "20",
+        "variableId": "19",
         "name": "Analytics Click Value",
         "type": "jsm",
         "parameter": [
@@ -963,12 +887,6 @@
         "containerId": "0",
         "type": "CLICK_ELEMENT",
         "name": "Click Element"
-      },
-      {
-        "accountId": "0",
-        "containerId": "0",
-        "type": "PAGE_HOSTNAME",
-        "name": "Page Hostname"
       }
     ]
   }
