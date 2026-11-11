@@ -137,6 +137,11 @@ describe('DownloadDataSummary', () => {
     expect(getByText('Country selected')).not.toBeUndefined();
   });
 
+  it('names a continent picked in the search box as a continent', () => {
+    const { getByText } = render(<DownloadDataSummary locationName="Africa" dataPoints={24} rasterLayers={0} selectionType="continent" />);
+    expect(getByText('Continent selected')).toBeInTheDocument();
+  });
+
   it('renders the download data summary (sidebar) with responsiveness turned off', () => {
     const { container } = render(
       <DownloadDataSummary

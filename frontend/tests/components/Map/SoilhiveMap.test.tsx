@@ -379,6 +379,24 @@ describe('SoilhiveMap', () => {
       expect(onLocationSearch).toHaveBeenCalledWith({ method: 'search', placeType: 'country', placeName: 'Italy' });
     });
 
+    it.each([
+      ['continent', 'continent'],
+      ['country', 'country'],
+      ['city', 'country'],
+    ])('selects a %s picked in the search box as a %s selection', (placeType, selectionType) => {
+      const onSelectionChange = jest.fn();
+      render(<SoilhiveMap {...makeProps({ showGeocoder: true, onSelectionChange })} />);
+
+      act(() =>
+        mockGeocoderProps.mock.lastCall[0].onFeatureSelect({
+          feature: { geometry: polygon, properties: { display_name: 'Africa' } },
+          placeType,
+        }),
+      );
+
+      expect(onSelectionChange).toHaveBeenLastCalledWith(expect.objectContaining({ selectionType, locationName: 'Africa' }));
+    });
+
     it('reports a polygon drawn', () => {
       const onLocationSearch = jest.fn();
       render(<SoilhiveMap {...makeProps({ onLocationSearch, selectionState: { showDrawControl: true } })} />);

@@ -4,11 +4,12 @@ import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 import { bboxPolygon } from '@turf/turf';
 
 import useTheme from '../hooks/useTheme';
+import type { SoilhiveMapSelectionType } from '../components/Map/SoilhiveMapSelectionChangeEvent';
 import { useRestoredPageState } from '../auth/signinPageState';
 
 export type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
 
-type SelectionType = 'h3-cell' | 'drawn-polygon' | 'country';
+type SelectionType = SoilhiveMapSelectionType;
 
 // The selection on the map, carried through an OIDC sign-in so the visitor comes back to it (docs/adr/0075).
 // Left out: the H3 cell, a map feature that does not survive storage (the selection keeps its shape), and the

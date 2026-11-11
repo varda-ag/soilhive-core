@@ -32,7 +32,11 @@ import DrawControl, { type DrawControlRef } from '../DrawControl';
 import SoilhiveMapToolbar from './SoilhiveMapToolbar';
 import SoilhiveMapSelectionToolbar, { type SoilhiveMapSelectionToolbarMode } from './SoilhiveMapSelectionToolbar';
 import { largestPolygon as largestPolygonFn } from '../../utilities/geo';
-import type { SoilhiveMapLocationSearchEvent, SoilhiveMapSelectionChangeEvent } from './SoilhiveMapSelectionChangeEvent';
+import type {
+  SoilhiveMapLocationSearchEvent,
+  SoilhiveMapSelectionChangeEvent,
+  SoilhiveMapSelectionType,
+} from './SoilhiveMapSelectionChangeEvent';
 import { simplifyGeometry } from '../../utilities/simplifyGeometry';
 import useDevice from 'hooks/useDevice';
 import type { DataAvailabilityIndex } from '../../types/backend';
@@ -253,7 +257,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
   const scaleHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scaleUnmountTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drawControlRef = useRef<DrawControlRef>(null);
-  const selectionTypeRef = useRef<'drawn-polygon' | 'h3-cell' | 'country'>('drawn-polygon');
+  const selectionTypeRef = useRef<SoilhiveMapSelectionType>('drawn-polygon');
   const locationNameRef = useRef<string>(undefined);
 
   // This prevents onMapMoveEnd from being called concurrently with applySelection
@@ -471,7 +475,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
 
   const onSearchResultSelect = useCallback(
     ({ feature, placeType }: { feature: MapGeoJSONFeature; center: Point; placeType?: string }) => {
-      selectionTypeRef.current = 'country';
+      selectionTypeRef.current = placeType === 'continent' ? 'continent' : 'country';
       locationNameRef.current = feature?.properties?.display_name;
       onLocationSearch?.({ method: 'search', placeType, placeName: feature?.properties?.display_name });
 

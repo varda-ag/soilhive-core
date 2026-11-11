@@ -1,9 +1,15 @@
 import { type Polygon, type MultiPolygon } from 'geojson';
 
+/**
+ * How the selected area was picked. `continent` and `country` come from the search box, and `country` stands for
+ * any place it finds that is not a continent (a country, a region, a city…). A drawn or uploaded shape is a `drawn-polygon`.
+ */
+export type SoilhiveMapSelectionType = 'drawn-polygon' | 'h3-cell' | 'country' | 'continent';
+
 export interface SoilhiveMapSelectionChangeEvent {
   bounds: [number, number, number, number];
   geometries?: (Polygon | MultiPolygon)[];
-  selectionType: 'drawn-polygon' | 'h3-cell' | 'country';
+  selectionType: SoilhiveMapSelectionType;
   locationName?: string;
 }
 

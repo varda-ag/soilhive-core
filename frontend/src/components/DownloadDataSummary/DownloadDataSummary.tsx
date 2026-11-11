@@ -56,6 +56,8 @@ function DownloadDataSummary({
     selectionTitle = t('download_data_summary.selection.drawn_polygon');
   } else if (selectionType === 'country') {
     selectionTitle = t('download_data_summary.selection.country_selected');
+  } else if (selectionType === 'continent') {
+    selectionTitle = t('download_data_summary.selection.continent_selected');
   }
 
   const isDesktop = !responsive || isDesktopLayout;
