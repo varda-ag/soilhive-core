@@ -12,10 +12,19 @@ export interface PluginQueryResult<T> {
   refetch?: () => Promise<unknown>;
 }
 
+// A failed config read: the HTTP status and the problem body. A 403 on a dashboard config has
+// `datasets` and `has_unavailable_datasets` in its body.
+export interface PluginConfigError {
+  status: number;
+  body: unknown;
+}
+
 export interface PluginConfigResult<T> {
   config: T | undefined;
   isLoading: boolean;
   isError: boolean;
+  // Set on a failed read, except a 404, which reads as the default config.
+  error?: PluginConfigError | undefined;
   saveConfig: (config: T) => Promise<void>;
 }
 

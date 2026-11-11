@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import useConfig from 'hooks/useConfig';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { useRequest } from '../../src/api-client';
@@ -62,5 +63,42 @@ describe('useConfig with two observers of the same config', () => {
     await act(() => new Promise(resolve => setTimeout(resolve, 0)));
 
     expect(result.current.config).toEqual({ title: 'after' });
+  });
+});
+
+// Retries without delay, so a retry would show as a second GET at once.
+const noDelayWrapper = ({ children }: { children: React.ReactNode }) => (
+  <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retryDelay: 0 } } })}>{children}</QueryClientProvider>
+);
+
+describe('useConfig on a failed GET', () => {
+  beforeEach(() => request.mockClear());
+
+  it('exposes a 403 with its body after one request', async () => {
+    const body = { status: 403, datasets: ['ds-x'], has_unavailable_datasets: false };
+    request.mockRejectedValueOnce({ status: 403, raw: body });
+    const { result } = renderHook(() => useConfig('plugin:acme:dashboards:1'), { wrapper: noDelayWrapper });
+
+    await waitFor(() => expect(result.current.error).toEqual({ status: 403, body }));
+    expect(result.current.isError).toBe(true);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries another failure', async () => {
+    request.mockRejectedValue({ status: 500, raw: null });
+    const { result } = renderHook(() => useConfig('plugin:acme:failing'), { wrapper: noDelayWrapper });
+
+    await waitFor(() => expect(result.current.error).toEqual({ status: 500, body: null }));
+    expect(request).toHaveBeenCalledTimes(4);
+    request.mockReset();
+  });
+
+  it('returns the default config and no error on a 404 (read as null)', async () => {
+    request.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useConfig('plugin:acme:missing', { title: 'default' }), { wrapper: noDelayWrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.config).toEqual({ title: 'default' });
+    expect(result.current.error).toBeUndefined();
   });
 });
