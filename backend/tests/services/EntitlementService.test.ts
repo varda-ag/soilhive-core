@@ -1221,10 +1221,17 @@ describe('EntitlementService', () => {
   // dataset-1-renamed (old slug dataset-1), dataset-2 and dataset-3 are private (see the top-level beforeEach).
   describe('assertConfigDatasets', () => {
     const DASHBOARD_ID = 'plugin:dashboards:dashboards:1';
-    const withGrants = (datasets: CapabilityGrants): RequestData => ({ ...requestData, entitlements: { datasets, configs: {} } });
+    // Stored, not set on requestData: the check loads the caller's own grants.
+    const withGrants = async (datasets: CapabilityGrants): Promise<RequestData> => {
+      await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2::jsonb)`, [
+        mockToken.email,
+        JSON.stringify({ datasets }),
+      ]);
+      return requestData;
+    };
 
     it('passes when every private Dataset is granted preview', async () => {
-      const rd = withGrants({ 'dataset-2': [Capability.PREVIEW], 'dataset-3': [Capability.PREVIEW] });
+      const rd = await withGrants({ 'dataset-2': [Capability.PREVIEW], 'dataset-3': [Capability.PREVIEW] });
       await expect(service.assertConfigDatasets(rd, DASHBOARD_ID, { datasets: ['dataset-2', 'dataset-3'] })).resolves.toBeUndefined();
     });
 
@@ -1235,17 +1242,16 @@ describe('EntitlementService', () => {
 
     it('passes on a private Dataset granted preview to EVERYONE', async () => {
       await entityManager.query(`UPDATE entitlements SET data = '{"datasets": {"dataset-2": ["preview"]}}' WHERE id = $1`, [EVERYONE]);
-      const rd = { ...requestData, entitlements: await service.getUserEntitlements(requestData, 'nobody@example.com') };
-      await expect(service.assertConfigDatasets(rd, DASHBOARD_ID, { datasets: ['dataset-2'] })).resolves.toBeUndefined();
+      await expect(service.assertConfigDatasets(requestData, DASHBOARD_ID, { datasets: ['dataset-2'] })).resolves.toBeUndefined();
     });
 
     it('passes on the old slug of a renamed Dataset the user may preview (docs/adr/0071)', async () => {
-      const rd = withGrants({ 'dataset-1-renamed': [Capability.PREVIEW] });
+      const rd = await withGrants({ 'dataset-1-renamed': [Capability.PREVIEW] });
       await expect(service.assertConfigDatasets(rd, DASHBOARD_ID, { datasets: ['dataset-1'] })).resolves.toBeUndefined();
     });
 
     it('throws 403 listing the private Datasets the user may not preview, by current slug', async () => {
-      const rd = withGrants({ 'dataset-2': [Capability.PREVIEW], 'dataset-3': [Capability.DOWNLOAD] });
+      const rd = await withGrants({ 'dataset-2': [Capability.PREVIEW], 'dataset-3': [Capability.DOWNLOAD] });
       await expect(
         service.assertConfigDatasets(rd, DASHBOARD_ID, { datasets: ['dataset-1', 'dataset-2', 'dataset-3'] }),
       ).rejects.toMatchObject({
@@ -1265,7 +1271,7 @@ describe('EntitlementService', () => {
     });
 
     it('throws 403 with no ids for a deleted or unknown Dataset', async () => {
-      const rd = withGrants({ 'dataset-2': [Capability.PREVIEW] });
+      const rd = await withGrants({ 'dataset-2': [Capability.PREVIEW] });
       await entityManager.getRepository(DatasetEntity).softDelete({ slug: 'dataset-2' });
       await expect(service.assertConfigDatasets(rd, DASHBOARD_ID, { datasets: ['dataset-2', 'unknown'] })).rejects.toMatchObject({
         status: 403,
@@ -1300,7 +1306,7 @@ describe('EntitlementService', () => {
     );
 
     it('ignores the entries of datasets that are not strings', async () => {
-      const rd = withGrants({ 'dataset-2': [Capability.PREVIEW] });
+      const rd = await withGrants({ 'dataset-2': [Capability.PREVIEW] });
       await expect(
         service.assertConfigDatasets(rd, DASHBOARD_ID, { datasets: [1, null, { slug: 'dataset-3' }, 'dataset-2'] }),
       ).resolves.toBeUndefined();

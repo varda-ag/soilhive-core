@@ -1,4 +1,4 @@
-import { describe, expect, it, beforeAll, afterAll, jest } from '@jest/globals';
+import { describe, expect, it, beforeAll, beforeEach, afterAll, jest } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
@@ -7,7 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { writeSoilIndexRun } from '../../src/data-layer/SoilIndex';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { sleep } from '../../src/utils/utils';
-import { getDataAdminToken, getUserToken } from '../helper';
+import { getDataAdminToken, getSuperAdminToken, getUserToken } from '../helper';
 import { EVERYONE } from '../../src/constants/constants';
 import * as BulkLoaderModule from '../../src/jobs/bulk-load/BulkLoader';
 import { addCategory, addDataset, addFile, addSoilProperty, addUnpublishedDataset, linkMapping } from '../../src/utils/mock';
@@ -757,9 +757,8 @@ describe('Testing /data-requests routes', () => {
     const stranger = () => getUserToken('dr-stranger-id', 'dr-stranger@example.com');
 
     /** A fresh plugin config item: the author claims write, the reader is granted read. */
-    const claimConfig = async (): Promise<string> => {
-      const configId = `plugin:dashboards:dashboards:${uuidv4()}`;
-      await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(200);
+    const claimConfig = async (data: object = { widgets: [] }, configId = `plugin:dashboards:dashboards:${uuidv4()}`): Promise<string> => {
+      await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send(data).expect(200);
       await request(app)
         .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${author()}`)
@@ -842,6 +841,45 @@ describe('Testing /data-requests routes', () => {
 
         await request(app).get(`/data-requests/${created.body.id}`).expect(200);
         await request(app).delete(`/data-requests/${created.body.id}`).expect(403);
+      });
+
+      // ADR-0079: the route loads no entitlements, so the check loads the caller's own.
+      describe('of a dashboard listing a private Dataset', () => {
+        let privateSlug: string;
+        let publicSlug: string;
+        beforeEach(async () => {
+          const privateDataset = await addDataset('dr-dashboard-private', [0, 0, 2, 2], GISDataType.POINT);
+          await (await getEntityManager()).query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [privateDataset.id]);
+          privateSlug = privateDataset.slug;
+          publicSlug = (await addDataset('dr-dashboard-public', [0, 0, 2, 2], GISDataType.POINT)).slug;
+        });
+
+        it('is forbidden without preview on that Dataset, and readable with it', async () => {
+          const created = await createAttached(await claimConfig({ widgets: [], datasets: [privateSlug, publicSlug] }));
+
+          const res = await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(403);
+          expect(res.body).toMatchObject({ status: 403, datasets: [privateSlug], has_unavailable_datasets: false });
+
+          await request(app)
+            .put(`/datasets/${privateSlug}/entitlements`)
+            .set('Authorization', `Bearer ${await getSuperAdminToken()}`)
+            .send({ [readerEmail]: ['preview'] })
+            .expect(200);
+          await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+        });
+
+        it('leaves the write check alone: write destroys the request without preview', async () => {
+          const created = await createAttached(await claimConfig({ widgets: [], datasets: [privateSlug] }));
+
+          await request(app).delete(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        });
+
+        it('does not check a config item that is not a dashboard', async () => {
+          const configId = await claimConfig({ datasets: [privateSlug] }, `plugin:dashboards:widgets:${uuidv4()}`);
+          const created = await createAttached(configId);
+
+          await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+        });
       });
 
       it('is gated after the run completed too', async () => {

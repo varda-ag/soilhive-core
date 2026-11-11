@@ -539,7 +539,8 @@ export default class EntitlementService {
    * A dashboard is readable only with `preview` on each private Dataset in its `datasets` (ADR-0079).
    * Checks only `dashboards` Config Kind ids, and a Privileged caller passes. The 403 names the
    * private Datasets by current slug. An unpublished or deleted Dataset sets only
-   * `has_unavailable_datasets`, so its id is not revealed (docs/adr/0057).
+   * `has_unavailable_datasets`, so its id is not revealed (docs/adr/0057). Loads the caller's own
+   * grants when a Dataset is private, as some routes that call it load none.
    */
   async assertConfigDatasets(requestData: RequestData, configId: string, data: unknown): Promise<void> {
     if (isPrivilegedCaller(requestData.token) || !hasConfigKind(configId, ConfigKind.DASHBOARDS)) {
@@ -548,11 +549,18 @@ export default class EntitlementService {
     const slugs = dashboardDatasetSlugs(data);
     const datasetByName = await existingDatasetsByName(requestData, slugs);
     const hasUnavailable = slugs.some(slug => !datasetByName.has(slug));
+    const hasPrivate = [...datasetByName.values()].some(dataset => dataset.visibility === 'private');
+    const caller = hasPrivate
+      ? {
+          ...requestData,
+          entitlements: await this.getUserEntitlements(requestData, requestData.token ? getSubject(requestData) : undefined),
+        }
+      : requestData;
     // In the dashboard's order, once each
     const denied = new Set(
       slugs.flatMap(slug => {
         const dataset = datasetByName.get(slug);
-        return dataset && !datasetCapabilities(requestData, dataset).includes(Capability.PREVIEW) ? [dataset.slug] : [];
+        return dataset && !datasetCapabilities(caller, dataset).includes(Capability.PREVIEW) ? [dataset.slug] : [];
       }),
     );
     if (denied.size > 0 || hasUnavailable) {

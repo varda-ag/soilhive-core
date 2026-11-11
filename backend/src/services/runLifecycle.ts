@@ -76,14 +76,24 @@ export const assertCanAttach = async (requestData: RequestData, configId: string
   entitlementService.assertConfig(requestData, configId, Capability.WRITE);
 };
 
-/** An attached resource is gated by its config item; an unattached one by nothing but its id. */
+/**
+ * An attached resource is gated by its config item; an unattached one by nothing but its id. Reading
+ * it also needs what reading its dashboard needs (ADR-0079).
+ */
 export const assertConfigAccess = async (
   requestData: RequestData,
   resource: string,
   configId: string | null | undefined,
   capability: Capability.READ | Capability.WRITE,
 ): Promise<void> => {
-  if (configId && !(await entitlementService.canAccessConfig(requestData, configId, capability))) {
+  if (!configId) {
+    return;
+  }
+  if (!(await entitlementService.canAccessConfig(requestData, configId, capability))) {
     throw new ErrorResponse(`${resource} requires ${capability} on its config`, StatusCodes.FORBIDDEN);
+  }
+  if (capability === Capability.READ) {
+    const row = await requestData.entityManager.getRepository(JsonStorage).findOneBy({ id: configId });
+    await entitlementService.assertConfigDatasets(requestData, configId, row?.data);
   }
 };

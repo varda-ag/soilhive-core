@@ -1046,7 +1046,8 @@ paths:
       summary: Get a data request and its result
       description: >-
         Anyone holding the id may read it, with no token required, unless the request is attached
-        to a config item: then read on that item is required.
+        to a config item: then read on that item is required, and preview on each private Dataset
+        that a dashboard item lists in `datasets`.
       tags:
         - data-requests
       security:
@@ -1060,7 +1061,13 @@ paths:
               schema:
                 $ref: '../src/data-requests.yaml#/components/schemas/DataRequest'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden. When the config item is a dashboard and the caller may read it but not its
+            Datasets, the body also has `datasets` and `has_unavailable_datasets`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -1131,7 +1138,8 @@ paths:
       summary: Get a soil index run and its outcome
       description: >-
         Anyone holding the id may read it, with no token required, unless the run is attached to a
-        config item: then read on that item is required. Attaching never protects the run's scores
+        config item: then read on that item is required, and preview on each private Dataset that a
+        dashboard item lists in `datasets`. Attaching never protects the run's scores
         and tiles, which stay readable by anyone holding the id.
       tags:
         - soil-indexes
@@ -1146,7 +1154,13 @@ paths:
               schema:
                 $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexRun'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          description: >-
+            Forbidden. When the config item is a dashboard and the caller may read it but not its
+            Datasets, the body also has `datasets` and `has_unavailable_datasets`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
