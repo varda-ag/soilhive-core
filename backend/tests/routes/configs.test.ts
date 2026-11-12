@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 import request from 'supertest';
 import { app } from '../../src/app';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
@@ -7,6 +7,7 @@ import { IncomingHttpHeaders } from 'http';
 import { EVERYONE } from '../../src/constants/constants';
 import { addDataset } from '../../src/utils/mock';
 import DatasetEntity from '../../src/entities/Dataset';
+import { IngestionStatus } from '../../src/types/data';
 
 const ID = 'test-config';
 
@@ -263,6 +264,57 @@ describe('Testing GET /configs routes', () => {
       expect(res.body['dashboards:1'].data).toStrictEqual({ name: 'D' });
     });
 
+    describe('for a caller the dashboard dataset check blocks', () => {
+      const reader = 'reader@example.com';
+      const readerHeader = () => ({ Authorization: `Bearer ${getUserToken('reader-id', reader)}` });
+      const withoutRunId = Object.fromEntries(Object.entries(summary).filter(([key]) => key !== 'soilIndexRunId'));
+
+      const saveDashboard = async (id: string, datasets: string[]) => {
+        await (await getDataSource()).getRepository('JsonStorage').save({ id, data: { ...fullDashboard, datasets } });
+        await grantCapability(reader, 'configs', id, ['read']);
+      };
+
+      beforeEach(async () => {
+        await addDataset('ds-x', [0, 0, 1, 1]);
+        await addDataset('ds-public', [0, 0, 1, 1]);
+        await (await getDataSource()).getRepository(DatasetEntity).update({ slug: 'ds-x' }, { visibility: 'private' });
+      });
+
+      it('leaves out soilIndexRunId when the caller may not preview a private Dataset', async () => {
+        await saveDashboard('dashboards:1', ['ds-x', 'ds-public']);
+        const res = await request(app).get('/configs').query({ ids: 'dashboards:1' }).set(readerHeader());
+        expect(res.statusCode).toBe(200);
+        expect(res.body).toStrictEqual({ 'dashboards:1': savedConfig(withoutRunId) });
+      });
+
+      it('keeps soilIndexRunId when the caller may preview every private Dataset', async () => {
+        await saveDashboard('dashboards:1', ['ds-x', 'ds-public']);
+        await grantCapability(reader, 'datasets', 'ds-x', ['preview']);
+        const res = await request(app).get('/configs').query({ ids: 'dashboards:1' }).set(readerHeader());
+        expect(res.body).toStrictEqual({ 'dashboards:1': savedConfig(summary) });
+      });
+
+      it('leaves out soilIndexRunId when a Dataset is unpublished', async () => {
+        await (await getDataSource()).getRepository(DatasetEntity).update({ slug: 'ds-public' }, { status: IngestionStatus.LOADED });
+        await saveDashboard('dashboards:1', ['ds-public']);
+        const res = await request(app).get('/configs').query({ ids: 'dashboards:1' }).set(readerHeader());
+        expect(res.body).toStrictEqual({ 'dashboards:1': savedConfig(withoutRunId) });
+      });
+
+      it('keeps soilIndexRunId for a privileged caller', async () => {
+        await saveDashboard('dashboards:1', ['ds-x', 'unknown']);
+        const res = await request(app).get('/configs').query({ ids: 'dashboards:1' }).set(superAdminAuthHeader);
+        expect(res.body).toStrictEqual({ 'dashboards:1': savedConfig(summary) });
+      });
+
+      it('decides per dashboard in one call', async () => {
+        await saveDashboard('dashboards:1', ['ds-x']);
+        await saveDashboard('dashboards:2', ['ds-public']);
+        const res = await request(app).get('/configs').query({ ids: 'dashboards:1,dashboards:2' }).set(readerHeader());
+        expect(res.body).toStrictEqual({ 'dashboards:1': savedConfig(withoutRunId), 'dashboards:2': savedConfig(summary) });
+      });
+    });
+
     // PUT accepts only objects, so these values are written straight to the table
     it.each([[[{ name: 'D', widgets: [] }]], ['text']])('returns a value that is not an object unchanged: %p', async data => {
       await (await getDataSource()).getRepository('JsonStorage').save({ id: 'dashboards:1', data });
@@ -322,13 +374,17 @@ const getConfigGrants = async (): Promise<Record<string, unknown>> => {
 };
 
 /** Merges `{capabilities}` under `data.configs[configId]` for `subject`, on top of any existing grants. */
-const grantConfigCapability = async (subject: string, configId: string, capabilities: string[]) => {
+const grantConfigCapability = async (subject: string, configId: string, capabilities: string[]) =>
+  grantCapability(subject, 'configs', configId, capabilities);
+
+/** Merges `{capabilities}` under `data[scope][key]` for `subject`, on top of any existing grants. */
+const grantCapability = async (subject: string, scope: string, key: string, capabilities: string[]) => {
   const dataSource = await getDataSource();
   await dataSource.query(
-    `INSERT INTO entitlements (id, data) VALUES ($1, jsonb_build_object('configs', jsonb_build_object($2::text, $3::jsonb)))
+    `INSERT INTO entitlements (id, data) VALUES ($1, jsonb_build_object($2::text, jsonb_build_object($3::text, $4::jsonb)))
      ON CONFLICT (id) DO UPDATE SET data = jsonb_set(
-       entitlements.data, '{configs}', COALESCE(entitlements.data->'configs', '{}'::jsonb) || jsonb_build_object($2::text, $3::jsonb)
+       entitlements.data, ARRAY[$2::text], COALESCE(entitlements.data->$2::text, '{}'::jsonb) || jsonb_build_object($3::text, $4::jsonb)
      )`,
-    [subject, configId, JSON.stringify(capabilities)],
+    [subject, scope, key, JSON.stringify(capabilities)],
   );
 };

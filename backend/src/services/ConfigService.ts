@@ -21,6 +21,9 @@ const entitlementService = new EntitlementService();
 /** The keys of a dashboard value that `GET /configs` returns: what the dashboard list shows (ADR-0079). */
 const DASHBOARD_SUMMARY_KEYS = ['name', 'type', 'visibility', 'status', 'soilIndexRunId', 'framework', 'updated_by'];
 
+/** The summary keys for a caller the dashboard dataset check blocks: the run id would open the run's tiles (ADR-0079). */
+const BLOCKED_DASHBOARD_SUMMARY_KEYS = DASHBOARD_SUMMARY_KEYS.filter(key => key !== 'soilIndexRunId');
+
 export interface LogoData {
   fileKey: string;
   // Base64-encoded logo bytes. Absent for legacy logos still served from storage (see ADR 0015).
@@ -33,14 +36,12 @@ export interface SavedConfig {
   updated_at: string;
 }
 
-/** The summary keys of a dashboard object value; any other value is returned as it is. */
-const dashboardSummary = (data: unknown): unknown => {
+/** The `keys` of a dashboard object value; any other value is returned as it is. */
+const dashboardSummary = (data: unknown, keys: string[]): unknown => {
   if (typeof data !== 'object' || data === null || Array.isArray(data)) {
     return data;
   }
-  return Object.fromEntries(
-    DASHBOARD_SUMMARY_KEYS.filter(key => Object.hasOwn(data, key)).map(key => [key, (data as Record<string, unknown>)[key]]),
-  );
+  return Object.fromEntries(keys.filter(key => Object.hasOwn(data, key)).map(key => [key, (data as Record<string, unknown>)[key]]));
 };
 
 export default class ConfigService {
@@ -117,15 +118,18 @@ export default class ConfigService {
   /**
    * Silently omits ids the caller can't read from the result map — the same precedent
    * `getConfigs` already sets for ids that don't exist at all (see ADR 0037). A `dashboards`
-   * Config Kind id returns only its summary keys, for every caller (ADR-0079).
+   * Config Kind id returns only its summary keys, without `soilIndexRunId` for a caller the
+   * dashboard dataset check blocks (ADR-0079).
    */
   getConfigs = async (requestData: RequestData, ids: string[]): Promise<Record<string, SavedConfig>> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
     const readableRows = rows.filter(row => entitlementService.canConfig(requestData, row.id, Capability.READ));
+    const denials = await entitlementService.configDatasetsDenials(requestData, readableRows);
     return Object.fromEntries(
       readableRows.map(r => {
-        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS) ? dashboardSummary(r.data) : r.data;
+        const summaryKeys = denials.has(r.id) ? BLOCKED_DASHBOARD_SUMMARY_KEYS : DASHBOARD_SUMMARY_KEYS;
+        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS) ? dashboardSummary(r.data, summaryKeys) : r.data;
         return [r.id, { data, updated_at: r.updated_at!.toISOString() }];
       }),
     );

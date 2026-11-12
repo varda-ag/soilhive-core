@@ -16,6 +16,7 @@ import LicenseEntity from '../../src/entities/License';
 import { log } from '../../src/utils/logger';
 import { getEntitlementsCacheTtlMs } from '../../src/utils/utils';
 import { inBypassedRequest } from '../cache-bypass';
+import * as slugs from '../../src/utils/slugs';
 
 const mockToken: Token = {
   sub: 'test-user-id',
@@ -1307,6 +1308,43 @@ describe('EntitlementService', () => {
       await expect(
         service.assertConfigDatasets(requestData, DASHBOARD_ID, { datasets: [1, null, { slug: 'dataset-3' }, 'dataset-2'] }),
       ).resolves.toBeUndefined();
+    });
+  });
+  describe('configDatasetsDenials', () => {
+    const grant = (datasets: CapabilityGrants) =>
+      entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2::jsonb)`, [mockToken.email, JSON.stringify({ datasets })]);
+
+    it('maps each blocked dashboard to its denial and leaves out the others', async () => {
+      await grant({ 'dataset-2': [Capability.PREVIEW] });
+      const denials = await service.configDatasetsDenials(requestData, [
+        { id: 'dashboards:1', data: { datasets: ['dataset-2'] } },
+        { id: 'dashboards:2', data: { datasets: ['dataset-3', 'unknown'] } },
+        { id: 'plugin:zones:zones:1', data: { datasets: ['dataset-3'] } },
+      ]);
+      expect(denials).toStrictEqual(new Map([['dashboards:2', { datasets: ['dataset-3'], has_unavailable_datasets: true }]]));
+    });
+
+    it('looks up the Datasets and loads the grants once for many dashboards', async () => {
+      const lookup = jest.spyOn(slugs, 'existingDatasetsByName');
+      const grants = jest.spyOn(service, 'getUserEntitlements');
+      try {
+        await service.configDatasetsDenials(requestData, [
+          { id: 'dashboards:1', data: { datasets: ['dataset-2'] } },
+          { id: 'dashboards:2', data: { datasets: ['dataset-3'] } },
+          { id: 'dashboards:3', data: { datasets: ['dataset-2', 'dataset-3'] } },
+        ]);
+        expect(lookup).toHaveBeenCalledTimes(1);
+        expect(grants).toHaveBeenCalledTimes(1);
+      } finally {
+        lookup.mockRestore();
+        grants.mockRestore();
+      }
+    });
+
+    it('returns no denials for a privileged caller', async () => {
+      const rd = { ...requestData, token: { ...mockToken, isDataAdmin: true } };
+      const denials = await service.configDatasetsDenials(rd, [{ id: 'dashboards:1', data: { datasets: ['unknown'] } }]);
+      expect(denials.size).toBe(0);
     });
   });
 });

@@ -66,6 +66,12 @@ export const hasConfigKind = (key: string, kind: ConfigKind): boolean => {
   return id.length > prefix.length && id.startsWith(prefix);
 };
 
+/** What blocks a dashboard for a caller: the 403 extension members of the dashboard dataset check (ADR-0079). */
+export interface DashboardDatasetsDenial {
+  datasets: string[];
+  has_unavailable_datasets: boolean;
+}
+
 /** The string entries of a dashboard's top-level `datasets` array. The value is untrusted JSON. */
 const dashboardDatasetSlugs = (data: unknown): string[] => {
   const datasets = (data as { datasets?: unknown } | null)?.datasets;
@@ -537,35 +543,50 @@ export default class EntitlementService {
 
   /**
    * A dashboard is readable only with `preview` on each private Dataset in its `datasets` (ADR-0079).
-   * Checks only `dashboards` Config Kind ids, and a Privileged caller passes. The 403 names the
-   * private Datasets by current slug. An unpublished or deleted Dataset sets only
-   * `has_unavailable_datasets`, so its id is not revealed (docs/adr/0057). Loads the caller's own
-   * grants when a Dataset is private, as some routes that call it load none.
+   * Throws the denial of `configDatasetsDenials` as a 403 with its two extension members.
    */
   async assertConfigDatasets(requestData: RequestData, configId: string, data: unknown): Promise<void> {
-    if (!this.checksConfigDatasets(requestData, configId)) {
-      return;
+    const denial = (await this.configDatasetsDenials(requestData, [{ id: configId, data }])).get(configId);
+    if (denial) {
+      throw new ErrorResponse(`User lacks access to datasets of dashboard ${configId}`, StatusCodes.FORBIDDEN, { ...denial });
     }
-    const slugs = dashboardDatasetSlugs(data);
-    const datasetByName = await existingDatasetsByName(requestData, slugs);
-    const hasUnavailable = slugs.some(slug => !datasetByName.has(slug));
+  }
+
+  /**
+   * The configs among `configs` that the dashboard dataset check blocks for the caller, each mapped
+   * to what blocks it (ADR-0079). Checks only `dashboards` Config Kind ids, and a Privileged caller
+   * passes. `datasets` names the private Datasets without `preview` by current slug. An unpublished
+   * or deleted Dataset sets only `has_unavailable_datasets`, so its id is not revealed
+   * (docs/adr/0057). Looks up the Datasets of all configs in one query, and loads the caller's own
+   * grants once when a Dataset is private, as some routes that call it load none.
+   */
+  async configDatasetsDenials(
+    requestData: RequestData,
+    configs: { id: string; data: unknown }[],
+  ): Promise<Map<string, DashboardDatasetsDenial>> {
+    const checked = configs
+      .filter(config => this.checksConfigDatasets(requestData, config.id))
+      .map(config => ({ id: config.id, slugs: dashboardDatasetSlugs(config.data) }));
+    const datasetByName = await existingDatasetsByName(requestData, [...new Set(checked.flatMap(config => config.slugs))]);
     const hasPrivate = [...datasetByName.values()].some(dataset => dataset.visibility === 'private');
     const caller = hasPrivate
       ? { ...requestData, entitlements: await this.getUserEntitlements(requestData, subjectOf(requestData)) }
       : requestData;
-    // In the dashboard's order, once each
-    const denied = new Set(
-      slugs.flatMap(slug => {
-        const dataset = datasetByName.get(slug);
-        return dataset && !datasetCapabilities(caller, dataset).includes(Capability.PREVIEW) ? [dataset.slug] : [];
-      }),
-    );
-    if (denied.size > 0 || hasUnavailable) {
-      throw new ErrorResponse(`User lacks access to datasets of dashboard ${configId}`, StatusCodes.FORBIDDEN, {
-        datasets: [...denied],
-        has_unavailable_datasets: hasUnavailable,
-      });
+    const denials = new Map<string, DashboardDatasetsDenial>();
+    for (const { id, slugs } of checked) {
+      const hasUnavailable = slugs.some(slug => !datasetByName.has(slug));
+      // In the dashboard's order, once each
+      const denied = new Set(
+        slugs.flatMap(slug => {
+          const dataset = datasetByName.get(slug);
+          return dataset && !datasetCapabilities(caller, dataset).includes(Capability.PREVIEW) ? [dataset.slug] : [];
+        }),
+      );
+      if (denied.size > 0 || hasUnavailable) {
+        denials.set(id, { datasets: [...denied], has_unavailable_datasets: hasUnavailable });
+      }
     }
+    return denials;
   }
 
   /** `assertConfigDatasets` on the stored config item. Reads the row only when the check applies. */
