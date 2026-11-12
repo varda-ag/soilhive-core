@@ -67,10 +67,7 @@ export const hasConfigKind = (key: string, kind: ConfigKind): boolean => {
 };
 
 /** What blocks a dashboard for a caller: the 403 extension members of the dashboard dataset check (ADR-0079). */
-export interface DashboardDatasetsDenial {
-  datasets: string[];
-  has_unavailable_datasets: boolean;
-}
+type DashboardDatasetsDenial = { datasets: string[]; has_unavailable_datasets: boolean };
 
 /** The string entries of a dashboard's top-level `datasets` array. The value is untrusted JSON. */
 const dashboardDatasetSlugs = (data: unknown): string[] => {
@@ -548,7 +545,7 @@ export default class EntitlementService {
   async assertConfigDatasets(requestData: RequestData, configId: string, data: unknown): Promise<void> {
     const denial = (await this.configDatasetsDenials(requestData, [{ id: configId, data }])).get(configId);
     if (denial) {
-      throw new ErrorResponse(`User lacks access to datasets of dashboard ${configId}`, StatusCodes.FORBIDDEN, { ...denial });
+      throw new ErrorResponse(`User lacks access to datasets of dashboard ${configId}`, StatusCodes.FORBIDDEN, denial);
     }
   }
 

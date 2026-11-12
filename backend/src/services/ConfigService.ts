@@ -128,8 +128,9 @@ export default class ConfigService {
     const denials = await entitlementService.configDatasetsDenials(requestData, readableRows);
     return Object.fromEntries(
       readableRows.map(r => {
-        const summaryKeys = denials.has(r.id) ? BLOCKED_DASHBOARD_SUMMARY_KEYS : DASHBOARD_SUMMARY_KEYS;
-        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS) ? dashboardSummary(r.data, summaryKeys) : r.data;
+        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS)
+          ? dashboardSummary(r.data, denials.has(r.id) ? BLOCKED_DASHBOARD_SUMMARY_KEYS : DASHBOARD_SUMMARY_KEYS)
+          : r.data;
         return [r.id, { data, updated_at: r.updated_at!.toISOString() }];
       }),
     );
