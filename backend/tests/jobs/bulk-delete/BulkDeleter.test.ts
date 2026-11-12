@@ -1,5 +1,4 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { Job } from 'pg-boss';
@@ -26,11 +25,10 @@ const DEFAULT_RASTER_FIXTURE = 'sol_ph.h2o_usda.4c1a2a_m_250m_b0..0cm_1950..2017
 // these tiny fixtures. Lowering it here doesn't affect production (see computeRasterFootprints.ts).
 (computeRasterFootprints as unknown as { MIN_TILES: number }).MIN_TILES = 16;
 
-// A uuid: the job records the Dataset's previous status on its pg-boss row by id.
-// `later` is what an earlier Attempt recorded, making this a later Attempt.
+// `later` is what an earlier Attempt recorded, making this a later Attempt
 const getJob = (dataset_id: string, later: { previous_status?: IngestionStatus } = {}): Job<BulkDeleteJob> => {
   return {
-    id: randomUUID(),
+    id: 'mock-id',
     name: 'mock-job',
     expireInSeconds: 60,
     signal: AbortSignal.timeout(10000),
@@ -50,11 +48,14 @@ const getJob = (dataset_id: string, later: { previous_status?: IngestionStatus }
 const statementTimeout = () =>
   new QueryFailedError('DELETE ...', [], Object.assign(new Error('canceling statement due to statement timeout'), { code: '57014' }));
 
-// A vector purge queues an orphan sweep; pg-boss isn't started in this suite
+// A vector purge queues an orphan sweep, and the job records the Dataset's status on its row;
+// pg-boss isn't started in this suite
 let sendSpy: jest.Mock;
+let updateJobStateSpy: jest.SpiedFunction<typeof PgBossModule.updateJobState>;
 beforeEach(() => {
   sendSpy = jest.fn(async () => 'sweep-job-id');
   jest.spyOn(PgBossModule, 'getPgBoss').mockReturnValue({ send: sendSpy } as never);
+  updateJobStateSpy = jest.spyOn(PgBossModule, 'updateJobState').mockResolvedValue();
 });
 afterEach(() => {
   jest.restoreAllMocks();
@@ -440,15 +441,19 @@ describe('BulkDeleter class - later Attempts', () => {
 
   it('records the status it archives the dataset from, on its job row', async () => {
     const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 110, featureCount: 1 });
-    const entityManager = await getEntityManager();
-    const querySpy = jest.spyOn(entityManager, 'query');
 
     const job = getJob(dataset.slug);
     await BulkDeleterModule.processBulkDeletion(job);
 
-    // The merge, not clearDatasetErrors' earlier jsonb_set on the same table
-    const record = querySpy.mock.calls.find(([sql]) => /UPDATE \S+\.job SET data = data \|\|/.test(String(sql)));
-    expect(record?.[1]).toEqual([JSON.stringify({ previous_status: IngestionStatus.PUBLISHED }), job.id]);
+    expect(updateJobStateSpy).toHaveBeenCalledWith(job.id, { previous_status: IngestionStatus.PUBLISHED });
+  });
+
+  it('records nothing on a later Attempt, which already has the status', async () => {
+    const { dataset } = await addSyntheticData({ ...syntheticDataOptions, id: 115, featureCount: 1 });
+
+    await BulkDeleterModule.processBulkDeletion(getJob(dataset.slug, { previous_status: IngestionStatus.PUBLISHED }));
+
+    expect(updateJobStateSpy).not.toHaveBeenCalled();
   });
 
   it('finishes the purge of a dataset an earlier Attempt archived', async () => {

@@ -130,6 +130,8 @@ describe('runAttempt', () => {
   it.each([
     ['a heartbeat timeout', { value: { message: 'job heartbeat timeout' } }],
     ['a shutdown', { value: 'pg-boss shut down while active' }],
+    // pg-boss fails the job again after a shutdown's abort, over the message above
+    ["a shutdown's second fail", { name: 'Error', message: 'perJobResults handler must resolve with an array of job results' }],
   ])('runs a retry after %s, clearing the previous attempt first', async (_, output) => {
     const processor = jest.fn(async () => {});
 

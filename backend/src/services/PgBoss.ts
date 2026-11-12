@@ -325,7 +325,7 @@ export async function getJobCreatedOn(jobId: string): Promise<Date> {
   return new Date();
 }
 
-export async function updateJobState(jobId: string, update: Partial<ExportJob>): Promise<void> {
+export async function updateJobState(jobId: string, update: object): Promise<void> {
   const boss = getPgBoss();
   const db = boss.getDb();
   await db.executeSql(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2 AND state = 'active'`, [

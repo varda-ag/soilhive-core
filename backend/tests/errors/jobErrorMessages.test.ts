@@ -24,15 +24,23 @@ describe('JobError', () => {
 describe('translateQueueMessage', () => {
   // pg-boss writes these from a maintenance query, so no application code runs and nothing lands
   // in data.errors. They reach the client through `message` and must already be readable there.
-  it.each(['job heartbeat timeout', 'pg-boss shut down while active', 'job timed out'])('replaces the raw queue string %s', raw => {
+  it.each([
+    'job heartbeat timeout',
+    'pg-boss shut down while active',
+    'perJobResults handler must resolve with an array of job results',
+    'job timed out',
+  ])('replaces the raw queue string %s', raw => {
     const result = translateQueueMessage(raw);
     expect(result).not.toBe(raw);
     expect(result).toMatch(/job/i);
   });
 
-  it('shows a shutdown the same way as a heartbeat timeout: both are an Interruption', () => {
-    expect(translateQueueMessage('pg-boss shut down while active')).toBe(translateQueueMessage('job heartbeat timeout'));
-  });
+  it.each(['pg-boss shut down while active', 'perJobResults handler must resolve with an array of job results'])(
+    'shows %s the same way as a heartbeat timeout: both are an Interruption',
+    raw => {
+      expect(translateQueueMessage(raw)).toBe(translateQueueMessage('job heartbeat timeout'));
+    },
+  );
 
   it('leaves anything that is not a reap message untouched', () => {
     expect(translateQueueMessage('ENOENT: no such file or directory')).toBe('ENOENT: no such file or directory');
@@ -53,7 +61,11 @@ describe('outputMessage', () => {
   });
 
   it('names only Interruptions as retryable, never an expiry', () => {
-    expect(INTERRUPTION_MESSAGES).toEqual(['job heartbeat timeout', 'pg-boss shut down while active']);
+    expect(INTERRUPTION_MESSAGES).toEqual([
+      'job heartbeat timeout',
+      'pg-boss shut down while active',
+      'perJobResults handler must resolve with an array of job results',
+    ]);
   });
 });
 

@@ -408,14 +408,18 @@ export const UNEXPECTED_JOB_ERROR_CODE = 'UNEXPECTED_ERROR';
 // pg-boss fails jobs that stopped checking in (heartbeatSeconds), that outlived its expiry (expireInSeconds),
 // or that were still running when the process stopped, without running our code, so nothing lands in data.errors.
 // These raw strings in the job's output are the only explanation: here we map them to a code in JOB_ERROR_MESSAGES.
+const INTERRUPTED = 'QUEUE_HEARTBEAT_TIMEOUT';
 const QUEUE_REAP_CODES: Record<string, string> = {
-  'job heartbeat timeout': 'QUEUE_HEARTBEAT_TIMEOUT',
-  'pg-boss shut down while active': 'QUEUE_HEARTBEAT_TIMEOUT',
+  'job heartbeat timeout': INTERRUPTED,
+  'pg-boss shut down while active': INTERRUPTED,
+  // pg-boss fails a job again after a shutdown: failWip's abort resolves the handler's race with nothing,
+  // and this overwrites the shutdown message. Our handler always returns an array, so only a shutdown sends it.
+  'perJobResults handler must resolve with an array of job results': INTERRUPTED,
   'job timed out': 'QUEUE_JOB_TIMED_OUT',
 };
 
 // The raw output messages of an Interruption: the only failures that are retried (docs/adr/0079)
-export const INTERRUPTION_MESSAGES = ['job heartbeat timeout', 'pg-boss shut down while active'];
+export const INTERRUPTION_MESSAGES = Object.keys(QUEUE_REAP_CODES).filter(message => QUEUE_REAP_CODES[message] === INTERRUPTED);
 
 // The raw message in a failed job's output: an Error's own, the monitor's nested one, or a plain string from fail()
 export const outputMessage = (output: unknown): string | undefined => {

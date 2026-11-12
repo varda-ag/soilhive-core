@@ -1,5 +1,5 @@
 import { Job } from 'pg-boss';
-import { EntityManager, QueryFailedError } from 'typeorm';
+import { QueryFailedError } from 'typeorm';
 import { StatusCodes } from 'http-status-codes';
 import { BulkDeleteJob } from '../../interfaces/Job';
 import { Token } from '../../interfaces/Token';
@@ -17,21 +17,13 @@ import { bumpCacheEpoch } from '../../utils/cache-epoch';
 import ErrorService from '../../services/ErrorService';
 import EntitlementService from '../../services/EntitlementService';
 import { EntitlementScope } from '../../types/Entitlements';
-import { PG_BOSS_SCHEMA } from '../../services/PgBoss';
+import { updateJobState } from '../../services/PgBoss';
 
 // Postgres: query_canceled — raised when a statement exceeds the `statement_timeout` set below.
 const STATEMENT_TIMEOUT_CODE = '57014';
 
 // previous_status: the Dataset's status before this job archived it, saved for a later Attempt (ADR 0079)
 type BulkDeleteData = BulkDeleteJob & { previous_status?: IngestionStatus };
-
-// Saved before archiving, so a later Attempt knows this job archived the Dataset and what to put back
-const recordPreviousStatus = async (entityManager: EntityManager, jobId: string, previous_status: IngestionStatus) => {
-  await entityManager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2 AND state = 'active'`, [
-    JSON.stringify({ previous_status }),
-    jobId,
-  ]);
-};
 
 /**
  * A later Attempt's Dataset, archived now if the earlier Attempt was cut off before archiving it.
@@ -73,7 +65,8 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
     dataset = await resumeArchive(requestData, datasetService, data.dataset_id, data.previous_status);
   } else {
     dataset = await datasetService.getDataset(requestData, data.dataset_id);
-    await recordPreviousStatus(entityManager, job.id, dataset.status);
+    // Saved before archiving, so a later Attempt knows this job archived the Dataset and what to put back
+    await updateJobState(job.id, { previous_status: dataset.status });
     // First set dataset as deleted; the DAI refresh must be synchronous here so it
     // still sees the dataset_layers rows deleted below
     await datasetService.deleteDataset(requestData, data.dataset_id, true);

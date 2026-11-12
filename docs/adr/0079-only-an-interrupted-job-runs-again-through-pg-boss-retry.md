@@ -13,5 +13,6 @@ An Attempt cut short by an Interruption (a heartbeat reap, or a shutdown) is ret
 - Every job must be safe to run again from the start, after being cut off at any point. BULK_DELETE, VERSION_PUBLISH and RASTER_FILTER_INSTALL were changed to resume.
 - A job in `retry` is Queued and keeps its Dataset, Version or Raster Filter locked (amends ADR 0042).
 - The process must exit after `stop()`: handlers ignore `job.signal` and would otherwise overlap the next Attempt. Kubernetes' grace period must exceed 20s.
+- After a shutdown, pg-boss fails the job a second time with "perJobResults handler must resolve with an array of job results", because the abort resolves the handler's race with nothing. That message counts as an Interruption too.
 - A worker that lost its job while still alive is not fenced. pg-boss completes a job by id and `active` state only, so it could settle the next Attempt.
 - A job that hangs while its worker stays alive keeps its heartbeat, so it is still bounded only by the 24h expiry.
