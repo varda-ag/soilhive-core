@@ -4,8 +4,26 @@ import { useApiMutation } from './useApiMutation';
 import { useEntitlements } from './useEntitlementsHook';
 import { Capability, EntitlementScope } from 'types/backend';
 import { PLUGIN_CONFIG_ID_PATTERN } from './pluginConfigId';
+import type { PluginConfigError } from 'frontend-plugin-types';
 
 const getConfigEndpoint = (id: string) => `/configs/${id}`;
+
+const MAX_RETRIES = 3;
+
+// A 403 is final, e.g. a dashboard whose Datasets the user may not preview: retrying only delays the answer.
+const retryConfig = (failureCount: number, error: unknown): boolean => {
+  const { status } = (error ?? {}) as { status?: number };
+  return status !== 403 && failureCount < MAX_RETRIES;
+};
+
+// The status and problem body of a failed GET. A 404 is no error: it reads as the default config.
+const toConfigError = (error: unknown): PluginConfigError | undefined => {
+  if (!error) {
+    return undefined;
+  }
+  const { status, raw } = error as { status?: number; raw?: unknown };
+  return { status: status ?? 0, body: raw };
+};
 
 const useConfig = <T>(id: string, defaultConfig?: T) => {
   const { can } = useEntitlements(EntitlementScope.CONFIGS);
@@ -19,11 +37,17 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
 
   // Must not force authenticate: false — GET is entitlements-gated now, so a logged-in caller's
   // token needs to be sent when present (see ADR 0037).
-  const { data, isLoading, isError } = useApiQuery<T>({
+  const {
+    data,
+    isLoading,
+    isError,
+    error: queryError,
+  } = useApiQuery<T>({
     endpoint,
     method: 'GET',
     queryKey,
     enabled: !!id,
+    retry: retryConfig,
     showErrorNotification: false,
     notFoundAsNull: true,
   });
@@ -56,7 +80,7 @@ const useConfig = <T>(id: string, defaultConfig?: T) => {
     }
   };
 
-  return { config, isLoading, isError, saveConfig };
+  return { config, isLoading, isError, error: toConfigError(queryError), saveConfig };
 };
 
 export default useConfig;

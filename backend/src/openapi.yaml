@@ -233,6 +233,10 @@ paths:
         (including soft-deleted): the row is claimed via a conflict-detecting insert, and the
         caller who wins it is self-granted WRITE in the same request. Any other configId (a
         system config not matching that convention) is first-access only for a privileged caller.
+        For a stored `dashboards` Config Kind id, a non-privileged caller with WRITE also needs
+        `preview` on each private Dataset in the stored value's top-level `datasets` array, and
+        each of those Datasets must exist; otherwise nothing is written (ADR-0079). A first-access
+        insert has no stored value and is not checked.
       tags:
         - configs
       security:
@@ -255,7 +259,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
     get:
       x-eov-operation-handler: controllers/configs
       x-eov-operation-id: getConfig
@@ -264,7 +268,9 @@ paths:
       description: >-
         No security scheme: stays anonymous-friendly, since the frontend fetches theme/logo before
         login. Requires READ or WRITE on the config (EVERYONE's grants count), or a privileged
-        caller; an anonymous caller relies solely on an EVERYONE grant.
+        caller; an anonymous caller relies solely on an EVERYONE grant. For a `dashboards` Config
+        Kind id, a non-privileged caller also needs `preview` on each private Dataset in the
+        top-level `datasets` array, and each of those Datasets must exist (ADR-0079).
       tags:
         - configs
       responses:
@@ -275,7 +281,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ConfigItem'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -309,7 +315,12 @@ paths:
       description: >-
         No security scheme: stays anonymous-friendly, same as GET /configs/{configId}. Ids the
         caller lacks READ/WRITE on (EVERYONE's grants count) are silently omitted from the
-        response, the same precedent already used for ids that don't exist.
+        response, the same precedent already used for ids that don't exist. A `dashboards` Config
+        Kind id returns only the summary keys of its value (name, type, visibility, status,
+        soilIndexRunId, framework, updated_by). For a caller who lacks `preview` on a private
+        Dataset of the dashboard, or when one of its Datasets is unpublished or deleted, the summary
+        leaves out soilIndexRunId and adds `datasets_blocked: true`; the id is still listed. GET /configs/{configId} and
+        POST /configs-export return the full value (ADR-0079).
       tags:
         - configs
       parameters:
@@ -1035,7 +1046,8 @@ paths:
       summary: Get a data request and its result
       description: >-
         Anyone holding the id may read it, with no token required, unless the request is attached
-        to a config item: then read on that item is required.
+        to a config item: then read on that item is required, and preview on each private Dataset
+        that a dashboard item lists in `datasets`.
       tags:
         - data-requests
       security:
@@ -1049,7 +1061,7 @@ paths:
               schema:
                 $ref: '../src/data-requests.yaml#/components/schemas/DataRequest'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -1120,7 +1132,8 @@ paths:
       summary: Get a soil index run and its outcome
       description: >-
         Anyone holding the id may read it, with no token required, unless the run is attached to a
-        config item: then read on that item is required. Attaching never protects the run's scores
+        config item: then read on that item is required, and preview on each private Dataset that a
+        dashboard item lists in `datasets`. Attaching never protects the run's scores
         and tiles, which stay readable by anyone holding the id.
       tags:
         - soil-indexes
@@ -1135,7 +1148,7 @@ paths:
               schema:
                 $ref: '../src/soil-indexes.yaml#/components/schemas/SoilIndexRun'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
         '404':
           $ref: '#/components/responses/NotFound'
     delete:
@@ -3008,6 +3021,14 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
+    DashboardDatasetsForbidden:
+      description: >-
+        Forbidden. When the config item is a dashboard and the caller holds the needed config grant
+        but lacks access to its Datasets, the body also has `datasets` and `has_unavailable_datasets`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/DashboardDatasetsForbidden'
     Conflict:
       description: Conflict
       content:
@@ -3160,6 +3181,21 @@ components:
 
     ConfigItem:
       type: object
+
+    DashboardDatasetsForbidden:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            datasets:
+              type: array
+              items:
+                type: string
+              description: Current slugs of the private Datasets the caller needs `preview` on.
+              example: ['ds-x']
+            has_unavailable_datasets:
+              type: boolean
+              description: True when a listed Dataset is unpublished, deleted or unknown. Its id is not given.
 
     ErrorResponse:
       type: object

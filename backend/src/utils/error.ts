@@ -3,9 +3,12 @@ import { getReasonPhrase } from 'http-status-codes';
 
 export class ErrorResponse extends Error {
   status: number;
-  constructor(message: string, status: number | undefined) {
+  /** RFC 7807 extension members added to the problem body. */
+  extensions?: Record<string, unknown> | undefined;
+  constructor(message: string, status: number | undefined, extensions?: Record<string, unknown>) {
     super(message);
     this.status = status || 500;
+    this.extensions = extensions;
     this.name = getReasonPhrase(this.status);
   }
 }

@@ -8,8 +8,8 @@ import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig'
 import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
-import EntitlementService, { configForbidden } from './EntitlementService';
-import { EntitlementScope } from '../types/Entitlements';
+import EntitlementService, { configForbidden, hasConfigKind } from './EntitlementService';
+import { ConfigKind, EntitlementScope } from '../types/Entitlements';
 
 // Global Raster Filter sources run to several GB (docs/adr/0067)
 const DEFAULT_MAX_UPLOAD_SIZE_MB = 5000;
@@ -17,6 +17,12 @@ const DEFAULT_S3_STORAGE_PART_SIZE_MB = 64;
 const DEFAULT_S3_STORAGE_QUEUE_SIZE = 4;
 
 const entitlementService = new EntitlementService();
+
+/** The keys of a dashboard value that `GET /configs` returns: what the dashboard list shows (ADR-0079). */
+const DASHBOARD_SUMMARY_KEYS = ['name', 'type', 'visibility', 'status', 'soilIndexRunId', 'framework', 'updated_by'];
+
+/** The summary keys for a caller the dashboard dataset check blocks: the run id would open the run's tiles (ADR-0079). */
+const BLOCKED_DASHBOARD_SUMMARY_KEYS = DASHBOARD_SUMMARY_KEYS.filter(key => key !== 'soilIndexRunId');
 
 export interface LogoData {
   fileKey: string;
@@ -30,6 +36,23 @@ export interface SavedConfig {
   updated_at: string;
 }
 
+/** The `keys` of a dashboard object value; any other value is returned as it is. */
+const dashboardSummary = (data: unknown, keys: string[]): unknown => {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return data;
+  }
+  return Object.fromEntries(keys.filter(key => Object.hasOwn(data, key)).map(key => [key, (data as Record<string, unknown>)[key]]));
+};
+
+// The list marks a blocked dashboard, so it can open it to the 403 and not show it as failed.
+const dashboardListSummary = (data: unknown, isBlocked: boolean): unknown => {
+  if (!isBlocked) {
+    return dashboardSummary(data, DASHBOARD_SUMMARY_KEYS);
+  }
+  const summary = dashboardSummary(data, BLOCKED_DASHBOARD_SUMMARY_KEYS);
+  return typeof summary === 'object' && summary !== null ? { ...summary, datasets_blocked: true } : summary;
+};
+
 export default class ConfigService {
   private readConfigRow = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
     const row = await repo.findOneBy({ id });
@@ -41,16 +64,18 @@ export default class ConfigService {
 
   /**
    * `PUT /configs/{configId}`. A caller who already holds `WRITE` (or is privileged) upserts as
-   * before. Otherwise, only a fresh `plugin:` id is eligible for first access: a conflict-
-   * detecting insert (`ON CONFLICT DO NOTHING`, not `upsert`, which would let a concurrent racer
-   * silently overwrite the winner) either claims the id — granting the caller `WRITE` on it in
-   * the same transaction — or loses the race/finds it already taken (including soft-deleted,
-   * since the row's PK still exists) and 403s without writing anything. See ADR 0037.
+   * before, once the stored value passes the dashboard dataset check (ADR-0079). Otherwise, only
+   * a fresh `plugin:` id is eligible for first access: a conflict-detecting insert (`ON CONFLICT
+   * DO NOTHING`, not `upsert`, which would let a concurrent racer silently overwrite the winner)
+   * either claims the id — granting the caller `WRITE` on it in the same transaction — or loses
+   * the race/finds it already taken (including soft-deleted, since the row's PK still exists)
+   * and 403s without writing anything. See ADR 0037.
    */
   putConfig = async (requestData: RequestData, id: string, data: any): Promise<any> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
 
     if (entitlementService.canConfig(requestData, id, Capability.WRITE)) {
+      await entitlementService.assertStoredConfigDatasets(requestData, id);
       await repo.upsert([{ id, data, deleted_at: null }], ['id']);
       return this.readConfigRow(repo, id);
     }
@@ -85,6 +110,7 @@ export default class ConfigService {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const data = await this.readConfigRow(repo, id);
     entitlementService.assertConfig(requestData, id, Capability.READ);
+    await entitlementService.assertConfigDatasets(requestData, id, data);
     return data;
   };
 
@@ -102,13 +128,21 @@ export default class ConfigService {
 
   /**
    * Silently omits ids the caller can't read from the result map — the same precedent
-   * `getConfigs` already sets for ids that don't exist at all (see ADR 0037).
+   * `getConfigs` already sets for ids that don't exist at all (see ADR 0037). A `dashboards`
+   * Config Kind id returns only its summary keys. For a caller the dashboard dataset check blocks,
+   * it leaves out `soilIndexRunId` and adds `datasets_blocked: true` (ADR-0079).
    */
   getConfigs = async (requestData: RequestData, ids: string[]): Promise<Record<string, SavedConfig>> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
     const readableRows = rows.filter(row => entitlementService.canConfig(requestData, row.id, Capability.READ));
-    return Object.fromEntries(readableRows.map(r => [r.id, { data: r.data, updated_at: r.updated_at!.toISOString() }]));
+    const denials = await entitlementService.configDatasetsDenials(requestData, readableRows);
+    return Object.fromEntries(
+      readableRows.map(r => {
+        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS) ? dashboardListSummary(r.data, denials.has(r.id)) : r.data;
+        return [r.id, { data, updated_at: r.updated_at!.toISOString() }];
+      }),
+    );
   };
 
   // Export keeps the bare `{ [id]: data }` shape, so exported files still import (ADR 0063).

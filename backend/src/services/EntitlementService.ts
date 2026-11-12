@@ -10,8 +10,8 @@ import { Capability } from '../types/enums';
 import { isCacheBypassed } from '../utils/cache-bypass';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
-import { existingDatasets, getEntitySlugs } from '../utils/slugs';
-import { datasetCapabilities, getSubject, isPrivilegedCaller } from '../utils/auth';
+import { existingDatasets, existingDatasetsByName, getEntitySlugs } from '../utils/slugs';
+import { datasetCapabilities, getSubject, isPrivilegedCaller, subjectOf } from '../utils/auth';
 import { getEntitlementsCacheTtlMs } from '../utils/utils';
 import { JsonStorage } from '../entities/JsonStorage';
 
@@ -58,6 +58,22 @@ export const resetEntitlementsCache = (): void => {
 
 /** Whether `scope` is a Config Kind (a filtered view over `configs`, see `selectByScope`) rather than a storage namespace. */
 const isConfigKind = (scope: RequestScope): scope is ConfigKind => Object.values<string>(ConfigKind).includes(scope);
+
+/** Whether a config id, after any Plugin Namespace, is `${kind}:` plus a non-empty id. */
+export const hasConfigKind = (key: string, kind: ConfigKind): boolean => {
+  const prefix = `${kind}:`;
+  const id = PLUGIN_CONFIG_ID_PATTERN.exec(key)?.[2] ?? key;
+  return id.length > prefix.length && id.startsWith(prefix);
+};
+
+/** What blocks a dashboard for a caller: the 403 extension members of the dashboard dataset check (ADR-0079). */
+type DashboardDatasetsDenial = { datasets: string[]; has_unavailable_datasets: boolean };
+
+/** The string entries of a dashboard's top-level `datasets` array. The value is untrusted JSON. */
+const dashboardDatasetSlugs = (data: unknown): string[] => {
+  const datasets = (data as { datasets?: unknown } | null)?.datasets;
+  return Array.isArray(datasets) ? datasets.filter((slug): slug is string => typeof slug === 'string') : [];
+};
 
 /** De-duplicated, sorted union of two capability lists. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
@@ -212,12 +228,7 @@ export default class EntitlementService {
       return entitlements[scope] ?? {};
     }
     const configs = entitlements.configs ?? {};
-    const prefix = `${scope}:`;
-    const hasKind = (key: string): boolean => {
-      const id = PLUGIN_CONFIG_ID_PATTERN.exec(key)?.[2] ?? key;
-      return id.length > prefix.length && id.startsWith(prefix);
-    };
-    return Object.fromEntries(Object.entries(configs).filter(([key]) => hasKind(key)));
+    return Object.fromEntries(Object.entries(configs).filter(([key]) => hasConfigKind(key, scope)));
   };
 
   /**
@@ -430,7 +441,7 @@ export default class EntitlementService {
     if (isPrivilegedCaller(requestData.token)) {
       return true;
     }
-    const subject = requestData.token ? getSubject(requestData) : undefined;
+    const subject = subjectOf(requestData);
     const rows: { capabilities: unknown }[] = await requestData.entityManager.query(
       `SELECT "data"->'configs'->$1::text AS capabilities FROM "entitlements" WHERE "id" = ANY($2::text[]) AND "deleted_at" IS NULL`,
       [key, subject ? [EVERYONE, subject] : [EVERYONE]],
@@ -526,4 +537,65 @@ export default class EntitlementService {
     }
     return datasets.map(dataset => dataset.slug);
   }
+
+  /**
+   * A dashboard is readable only with `preview` on each private Dataset in its `datasets` (ADR-0079).
+   * Throws the denial of `configDatasetsDenials` as a 403 with its two extension members.
+   */
+  async assertConfigDatasets(requestData: RequestData, configId: string, data: unknown): Promise<void> {
+    const denial = (await this.configDatasetsDenials(requestData, [{ id: configId, data }])).get(configId);
+    if (denial) {
+      throw new ErrorResponse(`User lacks access to datasets of dashboard ${configId}`, StatusCodes.FORBIDDEN, denial);
+    }
+  }
+
+  /**
+   * The configs among `configs` that the dashboard dataset check blocks for the caller, each mapped
+   * to what blocks it (ADR-0079). Checks only `dashboards` Config Kind ids, and a Privileged caller
+   * passes. `datasets` names the private Datasets without `preview` by current slug. An unpublished
+   * or deleted Dataset sets only `has_unavailable_datasets`, so its id is not revealed
+   * (docs/adr/0057). Looks up the Datasets of all configs in one query, and loads the caller's own
+   * grants once when a Dataset is private, as some routes that call it load none.
+   */
+  async configDatasetsDenials(
+    requestData: RequestData,
+    configs: { id: string; data: unknown }[],
+  ): Promise<Map<string, DashboardDatasetsDenial>> {
+    const checked = configs
+      .filter(config => this.checksConfigDatasets(requestData, config.id))
+      .map(config => ({ id: config.id, slugs: dashboardDatasetSlugs(config.data) }));
+    const datasetByName = await existingDatasetsByName(requestData, [...new Set(checked.flatMap(config => config.slugs))]);
+    const hasPrivate = [...datasetByName.values()].some(dataset => dataset.visibility === 'private');
+    const caller = hasPrivate
+      ? { ...requestData, entitlements: await this.getUserEntitlements(requestData, subjectOf(requestData)) }
+      : requestData;
+    const denials = new Map<string, DashboardDatasetsDenial>();
+    for (const { id, slugs } of checked) {
+      const hasUnavailable = slugs.some(slug => !datasetByName.has(slug));
+      // In the dashboard's order, once each
+      const denied = new Set(
+        slugs.flatMap(slug => {
+          const dataset = datasetByName.get(slug);
+          return dataset && !datasetCapabilities(caller, dataset).includes(Capability.PREVIEW) ? [dataset.slug] : [];
+        }),
+      );
+      if (denied.size > 0 || hasUnavailable) {
+        denials.set(id, { datasets: [...denied], has_unavailable_datasets: hasUnavailable });
+      }
+    }
+    return denials;
+  }
+
+  /** `assertConfigDatasets` on the stored config item. Reads the row only when the check applies. */
+  async assertStoredConfigDatasets(requestData: RequestData, configId: string): Promise<void> {
+    if (!this.checksConfigDatasets(requestData, configId)) {
+      return;
+    }
+    const row = await requestData.entityManager.getRepository(JsonStorage).findOneBy({ id: configId });
+    await this.assertConfigDatasets(requestData, configId, row?.data);
+  }
+
+  /** Whether the dashboard dataset check applies: a `dashboards` Config Kind id and a caller that is not privileged. */
+  private checksConfigDatasets = (requestData: RequestData, configId: string): boolean =>
+    !isPrivilegedCaller(requestData.token) && hasConfigKind(configId, ConfigKind.DASHBOARDS);
 }

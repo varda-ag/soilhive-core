@@ -11,6 +11,7 @@ import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { getPolygonFromBbox } from '../../src/utils/geometry';
 import { sleep } from '../../src/utils/utils';
 import { getUserToken } from '../helper';
+import { addDataset } from '../../src/utils/mock';
 
 const IMMUTABLE = 'public, max-age=31536000, immutable';
 
@@ -276,9 +277,9 @@ describe('Soil Index Runs', () => {
     const reader = () => getUserToken('si-reader-id', readerEmail);
     const stranger = () => getUserToken('si-stranger-id', 'si-stranger@example.com');
 
-    const claimConfig = async (): Promise<string> => {
+    const claimConfig = async (data: object = { widgets: [] }): Promise<string> => {
       const configId = `plugin:dashboards:dashboards:${uuidv4()}`;
-      await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(200);
+      await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send(data).expect(200);
       await request(app)
         .put(`/configs/${configId}/entitlements`)
         .set('Authorization', `Bearer ${author()}`)
@@ -316,6 +317,20 @@ describe('Soil Index Runs', () => {
       await request(app).get(`/soil-indexes/${id}`).set('Authorization', `Bearer ${stranger()}`).expect(403);
       await request(app).get(`/soil-indexes/${id}`).expect(403);
 
+      await request(app).get(`/soil-indexes/${id}/tiles`).expect(200);
+      await request(app).get(`/soil-indexes/${id}/scores/1`).expect(200);
+    });
+
+    // ADR-0079: the route loads no entitlements, so the check loads the caller's own.
+    it("gates the record by preview on its dashboard's private Datasets, but not its scores and tiles", async () => {
+      const dataset = await addDataset('si-dashboard-private', [0, 0, 1, 1]);
+      await (await getEntityManager()).query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+      const configId = await claimConfig({ widgets: [], datasets: [dataset.slug] });
+      const id = await createAttached(configId);
+      await finishRun(id, configId);
+
+      const res = await request(app).get(`/soil-indexes/${id}`).set('Authorization', `Bearer ${reader()}`).expect(403);
+      expect(res.body).toMatchObject({ status: 403, datasets: [dataset.slug], has_unavailable_datasets: false });
       await request(app).get(`/soil-indexes/${id}/tiles`).expect(200);
       await request(app).get(`/soil-indexes/${id}/scores/1`).expect(200);
     });
