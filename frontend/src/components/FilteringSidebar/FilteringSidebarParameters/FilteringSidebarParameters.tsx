@@ -13,7 +13,6 @@ import type { AccordionRef } from 'components/UI/types';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
 
 import styles from './FilteringSidebarParameters.module.scss';
-import { RasterFilter } from 'components/FilteringSidebar/RasterFilter/RasterFilter';
 import { useTranslation } from 'react-i18next';
 
 const CATEGORIES_ICONS_MAP: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
@@ -23,7 +22,7 @@ const CATEGORIES_ICONS_MAP: Record<string, React.FC<React.SVGProps<SVGSVGElement
   physical: PhysicalIcon,
 };
 
-export function FilteringSidebarParameters({ hasSoilGroupsRasterFilter = false }: { hasSoilGroupsRasterFilter?: boolean }) {
+export function FilteringSidebarParameters() {
   const {
     isLoading,
     isNoData,
@@ -213,7 +212,6 @@ export function FilteringSidebarParameters({ hasSoilGroupsRasterFilter = false }
           </div>
         )}
       </Accordion>
-      {hasSoilGroupsRasterFilter && <RasterFilter categoryId="soil_groups" />}
     </div>
   );
 }

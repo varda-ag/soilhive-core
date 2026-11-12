@@ -6,3 +6,6 @@ export const IN_PROGRESS_INSTALL_STATUSES = [RasterFilterInstallStatus.QUEUED, R
 export const getInstallStatus = (filter: RasterFilterCategory) => filter.install?.status ?? RasterFilterInstallStatus.NOT_INSTALLED;
 
 export const isInstallInProgress = (status: RasterFilterInstallStatus) => IN_PROGRESS_INSTALL_STATUSES.includes(status);
+
+// Shown to users under "Land & environment"
+export const isOfferedRasterFilter = (filter: RasterFilterCategory) => filter.enabled && filter.active;

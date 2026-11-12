@@ -30,7 +30,6 @@ exports[`FilteringSidebarContent renders three sections with child components 1`
         Soil parameters
       </p>
       <div
-        data-has-soil-groups="false"
         data-testid="mock-filtering-sidebar-parameters"
       >
         Mock FilteringSidebarParameters
@@ -43,12 +42,12 @@ exports[`FilteringSidebarContent renders three sections with child components 1`
       <p
         class="Title"
       >
-        LAND & ECOSYSTEM
+        Land & environment
       </p>
       <div
-        data-testid="mock-filtering-sidebar-land-ecosystem"
+        data-testid="mock-filtering-sidebar-land-environment"
       >
-        Mock FilteringSidebarLandEcosystem
+        Mock FilteringSidebarLandEnvironment
       </div>
     </div>
   </div>
