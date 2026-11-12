@@ -4,8 +4,6 @@ import { FilteringSidebarParameters } from 'components/FilteringSidebar/Filterin
 import type { NestedCheckboxItemType, NestedCheckboxRef } from 'types/components';
 import type { AccordionRef } from 'components/UI/types';
 import useSoilPropertiesFilters from 'hooks/useSoilPropertiesFilters';
-import { useRasterFilters } from 'hooks/useRasterFilters';
-import useAvailability from 'hooks/useAvailability';
 
 const mockCategorizedSoilProperties = [
   {
@@ -36,20 +34,6 @@ jest.mock('hooks/useDevice');
 jest.mock('hooks/useSoilPropertiesFilters', () => ({
   __esModule: true,
   default: jest.fn(),
-}));
-
-jest.mock('hooks/useRasterFilters', () => ({
-  __esModule: true,
-  useRasterFilters: jest.fn(),
-}));
-
-jest.mock('hooks/useAvailability', () => ({
-  __esModule: true,
-  default: jest.fn(),
-}));
-
-jest.mock('components/FilteringSidebar/RasterFilter/RasterFilter', () => ({
-  RasterFilter: ({ categoryId }: { categoryId: string }) => <div data-testid={`mock-raster-filter-${categoryId}`} />,
 }));
 
 type NestedCheckboxPropsType = {
@@ -163,24 +147,15 @@ describe('FilteringSidebarParameters', () => {
     handlePillRemove: mockHandlePillRemove,
   };
 
-  const deafultRasterFilters = {
-    categoryData: [],
-    isLoading: false,
-    selectedValues: [],
-    handleOnChange: jest.fn(),
-  };
-
   beforeEach(() => {
     (useSoilPropertiesFilters as jest.Mock).mockReturnValue(defaultHookValue);
-    (useRasterFilters as jest.Mock).mockReturnValue(deafultRasterFilters);
-    (useAvailability as jest.Mock).mockReturnValue({ isLoading: false });
   });
 
   afterEach(() => {
     jest.clearAllMocks();
   });
   it('renders accordion components', () => {
-    const { container } = render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
+    const { container } = render(<FilteringSidebarParameters />);
 
     const accordions = screen.getAllByTestId('accordion');
     expect(accordions).toHaveLength(3);
@@ -193,7 +168,7 @@ describe('FilteringSidebarParameters', () => {
   });
 
   it('changes selected parameters on the nested checbox component change', () => {
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
+    render(<FilteringSidebarParameters />);
 
     fireEvent.click(screen.getAllByTestId('nested-checkbox-change')[0]);
 
@@ -203,7 +178,7 @@ describe('FilteringSidebarParameters', () => {
   });
 
   it('toggles the expansion state when the toggle is clicked', () => {
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
+    render(<FilteringSidebarParameters />);
 
     const toggle = screen.getByTestId('global-toggle');
     const checkox = screen.getAllByTestId('nested-checkbox')[0];
@@ -218,7 +193,7 @@ describe('FilteringSidebarParameters', () => {
   });
 
   it('toggles the expansion state when the single item was toggled in the nested checkbox', () => {
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
+    render(<FilteringSidebarParameters />);
 
     const toggle = screen.getByTestId('global-toggle');
 
@@ -237,7 +212,7 @@ describe('FilteringSidebarParameters', () => {
   });
 
   it('toggles the expansion state when the single accordion was toggled', () => {
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
+    render(<FilteringSidebarParameters />);
 
     const toggle = screen.getByTestId('global-toggle');
 
@@ -256,7 +231,7 @@ describe('FilteringSidebarParameters', () => {
   });
 
   it('expands all properties on the search', () => {
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
+    render(<FilteringSidebarParameters />);
 
     const input = screen.getByPlaceholderText('Search soil properties');
 
@@ -274,20 +249,8 @@ describe('FilteringSidebarParameters', () => {
   it('renders loading state', () => {
     (useSoilPropertiesFilters as jest.Mock).mockReturnValue({ ...defaultHookValue, isLoading: true });
 
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
+    render(<FilteringSidebarParameters />);
 
     expect(screen.queryByTestId('skeleton-container')).toBeInTheDocument();
-  });
-
-  it('renders the soil_groups RasterFilter when hasSoilGroupsRasterFilter is true', () => {
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={true} />);
-
-    expect(screen.getByTestId('mock-raster-filter-soil_groups')).toBeInTheDocument();
-  });
-
-  it('does not render the soil_groups RasterFilter when hasSoilGroupsRasterFilter is false', () => {
-    render(<FilteringSidebarParameters hasSoilGroupsRasterFilter={false} />);
-
-    expect(screen.queryByTestId('mock-raster-filter-soil_groups')).not.toBeInTheDocument();
   });
 });

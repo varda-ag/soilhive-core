@@ -1,6 +1,5 @@
-//import React from 'react';
 import { render, screen } from '@testing-library/react';
-import { FilteringSidebarLandEcosystem } from 'components/FilteringSidebar/FilteringSidebarLandEcosystem/FilteringSidebarLandEcosystem';
+import { FilteringSidebarLandEnvironment } from 'components/FilteringSidebar/FilteringSidebarLandEnvironment/FilteringSidebarLandEnvironment';
 import useAvailability from 'hooks/useAvailability';
 
 jest.mock('hooks/useAvailability', () => ({
@@ -20,7 +19,7 @@ const ALL_CATEGORIES = [
   { id: 'land_cover', name: 'Land Cover', enabled: false, active: true, mapping: {} },
 ];
 
-describe('FilteringSidebarLandEcosystem', () => {
+describe('FilteringSidebarLandEnvironment', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
@@ -28,31 +27,35 @@ describe('FilteringSidebarLandEcosystem', () => {
   it('renders nothing when allRasterCategories is undefined', () => {
     useAvailabilityMock.mockReturnValue({ allRasterCategories: undefined } as any);
 
-    const { container } = render(<FilteringSidebarLandEcosystem />);
+    const { container } = render(<FilteringSidebarLandEnvironment />);
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('excludes soil_groups from the rendered filters', () => {
+  it('renders a RasterFilter for each enabled and active category, soil_groups included', () => {
     useAvailabilityMock.mockReturnValue({ allRasterCategories: ALL_CATEGORIES } as any);
 
-    render(<FilteringSidebarLandEcosystem />);
+    render(<FilteringSidebarLandEnvironment />);
 
-    expect(screen.queryByTestId('mock-raster-filter-soil_groups')).not.toBeInTheDocument();
-  });
-
-  it('renders a RasterFilter for each enabled and active category except soil_groups', () => {
-    useAvailabilityMock.mockReturnValue({
-      allRasterCategories: ALL_CATEGORIES,
-      isLoadingRasterCategories: false,
-      geometryFilterResults: { raster_filters: { climate_zones: [1], land_cover: [2] }, datasets: [] },
-    } as any);
-
-    render(<FilteringSidebarLandEcosystem />);
-
+    expect(screen.getByTestId('mock-raster-filter-soil_groups')).toBeInTheDocument();
     expect(screen.getByTestId('mock-raster-filter-climate_zones')).toBeInTheDocument();
     // land_cover is disabled, so it must not render
     expect(screen.queryByTestId('mock-raster-filter-land_cover')).not.toBeInTheDocument();
+  });
+
+  it('sorts the filters alphabetically by name', () => {
+    useAvailabilityMock.mockReturnValue({
+      allRasterCategories: [
+        { id: 'soil_groups', name: 'Soil Groups', enabled: true, active: true, mapping: {} },
+        { id: 'land_cover', name: 'land cover', enabled: true, active: true, mapping: {} },
+        { id: 'aez', name: 'Agro-ecological Zones', enabled: true, active: true, mapping: {} },
+      ],
+    } as any);
+
+    const { container } = render(<FilteringSidebarLandEnvironment />);
+
+    const order = Array.from(container.querySelectorAll('[data-testid^="mock-raster-filter-"]')).map(el => el.getAttribute('data-testid'));
+    expect(order).toEqual(['mock-raster-filter-aez', 'mock-raster-filter-land_cover', 'mock-raster-filter-soil_groups']);
   });
 
   it('excludes categories that are enabled but not active', () => {
@@ -60,17 +63,8 @@ describe('FilteringSidebarLandEcosystem', () => {
       allRasterCategories: [{ id: 'climate_zones', name: 'Climate Zones', enabled: true, active: false, mapping: {} }],
     } as any);
 
-    render(<FilteringSidebarLandEcosystem />);
+    render(<FilteringSidebarLandEnvironment />);
 
     expect(screen.queryByTestId('mock-raster-filter-climate_zones')).not.toBeInTheDocument();
-  });
-  it('renders nothing when all categories are soil_groups', () => {
-    useAvailabilityMock.mockReturnValue({
-      allRasterCategories: [{ id: 'soil_groups', name: 'Soil Groups', enabled: true, mapping: {} }],
-    } as any);
-
-    const { container } = render(<FilteringSidebarLandEcosystem />);
-
-    expect(container).toBeEmptyDOMElement();
   });
 });

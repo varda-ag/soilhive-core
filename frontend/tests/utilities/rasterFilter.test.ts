@@ -1,4 +1,4 @@
-import { getInstallStatus, isInstallInProgress, IN_PROGRESS_INSTALL_STATUSES } from 'utilities/rasterFilter';
+import { getInstallStatus, isInstallInProgress, isOfferedRasterFilter, IN_PROGRESS_INSTALL_STATUSES } from 'utilities/rasterFilter';
 import { RasterFilterInstallStatus, type RasterFilterCategory } from 'types/backend';
 
 const makeFilter = (overrides?: Partial<RasterFilterCategory>): RasterFilterCategory => ({
@@ -42,6 +42,17 @@ describe('rasterFilter utilities', () => {
 
     it('agrees with IN_PROGRESS_INSTALL_STATUSES', () => {
       expect(IN_PROGRESS_INSTALL_STATUSES).toEqual([RasterFilterInstallStatus.QUEUED, RasterFilterInstallStatus.INSTALLING]);
+    });
+  });
+
+  describe('isOfferedRasterFilter', () => {
+    it.each([
+      [true, true, true],
+      [true, false, false],
+      [false, true, false],
+      [false, false, false],
+    ])('enabled %s and active %s gives %s', (enabled, active, expected) => {
+      expect(isOfferedRasterFilter(makeFilter({ enabled, active }))).toBe(expected);
     });
   });
 });
