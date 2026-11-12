@@ -3605,10 +3605,13 @@ components:
             Layer; the others are Observations.
         soil_property:
           type: string
-          description: Full name of the soil property measured
+          description: Slug of the soil property measured, its `id` in `GET /soil-properties`
         property_acronym:
           type: string
           description: Acronym or shorthand for the soil property
+        property_name:
+          type: string
+          description: Full name of the soil property measured
         standard_unit:
           type: string
           description: Standard unit of measurement for the value

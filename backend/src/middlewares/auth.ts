@@ -8,7 +8,9 @@ const entitlementService = new EntitlementService();
 export const authMiddleware = async (req: Request & { openapi?: any }) => {
   // If a token was sent but the route didn't require auth (no bearerAuth security handler ran),
   // validate it anyway so req.customData.token is populated for entitlement checking.
-  if (!req.customData.token && req.headers['authorization']?.startsWith('Bearer ')) {
+  // A runner route's bearer is a runner assertion, never a core token (docs/adr/0078).
+  const runnerRoute = req.openapi?.schema?.security?.some((s: object) => 'runnerAuth' in s);
+  if (!req.customData.token && !runnerRoute && req.headers['authorization']?.startsWith('Bearer ')) {
     await tokenValidator(req, []);
   }
   // The validator already refused these; checked again because a route whose security also allows
