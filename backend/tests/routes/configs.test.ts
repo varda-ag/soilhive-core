@@ -406,13 +406,13 @@ const getConfigGrants = async (): Promise<Record<string, unknown>> => {
   return Object.fromEntries(rows.map(({ id, configs }) => [id, configs]));
 };
 
-/** Merges `{capabilities}` under `data.configs[configId]` for `subject`, on top of any existing grants. */
 /** A published Dataset that only grant holders may see. */
 const addPrivateDataset = async (slug: string) => {
   await addDataset(slug, [0, 0, 1, 1]);
   await (await getDataSource()).getRepository(DatasetEntity).update({ slug }, { visibility: 'private' });
 };
 
+/** Merges `{capabilities}` under `data.configs[configId]` for `subject`, on top of any existing grants. */
 const grantConfigCapability = async (subject: string, configId: string, capabilities: string[]) =>
   grantCapability(subject, 'configs', configId, capabilities);
 
