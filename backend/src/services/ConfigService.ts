@@ -44,6 +44,15 @@ const dashboardSummary = (data: unknown, keys: string[]): unknown => {
   return Object.fromEntries(keys.filter(key => Object.hasOwn(data, key)).map(key => [key, (data as Record<string, unknown>)[key]]));
 };
 
+// The list marks a blocked dashboard, so it can open it to the 403 and not show it as failed.
+const dashboardListSummary = (data: unknown, isBlocked: boolean): unknown => {
+  if (!isBlocked) {
+    return dashboardSummary(data, DASHBOARD_SUMMARY_KEYS);
+  }
+  const summary = dashboardSummary(data, BLOCKED_DASHBOARD_SUMMARY_KEYS);
+  return typeof summary === 'object' && summary !== null ? { ...summary, datasets_blocked: true } : summary;
+};
+
 export default class ConfigService {
   private readConfigRow = async (repo: Repository<JsonStorage>, id: string): Promise<any> => {
     const row = await repo.findOneBy({ id });
@@ -120,8 +129,8 @@ export default class ConfigService {
   /**
    * Silently omits ids the caller can't read from the result map — the same precedent
    * `getConfigs` already sets for ids that don't exist at all (see ADR 0037). A `dashboards`
-   * Config Kind id returns only its summary keys, without `soilIndexRunId` for a caller the
-   * dashboard dataset check blocks (ADR-0079).
+   * Config Kind id returns only its summary keys. For a caller the dashboard dataset check blocks,
+   * it leaves out `soilIndexRunId` and adds `datasets_blocked: true` (ADR-0079).
    */
   getConfigs = async (requestData: RequestData, ids: string[]): Promise<Record<string, SavedConfig>> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
@@ -130,9 +139,7 @@ export default class ConfigService {
     const denials = await entitlementService.configDatasetsDenials(requestData, readableRows);
     return Object.fromEntries(
       readableRows.map(r => {
-        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS)
-          ? dashboardSummary(r.data, denials.has(r.id) ? BLOCKED_DASHBOARD_SUMMARY_KEYS : DASHBOARD_SUMMARY_KEYS)
-          : r.data;
+        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS) ? dashboardListSummary(r.data, denials.has(r.id)) : r.data;
         return [r.id, { data, updated_at: r.updated_at!.toISOString() }];
       }),
     );

@@ -319,7 +319,7 @@ paths:
         Kind id returns only the summary keys of its value (name, type, visibility, status,
         soilIndexRunId, framework, updated_by). For a caller who lacks `preview` on a private
         Dataset of the dashboard, or when one of its Datasets is unpublished or deleted, the summary
-        leaves out soilIndexRunId; the id is still listed. GET /configs/{configId} and
+        leaves out soilIndexRunId and adds `datasets_blocked: true`; the id is still listed. GET /configs/{configId} and
         POST /configs-export return the full value (ADR-0079).
       tags:
         - configs

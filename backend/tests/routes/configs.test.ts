@@ -301,7 +301,10 @@ describe('Testing GET /configs routes', () => {
     describe('for a caller the dashboard dataset check blocks', () => {
       const reader = 'reader@example.com';
       const readerHeader = () => ({ Authorization: `Bearer ${getUserToken('reader-id', reader)}` });
-      const withoutRunId = Object.fromEntries(Object.entries(summary).filter(([key]) => key !== 'soilIndexRunId'));
+      const withoutRunId = {
+        ...Object.fromEntries(Object.entries(summary).filter(([key]) => key !== 'soilIndexRunId')),
+        datasets_blocked: true,
+      };
 
       const saveDashboard = async (id: string, datasets: string[]) => {
         await (await getDataSource()).getRepository('JsonStorage').save({ id, data: { ...fullDashboard, datasets } });
