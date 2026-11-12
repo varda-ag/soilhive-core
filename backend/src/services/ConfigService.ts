@@ -55,7 +55,7 @@ export default class ConfigService {
 
   /**
    * `PUT /configs/{configId}`. A caller who already holds `WRITE` (or is privileged) upserts as
-   * before. Otherwise, only a fresh `plugin:` id is eligible for first access: a conflict-
+   * before, once the stored value passes the dashboard dataset check (ADR-0079). Otherwise, only a fresh `plugin:` id is eligible for first access: a conflict-
    * detecting insert (`ON CONFLICT DO NOTHING`, not `upsert`, which would let a concurrent racer
    * silently overwrite the winner) either claims the id — granting the caller `WRITE` on it in
    * the same transaction — or loses the race/finds it already taken (including soft-deleted,
@@ -65,6 +65,7 @@ export default class ConfigService {
     const repo = requestData.entityManager.getRepository(JsonStorage);
 
     if (entitlementService.canConfig(requestData, id, Capability.WRITE)) {
+      await entitlementService.assertStoredConfigDatasets(requestData, id);
       await repo.upsert([{ id, data, deleted_at: null }], ['id']);
       return this.readConfigRow(repo, id);
     }

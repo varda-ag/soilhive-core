@@ -78,6 +78,40 @@ describe('Testing /configs/{id} routes', () => {
     expect(res.body).toMatchObject({ status: 403, datasets: ['ds-x'], has_unavailable_datasets: false });
   });
 
+  // ADR-0079: a writer must not drop the check by saving other Datasets.
+  describe('PUT on a stored dashboard listing a private Dataset', () => {
+    const dashboardId = 'plugin:dashboards:dashboards:t1';
+    const stored = { name: 'D', datasets: ['ds-x'] };
+    const writer = 'writer@example.com';
+    const writerHeader = () => ({ Authorization: `Bearer ${getUserToken('writer-id', writer)}` });
+
+    beforeEach(async () => {
+      await addDataset('ds-x', [0, 0, 1, 1]);
+      await (await getDataSource()).getRepository(DatasetEntity).update({ slug: 'ds-x' }, { visibility: 'private' });
+      await (await getDataSource()).getRepository('JsonStorage').save({ id: dashboardId, data: stored });
+      await grantConfigCapability(writer, dashboardId, ['write']);
+    });
+
+    it('responds with 403 and writes nothing when the writer may not preview it', async () => {
+      const res = await request(app).put(`/configs/${dashboardId}`).set(writerHeader()).send({ name: 'D', datasets: [] });
+      expect(res.statusCode).toBe(403);
+      expect(res.body).toMatchObject({ status: 403, datasets: ['ds-x'], has_unavailable_datasets: false });
+      expect((await getTestConfigFromDBById(dashboardId))!.data).toStrictEqual(stored);
+    });
+
+    it('saves when the writer may preview it', async () => {
+      await grantCapability(writer, 'datasets', 'ds-x', ['preview']);
+      const res = await request(app).put(`/configs/${dashboardId}`).set(writerHeader()).send({ name: 'D', datasets: [] });
+      expect(res.statusCode).toBe(200);
+      expect(res.body).toStrictEqual({ name: 'D', datasets: [] });
+    });
+
+    it('saves for a privileged caller', async () => {
+      const res = await request(app).put(`/configs/${dashboardId}`).set(superAdminAuthHeader).send({ name: 'D', datasets: [] });
+      expect(res.statusCode).toBe(200);
+    });
+  });
+
   it('DELETE removes the config', async () => {
     const data = { key: 'value' };
     await createTestConfigInDB(data);

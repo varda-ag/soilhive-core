@@ -233,6 +233,10 @@ paths:
         (including soft-deleted): the row is claimed via a conflict-detecting insert, and the
         caller who wins it is self-granted WRITE in the same request. Any other configId (a
         system config not matching that convention) is first-access only for a privileged caller.
+        For a stored `dashboards` Config Kind id, a non-privileged caller with WRITE also needs
+        `preview` on each private Dataset in the stored value's top-level `datasets` array, and
+        each of those Datasets must exist; otherwise nothing is written (ADR-0079). A first-access
+        insert has no stored value and is not checked.
       tags:
         - configs
       security:
@@ -255,7 +259,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          $ref: '#/components/responses/Forbidden'
+          $ref: '#/components/responses/DashboardDatasetsForbidden'
     get:
       x-eov-operation-handler: controllers/configs
       x-eov-operation-id: getConfig
@@ -3019,8 +3023,8 @@ components:
             $ref: '#/components/schemas/ErrorResponse'
     DashboardDatasetsForbidden:
       description: >-
-        Forbidden. When the config item is a dashboard and the caller may read it but not its
-        Datasets, the body also has `datasets` and `has_unavailable_datasets`.
+        Forbidden. When the config item is a dashboard and the caller holds the needed config grant
+        but lacks access to its Datasets, the body also has `datasets` and `has_unavailable_datasets`.
       content:
         application/json:
           schema:

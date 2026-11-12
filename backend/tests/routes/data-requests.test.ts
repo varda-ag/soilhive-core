@@ -868,6 +868,19 @@ describe('Testing /data-requests routes', () => {
           await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
         });
 
+        it('stays forbidden after a writer without preview tries to save the dashboard without that Dataset', async () => {
+          const configId = await claimConfig({ widgets: [], datasets: [privateSlug] });
+          const created = await createAttached(configId);
+
+          const put = await request(app)
+            .put(`/configs/${configId}`)
+            .set('Authorization', `Bearer ${author()}`)
+            .send({ widgets: [], datasets: [] })
+            .expect(403);
+          expect(put.body).toMatchObject({ status: 403, datasets: [privateSlug], has_unavailable_datasets: false });
+          await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(403);
+        });
+
         it('leaves the write check alone: write destroys the request without preview', async () => {
           const created = await createAttached(await claimConfig({ widgets: [], datasets: [privateSlug] }));
 
