@@ -90,6 +90,8 @@ describe('ErrorService.getDatasetErrors', () => {
 
   it.each([
     ['job heartbeat timeout', 'QUEUE_HEARTBEAT_TIMEOUT'],
+    ['pg-boss shut down while active', 'QUEUE_HEARTBEAT_TIMEOUT'],
+    ['perJobResults handler must resolve with an array of job results', 'QUEUE_HEARTBEAT_TIMEOUT'],
     ['job timed out', 'QUEUE_JOB_TIMED_OUT'],
   ])('surfaces a pg-boss reap (%s) that left nothing in data.errors', async (raw, code) => {
     const service = new ErrorService();
@@ -103,7 +105,21 @@ describe('ErrorService.getDatasetErrors', () => {
     const service = new ErrorService();
     const entityManager = makeEntityManager([]);
     await service.getDatasetErrors({ entityManager, entitlements: {} });
-    expect(entityManager.query.mock.calls[0]![1]).toEqual([['job heartbeat timeout', 'job timed out']]);
+    expect(entityManager.query.mock.calls[0]![1]).toEqual([
+      [
+        'job heartbeat timeout',
+        'pg-boss shut down while active',
+        'perJobResults handler must resolve with an array of job results',
+        'job timed out',
+      ],
+    ]);
+  });
+
+  it("reads a shutdown's plain string value, not only the monitor's nested message", async () => {
+    const service = new ErrorService();
+    const entityManager = makeEntityManager([]);
+    await service.getDatasetErrors({ entityManager, entitlements: {} });
+    expect(entityManager.query.mock.calls[0]![0]).toContain("output->>'value'");
   });
 
   it('prefers data.errors over the output message', async () => {

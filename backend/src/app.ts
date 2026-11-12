@@ -7,7 +7,8 @@ import { loggingMiddleware } from './middlewares/logging';
 import { getOpenApiMiddleware, getSwaggerDocument } from './middlewares/openapi';
 import { transactionMiddleware } from './middlewares/transaction';
 import { uploadSizeLimit } from './middlewares/uploadSizeLimit';
-import { initPgBoss } from './services/PgBoss';
+import { initPgBoss, stopPgBoss } from './services/PgBoss';
+import { getErrorMessage } from './utils/error';
 import { setupCLI } from './utils/cli';
 import { cacheBypassMiddleware, isCacheBypassEnabled } from './utils/cache-bypass';
 import { startCacheEpochWatcher } from './utils/cache-epoch';
@@ -100,6 +101,14 @@ export const initApp = async (app: Application) => {
   } else {
     await initializeSchema();
     await initPgBoss();
+    // A deploy or scale-down releases its running jobs to a retry rather than leaving them for the heartbeat reap.
+    // The exit is required: handlers ignore job.signal and would otherwise overlap the next Attempt (docs/adr/0079).
+    process.once('SIGTERM', () => {
+      log.info('SIGTERM received: stopping job workers');
+      stopPgBoss({ graceful: true, timeout: 20_000 })
+        .catch(error => log.error('Failed to stop pg-boss', { error: getErrorMessage(error) }))
+        .finally(() => process.exit(0));
+    });
     try {
       await syncVocabularies();
     } catch (error) {

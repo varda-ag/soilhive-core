@@ -24,6 +24,9 @@ const DATASET_ERROR_QUEUES = `('file-to-db', 'bulk-load', 'raster-load', 'bulk-d
 // publishes into by dataset_id, but its errors are the Version's, where it's published from.
 const ERROR_DATASET = `CASE WHEN name = 'version-publish' THEN data->>'version_id' ELSE data->>'dataset_id' END`;
 
+// SQL twin of outputMessage. A shutdown's `value` is a string; ->> on an object `value` gives JSON text, which matches no reap.
+const OUTPUT_MESSAGE = `COALESCE(output->>'message', output->'value'->>'message', output->>'value')`;
+
 export default class ErrorService {
   // Clearing leaves an empty `errors` array rather than dropping the key: a job without the key is
   // read as a pg-boss reap, so dropping it would bring a cleared reap back.
@@ -35,9 +38,10 @@ export default class ErrorService {
   }
 
   /**
-   * A failure is either a JobError recorded into `data.errors`, or a pg-boss reap (heartbeat or
-   * expiry) which never runs our code and only leaves a raw message in `output` - nested under
-   * `value` for the monitor's SQL. The reap is surfaced as an error with its own code.
+   * A failure is either a JobError recorded into `data.errors`, or a pg-boss reap (heartbeat,
+   * expiry or shutdown) which never runs our code and only leaves a raw message in `output` -
+   * nested under `value` for the monitor's SQL, or a plain string `value` for a shutdown. The
+   * reap is surfaced as an error with its own code.
    */
   async getDatasetErrors(requestData: RequestData): Promise<DatasetError[]> {
     const rows: Array<{ dataset_id: string; errors: StoredError[] | null; output_message: string | null }> =
@@ -45,14 +49,14 @@ export default class ErrorService {
         `SELECT DISTINCT ON (${ERROR_DATASET})
            ${ERROR_DATASET} AS dataset_id,
            data->'errors' AS errors,
-           COALESCE(output->>'message', output->'value'->>'message') AS output_message
+           ${OUTPUT_MESSAGE} AS output_message
          FROM ${PG_BOSS_SCHEMA}.job
          WHERE name IN ${DATASET_ERROR_QUEUES}
            AND state = 'failed'
            AND ${ERROR_DATASET} IS NOT NULL
            AND (
              (data->'errors' IS NOT NULL AND data->'errors' <> '[]'::jsonb)
-             OR (NOT data ? 'errors' AND COALESCE(output->>'message', output->'value'->>'message') = ANY($1::text[]))
+             OR (NOT data ? 'errors' AND ${OUTPUT_MESSAGE} = ANY($1::text[]))
            )
          ORDER BY ${ERROR_DATASET}, created_on DESC`,
         [QUEUE_REAP_MESSAGES],

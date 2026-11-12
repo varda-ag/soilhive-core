@@ -63,6 +63,12 @@ describe('JobService.translateJob', () => {
     expect(job.message).toBe('The job was interrupted before it could finish. Please try again.');
   });
 
+  it('translates a shutdown, whose output is a plain string value, as an Interruption', () => {
+    const job = translateJob(jobRow({ output: { value: 'pg-boss shut down while active' } as any }));
+
+    expect(job.message).toBe('The job was interrupted before it could finish. Please try again.');
+  });
+
   it('leaves a raw thrown error message alone', () => {
     const job = translateJob(jobRow({ output: { message: 'ENOENT: no such file or directory' } as any }));
 

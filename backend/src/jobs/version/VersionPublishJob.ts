@@ -20,6 +20,10 @@ import { deleteSourceFiles } from '../raster-load/RasterLoader';
 import { getSubject } from '../../utils/auth';
 import { log } from '../../utils/logger';
 import { getErrorMessage } from '../../utils/error';
+import { PG_BOSS_SCHEMA } from '../../services/PgBoss';
+
+// Written with the move, so an Attempt interrupted after the commit is resumed, not repeated
+type PublishJobData = VersionPublishJob & { published_file_ids?: string[] };
 
 // Postgres: query_canceled — raised when a statement exceeds the `statement_timeout` set below.
 const STATEMENT_TIMEOUT_CODE = '57014';
@@ -36,14 +40,23 @@ const PUBLISH_STATEMENT_TIMEOUT = '5min';
  *
  * Readers see v1's old data until the transaction commits, and a failure publishes nothing: v2 stays
  * LOADED, with the job's error, and can be published again.
+ *
+ * An Attempt interrupted after the commit leaves `published_file_ids` in the job's data: the next
+ * Attempt finds v2 gone and only runs the steps that follow the commit (docs/adr/0079).
  */
 export async function processVersionPublish(job: Job<VersionPublishJob>): Promise<void> {
-  const { data } = job;
+  const data: PublishJobData = job.data;
   const entityManager = await getEntityManager();
   // A publish's errors are the Version's, where it's published from (ErrorService)
   await new ErrorService().clearDatasetErrors(data.version_id, entityManager);
   const requestData = await jobRequestData(entityManager, data);
   const dataset = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.dataset_id);
+  const isRaster = dataset.gis_datatype === GISDataType.RASTER;
+  if (data.published_file_ids) {
+    log.info('Resuming a version publish after its commit', { job_id: job.id, dataset_id: dataset.id });
+    await afterPublish(entityManager, dataset.id, isRaster, data, data.published_file_ids);
+    return;
+  }
   const version = await getEntity(requestData, DatasetEntity, EntityType.DATASET, data.version_id);
   const reason = await publishableReason(entityManager, dataset, version);
   if (reason) {
@@ -54,7 +67,6 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
     throw mixedDataTypesError(version, dataset, mixed);
   }
   const updatedBy = data.created_by ? getSubject(requestData) : null;
-  const isRaster = dataset.gis_datatype === GISDataType.RASTER;
 
   let fileIds: string[];
   try {
@@ -92,13 +104,19 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
       // Its slug history stays (see above)
       await manager.query(`DELETE FROM datasets WHERE id = $1`, [version.id]);
 
-      // Last: recomputed from v1's rows as they now are, not by adding v2's rollup to v1's. Its own
+      // Recomputed from v1's rows as they now are, not by adding v2's rollup to v1's. Its own
       // statement_timeout outlasts the publish's, for the rest of the transaction.
       if (isRaster) {
         await updateRasterDatasetMetadata(manager, dataset.id, IngestionStatus.PUBLISHED, updatedBy);
       } else {
         await updateDatasetMetadata(manager, dataset.id, IngestionStatus.PUBLISHED);
       }
+
+      // Last, so the job row is locked only until the commit, never during the move
+      await manager.query(`UPDATE ${PG_BOSS_SCHEMA}.job SET data = data || $1::jsonb WHERE id = $2`, [
+        JSON.stringify({ published_file_ids: moved }),
+        job.id,
+      ]);
       return moved;
     });
   } catch (error) {
@@ -113,16 +131,26 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
     throw error;
   }
 
-  // Published: from here nothing may fail the job. The cache epoch is bumped by runJob.
+  await afterPublish(entityManager, dataset.id, isRaster, data, fileIds);
+}
+
+/** The steps after the commit. Nothing here may fail the job, and the cache epoch is bumped by runJob. */
+const afterPublish = async (
+  entityManager: EntityManager,
+  datasetId: string,
+  isRaster: boolean,
+  data: VersionPublishJob,
+  fileIds: string[],
+): Promise<void> => {
   if (!isRaster) {
-    await refreshDaiStats(entityManager, [dataset.id]).catch(error =>
-      log.warn('Failed to refresh DAI stats after a version publish', { dataset_id: dataset.id, error: getErrorMessage(error) }),
+    await refreshDaiStats(entityManager, [datasetId]).catch(error =>
+      log.warn('Failed to refresh DAI stats after a version publish', { dataset_id: datasetId, error: getErrorMessage(error) }),
     );
   }
   if (data.delete_source_files) {
     await deleteUploads(entityManager, fileIds, isRaster);
   }
-}
+};
 
 const mixedDataTypesError = (version: DatasetEntity, dataset: DatasetEntity, dataTypes: GISDataType[]): JobError =>
   new JobError('VERSION_DATA_TYPES_MIXED', { version_name: version.name, dataset_name: dataset.name, data_types: dataTypes.join(' and ') });

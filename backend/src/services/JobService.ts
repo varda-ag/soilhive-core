@@ -25,7 +25,7 @@ import { misplacedParameter, notASoilIndexRun, parametersProblem, SAME_CORRELATI
 import { soilIndexRunExists } from '../data-layer/SoilIndex';
 import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import { log } from '../utils/logger';
-import { translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
+import { outputMessage, translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES, hasRasterFileToLoad } from '../data-layer/DatasetJobs';
 import { assertNotVersioned } from '../data-layer/DatasetVersions';
 import { getEntity } from '../utils/slugs';
@@ -500,7 +500,7 @@ export default class JobService {
    *   3. A monitor reap. `failJobsByTimeout` and `failJobsByHeartbeat` run as literal SQL on
    *      whichever node holds the maintenance lock - none of our code runs, nothing lands in
    *      `data.errors`, and their output nests the message under `value` rather than at the top
-   *      level, carrying a raw queue-library string.
+   *      level, carrying a raw queue-library string. A shutdown leaves that string as `value` itself.
    *
    * All three are resolved to display-ready copy here so no client has to know any of it.
    */
@@ -511,7 +511,8 @@ export default class JobService {
     const jobError = failed
       ? (job.data as { errors?: Array<{ code: string; params?: Record<string, unknown> }> } | null)?.errors?.[0]
       : undefined;
-    const raw = output?.['message'] ?? output?.['value']?.['message'];
+    // outputMessage last, for a shutdown's plain string `value`
+    const raw = output?.['message'] ?? output?.['value']?.['message'] ?? outputMessage(output);
     const translated = jobError ? translateJobError(jobError.code, jobError.params ?? {}) : undefined;
     const message = translated
       ? [translated.message, ...translated.actions].join(' ')

@@ -610,6 +610,28 @@ describe('Testing /jobs routes', () => {
       expect(afterCancel.body.queued_job).toBeNull();
     });
 
+    // docs/adr/0079: an interrupted job waits in `retry`, and must keep its Dataset locked until it runs again
+    it('keeps a dataset queued and locked while its job waits for a retry', async () => {
+      const token = await getDataAdminToken();
+      const dataset = await addDataset('retry-lock-dataset', [0, 0, 1, 1]);
+      const heldId = await holdQueued(JobQueues.BULK_LOAD, dataset.slug);
+      await (await getDataSource()).query(`UPDATE ${PG_BOSS_SCHEMA}.job SET state = 'retry' WHERE id = $1`, [heldId]);
+      try {
+        const read = await request(app).get(`/datasets/${dataset.slug}`).set('Authorization', `Bearer ${token}`);
+        expect(read.body.queued_job).toEqual({ id: heldId, queue: JobQueues.BULK_LOAD });
+        expect(read.body.active_job).toBeNull();
+
+        const edit = await request(app)
+          .patch(`/datasets/${dataset.slug}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ description: 'changed' });
+        expect(edit.statusCode).toBe(409);
+        expect(edit.body.detail).toContain('queued');
+      } finally {
+        await getPgBoss().cancel(JobQueues.BULK_LOAD, heldId);
+      }
+    });
+
     it('keeps the dataset locked while its job runs, but no longer queued', async () => {
       const token = await getDataAdminToken();
       const dataset = await addUnpublishedDataset('running-lock-dataset', [0, 0, 1, 1]);

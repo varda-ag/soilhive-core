@@ -175,6 +175,15 @@ describe('Testing /raster-filters routes', () => {
       expect(res.body.install.job_id).toBeDefined();
     });
 
+    it('shows an install waiting for its retry as queued', async () => {
+      const file = await addRasterFile('retried_install.tif');
+      const created = await request(app).post('/raster-filters').set(dataAdminAuthHeader).send(payload(file.slug));
+      const jobId = created.body.install.job_id;
+      await (await getDataSource()).query(`UPDATE ${PG_BOSS_SCHEMA}.job SET state = 'retry' WHERE id = $1`, [jobId]);
+      const res = await request(app).get(`/raster-filters/${NEW_ID}`).set(dataAdminAuthHeader);
+      expect(res.body.install).toEqual({ status: 'queued', job_id: jobId, errors: [] });
+    });
+
     it.each([
       ['an id, which comes from the name', { id: NEW_ID }],
       ['a continuous kind', { kind: 'continuous' }],
@@ -420,6 +429,18 @@ describe('Testing /raster-filters routes', () => {
         { startAfter: 3600 },
       );
       expect((await del(NEW_ID)).statusCode).toBe(409);
+    });
+
+    it('refuses a raster filter whose install waits for its retry', async () => {
+      const jobId = (await getPgBoss().send(JobQueues.RASTER_FILTER_INSTALL, {
+        type: JobQueues.RASTER_FILTER_INSTALL,
+        raster_filter_id: NEW_ID,
+        band: 1,
+      }))!;
+      await (await getDataSource()).query(`UPDATE ${PG_BOSS_SCHEMA}.job SET state = 'retry' WHERE id = $1`, [jobId]);
+      const res = await del(NEW_ID);
+      expect(res.statusCode).toBe(409);
+      expect(res.body.detail).toContain('queued');
     });
 
     it('never reissues the id, so saved Filters cannot select a new raster filter', async () => {
