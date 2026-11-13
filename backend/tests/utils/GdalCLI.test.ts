@@ -124,6 +124,77 @@ describe('GdalCLI.parseOgrInfo', () => {
   });
 });
 
+describe('GdalCLI.ogrinfoCsv', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gdalcli-csv-'));
+  const csv = (name: string, lines: string[]): string => {
+    const file = path.join(dir, name);
+    fs.writeFileSync(file, lines.join('\n') + '\n');
+    return file;
+  };
+
+  afterAll(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('scans only the column that holds geometry', async () => {
+    const file = csv('wkt.csv', ['id,shape_txt,v', '1,"POINT (1 2)",a', '2,"POINT (3 4)",b']);
+    const runSpy = jest.spyOn(GdalCLI as any, 'run');
+    try {
+      const { driver, layers } = await GdalCLI.ogrinfoCsv(file);
+      expect(driver).toBe('CSV');
+      expect(layers[0]).toMatchObject({ geomColumn: 'shape_txt', extent: [1, 2, 3, 4], featureCount: 2 });
+      expect(layers[0]!.fields.map(f => f.name)).toEqual(['id', 'shape_txt', 'v']);
+      expect(runSpy).toHaveBeenLastCalledWith('ogrinfo', expect.arrayContaining(['GEOM_POSSIBLE_NAMES=shape_txt']));
+    } finally {
+      runSpy.mockRestore();
+    }
+  });
+
+  it('finds a geometry column whose first row is empty', async () => {
+    const file = csv('wkt_empty_first.csv', ['id,shape_txt', '1,', '2,"POINT (3 4)"']);
+    const { layers } = await GdalCLI.ogrinfoCsv(file);
+    expect(layers[0]).toMatchObject({ geomColumn: 'shape_txt', extent: [3, 4, 3, 4] });
+  });
+
+  it('finds the geometry of a single-column CSV', async () => {
+    // GDAL reports one geometry field as `geometry`, not `geometries`
+    const file = csv('wkt_only.csv', ['shape_txt', '"POINT (1 2)"']);
+    const { layers } = await GdalCLI.ogrinfoCsv(file);
+    expect(layers[0]).toMatchObject({ geomColumn: 'shape_txt', extent: [1, 2, 1, 2] });
+  });
+
+  it('keeps the name of a column called WKT, which GDAL leaves unnamed', async () => {
+    const file = csv('wkt_named.csv', ['id,WKT,v', '1,"POINT (1 2)",a', '2,"POINT (3 4)",b']);
+    const { layers } = await GdalCLI.ogrinfoCsv(file);
+    expect(layers[0]).toMatchObject({ geomColumn: 'WKT', extent: [1, 2, 3, 4] });
+  });
+
+  it('runs only the probe for a CSV with no geometry', async () => {
+    const file = csv('table.csv', ['id,v', '1,10.5', '2,20.5']);
+    const runSpy = jest.spyOn(GdalCLI as any, 'run');
+    try {
+      const { layers } = await GdalCLI.ogrinfoCsv(file);
+      expect(layers[0]).toMatchObject({ geometry: 'None', geomColumn: null, extent: null, featureCount: 2 });
+      expect(layers[0]!.fields.map(f => f.name)).toEqual(['id', 'v']);
+      expect(runSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      runSpy.mockRestore();
+    }
+  });
+
+  it('reports an unknown feature count once the probe reaches its row limit', async () => {
+    const file = csv('long.csv', ['id,v', ...Array.from({ length: 20 }, (_, i) => `${i},${i}`)]);
+    const { layers } = await GdalCLI.ogrinfoCsv(file);
+    expect(layers[0]!.featureCount).toBeNull();
+  });
+
+  it('reports no features for a header-only CSV', async () => {
+    const file = csv('header_only.csv', ['id,v']);
+    const { layers } = await GdalCLI.ogrinfoCsv(file);
+    expect(layers[0]!.featureCount).toBe(0);
+  });
+});
+
 const parseProgress = (buffer: string, last: number | null = null) => (GdalCLI as any).parseProgress(buffer, last);
 
 /** Feeds chunks through parseProgress the way run() does, returning every reported percentage. */

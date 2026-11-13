@@ -25,6 +25,14 @@ describe('ProgressBar', () => {
     });
   });
 
+  it('animates without a width when indeterminate', () => {
+    render(<ProgressBar progress={[100]} indeterminate />);
+
+    const fill = screen.getByTestId('sh-ui-progressbar-fill');
+    expect(fill).toHaveClass('Indeterminate');
+    expect(fill).not.toHaveAttribute('style');
+  });
+
   it('updates when progress changes', () => {
     const { rerender } = render(<ProgressBar progress={[10, 20]} />);
 

@@ -12,4 +12,28 @@
     background: var(--color-pills);
     transition: width 0.2s ease-in-out;
   }
+
+  > .Fill.Indeterminate {
+    width: 30%;
+    transition: none;
+    animation: progressIndeterminate 1.2s ease-in-out infinite;
+  }
+}
+
+@keyframes progressIndeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  // The fill is 30% of the bar, so 333% of the fill takes it past the right end
+  to {
+    transform: translateX(333%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ProgressBar > .Fill.Indeterminate {
+    width: 100%;
+    opacity: 0.5;
+    animation: none;
+  }
 }

@@ -78,6 +78,9 @@ export interface GdalInfoOutput {
   rat?: GdalRasterAttributeTable;
 }
 
+// Enough to get past a few empty geometries at the top of a CSV
+const CSV_PROBE_ROWS = 10;
+
 /** An EPSG:4326 extent. west > east when it crosses the antimeridian. */
 export type Envelope = [west: number, south: number, east: number, north: number];
 
@@ -95,6 +98,31 @@ export class GdalCLI {
     const ooArgs = openOptions.flatMap(o => ['-oo', o]);
     const stdout = await GdalCLI.run('ogrinfo', ['-al', '-so', '-json', ...ooArgs, filePath]);
     return GdalCLI.parseOgrInfo(stdout);
+  }
+
+  /**
+   * GEOM_POSSIBLE_NAMES=* makes every CSV column a geometry field, and the extent then parses every value
+   * of each: minutes on a large file. So a few rows are read first to find the one column holding geometry.
+   */
+  static async ogrinfoCsv(filePath: string): Promise<OgrInfoResult> {
+    const probe = await GdalCLI.run('ogrinfo', [
+      '-al',
+      '-json',
+      '-features',
+      '-limit',
+      String(CSV_PROBE_ROWS),
+      '-nocount',
+      '-noextent',
+      '-oo',
+      'GEOM_POSSIBLE_NAMES=*',
+      filePath,
+    ]);
+    const { result, geomColumn } = GdalCLI.parseCsvProbe(probe);
+    if (!geomColumn) return result;
+
+    const { driver, layers } = await GdalCLI.ogrinfo(filePath, [`GEOM_POSSIBLE_NAMES=${geomColumn}`]);
+    // A column named WKT comes back as an unnamed geometry field
+    return { driver, layers: layers.map(l => ({ ...l, geomColumn: l.geomColumn ?? geomColumn })) };
   }
 
   /**
@@ -279,6 +307,28 @@ export class GdalCLI {
       extent: ((l.geometryFields as any[]) ?? []).find(g => g.extent)?.extent ?? null,
     }));
     return { driver, layers };
+  }
+
+  /** The probe's result, and the first column whose value parses as a geometry in any probed row. */
+  private static parseCsvProbe(json: string): { result: OgrInfoResult; geomColumn: string | null } {
+    const result = GdalCLI.parseOgrInfo(json);
+    const raw = JSON.parse(json).layers?.[0];
+    const layer = result.layers[0];
+    if (!raw || !layer) return { result, geomColumn: null };
+
+    const features: any[] = raw.features ?? [];
+    // Exact below the limit, otherwise unknown
+    layer.featureCount = features.length < CSV_PROBE_ROWS ? features.length : null;
+
+    const geomFields: any[] = raw.geometryFields ?? [];
+    // One geometry field is reported as `geometry`, several as `geometries`
+    const index = geomFields.findIndex((_, i) => features.some(f => (f.geometries ?? [f.geometry])[i]));
+    if (index < 0) return { result, geomColumn: null };
+
+    // An unnamed geometry field takes its attribute field's name, as in extractGeomColumn
+    const fields: any[] = raw.fields ?? [];
+    const name = geomFields[index].name || (fields.length === geomFields.length ? fields[index]?.name : null);
+    return { result, geomColumn: name || null };
   }
 
   private static extractEpsg(srs: any): number | undefined {
