@@ -70,6 +70,7 @@ export function DatasetsSoilDataStep() {
           />
         }
         uploadingText={tCommon('components.file_upload_box.uploading')}
+        processingText={tCommon('components.file_upload_box.processing')}
         handleFiles={handleFiles}
         accept={ALLOWED_EXTENSIONS.join(', ')}
         errorMessage={uploadErrors}

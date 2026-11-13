@@ -539,13 +539,14 @@ export default class FileService {
       ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileKey));
 
       log.info('Extracting metadata with ogrinfo', { source: mainFilePath });
-      const isExcel = ['.xlsx', '.xls'].includes(path.extname(mainFilePath).toLowerCase());
-      const { driver, layers } = await GdalCLI.ogrinfo(
-        mainFilePath,
-        isExcel ? ['GEOM_POSSIBLE_NAMES=*', 'HEADERS=FORCE'] : ['GEOM_POSSIBLE_NAMES=*'],
-      );
+      const ext = path.extname(mainFilePath).toLowerCase();
+      const isExcel = ['.xlsx', '.xls'].includes(ext);
+      const { driver, layers } =
+        ext === '.csv'
+          ? await GdalCLI.ogrinfoCsv(mainFilePath)
+          : await GdalCLI.ogrinfo(mainFilePath, isExcel ? ['GEOM_POSSIBLE_NAMES=*', 'HEADERS=FORCE'] : ['GEOM_POSSIBLE_NAMES=*']);
 
-      log.info('Getting data layer and detecting geometry', { driver });
+      log.info('Getting data layer and detecting geometry', { source: mainFilePath, driver });
       const { layer, geometryDetected } = this.getDataLayer(layers, unknownGeomDrivers.includes(driver));
 
       const fieldNames = layer.fields.map(f => f.name);

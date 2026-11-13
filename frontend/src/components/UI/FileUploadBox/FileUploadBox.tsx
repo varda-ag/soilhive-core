@@ -22,6 +22,7 @@ interface Props {
   caption?: string;
   title?: ReactNode;
   uploadingText?: string;
+  processingText?: string;
   errorMessage?: string | string[] | null;
   isSingleFileUpload?: boolean;
   handleFiles: (files: FileList | File[] | null) => void;
@@ -40,6 +41,7 @@ export function FileUploadBox({
     </>
   ),
   uploadingText = 'Uploading',
+  processingText = 'Processing',
   errorMessage,
   isSingleFileUpload,
   handleFiles,
@@ -63,14 +65,19 @@ export function FileUploadBox({
           <UploadIcon />
           {files.length ? (
             <div className={styles.ProgressList}>
-              {files.map(file => (
-                <div key={file.name}>
-                  <p className={styles.Title}>
-                    {uploadingText}: {file.name}
-                  </p>
-                  <ProgressBar progress={uploadProgress?.[file.name] || []} />
-                </div>
-              ))}
+              {files.map(file => {
+                const progress = uploadProgress?.[file.name] || [];
+                // Progress counts bytes sent: at 100% the server is still working on the file
+                const processing = progress.length > 0 && progress.every(part => part >= 100);
+                return (
+                  <div key={file.name}>
+                    <p className={styles.Title}>
+                      {processing ? processingText : uploadingText}: {file.name}
+                    </p>
+                    <ProgressBar progress={progress} indeterminate={processing} />
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <>

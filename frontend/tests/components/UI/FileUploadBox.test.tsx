@@ -10,7 +10,11 @@ jest.mock('react-use/lib/useDropArea', () => ({
 }));
 
 jest.mock('components/UI/ProgressBar/ProgressBar', () => ({
-  ProgressBar: ({ progress }: { progress: number[] }) => <div data-testid="progress-bar">{progress.join(',')}</div>,
+  ProgressBar: ({ progress, indeterminate }: { progress: number[]; indeterminate?: boolean }) => (
+    <div data-testid="progress-bar" data-indeterminate={String(!!indeterminate)}>
+      {progress.join(',')}
+    </div>
+  ),
 }));
 
 jest.mock('components/UI/FormMessage/FormMessage', () => ({
@@ -62,6 +66,26 @@ describe('FileUploadBox', () => {
     expect(progressBars).toHaveLength(2);
     expect(progressBars[0]).toHaveTextContent('10,20');
     expect(progressBars[1]).toHaveTextContent('50');
+  });
+
+  it('shows processing once every part of a file is sent', () => {
+    const files = [new File(['a'], 'first.csv', { type: 'text/csv' }), new File(['b'], 'second.csv', { type: 'text/csv' })];
+
+    render(<FileUploadBox handleFiles={mockHandleFiles} files={files} uploadProgress={{ 'first.csv': [100], 'second.csv': [100, 50] }} />);
+
+    expect(screen.getByText('Processing: first.csv')).toBeInTheDocument();
+    expect(screen.getByText('Uploading: second.csv')).toBeInTheDocument();
+    const [first, second] = screen.getAllByTestId('progress-bar');
+    expect(first).toHaveAttribute('data-indeterminate', 'true');
+    expect(second).toHaveAttribute('data-indeterminate', 'false');
+  });
+
+  it('uses the given processing text', () => {
+    const files = [new File(['a'], 'first.csv', { type: 'text/csv' })];
+
+    render(<FileUploadBox handleFiles={mockHandleFiles} files={files} uploadProgress={{ 'first.csv': [100] }} processingText="Reading" />);
+
+    expect(screen.getByText('Reading: first.csv')).toBeInTheDocument();
   });
 
   it('passes empty progress array when file progress is missing', () => {

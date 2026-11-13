@@ -113,7 +113,8 @@
     "components": {
         "file_upload_box": {
             "title": "Drag and drop a file here or <span>browse</span>",
-            "uploading": "Uploading"
+            "uploading": "Uploading",
+            "processing": "Processing"
         },
         "varda_foundation_attribution": {
             "text": "<a href=\"https://www.varda.ag\" target=\"_blank\">Varda Foundation</a>’s <a href=\"https://github.com/varda-ag/soilhive-core\" target=\"_blank\">open source</a> infrastructure"

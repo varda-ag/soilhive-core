@@ -72,6 +72,7 @@ export function CreateFilter() {
               />
             }
             uploadingText={tCommon('components.file_upload_box.uploading')}
+            processingText={tCommon('components.file_upload_box.processing')}
             handleFiles={handleFiles}
             accept={FILTER_ALLOWED_EXTENSIONS.join(', ')}
             errorMessage={uploadErrors}
