@@ -7,6 +7,9 @@ import { __setIsMobileLayout, __resetIsMobileLayout, __setIsMobileDevice, __rese
 import { GISDataType } from '../../src/types/backend';
 import { useLocation, useNavigate } from 'react-router';
 import { setRestoredPageState } from '../../src/auth/signinPageState';
+import { trackEvent } from 'utilities/analytics';
+
+jest.mock('utilities/analytics', () => ({ trackEvent: jest.fn() }));
 
 jest.mock('react-router', () => {
   const mockSearchParamsGet = jest.fn();
@@ -227,6 +230,69 @@ describe('DownloadSummary', () => {
       fireEvent.click(screen.getByRole('button', { name: /download data/i }));
 
       expect(startDownload).toHaveBeenCalledWith(expect.objectContaining({ formats: ['csv', 'tiff'] }));
+    });
+  });
+
+  describe('usage analytics', () => {
+    const searchParams: Record<string, string> = { filterId: 'test-filter', source: 'explore', selectionType: 'country' };
+
+    const clickDownload = async (startDownload: jest.Mock) => {
+      (useDownloads as jest.Mock).mockReturnValue({ startDownload, setIsOpened: jest.fn() });
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset], datasetsSummary: {}, appliedFilterCount: 2 });
+      mockSearchParamsGet.mockImplementation((key: string) => searchParams[key] ?? null);
+      render(<DownloadSummary />);
+      fireEvent.click(screen.getByRole('checkbox'));
+      await act(async () => fireEvent.click(screen.getByRole('button', { name: /download data/i })));
+    };
+
+    it('sends download_data_request once the export started, with its format and the filters it was made with', async () => {
+      await clickDownload(jest.fn().mockResolvedValue('job-1'));
+
+      expect(trackEvent).toHaveBeenCalledTimes(1);
+      expect(trackEvent).toHaveBeenCalledWith('download_data_request', {
+        format: 'csv',
+        data_scenario: 'vector',
+        download_source: 'explore',
+        dataset_count: 1,
+        selection_type: 'country',
+        filters_applied: 'yes',
+        filter_count: 2,
+      });
+    });
+
+    it('sends nothing when the export is refused', async () => {
+      await clickDownload(jest.fn().mockResolvedValue(null));
+
+      expect(trackEvent).not.toHaveBeenCalled();
+    });
+
+    it('sends nothing when a signed-out visitor is asked to log in', async () => {
+      (useIsSignInRequiredToDownload as jest.Mock).mockReturnValue(true);
+      const startDownload = jest.fn();
+      await clickDownload(startDownload);
+
+      expect(startDownload).not.toHaveBeenCalled();
+      expect(trackEvent).not.toHaveBeenCalled();
+    });
+
+    it('sends download_format_select with the format the visitor picked, and nothing when it is the same one', () => {
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset], datasetsSummary: {} });
+      render(<DownloadSummary />);
+      const dropdown = screen.getByTestId('format-dropdown');
+
+      fireEvent.change(dropdown, { target: { value: 'gpkg' } });
+      fireEvent.change(dropdown, { target: { value: 'gpkg' } });
+
+      expect(trackEvent).toHaveBeenCalledTimes(1);
+      expect(trackEvent).toHaveBeenCalledWith('download_format_select', { format: 'gpkg' });
+    });
+
+    it('marks the Download button for the GTM click trigger', () => {
+      (useDownloadSummary as jest.Mock).mockReturnValue({ datasets: [vectorDataset], datasetsSummary: {} });
+      render(<DownloadSummary />);
+      const button = screen.getByRole('button', { name: /download data/i });
+      expect(button).toHaveAttribute('data-analytics', 'click_on_download_button');
+      expect(button).toHaveAttribute('data-analytics-value', 'summary');
     });
   });
 

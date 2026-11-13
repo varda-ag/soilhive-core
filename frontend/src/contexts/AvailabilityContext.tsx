@@ -25,6 +25,8 @@ import { useFilteredDatasetsQuery } from 'hooks/useFilteredDatasetsQuery';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { SPLIT_FILTERING_QUERIES } from 'utilities/environmentVariables';
 import { useRestoredPageState } from '../auth/signinPageState';
+import { trackEvent, trackMapFilterChange } from 'utilities/analytics';
+import { ANALYTICS_EVENTS } from 'configuration/analytics';
 
 // The filters and the Datasets ticked on the map, carried through an OIDC sign-in so the visitor comes
 // back to them (docs/adr/0075)
@@ -81,6 +83,9 @@ type AvailabilityContextType = {
 };
 
 export const AvailabilityContext = createContext<AvailabilityContextType | undefined>(undefined);
+
+// The map's Data type and Data access filters, as their filter_name in the usage analytics
+const MAP_FILTER_NAMES: Record<string, string> = { type: 'data_type', visibility: 'data_access' };
 
 const matchesSearch = (name: string, searchValue: string) => !searchValue || name.toLowerCase().includes(searchValue.toLowerCase());
 
@@ -151,6 +156,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
     (value: string[], name?: string) => {
       if (!name) return;
 
+      trackMapFilterChange(MAP_FILTER_NAMES[name] ?? name, datasetFrontendFilters[name as keyof DatasetFrontendFilters] ?? [], value);
       setDatasetFrontendFilters({
         ...datasetFrontendFilters,
         [name]: value,
@@ -249,6 +255,7 @@ export const AvailabilityProvider: React.FC<AvailabilityProviderProps> = ({ chil
   }, [datasetFilters, datasetFrontendFilters]);
 
   const clearAllFilters = useCallback(() => {
+    trackEvent(ANALYTICS_EVENTS.MAP_FILTER_CHANGE, { filter_action: 'clear_all' });
     setDatasetFrontendFilters({
       type: [],
       visibility: [],

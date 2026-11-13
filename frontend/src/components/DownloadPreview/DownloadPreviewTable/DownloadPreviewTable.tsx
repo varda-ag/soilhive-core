@@ -14,6 +14,8 @@ import { useTranslation } from 'react-i18next';
 import { backendToLocalFrontendDate } from '../../../utilities/date';
 import { metadataPath } from 'configuration/routes';
 import { formatRasterValue } from 'utilities/formatRasterValue';
+import { ANALYTICS_EVENTS } from 'configuration/analytics';
+import { trackEvent } from 'utilities/analytics';
 
 const SAMPLING_DATE_COLUMN = 'sampling_date';
 const REFERENCE_PERIOD_COLUMN = 'reference_period';
@@ -177,6 +179,12 @@ function DownloadPreviewTable({
               }}
               onPage={event => {
                 const { page, totalPages } = event;
+                // Sent from here, not caught by a GTM click trigger on the paginator: that trigger would read
+                // PrimeReact's class names, which an upgrade can change without any test failing
+                trackEvent(ANALYTICS_EVENTS.EXPLORE_PAGINATION, {
+                  page_number: Math.floor(event.first / event.rows) + 1,
+                  total_pages: totalPages,
+                });
                 if (page && totalPages) {
                   const isLastPage = totalPages - 1 - page === 0;
                   if (isLastPage) onTableLastPage?.();

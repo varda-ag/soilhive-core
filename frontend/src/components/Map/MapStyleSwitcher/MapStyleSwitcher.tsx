@@ -8,6 +8,7 @@ import mapThumbnail from 'assets/images/map-thumbnail.png';
 import styles from './MapStyleSwitcher.module.scss';
 import { Dialog } from 'components/Dialog/Dialog';
 import { useTranslation } from 'react-i18next';
+import { ANALYTICS_CLICKS } from 'configuration/analytics';
 
 interface Props {
   mapStyles: MapStyles;
@@ -39,6 +40,7 @@ export function MapStyleSwitcher({ mapStyles, currentValue, className, onMapStyl
     <div className={classnames(styles.MapStyleSwitcher, className)}>
       <button
         className={styles.SwitcherButton}
+        data-analytics={ANALYTICS_CLICKS.MAP_STYLE_BUTTON}
         onClick={() => setIsVisible(true)}
         aria-label={t('map_style_switcher.switcher_button_aria')}
       >
@@ -60,6 +62,8 @@ export function MapStyleSwitcher({ mapStyles, currentValue, className, onMapStyl
                 [styles.Active]: currentValue === index,
               })}
               role="button"
+              data-analytics={ANALYTICS_CLICKS.MAP_STYLE_CHANGE}
+              data-analytics-value={name}
               onClick={() => handleSelect(index)}
             >
               <div className={styles.ThumbnailWrapper}>

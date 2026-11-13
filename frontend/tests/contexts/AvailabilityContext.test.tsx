@@ -12,6 +12,9 @@ import { useRaster } from 'hooks/useRaster';
 import useAvailabilityMap from 'hooks/useAvailabilityMap';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { Capability, GISDataType, type FilterCriteria, type FilteredDatasetSummary } from 'types/backend';
+import { trackEvent, trackMapFilterChange } from 'utilities/analytics';
+
+jest.mock('utilities/analytics', () => ({ trackEvent: jest.fn(), trackMapFilterChange: jest.fn() }));
 
 jest.mock('../../src/auth/AuthContextProvider', () => ({
   useAuthContext: jest.fn(),
@@ -311,6 +314,46 @@ describe('AvailabilityContext', () => {
 
       expect(result.current.datasetsSummary.count).toBe(2);
       expect(result.current.selectedDatasets.sort()).toEqual([privateDownloadableDataset.id, publicDataset.id].sort());
+    });
+  });
+
+  describe('usage analytics', () => {
+    it('sends the Data type and Data access values ticked, under their filter_name', () => {
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => result.current.setFrontendFilters([GISDataType.RASTER], 'type'));
+      act(() => result.current.setFrontendFilters(['public'], 'visibility'));
+
+      expect(trackMapFilterChange).toHaveBeenNthCalledWith(1, 'data_type', [], [GISDataType.RASTER]);
+      expect(trackMapFilterChange).toHaveBeenNthCalledWith(2, 'data_access', [], ['public']);
+    });
+
+    it('sends clear_all when every filter is cleared', () => {
+      const { result } = renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      act(() => result.current.clearAllFilters());
+
+      expect(trackEvent).toHaveBeenCalledWith('map_filter_change', { filter_action: 'clear_all' });
+    });
+
+    it('sends nothing for the filters a sign-in brought back', () => {
+      setRestoredPageState({
+        [AVAILABILITY_SIGNIN_STATE_KEY]: {
+          selectedDatasets: [],
+          isAllSelected: false,
+          searchValue: 'soil',
+          datasetFrontendFilters: { type: [GISDataType.RASTER], visibility: [] },
+          datasetFilters: { soil_properties: ['ph'] },
+          selectedSoilProperties: ['ph'],
+          selectedTimeFilter: {},
+        } satisfies AvailabilitySigninState,
+      });
+
+      renderHook(() => useAvailability(), { wrapper: AvailabilityProvider });
+
+      expect(trackMapFilterChange).not.toHaveBeenCalled();
+      expect(trackEvent).not.toHaveBeenCalled();
+      setRestoredPageState(undefined);
     });
   });
 

@@ -10,6 +10,12 @@ import { useTranslation } from 'react-i18next';
 import type { SoilProperty } from 'types/backend';
 import type { PreviewFilters } from 'types/downloadPreview';
 import { backendToLocalFrontendDate, firstDayOfTheMonth, lastDayOfTheMonth } from '../../../utilities/date';
+import { ANALYTICS_EVENTS } from 'configuration/analytics';
+import { trackEvent } from 'utilities/analytics';
+
+// A filter the visitor changed in the Data Explorer, with `none` when they cleared it
+const trackExploreFilterChange = (filterName: 'dataset' | 'soil_property' | 'depth' | 'date_range', filterValue: string | undefined) =>
+  trackEvent(ANALYTICS_EVENTS.EXPLORE_FILTER_CHANGE, { filter_name: filterName, filter_value: filterValue ?? 'none' });
 
 function DownloadPreviewFilters({
   soilProperties = [],
@@ -94,10 +100,12 @@ function DownloadPreviewFilters({
       : undefined;
 
   const onDatasetsDropdownChange = (e: DropdownChangeEvent) => {
+    trackExploreFilterChange('dataset', datasets?.find(({ id }) => id === e.value)?.name);
     onDatasetsChange?.([e.value]);
   };
 
   const onSoilPropertiesDropdownChange = (e: DropdownChangeEvent) => {
+    trackExploreFilterChange('soil_property', soilProperties.find(({ id }) => id === e.value)?.property_name ?? e.value);
     onFiltersChange?.({
       ...filters,
       soil_properties: [e.value],
@@ -106,6 +114,7 @@ function DownloadPreviewFilters({
 
   const onDepthRangeDropdownChange = (e: DropdownChangeEvent) => {
     const range = depths.find(({ id }) => e.value === id)?.range;
+    trackExploreFilterChange('depth', range ? `${range[0]}-${range[1]}cm` : undefined);
     if (range) {
       onFiltersChange?.({
         ...filters,
@@ -126,6 +135,7 @@ function DownloadPreviewFilters({
     if (!selectedDateRange || selectedDateRange?.some(date => date === null)) {
       const { min_sampling_date, max_sampling_date, ...filtersWithoutDates } = filters;
       if (!selectedDateRange?.[0] && !min_sampling_date && !selectedDateRange?.[1] && !max_sampling_date) return;
+      trackExploreFilterChange('date_range', undefined);
       onFiltersChange?.(filtersWithoutDates);
       setSelectedDateRange(null);
       return;
@@ -138,6 +148,7 @@ function DownloadPreviewFilters({
     const max = `${maxDate.getFullYear()}-${String(maxDate.getMonth() + 1).padStart(2, '0')}-${String(maxDate.getDate()).padStart(2, '0')}`;
 
     if (filters.min_sampling_date === min && filters.max_sampling_date === max) return;
+    trackExploreFilterChange('date_range', `${min.slice(0, 7)} to ${max.slice(0, 7)}`);
     onFiltersChange?.({
       ...filters,
       // we know them not to be null because of the earlier range check

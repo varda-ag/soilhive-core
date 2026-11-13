@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import useAvailability from './useAvailability';
 import type { Selection } from 'components/UI/types';
+import { trackMapFilterChange } from 'utilities/analytics';
 
 // Mappings are keyed by pixel value. A value with no label shows as itself
 const labelOf = (mappings: Record<string, string>, value: number): string => mappings[String(value)] ?? String(value);
@@ -77,6 +78,13 @@ export function useRasterFilters(categoryId?: string) {
   // user selction is stored in the dataset filter of the AvailabilityCOntext
   const handleOnChange = (nextValues: number[]) => {
     if (!categoryId) return;
+
+    // Sent per label, as the visitor ticks them: several pixel values may share one
+    const mappings = currentRasterCategory?.mappings ?? {};
+    const labelsOf = (values: number[]) => [
+      ...new Set(values.map(value => `${currentRasterCategory?.name ?? categoryId}: ${labelOf(mappings, value)}`)),
+    ];
+    trackMapFilterChange('raster', labelsOf(selectedValues), labelsOf(nextValues));
 
     setDatasetFilters(prev => {
       const newFilters = { ...prev.raster_filters };

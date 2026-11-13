@@ -1,14 +1,25 @@
 import { act, render } from '@testing-library/react';
 import DownloadPreviewFilters from 'components/DownloadPreview/DownloadPreviewFilters/DownloadPreviewFilters';
 import { __setIsMobileLayout } from 'hooks/useDevice';
+import { trackEvent } from 'utilities/analytics';
 
+jest.mock('utilities/analytics', () => ({ trackEvent: jest.fn() }));
+
+const mockDropdownProps = jest.fn();
 jest.mock('primereact/dropdown', () => {
-  const Dropdown = () => <div>Mock Dropdown</div>;
+  const Dropdown = (props: any) => {
+    mockDropdownProps(props);
+    return <div>Mock Dropdown</div>;
+  };
   return { Dropdown };
 });
 
+const mockCalendarProps = jest.fn();
 jest.mock('primereact/calendar', () => {
-  const Calendar = () => <div>Mock Calendar</div>;
+  const Calendar = (props: any) => {
+    mockCalendarProps(props);
+    return <div>Mock Calendar</div>;
+  };
   return { Calendar };
 });
 
@@ -53,5 +64,58 @@ describe('DownloadPreviewFilters', () => {
     const applyButton = getByText('Apply filters');
     await act(async () => applyButton.click());
     expect(setDialogOpenFn).not.toHaveBeenCalled();
+  });
+  describe('usage analytics', () => {
+    // The dropdowns of the last render: datasets, soil property, depth
+    const dropdowns = () => mockDropdownProps.mock.calls.slice(-3).map(([props]) => props);
+    const calendar = () => mockCalendarProps.mock.lastCall[0];
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('sends the dataset and the soil property picked, by name', () => {
+      render(
+        <DownloadPreviewFilters
+          datasets={[{ id: 'ds-1', name: 'Dataset 1' }]}
+          soilProperties={[{ id: 'ph', property_name: 'pH' } as any]}
+          isLoading={false}
+        />,
+      );
+
+      act(() => dropdowns()[0].onChange({ value: 'ds-1' }));
+      act(() => dropdowns()[1].onChange({ value: 'ph' }));
+
+      expect(trackEvent).toHaveBeenNthCalledWith(1, 'explore_filter_change', { filter_name: 'dataset', filter_value: 'Dataset 1' });
+      expect(trackEvent).toHaveBeenNthCalledWith(2, 'explore_filter_change', { filter_name: 'soil_property', filter_value: 'pH' });
+    });
+
+    it('sends the depth range picked, and none when it is cleared', () => {
+      render(<DownloadPreviewFilters isLoading={false} />);
+
+      act(() => dropdowns()[2].onChange({ value: '15-30' }));
+      act(() => dropdowns()[2].onChange({ value: null }));
+
+      expect(trackEvent).toHaveBeenNthCalledWith(1, 'explore_filter_change', { filter_name: 'depth', filter_value: '15-30cm' });
+      expect(trackEvent).toHaveBeenNthCalledWith(2, 'explore_filter_change', { filter_name: 'depth', filter_value: 'none' });
+    });
+
+    it('sends the months picked once the calendar closes, and nothing when they did not change', () => {
+      const { rerender } = render(<DownloadPreviewFilters isLoading={false} filters={{ soil_properties: [] }} />);
+
+      act(() => calendar().onChange({ value: [new Date(2020, 0, 15), new Date(2020, 5, 15)] }));
+      act(() => calendar().onHide());
+
+      expect(trackEvent).toHaveBeenCalledWith('explore_filter_change', { filter_name: 'date_range', filter_value: '2020-01 to 2020-06' });
+
+      (trackEvent as jest.Mock).mockClear();
+      rerender(
+        <DownloadPreviewFilters
+          isLoading={false}
+          filters={{ soil_properties: [], min_sampling_date: '2020-01-01', max_sampling_date: '2020-06-30' }}
+        />,
+      );
+      act(() => calendar().onHide());
+
+      expect(trackEvent).not.toHaveBeenCalled();
+    });
   });
 });

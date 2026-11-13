@@ -2,6 +2,9 @@ import React from 'react';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import DownloadPreviewTable from 'components/DownloadPreview/DownloadPreviewTable/DownloadPreviewTable';
 import { GISDataType, type SoilDataSample } from 'types/backend';
+import { trackEvent } from 'utilities/analytics';
+
+jest.mock('utilities/analytics', () => ({ trackEvent: jest.fn() }));
 
 // Props are recorded so tests can read the columns offered and shown without rendering PrimeReact
 const mockMultiSelect = jest.fn();
@@ -233,6 +236,15 @@ describe('DownloadPreview', () => {
 
       rerender(<DownloadPreviewTable isDataLoading={false} isRasterDataset />);
       expect(lastMultiSelect().value).toContain('resolution_m');
+    });
+  });
+  describe('usage analytics', () => {
+    it('sends explore_pagination with the page the visitor went to, counted from 1', () => {
+      render(<DownloadPreviewTable isDataLoading={false} />);
+
+      act(() => mockDataTable.mock.lastCall[0].onPage({ page: 1, totalPages: 3, first: 20, rows: 20 }));
+
+      expect(trackEvent).toHaveBeenCalledWith('explore_pagination', { page_number: 2, total_pages: 3 });
     });
   });
 });

@@ -4,7 +4,8 @@
             "default": "Selection",
             "h3cell_selected": "H3cell selected",
             "drawn_polygon": "Drawn polygon",
-            "country_selected": "Country selected"
+            "country_selected": "Country selected",
+            "continent_selected": "Continent selected"
         },
         "data_summary": "Data summary",
         "soil_samples": "Soil Samples",

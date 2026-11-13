@@ -1,11 +1,14 @@
 import { renderHook, act } from '@testing-library/react';
 import { useRasterFilters } from 'hooks/useRasterFilters';
 import useAvailability from 'hooks/useAvailability';
+import { trackMapFilterChange } from 'utilities/analytics';
 
 jest.mock('hooks/useAvailability', () => ({
   __esModule: true,
   default: jest.fn(),
 }));
+
+jest.mock('utilities/analytics', () => ({ trackMapFilterChange: jest.fn() }));
 
 const useAvailabilityMock = useAvailability as jest.MockedFunction<typeof useAvailability>;
 
@@ -197,6 +200,24 @@ describe('useRasterFilters', () => {
       const updater = setDatasetFilters.mock.calls[0][0];
       const nextState = updater({ raster_filters: undefined });
       expect(nextState.raster_filters).toEqual({ soil_groups: [1, 2] });
+    });
+
+    it('sends the labels ticked before and after, each once, with the category name', () => {
+      useAvailabilityMock.mockReturnValue(
+        buildAvailabilityMock({
+          datasetFilters: { raster_filters: { soil_groups: [1] } },
+          allRasterCategories: [{ ...SOIL_GROUPS_CATEGORY, mappings: { ...SOIL_GROUPS_CATEGORY.mappings, '5': 'Gleysols' } }],
+        }) as any,
+      );
+      const { result } = renderHook(() => useRasterFilters('soil_groups'));
+
+      act(() => result.current.handleOnChange([1, 3, 5]));
+
+      expect(trackMapFilterChange).toHaveBeenCalledWith(
+        'raster',
+        ['Soil Groups: Acrisols'],
+        ['Soil Groups: Acrisols', 'Soil Groups: Gleysols'],
+      );
     });
 
     it('removes the category key from raster_filters when values are empty', () => {

@@ -94,4 +94,19 @@ describe('Button component', () => {
     const btn = screen.getByTestId('sh-ui-button');
     expect(btn).toHaveClass('custom-class');
   });
+  it('renders the data-analytics attributes a GTM click trigger reads', () => {
+    render(
+      <Button dataAnalytics="click_on_download_button" dataAnalyticsValue="map">
+        Download
+      </Button>,
+    );
+    const button = screen.getByRole('button', { name: 'Download' });
+    expect(button).toHaveAttribute('data-analytics', 'click_on_download_button');
+    expect(button).toHaveAttribute('data-analytics-value', 'map');
+  });
+
+  it('renders no data-analytics attribute without one', () => {
+    render(<Button>Plain</Button>);
+    expect(screen.getByRole('button', { name: 'Plain' })).not.toHaveAttribute('data-analytics');
+  });
 });

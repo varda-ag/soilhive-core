@@ -10,35 +10,55 @@ jest.mock('utilities/map', () => ({
   h3ResolutionForZoomLevel: jest.fn().mockReturnValue(5),
 }));
 
+// What the map's ref gives the component: enough for a selection to be applied
+const mockMapApi = {
+  fitBounds: jest.fn(),
+  getBounds: () => ({
+    toArray: () => [
+      [0, 0],
+      [1, 1],
+    ],
+  }),
+};
+
 jest.mock('react-map-gl/maplibre', () => ({
-  Map: ({ children, attributionControl, mapStyle, onRender, onZoomStart, onZoomEnd }: any) => (
-    <div data-testid="map" data-attribution-control={JSON.stringify(attributionControl)} data-map-style={mapStyle}>
-      <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
-      <button
-        data-testid="trigger-render"
-        onClick={() => onRender?.({ target: { getContainer: () => document.querySelector('[data-testid="map"]') } })}
-      />
-      <button data-testid="trigger-zoom-start" onClick={() => onZoomStart?.()} />
-      <button
-        data-testid="trigger-zoom-end"
-        onClick={() =>
-          onZoomEnd?.({
-            target: {
-              getBounds: () => ({
-                toArray: () => [
-                  [0, 0],
-                  [1, 1],
-                ],
-              }),
-              getZoom: () => 5,
-            },
-            originalEvent: undefined,
-          })
-        }
-      />
-      {children}
-    </div>
-  ),
+  Map: ({ children, attributionControl, mapStyle, onRender, onZoomStart, onZoomEnd, onClick, ref }: any) => {
+    jest.requireActual('react').useImperativeHandle(ref, () => mockMapApi);
+    return (
+      <div data-testid="map" data-attribution-control={JSON.stringify(attributionControl)} data-map-style={mapStyle}>
+        <button
+          data-testid="trigger-cell-click"
+          onClick={() =>
+            onClick?.({ lngLat: { lng: 1, lat: 2 }, features: [{ id: 'cell-1', geometry: { type: 'Polygon', coordinates: [] } }] })
+          }
+        />
+        <div className="maplibregl-ctrl-attrib maplibregl-compact-show" ref={(el: HTMLDivElement | null) => el?.setAttribute('open', '')} />
+        <button
+          data-testid="trigger-render"
+          onClick={() => onRender?.({ target: { getContainer: () => document.querySelector('[data-testid="map"]') } })}
+        />
+        <button data-testid="trigger-zoom-start" onClick={() => onZoomStart?.()} />
+        <button
+          data-testid="trigger-zoom-end"
+          onClick={() =>
+            onZoomEnd?.({
+              target: {
+                getBounds: () => ({
+                  toArray: () => [
+                    [0, 0],
+                    [1, 1],
+                  ],
+                }),
+                getZoom: () => 5,
+              },
+              originalEvent: undefined,
+            })
+          }
+        />
+        {children}
+      </div>
+    );
+  },
   NavigationControl: () => null,
   GeolocateControl: () => null,
   ScaleControl: ({ style }: any) => <div data-testid="scale-control" style={style} />,
@@ -51,11 +71,25 @@ jest.mock('maplibre-gl', () => ({
   LngLatBounds: jest.fn(),
 }));
 
-jest.mock('components/DrawControl', () => ({ __esModule: true, default: () => null }));
+const mockDrawControlProps = jest.fn();
+jest.mock('components/DrawControl', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    mockDrawControlProps(props);
+    return null;
+  },
+}));
 jest.mock('components/Map/SoilhiveMapToolbar', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/SoilhiveMapSelectionToolbar', () => ({ __esModule: true, default: () => null }));
 jest.mock('components/Map/DaiWidget/DaiWidget', () => ({ __esModule: true, DaiWidget: () => <div data-testid="dai-widget" /> }));
-jest.mock('components/Map/GeocoderControl', () => ({ __esModule: true, default: () => null }));
+const mockGeocoderProps = jest.fn();
+jest.mock('components/Map/GeocoderControl', () => ({
+  __esModule: true,
+  default: (props: any) => {
+    mockGeocoderProps(props);
+    return null;
+  },
+}));
 
 jest.mock('utilities/geo', () => ({
   bBoxToH3Cells: jest.fn().mockReturnValue([]),
@@ -325,6 +359,79 @@ describe('SoilhiveMap', () => {
       });
       expect(screen.getByTestId('scale-control')).toBeInTheDocument();
       expect(screen.getByTestId('scale-control').style.opacity).toBe('1');
+    });
+  });
+
+  describe('onLocationSearch', () => {
+    const polygon = { type: 'Polygon', coordinates: [] };
+
+    it('reports a place picked in the search box, with its kind and name', () => {
+      const onLocationSearch = jest.fn();
+      render(<SoilhiveMap {...makeProps({ showGeocoder: true, onLocationSearch })} />);
+
+      act(() =>
+        mockGeocoderProps.mock.lastCall[0].onFeatureSelect({
+          feature: { geometry: polygon, properties: { display_name: 'Italy' } },
+          placeType: 'country',
+        }),
+      );
+
+      expect(onLocationSearch).toHaveBeenCalledWith({ method: 'search', placeType: 'country', placeName: 'Italy' });
+    });
+
+    it.each([
+      ['continent', 'continent'],
+      ['country', 'country'],
+      ['city', 'country'],
+    ])('selects a %s picked in the search box as a %s selection', (placeType, selectionType) => {
+      const onSelectionChange = jest.fn();
+      render(<SoilhiveMap {...makeProps({ showGeocoder: true, onSelectionChange })} />);
+
+      act(() =>
+        mockGeocoderProps.mock.lastCall[0].onFeatureSelect({
+          feature: { geometry: polygon, properties: { display_name: 'Africa' } },
+          placeType,
+        }),
+      );
+
+      expect(onSelectionChange).toHaveBeenLastCalledWith(expect.objectContaining({ selectionType, locationName: 'Africa' }));
+    });
+
+    it('reports a polygon drawn', () => {
+      const onLocationSearch = jest.fn();
+      render(<SoilhiveMap {...makeProps({ onLocationSearch, selectionState: { showDrawControl: true } })} />);
+
+      act(() => mockDrawControlProps.mock.lastCall[0].onFinish({ geometry: polygon }));
+
+      expect(onLocationSearch).toHaveBeenCalledWith({ method: 'draw' });
+    });
+
+    it('reports a polygon uploaded', () => {
+      const onLocationSearch = jest.fn();
+      const ref = createRef<SoilhiveMapRef>();
+      render(<SoilhiveMap {...makeProps({ onLocationSearch })} ref={ref} />);
+
+      act(() => ref.current!.onUpload(polygon as any));
+
+      expect(onLocationSearch).toHaveBeenCalledWith({ method: 'upload' });
+    });
+
+    it('reports an H3 cell clicked', () => {
+      const onLocationSearch = jest.fn();
+      render(<SoilhiveMap {...makeProps({ onLocationSearch })} />);
+
+      fireEvent.click(screen.getByTestId('trigger-cell-click'));
+
+      expect(onLocationSearch).toHaveBeenCalledWith({ method: 'cell' });
+    });
+
+    it('reports nothing when the visitor only moves the map', () => {
+      const onLocationSearch = jest.fn();
+      render(<SoilhiveMap {...makeProps({ onLocationSearch, showH3Cells: true })} />);
+
+      fireEvent.click(screen.getByTestId('trigger-zoom-end'));
+
+      expect(onLocationSearch).not.toHaveBeenCalled();
     });
   });
 
