@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import jwt from 'jsonwebtoken';
 import assert from 'assert';
 import { TokenScopes } from '../types/enums';
+import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../constants/constants';
 
 export const isJest = () => process.env.JEST_WORKER_ID !== undefined || process.env.NODE_ENV === 'test';
 
@@ -341,18 +342,17 @@ export const getRawTableName = (fileId: string): string => {
   return `file_${sanitizeField(fileId)}_raw`;
 };
 
-// Internal-request and download tokens; Password-grant tokens are signed in utils/password-grant-key.ts
-export const signToken = (payload: string | object | Buffer, expiresIn?: number) => {
+const INTERNAL_REQUEST_TOKEN_EXPIRATION_SECONDS = 5 * 60;
+
+// The only token signed with SELF_SIGNING_SECRET itself, so it takes no payload: any other kind
+// gets a key of its own (docs/adr/0080). Signed per call, so a short expiry is enough.
+export const signInternalRequestToken = (): string => {
   assert(process.env.SELF_SIGNING_SECRET, 'Self-signing secret is not defined');
-  let signOpts: any = {
+  return jwt.sign(INTERNAL_REQUEST_TOKEN_PAYLOAD, process.env.SELF_SIGNING_SECRET, {
     algorithm: 'HS256',
-    header: { kid: TokenScopes.INTERNAL_REQUEST },
-  };
-  if (expiresIn) {
-    signOpts = { ...signOpts, expiresIn };
-  }
-  const token = jwt.sign(payload, process.env.SELF_SIGNING_SECRET, signOpts);
-  return token;
+    keyid: TokenScopes.INTERNAL_REQUEST,
+    expiresIn: INTERNAL_REQUEST_TOKEN_EXPIRATION_SECONDS,
+  });
 };
 
 export const replaceExtension = (filePath: string, newExt: string): string => {

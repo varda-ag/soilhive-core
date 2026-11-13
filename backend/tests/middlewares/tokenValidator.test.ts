@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
 import { TOKEN_ISSUER, TokenScopes } from '../../src/types/enums';
 import { getPasswordGrantKey, signPasswordGrantToken } from '../../src/utils/password-grant-key';
+import { createSignedPath } from '../../src/utils/presigned-url';
 
 const IDP = 'https://idp.example/realms/soilhive';
 
@@ -126,6 +127,14 @@ describe('tokenValidator — PASSWORD mode', () => {
     process.env.SELF_SIGNING_SECRET = 'previous-secret';
     const token = signPasswordGrantToken({ iss: TOKEN_ISSUER, sub: 'u1', scope: 'super-admin' }, 3600);
     process.env.SELF_SIGNING_SECRET = currentSecret;
+    await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
+      message: 'Invalid token: unknown kid',
+      status: 401,
+    });
+  });
+
+  it('rejects a download token by its kid, not by its claims (docs/adr/0080)', async () => {
+    const token = new URL(createSignedPath('/files/myfile.csv'), 'http://localhost').searchParams.get('token')!;
     await expect(tokenValidator(makeRequest(`Bearer ${token}`), [])).rejects.toMatchObject({
       message: 'Invalid token: unknown kid',
       status: 401,
