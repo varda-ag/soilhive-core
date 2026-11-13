@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.9.0 (2026-11-13)
+
+## What's Changed
+* fix: async job retry by @svaccari in https://github.com/varda-ag/soilhive-core/pull/976
+* feat: sp-5956 dashboard read needs access to its private datasets by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/977
+* feat: map based filters under one category by @svaccari in https://github.com/varda-ag/soilhive-core/pull/979
+* perf: faster CSV metadata extraction by @svaccari in https://github.com/varda-ag/soilhive-core/pull/980
+* feat: sp-5918 usage analytics for the map, the Data Explorer and downloads by @cristbello in https://github.com/varda-ag/soilhive-core/pull/974
+* chore: sp-5897 remove repo claude skills by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/981
+* fix: download tokens by @svaccari in https://github.com/varda-ag/soilhive-core/pull/982
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.8.0...v1.9.0
+
 ## 1.8.0 (2026-11-11)
 
 ## What's Changed
