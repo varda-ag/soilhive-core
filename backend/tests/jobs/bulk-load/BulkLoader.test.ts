@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import { signToken } from '../../../src/utils/utils';
+import { signInternalRequestToken } from '../../../src/utils/utils';
 import { ErrorResponse } from '../../../src/utils/error';
 import { parseWriteError } from '../../../src/jobs/bulk-load/BulkLoader';
 import { Job } from 'pg-boss';
@@ -27,7 +27,6 @@ import {
 } from '../../../src/utils/mock';
 import { getRawTableName } from '../../../src/utils/utils';
 import { StatusCodes } from 'http-status-codes';
-import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../../src/constants/constants';
 
 const getJob = (dataset_id: string): Job<BulkLoadJob> => {
   return {
@@ -58,7 +57,7 @@ describe('BulkLoader class', () => {
     const { dataset, file } = await addSyntheticIngestionData({ ...options });
 
     expect(dataset.status).toBe(IngestionStatus.PENDING);
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
@@ -103,7 +102,7 @@ describe('BulkLoader class', () => {
 
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...options });
     const { file: file2 } = await addSyntheticIngestionFile(dataset, dataMapping, 'test_file_2');
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
@@ -141,7 +140,7 @@ describe('BulkLoader class', () => {
     // can only reach exactly 90 if the count excludes them the same way the load does.
     const { dataset, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
     await addSyntheticIngestionFile(dataset, dataMapping, 'test_file_2');
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
@@ -192,7 +191,7 @@ describe('BulkLoader class', () => {
     dataset.processing_steps = { description: 'existing description' };
     await dataset.save();
 
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
       .mockImplementation(async (datasetSlug: string, datasetFileMappingId: string, payload: any) => {
@@ -218,7 +217,7 @@ describe('BulkLoader class', () => {
 
   it('E08 — BL_STATS_FETCH_FAILED when the cleaning-stats fetch fails; file stays STAGED for retry', async () => {
     const { dataset, file } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
@@ -266,7 +265,7 @@ describe('BulkLoader class', () => {
     delete options.columnMapping.drop_records;
 
     const { dataset, file: fileA, dataMapping } = await addSyntheticIngestionData({ ...options });
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
@@ -311,7 +310,7 @@ describe('BulkLoader class', () => {
 
     const dataSource = await getDataSource();
     const statusOf = async () => (await dataSource.getRepository(DatasetEntity).findOneByOrFail({ id: dataset.id })).status;
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
     const statusesWhileLoading: IngestionStatus[] = [];
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')
@@ -370,7 +369,7 @@ describe('BulkLoader class', () => {
   it('Bulk loading treats POST /soil-data error properly', async () => {
     const { dataset } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
 
-    const token = signToken('failing-token');
+    const token = 'failing-token';
 
     const mockMakeRequest = jest
       .spyOn(BulkLoaderModule, 'makeRequest')

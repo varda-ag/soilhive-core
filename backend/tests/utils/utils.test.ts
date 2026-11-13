@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from '@jest/globals';
-import { buildDatedFileKey, getEntitlementsCacheTtlMs, mergeMax, replaceExtension } from '../../src/utils/utils';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { buildDatedFileKey, getEntitlementsCacheTtlMs, mergeMax, replaceExtension, signInternalRequestToken } from '../../src/utils/utils';
+import { TokenScopes } from '../../src/types/enums';
 
 describe('utils tests', () => {
   it.each([
@@ -70,6 +72,17 @@ describe('utils tests', () => {
         process.env.ENTITLEMENTS_CACHE_TTL_MS = value;
       }
       expect(getEntitlementsCacheTtlMs()).toBe(expected);
+    });
+  });
+
+  describe('signInternalRequestToken', () => {
+    it('signs under the internal-request kid and expires after five minutes', () => {
+      const token = signInternalRequestToken();
+      const { header, payload } = jwt.verify(token, process.env.SELF_SIGNING_SECRET!, { complete: true }) as jwt.Jwt & {
+        payload: JwtPayload;
+      };
+      expect(header.kid).toBe(TokenScopes.INTERNAL_REQUEST);
+      expect(payload.exp! - payload.iat!).toBe(5 * 60);
     });
   });
 });

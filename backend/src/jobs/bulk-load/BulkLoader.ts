@@ -19,12 +19,11 @@ import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
 import { ErrorResponse, getErrorMessage } from '../../utils/error';
 import { log } from '../../utils/logger';
-import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
+import { getLoopbackUrl, getRawTableName, signInternalRequestToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
 import { jobRequestData } from '../jobRequestData';
-import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../constants/constants';
 import { createCursor, encodeCursor } from '../../utils/cursor';
 import { progressReporter } from '../../services/PgBoss';
 import { DataCleaningConfig } from '../../interfaces/DataMapping';
@@ -246,7 +245,7 @@ export const parseWriteError = (error: any): JobError => {
 export const makeRequest = (datasetSlug: string, datasetFileMappingId: string, payload: any) =>
   new Promise((resolve, reject) => {
     const postData = JSON.stringify(payload);
-    const token = signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD);
+    const token = signInternalRequestToken();
 
     const url = new URL(`${getLoopbackUrl()}/datasets/${datasetSlug}/dataset-file-mapping/${datasetFileMappingId}/soil-data`);
     const options = {
