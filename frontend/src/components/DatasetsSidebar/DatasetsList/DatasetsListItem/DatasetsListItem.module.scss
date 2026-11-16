@@ -21,11 +21,12 @@
   }
 
   .Main {
-    height: 95px;
+    min-height: 95px;
     position: relative;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
+    gap: 0.5rem;
     padding: 11px 12px 10px;
 
     > .Top {
@@ -55,8 +56,10 @@
 
     > .Bottom {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
+      gap: 0.25rem 0.5rem;
 
       > .MetadataButton {
         font-weight: normal;
@@ -66,7 +69,13 @@
 
       > .StatusTags {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.25rem;
+        min-width: 0;
+
+        > * {
+          white-space: nowrap;
+        }
 
         > .VisibilityTag {
           color: var(--color-neutral-white);
