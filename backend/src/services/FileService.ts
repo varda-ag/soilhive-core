@@ -10,9 +10,10 @@ import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import { GdalCLI, OgrInfoLayer, GdalInfoOutput, GdalInfoBand } from '../utils/GdalCLI';
+import { SHAPE_SAMPLE_ROWS, ShapeSuggestion, suggestShape } from '../utils/vectorShape';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
-import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath } from '../interfaces/File';
+import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath, ProcedureField } from '../interfaces/File';
 import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
 import { categoryLabels } from '../utils/raster';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
@@ -20,7 +21,7 @@ import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
 import { StorageModes } from '../types/enums';
-import { EntityType, IngestionStatus } from '../types/data';
+import { EntityType, IngestionStatus, ProcedureTechnique } from '../types/data';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
@@ -30,8 +31,12 @@ import { JobError } from '../errors/JobError';
 import { getDBPassword } from '../utils/db-credentials';
 import { log } from '../utils/logger';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
+import { CACHE_TTL_REFERENCE_MS } from '../utils/query-cache';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import SoilPropertyEntity from '../entities/SoilProperty';
+import UnitConversionEntity from '../entities/UnitConversion';
+import VocabularyEntity from '../entities/Vocabulary';
 import RasterFilterEntity from '../entities/RasterFilter';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
@@ -594,21 +599,26 @@ export default class FileService {
       const georeference = vectorGeoreference(layer);
       const georeference_wgs84 = georeference && layer.epsg ? await georeferenceToWgs84(georeference, `EPSG:${layer.epsg}`) : undefined;
 
+      const detected_fields: Record<DetectableFields, string | null> = {
+        [DetectableFields.GEOMETRY]: geometryFieldName,
+        [DetectableFields.LICENSE]: licenseFieldName,
+        [DetectableFields.SAMPLING_DATE]: samplingDateFieldName,
+        [DetectableFields.DEPTH]: depthFieldName,
+        [DetectableFields.MIN_DEPTH]: minDepthFieldName,
+        [DetectableFields.MAX_DEPTH]: maxDepthFieldName,
+        [DetectableFields.HORIZON]: horizonFieldName,
+        [DetectableFields.LATITUDE]: latitudeFieldName,
+        [DetectableFields.LONGITUDE]: longitudeFieldName,
+      };
+      const shape = await this.suggestShape(requestData, mainFilePath, layer, detected_fields, isExcel ? ['HEADERS=FORCE'] : []);
+
       const metadata: FileMetadata = {
         is_raster: false,
         field_names: fieldNames,
         detected_mapping,
-        detected_fields: {
-          [DetectableFields.GEOMETRY]: geometryFieldName,
-          [DetectableFields.LICENSE]: licenseFieldName,
-          [DetectableFields.SAMPLING_DATE]: samplingDateFieldName,
-          [DetectableFields.DEPTH]: depthFieldName,
-          [DetectableFields.MIN_DEPTH]: minDepthFieldName,
-          [DetectableFields.MAX_DEPTH]: maxDepthFieldName,
-          [DetectableFields.HORIZON]: horizonFieldName,
-          [DetectableFields.LATITUDE]: latitudeFieldName,
-          [DetectableFields.LONGITUDE]: longitudeFieldName,
-        },
+        detected_fields,
+        detected_format: shape.format,
+        ...(shape.roles && { detected_long_roles: shape.roles }),
         geometry_detected: geometryDetected,
         driver,
         layer_name: layer.name,
@@ -632,6 +642,47 @@ export default class FileService {
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
       }
+    }
+  }
+
+  /**
+   * The suggested shape of a vector File, from its first rows (docs/adr/0081). It is a suggestion
+   * the user can overrule, so a sample that cannot be read leaves the File wide instead of
+   * failing the upload.
+   */
+  private async suggestShape(
+    requestData: RequestData,
+    mainFilePath: string,
+    layer: OgrInfoLayer,
+    detectedFields: Record<DetectableFields, string | null>,
+    openOptions: string[],
+  ): Promise<ShapeSuggestion> {
+    try {
+      const features = await GdalCLI.sampleFeatures(mainFilePath, layer.name, SHAPE_SAMPLE_ROWS, openOptions);
+
+      const em = requestData.entityManager;
+      const [vocabulary, conversions, properties] = await Promise.all([
+        em.getRepository(VocabularyEntity).find({ select: { category: true, name: true }, cache: CACHE_TTL_REFERENCE_MS }),
+        em.getRepository(UnitConversionEntity).find({ select: { original_unit_of_measurement: true }, cache: CACHE_TTL_REFERENCE_MS }),
+        em.getRepository(SoilPropertyEntity).find({ select: { standard_unit: true }, cache: CACHE_TTL_REFERENCE_MS }),
+      ]);
+      const procedure: Partial<Record<ProcedureField, string[]>> = { technique: Object.values(ProcedureTechnique) };
+      for (const { category, name } of vocabulary) {
+        (procedure[category] ??= []).push(name);
+      }
+      const units = [...conversions.map(c => c.original_unit_of_measurement), ...properties.map(p => p.standard_unit)].filter(
+        (u): u is string => !!u,
+      );
+
+      return suggestShape(
+        layer.fields.map(f => f.name),
+        features,
+        detectedFields,
+        { units, procedure },
+      );
+    } catch (error) {
+      log.warn('Failed to suggest the shape of a vector file', { source: mainFilePath, error: getErrorMessage(error) });
+      return { format: 'wide' };
     }
   }
 

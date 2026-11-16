@@ -1,0 +1,7 @@
+geom,dataset_name,license,sampling_date,min_depth,max_depth,value,value_label,unit,sample_pretreatment,technique,laboratory_method,extractant_concentration,extraction_ratio,extraction_base,measurement_procedure,limit_of_detection
+POINT (12.8 42.4),Survey A,cc-by,2021-05-03,0,20,14.2,,mg/kg,air dried,lab procedure,Olsen,0.5 M,1:20,NaHCO3,colorimetry,
+POINT (139.6917 35.6895),Survey A,cc-by,2021-05-04,0,20,22.5,,mg/kg,air dried,lab procedure,Olsen,0.5 M,1:20,NaHCO3,colorimetry,
+POINT (36.8219 -1.2921),Survey A,cc-by,2021-05-05,0,20,8.1,,mg/kg,air dried,lab procedure,Bray 1,,1:10,NH4F,colorimetry,
+POINT (-58.3816 -34.6037),Survey B,cc-by,2021-06-11,0,20,31.0,,mg/kg,air dried,lab procedure,Bray 1,,1:10,NH4F,colorimetry,
+POINT (-74.006 40.7128),Survey B,cc-by,2021-06-12,0,20,12.7,,mg/kg,air dried,lab procedure,Olsen,0.5 M,1:20,NaHCO3,colorimetry,
+POINT (2.3522 48.8566),Survey B,cc-by,2021-06-13,0,20,19.9,,mg/kg,air dried,lab procedure,Olsen,0.5 M,1:20,NaHCO3,colorimetry,

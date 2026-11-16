@@ -94,6 +94,64 @@ describe('FileService - vector formats', () => {
     });
   });
 
+  describe('shape suggestion', () => {
+    it('suggests wide for a file with one column per property', async () => {
+      const metadata = (await fileService.extractMetadata(requestData, 'basic-soil-example_wkt.csv')) as VectorFileMetadata;
+
+      expect(metadata.detected_format).toBe('wide');
+      expect(metadata.detected_long_roles).toBeUndefined();
+    });
+
+    it('suggests long for a file whose columns are named for their roles', async () => {
+      const metadata = (await fileService.extractMetadata(requestData, 'long_known_names.csv')) as VectorFileMetadata;
+
+      expect(metadata.detected_format).toBe('long');
+      expect(metadata.detected_long_roles).toEqual({
+        property_col: 'soil_property',
+        value_col: 'value',
+        unit_col: 'unit',
+        method_code_col: null,
+        procedure_cols: {},
+      });
+    });
+
+    it('suggests long for a file of local codes whose column names say nothing', async () => {
+      // `site_no` is numeric too, but stays the same within one location and depth. `um` holds
+      // local units no vocabulary knows, so it is left for the user to give a role.
+      const metadata = (await fileService.extractMetadata(requestData, 'long_local_codes.csv')) as VectorFileMetadata;
+
+      expect(metadata.detected_format).toBe('long');
+      expect(metadata.detected_long_roles).toEqual({
+        property_col: 'det',
+        value_col: 'conc',
+        unit_col: null,
+        method_code_col: null,
+        procedure_cols: {},
+      });
+    });
+
+    it('suggests long with no property column for a file shaped like an export', async () => {
+      const metadata = (await fileService.extractMetadata(requestData, 'long_no_property.csv')) as VectorFileMetadata;
+
+      expect(metadata.detected_format).toBe('long');
+      expect(metadata.detected_long_roles).toEqual({
+        property_col: null,
+        value_col: 'value',
+        unit_col: 'unit',
+        method_code_col: null,
+        procedure_cols: {
+          sample_pretreatment: 'sample_pretreatment',
+          technique: 'technique',
+          laboratory_method: 'laboratory_method',
+          extractant_concentration: 'extractant_concentration',
+          extraction_ratio: 'extraction_ratio',
+          extraction_base: 'extraction_base',
+          measurement_procedure: 'measurement_procedure',
+        },
+      });
+    });
+  });
+
   describe('ZIP archives', () => {
     it('picks the CSV out of an archive that also holds an unrelated text file', async () => {
       // The archive has two entries, so this exercises the extension search rather than the

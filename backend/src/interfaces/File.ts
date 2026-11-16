@@ -1,4 +1,4 @@
-import type { IngestionStatus } from '../types/data';
+import type { IngestionStatus, VocabularyType } from '../types/data';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import type { Envelope } from '../utils/GdalCLI';
 
@@ -50,11 +50,27 @@ export interface RasterFileMetadata extends GeoreferenceMetadata {
   source_file_path?: string; // The upload as it was before normalization repointed file_path; what a re-normalization starts from.
 }
 
+/** Wide: one column per property. Long: one row per measured value (docs/adr/0081). */
+export type VectorFormat = 'wide' | 'long';
+
+export type ProcedureField = 'technique' | `${VocabularyType}`;
+
+/** The columns of a long File, by the role each plays. */
+export interface LongRoles {
+  property_col: string | null; // null: the File names no property, so the user sets one for the whole File
+  value_col: string | null;
+  unit_col: string | null;
+  method_code_col: string | null;
+  procedure_cols: Partial<Record<ProcedureField, string>>;
+}
+
 export interface VectorFileMetadata extends GeoreferenceMetadata {
   is_raster: false;
   field_names: string[];
   detected_fields: Record<DetectableFields, string | null>;
   detected_mapping: DataMappingObject;
+  detected_format?: VectorFormat; // Suggested from a sample of rows. Absent on files that predate it: read as 'wide'
+  detected_long_roles?: LongRoles; // Only when detected_format is 'long'
   geometry_detected: boolean;
   driver?: string;
   epsg?: number;
