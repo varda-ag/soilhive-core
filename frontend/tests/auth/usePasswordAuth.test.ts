@@ -183,6 +183,7 @@ describe('usePasswordAuth', () => {
           username: '_',
           password: 'mypassword',
         }).toString(),
+        authenticate: false,
         showErrorNotification: false,
       });
 
@@ -252,6 +253,19 @@ describe('usePasswordAuth', () => {
 
       expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({ showErrorNotification: false }));
       expect(result.current.error?.message).toBe('Invalid password');
+    });
+
+    // Its 401 means a wrong password, not an ended session: no token to send, no renew to try.
+    it('sends the login request without the stored token', async () => {
+      mockRequest.mockResolvedValue({ access_token: MOCK_ACCESS_TOKEN, expires_in: 3600, token_type: 'Bearer' });
+
+      const { result } = renderHook(() => usePasswordAuth());
+
+      await act(async () => {
+        await result.current.login('secret');
+      });
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({ authenticate: false }));
     });
 
     it('clears previous error on a new login attempt', async () => {

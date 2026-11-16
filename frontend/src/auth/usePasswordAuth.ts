@@ -102,6 +102,8 @@ export function usePasswordAuth() {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: urlEncodedBody,
+        // A 401 here means a wrong password, not an ended session: send no token, try no renew.
+        authenticate: false,
         // The LoginModal shows the error inline; a "Login required" toast would contradict it.
         showErrorNotification: false,
       });
