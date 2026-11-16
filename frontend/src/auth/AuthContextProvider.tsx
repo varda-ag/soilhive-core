@@ -142,8 +142,12 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
           return { outcome: 'renewed', token: renewed.access_token };
         }
       } catch (error) {
-        // A timeout or a network error says nothing about the session: keep the token.
-        if (!(error instanceof ErrorResponse)) return { outcome: 'unavailable' };
+        // A timeout or a network error says nothing about the session: keep the token. A setup error
+        // (e.g. no silent_redirect_uri and no refresh token) lands here too, so log it.
+        if (!(error instanceof ErrorResponse)) {
+          console.warn('Silent renew could not reach the login server:', error);
+          return { outcome: 'unavailable' };
+        }
       }
       clearToken();
       return { outcome: 'rejected' };
