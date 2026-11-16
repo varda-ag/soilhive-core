@@ -14,7 +14,7 @@ import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from '
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { saveToken, clearToken } from '../../src/auth/tokenStore';
-import { setTokenRefresher } from '../../src/auth/tokenRefresher';
+import { endSession, setTokenRefresher } from '../../src/auth/tokenRefresher';
 import { peekRestoredPageState, setRestoredPageState } from '../../src/auth/signinPageState';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -224,9 +224,8 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(removeUser).not.toHaveBeenCalled();
     });
 
-    // The `oidc.user:` key is shared, so the other tabs sign out too, even when the renew failed only
-    // because the network dropped for a moment. Accepted: this tab already signed out before.
-    it('signs out (also in the other tabs) and returns undefined when the silent renew yields no valid user', async () => {
+    // A proactive renew (pluginTokens) also calls the refresher, so a failure must not end the session.
+    it('returns undefined and keeps the user when the silent renew yields no valid user', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
       signinSilent.mockResolvedValue(null);
       (clearToken as jest.Mock).mockClear();
@@ -239,21 +238,8 @@ describe('OidcAuthProvider token lifecycle', () => {
       });
 
       expect(clearToken).toHaveBeenCalledTimes(1);
-      expect(removeUser).toHaveBeenCalledTimes(1);
+      expect(removeUser).not.toHaveBeenCalled();
       expect(saveToken).not.toHaveBeenCalled();
-      expect(result).toBeUndefined();
-    });
-
-    it('removes the user without error when an anonymous user gets a 401 the renew cannot fix', async () => {
-      renderWithUser(null);
-      signinSilent.mockResolvedValue(null);
-
-      let result: string | undefined = 'not-set';
-      await act(async () => {
-        result = await getRegisteredRefresher()();
-      });
-
-      expect(removeUser).toHaveBeenCalledTimes(1);
       expect(result).toBeUndefined();
     });
 
@@ -279,6 +265,33 @@ describe('OidcAuthProvider token lifecycle', () => {
       unmount();
 
       expect(setTokenRefresher).toHaveBeenCalledWith(undefined);
+    });
+  });
+
+  describe('session end after a 401 the renew cannot fix', () => {
+    // The `oidc.user:` key is shared, so the other tabs sign out too, even when the renew failed only
+    // because the network dropped for a moment. Accepted: this tab already signed out before.
+    it('clears the token and removes the user (also in the other tabs)', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      (clearToken as jest.Mock).mockClear();
+
+      await act(async () => {
+        endSession();
+      });
+
+      expect(clearToken).toHaveBeenCalledTimes(1);
+      expect(removeUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops ending the session after unmount', async () => {
+      const { unmount } = renderWithUser({ access_token: 'valid-token', expired: false });
+      unmount();
+
+      await act(async () => {
+        endSession();
+      });
+
+      expect(removeUser).not.toHaveBeenCalled();
     });
   });
 

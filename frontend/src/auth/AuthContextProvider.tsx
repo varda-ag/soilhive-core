@@ -6,7 +6,7 @@ import { usePasswordAuth } from './usePasswordAuth';
 import { LoginModal } from './LoginModal';
 import { AuthModes, type AuthModesType } from './types';
 import { clearToken, saveToken, getToken } from './tokenStore';
-import { refreshAccessToken, setTokenRefresher } from './tokenRefresher';
+import { refreshAccessToken, setSessionEnder, setTokenRefresher } from './tokenRefresher';
 import { getEmailFromAccessToken, isTokenExpired } from './tokenClaims';
 import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from './signinReturnTo';
 import { getPageState, setRestoredPageState } from './signinPageState';
@@ -92,30 +92,36 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [validToken]);
 
-  // react-oidc-context does not subscribe to accessTokenExpired, so on expiry it never clears the
-  // stale user. Try a silent renew first: the scheduled one may only have missed its window (throttled
-  // tab, machine sleep). The refresher signs out quietly if the renew fails.
+  // Ends the session in this tab. The `oidc.user:` key is shared, so the other tabs sign out too.
   const { events, removeUser } = reactOidcAuth;
-  useEffect(() => {
-    const handleExpired = () => {
-      // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
-      void refreshAccessToken();
-    };
-    events.addAccessTokenExpired(handleExpired);
-    return () => events.removeAccessTokenExpired(handleExpired);
-  }, [events]);
-
-  // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   const signOutHere = useCallback(() => {
     clearToken();
     return removeUser();
   }, [removeUser]);
+
+  // react-oidc-context does not subscribe to accessTokenExpired, so on expiry it never clears the
+  // stale user. Try a silent renew first: the scheduled one may only have missed its window (throttled
+  // tab, machine sleep). Sign out quietly only if the renew fails.
+  useEffect(() => {
+    const handleExpired = async () => {
+      // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
+      if (!(await refreshAccessToken())) await signOutHere();
+    };
+    events.addAccessTokenExpired(handleExpired);
+    return () => events.removeAccessTokenExpired(handleExpired);
+  }, [events, signOutHere]);
+
+  // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   useSignOutInOtherTab(isOidcUserKey, signOutHere);
 
-  // Expose a one-shot silent renew to the standalone httpClient so it can
-  // recover from a 401 caused by an expired token (e.g. the scheduled
-  // automaticSilentRenew missed its window while the tab was throttled/asleep).
-  // A failed renew ends the session, so isAuthenticated flips to false and the login UI shows.
+  // A 401 that the renew below could not fix ends the session, so the login UI shows.
+  useEffect(() => {
+    setSessionEnder(() => void signOutHere());
+    return () => setSessionEnder(undefined);
+  }, [signOutHere]);
+
+  // Expose a one-shot silent renew to the standalone httpClient and to pluginTokens. It only renews:
+  // a proactive renew can fail while the token is still valid.
   const { signinSilent } = reactOidcAuth;
   useEffect(() => {
     setTokenRefresher(async () => {
@@ -123,13 +129,13 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
       const token = renewed && !renewed.expired ? renewed.access_token : undefined;
       if (token) {
         saveToken(token);
-        return token;
+      } else {
+        clearToken();
       }
-      await signOutHere();
-      return undefined;
+      return token;
     });
     return () => setTokenRefresher(undefined);
-  }, [signinSilent, signOutHere]);
+  }, [signinSilent]);
 
   // Entitlements are keyed by the Subject, which the backend resolves email-first from the access
   // token. If this IdP does not put `email` there, no Subject is ever an email address and every

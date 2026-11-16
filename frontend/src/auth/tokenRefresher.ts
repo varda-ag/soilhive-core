@@ -25,3 +25,17 @@ export function refreshAccessToken(): Promise<string | undefined> {
   }
   return inflight;
 }
+
+// Ends the session in this tab. Called only after a 401 that a renew could not fix, never by a proactive
+// renew, so a renew stays a renew.
+type SessionEnder = () => void;
+
+let sessionEnder: SessionEnder | undefined;
+
+export function setSessionEnder(fn: SessionEnder | undefined) {
+  sessionEnder = fn;
+}
+
+export function endSession(): void {
+  sessionEnder?.();
+}

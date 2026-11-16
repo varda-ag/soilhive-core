@@ -4,7 +4,7 @@ import { usePasswordAuth } from '../../src/auth/usePasswordAuth';
 import { useRequest } from '../../src/api-client';
 import { clearToken, getToken, saveToken } from '../../src/auth/tokenStore';
 import { BACKEND_BASE_URL } from '../../src/configuration/api';
-import { refreshAccessToken } from '../../src/auth/tokenRefresher';
+import { endSession, refreshAccessToken } from '../../src/auth/tokenRefresher';
 import { act, renderHook } from '@testing-library/react';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -359,29 +359,34 @@ describe('usePasswordAuth', () => {
       (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
     });
 
-    it('signs out this tab when the httpClient asks for a renew after a 401', async () => {
+    it('signs out this tab when the httpClient ends the session after a 401', () => {
       const { result } = renderHook(() => usePasswordAuth());
       expect(result.current.isAuthenticated).toBe(true);
 
-      let renewed: string | undefined = 'not-called';
-      await act(async () => {
-        renewed = await refreshAccessToken();
-      });
+      act(() => endSession());
 
-      expect(renewed).toBeUndefined();
       expect(clearToken).toHaveBeenCalled();
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.user).toBeNull();
     });
 
-    it('stops handling 401s after unmount', async () => {
-      const { unmount } = renderHook(() => usePasswordAuth());
-      unmount();
-      (clearToken as jest.Mock).mockClear();
+    // pluginTokens renews a token that is still valid but close to expiry.
+    it('stays signed in when something asks for a renew', async () => {
+      const { result } = renderHook(() => usePasswordAuth());
 
       await act(async () => {
-        await refreshAccessToken();
+        await expect(refreshAccessToken()).resolves.toBeUndefined();
       });
+
+      expect(clearToken).not.toHaveBeenCalled();
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+
+    it('stops ending the session after unmount', () => {
+      const { unmount } = renderHook(() => usePasswordAuth());
+      unmount();
+
+      act(() => endSession());
 
       expect(clearToken).not.toHaveBeenCalled();
     });

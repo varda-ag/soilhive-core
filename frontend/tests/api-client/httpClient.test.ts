@@ -6,7 +6,7 @@
 // the fresh token before surfacing the error.
 import { httpClient } from '../../src/api-client/httpClient';
 import { getToken } from '../../src/auth/tokenStore';
-import { refreshAccessToken } from '../../src/auth/tokenRefresher';
+import { endSession, refreshAccessToken } from '../../src/auth/tokenRefresher';
 
 jest.mock('../../src/auth/tokenStore', () => ({
   getToken: jest.fn(),
@@ -15,6 +15,7 @@ jest.mock('../../src/auth/tokenStore', () => ({
 
 jest.mock('../../src/auth/tokenRefresher', () => ({
   refreshAccessToken: jest.fn(),
+  endSession: jest.fn(),
 }));
 
 const getTokenMock = getToken as jest.Mock;
@@ -92,6 +93,7 @@ describe('httpClient', () => {
     });
     expect(refreshMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(endSession).toHaveBeenCalledTimes(1);
   });
 
   it('retries only once: a 401 on the retry is surfaced without a second refresh', async () => {
@@ -119,6 +121,26 @@ describe('httpClient', () => {
     expect(getTokenMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();
     expect(authHeader(0)).toBeUndefined();
+  });
+
+  it('keeps the session when the refresh fixes the 401', async () => {
+    getTokenMock.mockReturnValue('stale');
+    refreshMock.mockResolvedValue('fresh');
+    fetchMock
+      .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }))
+      .mockResolvedValueOnce(mockResponse({ ok: true, status: 200, body: { id: 1 } }));
+
+    await httpClient({ url: '/datasets', method: 'GET' });
+
+    expect(endSession).not.toHaveBeenCalled();
+  });
+
+  it('does not end the session for a 401 on an unauthenticated request', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'no' } }));
+
+    await expect(httpClient({ url: '/x', method: 'GET', authenticate: false })).rejects.toMatchObject({ status: 401 });
+
+    expect(endSession).not.toHaveBeenCalled();
   });
 
   it('does not refresh on non-401 errors', async () => {

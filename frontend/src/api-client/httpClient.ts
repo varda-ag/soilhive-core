@@ -1,5 +1,5 @@
 import { getToken } from '../auth/tokenStore';
-import { refreshAccessToken } from '../auth/tokenRefresher';
+import { endSession, refreshAccessToken } from '../auth/tokenRefresher';
 import { handleError } from './error';
 import { type APIRequestConfig } from './types/api';
 
@@ -36,6 +36,9 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
     const refreshed = await refreshAccessToken();
     if (refreshed) {
       response = await doFetch(refreshed);
+    } else {
+      // The session is over: sign this tab out so the login UI shows.
+      endSession();
     }
   }
 

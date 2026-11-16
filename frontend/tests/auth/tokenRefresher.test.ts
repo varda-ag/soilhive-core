@@ -3,10 +3,26 @@
 // Covers the module-level bridge that lets the standalone httpClient trigger an
 // OIDC silent renew: delegation to the registered refresher and the dedupe of
 // concurrent calls into a single renew.
-import { setTokenRefresher, refreshAccessToken } from '../../src/auth/tokenRefresher';
+import { endSession, setSessionEnder, setTokenRefresher, refreshAccessToken } from '../../src/auth/tokenRefresher';
 
 afterEach(() => {
   setTokenRefresher(undefined);
+  setSessionEnder(undefined);
+});
+
+describe('endSession', () => {
+  it('does nothing when no session ender is registered', () => {
+    expect(() => endSession()).not.toThrow();
+  });
+
+  it('calls the registered session ender', () => {
+    const fn = jest.fn();
+    setSessionEnder(fn);
+
+    endSession();
+
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('tokenRefresher', () => {

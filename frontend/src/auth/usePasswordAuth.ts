@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { setTokenRefresher } from './tokenRefresher';
+import { setSessionEnder } from './tokenRefresher';
 import type { User } from './Token';
 import { useRequest } from '../api-client';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
@@ -78,12 +78,11 @@ export function usePasswordAuth() {
 
   // Password tokens cannot be renewed, so a 401 ends the session in this tab too.
   useEffect(() => {
-    setTokenRefresher(async () => {
+    setSessionEnder(() => {
       clearToken();
       signOutHere();
-      return undefined;
     });
-    return () => setTokenRefresher(undefined);
+    return () => setSessionEnder(undefined);
   }, [signOutHere]);
 
   const login = async (password?: string) => {
