@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { User } from './Token';
 import { useRequest } from '../api-client';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
-import { clearToken, getToken, saveToken } from './tokenStore';
+import { clearToken, getToken, saveToken, TOKEN_STORAGE_KEY } from './tokenStore';
+import { useSignOutInOtherTab } from './useSignOutInOtherTab';
 import { BACKEND_BASE_URL } from '../configuration/api';
 
 interface PasswordAuthState {
@@ -39,6 +40,8 @@ function extractUser(access_token: string): User {
   return user;
 }
 
+const isTokenKey = (key: string) => key === TOKEN_STORAGE_KEY;
+
 function isTokenExpired(user: User): boolean {
   const EXPIRY_BUFFER_SECONDS = 30;
   return user.expires_at ? user.expires_at * 1000 < Date.now() + EXPIRY_BUFFER_SECONDS * 1000 : true;
@@ -65,6 +68,12 @@ export function usePasswordAuth() {
       user,
     };
   });
+
+  // Another tab signed out and removed the shared token.
+  const signOutHere = useCallback(() => {
+    setState({ isAuthenticated: false, isLoading: false, error: undefined, user: null });
+  }, []);
+  useSignOutInOtherTab(isTokenKey, signOutHere);
 
   const login = async (password?: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: undefined }));

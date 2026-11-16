@@ -17,6 +17,7 @@ jest.mock('../../src/api-client', () => ({
 }));
 
 jest.mock('../../src/auth/tokenStore', () => ({
+  TOKEN_STORAGE_KEY: 'token',
   getToken: jest.fn(),
   saveToken: jest.fn(),
   clearToken: jest.fn(),
@@ -308,6 +309,34 @@ describe('usePasswordAuth', () => {
   });
 
   // ── extractUser / user shape ─────────────────────────────────────────────────
+
+  describe('sign-out in another tab', () => {
+    const fireStorage = (key: string | null, newValue: string | null = null) => {
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue, storageArea: localStorage }));
+    };
+
+    beforeEach(() => {
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+    });
+
+    it('signs out when another tab removes the token', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      expect(result.current.isAuthenticated).toBe(true);
+
+      act(() => fireStorage('token'));
+
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
+    });
+
+    it('stays signed in when another tab removes an unrelated key', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+
+      act(() => fireStorage('something-else'));
+
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+  });
 
   describe('user profile shape', () => {
     it('correctly maps all JWT claims to the User object', async () => {
