@@ -108,6 +108,14 @@ _Avoid_: Plugin JWT, core token, exchange token, plugin key (the key that signs 
 A **Capability** (`preview`, `download`, `obfuscate_as_points`, `obfuscate_as_polygons`, `read`, `write`) granted to one **Subject** or to `everyone`, over one of two scopes: a Dataset, or a config item (`PUT /configs/{configId}`, keyed by its freeform id rather than a slug). Consulted only for private Datasets — a public Dataset needs none; a config item has no Visibility and is always consulted. Datasets draw from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's own raw token exists, never with a **Plugin token** — config items are local-only, the external endpoint has no notion of them. Entitlements are the access axis; **Visibility** is the attribute axis (Datasets only), and neither substitutes for the other. A non-admin caller may self-claim `write` on a plugin-owned (`plugin:{pluginId}:{id}`) config item's own Entitlements the first time it is accessed — never on a Dataset's (see ADR 0035). A Dataset Entitlement's lifetime is bound to the Dataset's *data*, not its record: it survives an **Archive** and is destroyed by a **Purge**, and only the locally held rows are, since the external endpoint's answers are outside the system's reach. Reading a config item of the `dashboards` **Config Kind** also needs `preview` on each private Dataset in its `datasets` list, and each of those Datasets must exist for the caller (ADR-0079).
 _Avoid_: Permission, access right, grant, role
 
+**Invite**:
+A set of **Entitlements** held back until someone redeems it, then granted to the redeemer's own **Subject**; it may name a recipient by email, and then only the person with that email can redeem it.
+_Avoid_: Share link, invitation
+
+**Access Request**:
+A signed-in **Subject**'s request for **Entitlements** on one or more **Datasets**, decided by a **Privileged caller**; approving it grants them to that Subject directly.
+_Avoid_: **Data Request** (a Run's answer), **Invite** (offered by someone who could grant, not asked for), permission request
+
 **Data Availability Index (DAI)**:
 A composite score that quantifies the richness of soil data within an H3 cell. Computed on-demand per filter + viewport. Only point and polygonal features contribute; raster datasets are excluded from scoring.
 _Avoid_: Data density, coverage score, heatmap score
@@ -401,6 +409,18 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - Every caller is either a person or a **Machine caller**, and the kind decides which claim supplies its **Subject**; the kind is independent of whether the caller is **Privileged**, and a caller of unknown kind is treated as a person
 - A non-admin **Subject** may self-claim `write` on a plugin-owned config item's own Entitlements the first time it is accessed, granting only itself; every other Entitlement write requires an existing `write` grant or a **Privileged caller** (see ADR 0035)
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
+- An **Invite** grants nothing until it is redeemed, and then only to the redeemer's own **Subject**, never to `everyone`; its creator may put into it only **Entitlements** they could grant directly
+- An **Invite** naming a recipient can be redeemed only by a person whose email matches it, ignoring case, never by a **Machine caller**; what is granted goes to the redeemer's **Subject** as it is, not to the email the Invite names. The email matched is the one the identity provider holds for that person, even on a deployment where it is not their Subject. An attempt by anyone else leaves the Invite pending
+- Every **Invite** expires. One naming a recipient is used up when that recipient redeems it; one naming none is used up by its first redemption, unless its creator made it reusable until it expires
+- Approving an **Access Request** grants straight to the **Subject** that made it; it never becomes an **Invite**
+- An **Access Request** names only private, published **Datasets** and asks for `preview`, `download` or both; it may be approved for less than it asks
+- An **Access Request** is decided one **Dataset** at a time and is finished when every Dataset in it is decided; its requester may withdraw it before then. A denial is final for that request only: the same Subject may ask again
+- A **Subject** has at most one pending **Access Request** per **Dataset**, and a pending Access Request never expires
+- **Access Requests** can be made only on a deployment whose admins have turned them on; **Invites** need no such switch
+- Withdrawing an **Invite** takes back nothing already redeemed: an **Entitlement** does not record how it was granted, so taking access back is always done on the Entitlements themselves
+- An **Invite** is redeemed whole or not at all. Its config item grants hold only while its creator still holds `write` on those items; its **Dataset** grants, made by a **Privileged caller**, do not depend on the creator afterwards
+- One **Invite** may hold grants on several config items and **Datasets** at once. A pending Invite, its recipient and who redeemed it are visible only to its creator and to those who could have created it, and only they may withdraw it
+- Nothing pending outlives what a real **Entitlement** would: a **Purge**, or deleting a plugin config item, removes that Dataset or config item from every pending **Invite** and **Access Request**; an **Archive** removes nothing
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
 - A **Plugin** has at most one **Plugin Backend**, and names the address of its own calls to it; a **Plugin token** for it is accepted only by that Plugin's backend and, for reads, by the core
@@ -446,6 +466,9 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 > **Dev:** "I filtered on 2018 and got LUCAS, but every row in the Preview table has a blank sampling date. Bug?"
 > **Domain expert:** "No — its Layers recorded no date, so they matched through the **Dataset fallback** on the Dataset's 2018 period. The fallback decides what matches; the rows still show what was recorded. Filter `min_sampling_date: null` instead to see only the data with no recorded date."
 
+> **Dev:** "Jane wants `download` on three private **Datasets**, and her identity provider doesn't put `email` in tokens. Should the admin send her an **Invite**?"
+> **Domain expert:** "She can make an **Access Request** instead: she's signed in when she asks, so approving it grants straight to her **Subject**, `sub` or not. An Invite is for when the admin makes the first move. If the admin names her email on one, she can still redeem it, because her email is matched where her identity provider keeps it, but the grant still lands on her Subject."
+
 **Preprocessing Steps** (`preprocessing_steps`):
 An optional free-text field on a Dataset that documents the data cleaning and transformation steps applied to the raw source data prior to ingestion. Set by data admins; not computed by the system.
 _Avoid_: Processing instructions, pipeline steps, ETL steps
@@ -480,6 +503,8 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **Features and Layers are shared, not owned** — and the glossary previously said otherwise ("a sampling location *within a Dataset*", "a depth/date slice *within a Feature*"). Both are identified purely by their own content, so two Datasets sampling the same place, or the same depth/date slice, reference the *same* row rather than each getting a copy. Consequences worth stating out loud: nothing can be attributed to a Dataset by looking at a Feature or a Layer alone — only a **DatasetLayer** carries that; and a count of distinct Features is a count of *places*, so it is only per-Dataset if the count is taken within one Dataset.
 
 - **"sub" was used to mean both the token claim and the Subject** — and the two are different strings whenever a token carries an email. Resolved: the **Subject** is what Entitlements and `created_by` are keyed by; `sub` is one claim that only *sometimes* supplies it. The confusion was load-bearing, not cosmetic: the request path resolved Entitlements by email while the job path resolved them by `sub`, so a job saw only `everyone`'s Entitlements and silently skipped private Datasets its submitter was entitled to. Say **Subject** in domain discussions and reserve `sub` for the JWT claim.
+
+- **"A person's email" is not always their Subject.** Where the identity provider leaves `email` out of access tokens, a person still has an email there, but their **Subject** is their `sub`. Resolved: an **Invite**'s recipient is matched against the person's email, and what it grants is keyed by their Subject; neither stands in for the other.
 
 - **"Self-signed token" named three different tokens** — the password-mode sign-in token, the job-to-API internal token and the presigned download token all came from one platform secret. Resolved: only the first is a domain concept, the **Password-grant token**, and of the three it is the only one whose key is published. The **Plugin token** is a fourth, signed with a key of its own and published apart.
 

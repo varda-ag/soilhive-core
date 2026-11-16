@@ -69,6 +69,9 @@ export const requireSub = (requestData: RequestData): string => {
  */
 const CLIENT_CREDENTIALS_GRANT = 'client_credentials';
 
+/** Whether the token is a **Machine caller**'s; a caller of unknown kind is a person. */
+export const isMachineCaller = (token?: Token): boolean => token?.gty === CLIENT_CREDENTIALS_GRANT;
+
 /**
  * Resolves the caller's Subject: Entitlements and every `created_by` will take this value:
  * - A **Machine caller** (`gty` equals client-credentials grant) is its `client_id`.
@@ -78,8 +81,8 @@ const CLIENT_CREDENTIALS_GRANT = 'client_credentials';
  */
 export const getSubject = (requestData: RequestData): string => {
   const sub = requireSub(requestData);
-  if (requestData.token?.gty === CLIENT_CREDENTIALS_GRANT) {
-    return requestData.token.client_id ?? sub;
+  if (isMachineCaller(requestData.token)) {
+    return requestData.token!.client_id ?? sub;
   }
   return requestData.token?.email ?? sub;
 };

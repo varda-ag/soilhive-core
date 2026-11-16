@@ -9,6 +9,7 @@ import { JobError } from '../../errors/JobError';
 import { discardVersionRows, resetVersionRows, restoreDiscardedVersion } from '../../data-layer/DatasetVersions';
 import ErrorService from '../../services/ErrorService';
 import EntitlementService from '../../services/EntitlementService';
+import InviteService from '../../services/InviteService';
 import { EntitlementScope } from '../../types/Entitlements';
 import { queueOrphanSweep } from '../orphan-cleanup/SweepOrphanRowsJob';
 import { jobRequestData } from '../jobRequestData';
@@ -85,6 +86,7 @@ export async function processVersionDiscard(job: Job<VersionDiscardJob>): Promis
       // its slug would pass to the next Dataset given that slug
       const requestData = { ...(await jobRequestData(manager, job.data)), entityManager: manager };
       await new EntitlementService().deleteEntityEntitlements(requestData, EntitlementScope.DATASETS, version.slug);
+      await new InviteService().dropFromPendingInvites(requestData, EntitlementScope.DATASETS, version.slug);
       await discardVersionRows(manager, version);
     });
   } catch (error) {

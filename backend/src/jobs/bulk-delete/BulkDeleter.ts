@@ -16,6 +16,8 @@ import { refreshDaiStats } from '../../data-layer/DaiStats';
 import { bumpCacheEpoch } from '../../utils/cache-epoch';
 import ErrorService from '../../services/ErrorService';
 import EntitlementService from '../../services/EntitlementService';
+import InviteService from '../../services/InviteService';
+import AccessRequestService from '../../services/AccessRequestService';
 import { EntitlementScope } from '../../types/Entitlements';
 import { updateJobState } from '../../services/PgBoss';
 
@@ -87,6 +89,9 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
         EntitlementScope.DATASETS,
         dataset.slug,
       );
+      // Pending Invites and Access Requests go the same way: nothing pending outlives what a grant would (docs/adr/0082)
+      await new InviteService().dropFromPendingInvites({ ...requestData, entityManager: manager }, EntitlementScope.DATASETS, dataset.slug);
+      await new AccessRequestService().dropDataset({ ...requestData, entityManager: manager }, datasetId);
 
       if (dataset.gis_datatype === GISDataType.RASTER) {
         await deleteRasterLayers(manager, datasetId);

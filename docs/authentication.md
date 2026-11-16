@@ -108,3 +108,8 @@ Notes:
   move the machine's entitlements.
 - `email_verified` is not consulted anywhere. The identity provider is trusted to issue truthful
   email claims; see `docs/adr/0022-identity-is-the-subject-not-the-token-sub.md`.
+- An Invite naming a recipient is the one exception to "access token only". When the access token
+  has no `email`, redeeming one asks the identity provider's userinfo endpoint (found through
+  `OIDC_AUTHORITY`'s discovery document) for the person's email. That email only decides who may
+  redeem; the grant still goes to the Subject. The backend must be able to reach both endpoints,
+  or redeeming such an Invite fails with a 502. See `docs/adr/0081-invite-recipients-are-matched-by-email-and-granted-by-subject.md`.

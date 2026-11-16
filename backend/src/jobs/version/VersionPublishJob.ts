@@ -11,6 +11,7 @@ import { mixedDataTypes, moveVersionRows, publishableReason } from '../../data-l
 import { refreshDaiStats } from '../../data-layer/DaiStats';
 import ErrorService from '../../services/ErrorService';
 import EntitlementService from '../../services/EntitlementService';
+import InviteService from '../../services/InviteService';
 import FileService from '../../services/FileService';
 import { EntitlementScope } from '../../types/Entitlements';
 import { jobRequestData } from '../jobRequestData';
@@ -78,6 +79,7 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
       const managerRequestData = { ...requestData, entityManager: manager };
       const entitlementService = new EntitlementService();
       await entitlementService.deleteEntityEntitlements(managerRequestData, EntitlementScope.DATASETS, version.slug);
+      await new InviteService().dropFromPendingInvites(managerRequestData, EntitlementScope.DATASETS, version.slug);
       if (data.entitlements) {
         await entitlementService.setEntityEntitlements(managerRequestData, EntitlementScope.DATASETS, dataset.slug, data.entitlements);
       }
