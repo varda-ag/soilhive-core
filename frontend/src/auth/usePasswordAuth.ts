@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { setTokenRefresher } from './tokenRefresher';
 import type { User } from './Token';
 import { useRequest } from '../api-client';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
@@ -74,6 +75,16 @@ export function usePasswordAuth() {
   // Another tab signed out and removed the shared token.
   const signOutHere = useCallback(() => setState(SIGNED_OUT), []);
   useSignOutInOtherTab(isTokenKey, signOutHere);
+
+  // Password tokens cannot be renewed, so a 401 ends the session in this tab too.
+  useEffect(() => {
+    setTokenRefresher(async () => {
+      clearToken();
+      signOutHere();
+      return undefined;
+    });
+    return () => setTokenRefresher(undefined);
+  }, [signOutHere]);
 
   const login = async (password?: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: undefined }));

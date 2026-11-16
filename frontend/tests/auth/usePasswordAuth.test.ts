@@ -4,6 +4,7 @@ import { usePasswordAuth } from '../../src/auth/usePasswordAuth';
 import { useRequest } from '../../src/api-client';
 import { clearToken, getToken, saveToken } from '../../src/auth/tokenStore';
 import { BACKEND_BASE_URL } from '../../src/configuration/api';
+import { refreshAccessToken } from '../../src/auth/tokenRefresher';
 import { act, renderHook } from '@testing-library/react';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -350,6 +351,39 @@ describe('usePasswordAuth', () => {
       act(() => fireStorage('something-else'));
 
       expect(result.current.isAuthenticated).toBe(true);
+    });
+  });
+
+  describe('401 in this tab', () => {
+    beforeEach(() => {
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+    });
+
+    it('signs out this tab when the httpClient asks for a renew after a 401', async () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      expect(result.current.isAuthenticated).toBe(true);
+
+      let renewed: string | undefined = 'not-called';
+      await act(async () => {
+        renewed = await refreshAccessToken();
+      });
+
+      expect(renewed).toBeUndefined();
+      expect(clearToken).toHaveBeenCalled();
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
+    });
+
+    it('stops handling 401s after unmount', async () => {
+      const { unmount } = renderHook(() => usePasswordAuth());
+      unmount();
+      (clearToken as jest.Mock).mockClear();
+
+      await act(async () => {
+        await refreshAccessToken();
+      });
+
+      expect(clearToken).not.toHaveBeenCalled();
     });
   });
 
