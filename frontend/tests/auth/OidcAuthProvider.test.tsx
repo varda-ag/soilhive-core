@@ -240,6 +240,43 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(result).toBeUndefined();
     });
 
+    // The `oidc.user:` key is shared, so the other tabs sign out too, even when this renew failed only
+    // because the network dropped for a moment. Accepted: this tab already signed out before.
+    it('removes the user when the silent renew after a 401 fails, which also signs out the other tabs', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockResolvedValue(null);
+
+      await act(async () => {
+        await getRegisteredRefresher()();
+      });
+
+      expect(removeUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the user when the silent renew after a 401 succeeds', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockResolvedValue({ access_token: 'fresh-token', expired: false });
+
+      await act(async () => {
+        await getRegisteredRefresher()();
+      });
+
+      expect(removeUser).not.toHaveBeenCalled();
+    });
+
+    it('removes the user without error when an anonymous user gets a 401 the renew cannot fix', async () => {
+      renderWithUser(null);
+      signinSilent.mockResolvedValue(null);
+
+      let result: string | undefined = 'not-set';
+      await act(async () => {
+        result = await getRegisteredRefresher()();
+      });
+
+      expect(removeUser).toHaveBeenCalledTimes(1);
+      expect(result).toBeUndefined();
+    });
+
     it('treats an expired renewed user as a failed refresh', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
       signinSilent.mockResolvedValue({ access_token: 'stale-token', expired: true });

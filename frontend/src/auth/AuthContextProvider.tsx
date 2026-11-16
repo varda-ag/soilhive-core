@@ -92,24 +92,18 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [validToken]);
 
-  // react-oidc-context does not subscribe to accessTokenExpired, so on expiry
-  // it never clears the user and the stale token keeps being used. Handle it
-  // explicitly: first try a silent renew, since the scheduled one may only have
-  // missed its window (throttled tab, machine sleep), and signing out would
-  // replace any page that needs a signed-in user, losing its state. Only if
-  // that fails, drop the token and remove the user so isAuthenticated flips to
-  // false (login UI reappears). This is a quiet logout, not a forced re-login.
+  // react-oidc-context does not subscribe to accessTokenExpired, so on expiry it never clears the
+  // stale user. Try a silent renew first: the scheduled one may only have missed its window (throttled
+  // tab, machine sleep). The refresher signs out quietly if the renew fails.
   const { events, removeUser } = reactOidcAuth;
   useEffect(() => {
-    const handleExpired = async () => {
+    const handleExpired = () => {
       // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
-      if (await refreshAccessToken()) return;
-      clearToken();
-      removeUser();
+      void refreshAccessToken();
     };
     events.addAccessTokenExpired(handleExpired);
     return () => events.removeAccessTokenExpired(handleExpired);
-  }, [events, removeUser]);
+  }, [events]);
 
   // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   const signOutHere = useCallback(() => {
@@ -121,6 +115,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   // Expose a one-shot silent renew to the standalone httpClient so it can
   // recover from a 401 caused by an expired token (e.g. the scheduled
   // automaticSilentRenew missed its window while the tab was throttled/asleep).
+  // A failed renew ends the session, so isAuthenticated flips to false and the login UI shows.
   const { signinSilent } = reactOidcAuth;
   useEffect(() => {
     setTokenRefresher(async () => {
@@ -128,13 +123,14 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
       const token = renewed && !renewed.expired ? renewed.access_token : undefined;
       if (token) {
         saveToken(token);
-      } else {
-        clearToken();
+        return token;
       }
-      return token;
+      clearToken();
+      await removeUser();
+      return undefined;
     });
     return () => setTokenRefresher(undefined);
-  }, [signinSilent]);
+  }, [signinSilent, removeUser]);
 
   // Entitlements are keyed by the Subject, which the backend resolves email-first from the access
   // token. If this IdP does not put `email` there, no Subject is ever an email address and every
