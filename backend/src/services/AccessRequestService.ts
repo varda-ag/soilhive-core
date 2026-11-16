@@ -167,11 +167,11 @@ export default class AccessRequestService {
       if (granted && (granted.length === 0 || !granted.every(capability => request.capabilities.includes(capability)))) {
         throw invalid('An approval grants what was asked for, or less');
       }
-      const updated: unknown[] = await manager.query(
+      // A raw UPDATE resolves to [rows, rowCount] (TypeORM's postgres driver)
+      const [, updated]: [unknown, number] = await manager.query(
         `UPDATE access_request_items
          SET status = $3, granted = $4::jsonb, reason = $5, decided_by = $6, decided_at = now()
-         WHERE request_id = $1 AND dataset_id = $2 AND status = 'pending'
-         RETURNING dataset_id`,
+         WHERE request_id = $1 AND dataset_id = $2 AND status = 'pending'`,
         [
           id,
           item.dataset_id,
@@ -181,7 +181,7 @@ export default class AccessRequestService {
           decidedBy,
         ],
       );
-      if (updated.length === 0) {
+      if (updated === 0) {
         throw new ErrorResponse(`'${item.dataset_name}' was already decided`, StatusCodes.CONFLICT);
       }
       if (granted) {
@@ -198,11 +198,11 @@ export default class AccessRequestService {
     if (!request || request.requested_by !== subjectOf(requestData)) {
       throw notFound();
     }
-    const withdrawn: unknown[] = await manager.query(
-      `UPDATE access_request_items SET status = 'withdrawn' WHERE request_id = $1 AND status = 'pending' RETURNING dataset_id`,
+    const [, withdrawn]: [unknown, number] = await manager.query(
+      `UPDATE access_request_items SET status = 'withdrawn' WHERE request_id = $1 AND status = 'pending'`,
       [id],
     );
-    if (withdrawn.length === 0) {
+    if (withdrawn === 0) {
       throw new ErrorResponse('Nothing in this access request is still pending', StatusCodes.CONFLICT);
     }
   };
@@ -213,7 +213,8 @@ export default class AccessRequestService {
    */
   dropDataset = async (requestData: RequestData, datasetId: string): Promise<void> => {
     const manager = requestData.entityManager;
-    const removed: { request_id: string }[] = await manager.query(
+    // A raw DELETE resolves to [rows, rowCount] (TypeORM's postgres driver)
+    const [removed]: [{ request_id: string }[], number] = await manager.query(
       `DELETE FROM access_request_items WHERE dataset_id = $1 AND status = 'pending' RETURNING request_id`,
       [datasetId],
     );

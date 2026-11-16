@@ -252,12 +252,7 @@ describe('Invites', () => {
   });
 
   describe('what happens to pending Invites when their target goes away', () => {
-    it('withdraws an Invite left granting nothing once its plugin config item is deleted', async () => {
-      const { token } = (await createInvite(ownerToken, readInvite)).body;
-      await request(app).delete(`/configs/${CONFIG_ID}`).set(auth(ownerToken)).expect(StatusCodes.NO_CONTENT);
-      expect((await redeem(janeToken, token)).statusCode).toBe(StatusCodes.NOT_FOUND);
-    });
-
+    // Deleting a plugin config item needs pg-boss, so that case is in data-requests.test.ts
     it('drops a purged Dataset and keeps the rest of the Invite', async () => {
       const dataset = await addDataset('Private three', [0, 0, 1, 1]);
       const { id } = (
