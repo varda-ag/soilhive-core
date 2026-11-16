@@ -10,7 +10,6 @@ import { endSession, refreshAccessToken } from '../../src/auth/tokenRefresher';
 
 jest.mock('../../src/auth/tokenStore', () => ({
   getToken: jest.fn(),
-  clearToken: jest.fn(), // used by handleError on 401
 }));
 
 jest.mock('../../src/auth/tokenRefresher', () => ({
