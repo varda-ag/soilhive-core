@@ -24,8 +24,17 @@ export function useRequest<T = any>() {
 
         setError(err);
 
-        if (config.showErrorNotification !== false) {
-          // Default: show notification
+        if (config.showErrorNotification === false) {
+          // The caller handles the error itself.
+        } else if (err?.status === 401) {
+          // The backend text (e.g. "Authorization header required") means nothing to the user.
+          showNotification({
+            id: 'unauthorized',
+            type: 'error',
+            title: t('errors.unauthorized.title'),
+            message: t('errors.unauthorized.message'),
+          });
+        } else {
           const message = err instanceof TypeError ? t('errors.network_error.message') : String(err.message ?? '');
           const isTimeout = message.toLowerCase().includes('timeout');
           const type = isTimeout ? 'warning' : 'error';

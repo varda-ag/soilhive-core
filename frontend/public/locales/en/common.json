@@ -76,6 +76,10 @@
         "timeout_error": {
             "title": "Timeout",
             "message": "Operation timed out."
+        },
+        "unauthorized": {
+            "title": "Login required",
+            "message": "Please log in again."
         }
     },
     "map": {
