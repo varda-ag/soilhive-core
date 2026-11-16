@@ -182,6 +182,7 @@ describe('usePasswordAuth', () => {
           username: '_',
           password: 'mypassword',
         }).toString(),
+        showErrorNotification: false,
       });
 
       expect(saveToken).toHaveBeenCalledWith(MOCK_ACCESS_TOKEN);
@@ -236,6 +237,20 @@ describe('usePasswordAuth', () => {
       expect(result.current.isLoading).toBe(false);
       expect(result.current.user).toBeNull();
       expect(saveToken).not.toHaveBeenCalled();
+    });
+
+    it('shows no toast for a wrong password, only the inline error', async () => {
+      const invalidPassword = Object.assign(new Error('Invalid password'), { status: 401 });
+      mockRequest.mockRejectedValue(invalidPassword);
+
+      const { result } = renderHook(() => usePasswordAuth());
+
+      await act(async () => {
+        await result.current.login('wrong').catch(() => undefined);
+      });
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({ showErrorNotification: false }));
+      expect(result.current.error?.message).toBe('Invalid password');
     });
 
     it('clears previous error on a new login attempt', async () => {

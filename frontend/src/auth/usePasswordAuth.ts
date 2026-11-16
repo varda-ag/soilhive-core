@@ -92,6 +92,8 @@ export function usePasswordAuth() {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: urlEncodedBody,
+        // The LoginModal shows the error inline; a "Login required" toast would contradict it.
+        showErrorNotification: false,
       });
 
       saveToken(tokenResponse.access_token);
