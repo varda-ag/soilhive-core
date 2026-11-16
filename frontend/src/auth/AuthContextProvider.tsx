@@ -42,7 +42,8 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
         redirect_uri: oidcConfig.redirectUri,
         post_logout_redirect_uri: oidcConfig.postLogoutRedirectUri,
         scope: oidcConfig.scope,
-        automaticSilentRenew: true,
+        // Started by the effect below, so only the kept instance renews.
+        automaticSilentRenew: false,
         silent_redirect_uri: oidcConfig.silentRedirectUri,
         loadUserInfo: true,
         revokeTokensOnSignout: true,
@@ -50,6 +51,13 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
       }),
     [oidcConfig],
   );
+
+  // StrictMode builds the memo twice, and a new config builds a new instance: only the one in use may
+  // run the renew timer.
+  useEffect(() => {
+    userManager?.startSilentRenew();
+    return () => userManager?.stopSilentRenew();
+  }, [userManager]);
 
   if (isAuthConfigLoading) return;
 

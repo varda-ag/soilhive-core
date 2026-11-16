@@ -29,9 +29,15 @@ jest.mock('react-oidc-context', () => ({
 
 // The app builds the UserManager itself, so its renew can tell an IdP rejection from a timeout.
 const mockSigninSilent = jest.fn();
+const mockStartSilentRenew = jest.fn();
+const mockStopSilentRenew = jest.fn();
 jest.mock('oidc-client-ts', () => ({
   WebStorageStateStore: jest.fn().mockImplementation(() => ({})),
-  UserManager: jest.fn().mockImplementation(() => ({ signinSilent: mockSigninSilent })),
+  UserManager: jest.fn().mockImplementation(() => ({
+    signinSilent: mockSigninSilent,
+    startSilentRenew: mockStartSilentRenew,
+    stopSilentRenew: mockStopSilentRenew,
+  })),
   ErrorResponse: class ErrorResponse extends Error {},
 }));
 
@@ -236,10 +242,21 @@ describe('OidcAuthProvider token lifecycle', () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
 
       expect(UserManager).toHaveBeenCalledWith(
-        expect.objectContaining({ authority: OIDC_CONFIG.authority, client_id: OIDC_CONFIG.clientId, automaticSilentRenew: true }),
+        expect.objectContaining({ authority: OIDC_CONFIG.authority, client_id: OIDC_CONFIG.clientId, automaticSilentRenew: false }),
       );
       const props = (ReactOidcProvider as unknown as jest.Mock).mock.calls[0][0];
       expect(props.userManager).toBe((UserManager as jest.Mock).mock.results[0].value);
+    });
+
+    // Not by the constructor: StrictMode builds the memo twice, and only the kept instance may renew.
+    it('starts the automatic silent renew on mount and stops it on unmount', () => {
+      const { unmount } = renderWithUser({ access_token: 'valid-token', expired: false });
+      expect(mockStartSilentRenew).toHaveBeenCalledTimes(1);
+      expect(mockStopSilentRenew).not.toHaveBeenCalled();
+
+      unmount();
+
+      expect(mockStopSilentRenew).toHaveBeenCalledTimes(1);
     });
 
     it('registers a refresher that silently renews and persists the fresh token', async () => {
