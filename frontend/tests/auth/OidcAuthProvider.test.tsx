@@ -181,6 +181,31 @@ describe('OidcAuthProvider token lifecycle', () => {
     });
   });
 
+  describe('sign-out in another tab', () => {
+    const fireStorage = (key: string | null) => {
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue: null, storageArea: localStorage }));
+    };
+
+    it('clears the token and removes the user when another tab removes the OIDC user', () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      (clearToken as jest.Mock).mockClear();
+
+      act(() => fireStorage('oidc.user:https://idp.example.com:client'));
+
+      expect(clearToken).toHaveBeenCalledTimes(1);
+      expect(removeUser).toHaveBeenCalledTimes(1);
+      expect(signinSilent).not.toHaveBeenCalled();
+    });
+
+    it('stays signed in when another tab only removes its token (its own copy expired)', () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+
+      act(() => fireStorage('token'));
+
+      expect(removeUser).not.toHaveBeenCalled();
+    });
+  });
+
   describe('silent-refresh registration', () => {
     it('registers a refresher that silently renews and persists the fresh token', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });

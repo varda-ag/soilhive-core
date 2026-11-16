@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import type { AuthConfig } from './AuthConfig';
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from './AuthContext';
@@ -12,6 +12,7 @@ import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from
 import { getPageState, setRestoredPageState } from './signinPageState';
 import { WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
+import { useSignOutInOtherTab } from './useSignOutInOtherTab';
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -72,6 +73,10 @@ function InnerProvider({ children, authMode }: { children: React.ReactNode; auth
   }
 }
 
+// oidc-client-ts stores the user under `oidc.user:<authority>:<client_id>` and removes it on sign-out.
+// The `token` key is not a sign-out signal: a throttled tab clears it when its own copy expires.
+const isOidcUserKey = (key: string) => key.startsWith('oidc.user:');
+
 function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   const reactOidcAuth = useReactOidcAuth();
 
@@ -105,6 +110,13 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
     events.addAccessTokenExpired(handleExpired);
     return () => events.removeAccessTokenExpired(handleExpired);
   }, [events, removeUser]);
+
+  // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
+  const signOutHere = useCallback(() => {
+    clearToken();
+    void removeUser();
+  }, [removeUser]);
+  useSignOutInOtherTab(isOidcUserKey, signOutHere);
 
   // Expose a one-shot silent renew to the standalone httpClient so it can
   // recover from a 401 caused by an expired token (e.g. the scheduled
