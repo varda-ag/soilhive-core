@@ -24,26 +24,26 @@ export function useRequest<T = any>() {
 
         setError(err);
 
-        if (config.showErrorNotification === false) {
-          // The caller handles the error itself.
-        } else if (err?.status === 401) {
-          // The backend text (e.g. "Authorization header required") means nothing to the user.
-          showNotification({
-            id: 'unauthorized',
-            type: 'error',
-            title: t('errors.unauthorized.title'),
-            message: t('errors.unauthorized.message'),
-          });
-        } else {
-          const message = err instanceof TypeError ? t('errors.network_error.message') : String(err.message ?? '');
-          const isTimeout = message.toLowerCase().includes('timeout');
-          const type = isTimeout ? 'warning' : 'error';
-          showNotification({
-            id: 'network_error',
-            type,
-            title: isTimeout ? t('errors.timeout_error.title') : t('errors.network_error.title'),
-            message: isTimeout ? t('errors.timeout_error.message') : message,
-          });
+        if (config.showErrorNotification !== false) {
+          if (err?.status === 401) {
+            // The backend text (e.g. "Authorization header required") means nothing to the user.
+            showNotification({
+              id: 'unauthorized',
+              type: 'error',
+              title: t('errors.unauthorized.title'),
+              message: t('errors.unauthorized.message'),
+            });
+          } else {
+            const message = err instanceof TypeError ? t('errors.network_error.message') : String(err.message ?? '');
+            const isTimeout = message.toLowerCase().includes('timeout');
+            const type = isTimeout ? 'warning' : 'error';
+            showNotification({
+              id: 'network_error',
+              type,
+              title: isTimeout ? t('errors.timeout_error.title') : t('errors.network_error.title'),
+              message: isTimeout ? t('errors.timeout_error.message') : message,
+            });
+          }
         }
 
         if (config.notFoundAsNull && err.status === 404) {

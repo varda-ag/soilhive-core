@@ -108,7 +108,7 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   const signOutHere = useCallback(() => {
     clearToken();
-    void removeUser();
+    return removeUser();
   }, [removeUser]);
   useSignOutInOtherTab(isOidcUserKey, signOutHere);
 
@@ -125,12 +125,11 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
         saveToken(token);
         return token;
       }
-      clearToken();
-      await removeUser();
+      await signOutHere();
       return undefined;
     });
     return () => setTokenRefresher(undefined);
-  }, [signinSilent, removeUser]);
+  }, [signinSilent, signOutHere]);
 
   // Entitlements are keyed by the Subject, which the backend resolves email-first from the access
   // token. If this IdP does not put `email` there, no Subject is ever an email address and every

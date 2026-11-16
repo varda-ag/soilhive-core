@@ -221,9 +221,12 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(signinSilent).toHaveBeenCalledTimes(1);
       expect(saveToken).toHaveBeenCalledWith('fresh-token');
       expect(result).toBe('fresh-token');
+      expect(removeUser).not.toHaveBeenCalled();
     });
 
-    it('clears the token and returns undefined when the silent renew yields no valid user', async () => {
+    // The `oidc.user:` key is shared, so the other tabs sign out too, even when the renew failed only
+    // because the network dropped for a moment. Accepted: this tab already signed out before.
+    it('signs out (also in the other tabs) and returns undefined when the silent renew yields no valid user', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
       signinSilent.mockResolvedValue(null);
       (clearToken as jest.Mock).mockClear();
@@ -236,32 +239,9 @@ describe('OidcAuthProvider token lifecycle', () => {
       });
 
       expect(clearToken).toHaveBeenCalledTimes(1);
+      expect(removeUser).toHaveBeenCalledTimes(1);
       expect(saveToken).not.toHaveBeenCalled();
       expect(result).toBeUndefined();
-    });
-
-    // The `oidc.user:` key is shared, so the other tabs sign out too, even when this renew failed only
-    // because the network dropped for a moment. Accepted: this tab already signed out before.
-    it('removes the user when the silent renew after a 401 fails, which also signs out the other tabs', async () => {
-      renderWithUser({ access_token: 'valid-token', expired: false });
-      signinSilent.mockResolvedValue(null);
-
-      await act(async () => {
-        await getRegisteredRefresher()();
-      });
-
-      expect(removeUser).toHaveBeenCalledTimes(1);
-    });
-
-    it('keeps the user when the silent renew after a 401 succeeds', async () => {
-      renderWithUser({ access_token: 'valid-token', expired: false });
-      signinSilent.mockResolvedValue({ access_token: 'fresh-token', expired: false });
-
-      await act(async () => {
-        await getRegisteredRefresher()();
-      });
-
-      expect(removeUser).not.toHaveBeenCalled();
     });
 
     it('removes the user without error when an anonymous user gets a 401 the renew cannot fix', async () => {

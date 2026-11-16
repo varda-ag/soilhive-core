@@ -42,6 +42,8 @@ function extractUser(access_token: string): User {
 
 const isTokenKey = (key: string) => key === TOKEN_STORAGE_KEY;
 
+const SIGNED_OUT: PasswordAuthState = { isAuthenticated: false, isLoading: false, error: undefined, user: null };
+
 function isTokenExpired(user: User): boolean {
   const EXPIRY_BUFFER_SECONDS = 30;
   return user.expires_at ? user.expires_at * 1000 < Date.now() + EXPIRY_BUFFER_SECONDS * 1000 : true;
@@ -70,9 +72,7 @@ export function usePasswordAuth() {
   });
 
   // Another tab signed out and removed the shared token.
-  const signOutHere = useCallback(() => {
-    setState({ isAuthenticated: false, isLoading: false, error: undefined, user: null });
-  }, []);
+  const signOutHere = useCallback(() => setState(SIGNED_OUT), []);
   useSignOutInOtherTab(isTokenKey, signOutHere);
 
   const login = async (password?: string) => {
@@ -115,13 +115,7 @@ export function usePasswordAuth() {
 
   const logout = () => {
     clearToken();
-
-    setState({
-      isAuthenticated: false,
-      isLoading: false,
-      error: undefined,
-      user: null,
-    });
+    setState(SIGNED_OUT);
   };
 
   return {

@@ -311,8 +311,8 @@ describe('usePasswordAuth', () => {
   // ── extractUser / user shape ─────────────────────────────────────────────────
 
   describe('sign-out in another tab', () => {
-    const fireStorage = (key: string | null, newValue: string | null = null) => {
-      window.dispatchEvent(new StorageEvent('storage', { key, newValue, storageArea: localStorage }));
+    const fireStorage = (key: string) => {
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue: null, storageArea: localStorage }));
     };
 
     beforeEach(() => {
