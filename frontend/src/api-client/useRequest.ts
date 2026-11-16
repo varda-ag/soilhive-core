@@ -25,7 +25,15 @@ export function useRequest<T = any>() {
         setError(err);
 
         if (config.showErrorNotification !== false) {
-          if (err?.status === 401) {
+          if (err?.loginServerUnavailable) {
+            // The renew could not reach the login server; "log in again" would be the wrong advice.
+            showNotification({
+              id: 'network_error',
+              type: 'error',
+              title: t('errors.network_error.title'),
+              message: t('errors.network_error.login_server_message'),
+            });
+          } else if (err?.status === 401) {
             // The backend text (e.g. "Authorization header required") means nothing to the user.
             showNotification({
               id: 'unauthorized',

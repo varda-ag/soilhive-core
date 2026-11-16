@@ -14,8 +14,9 @@ import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from '
 import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { saveToken, clearToken } from '../../src/auth/tokenStore';
-import { endSession, setTokenRefresher } from '../../src/auth/tokenRefresher';
+import { endSession, setTokenRefresher, type RenewResult } from '../../src/auth/tokenRefresher';
 import { peekRestoredPageState, setRestoredPageState } from '../../src/auth/signinPageState';
+import { ErrorResponse, UserManager } from 'oidc-client-ts';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -26,8 +27,12 @@ jest.mock('react-oidc-context', () => ({
   useAuth: jest.fn(),
 }));
 
+// The app builds the UserManager itself, so its renew can tell an IdP rejection from a timeout.
+const mockSigninSilent = jest.fn();
 jest.mock('oidc-client-ts', () => ({
   WebStorageStateStore: jest.fn().mockImplementation(() => ({})),
+  UserManager: jest.fn().mockImplementation(() => ({ signinSilent: mockSigninSilent })),
+  ErrorResponse: class ErrorResponse extends Error {},
 }));
 
 jest.mock('hooks/useApiQuery', () => ({
@@ -65,7 +70,8 @@ const addAccessTokenExpired = jest.fn((h: () => Promise<void>) => {
   capturedExpiredHandler = h;
 });
 const removeAccessTokenExpired = jest.fn();
-const signinSilent = jest.fn();
+const signinSilent = mockSigninSilent;
+const rejected = () => new (ErrorResponse as unknown as new (m: string) => Error)('login_required');
 
 type OidcUser = { access_token: string; expired: boolean } | null | undefined;
 
@@ -84,7 +90,7 @@ const buildAuth = (user: OidcUser) => ({
 });
 
 // Returns the latest refresher registered via setTokenRefresher.
-const getRegisteredRefresher = (): (() => Promise<string | undefined>) => {
+const getRegisteredRefresher = (): (() => Promise<RenewResult>) => {
   const calls = (setTokenRefresher as jest.Mock).mock.calls.filter(([fn]) => typeof fn === 'function');
   return calls[calls.length - 1][0];
 };
@@ -156,9 +162,9 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(removeUser).not.toHaveBeenCalled();
     });
 
-    it('clears the token and removes the user when the silent renew on expiry fails', async () => {
+    it('clears the token and removes the user when the IdP rejects the renew on expiry', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
-      signinSilent.mockResolvedValue(null);
+      signinSilent.mockRejectedValue(rejected());
       // saved on mount; reset so we assert only the expiry-driven calls
       (clearToken as jest.Mock).mockClear();
 
@@ -169,6 +175,17 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(signinSilent).toHaveBeenCalledTimes(1);
       expect(clearToken).toHaveBeenCalled();
       expect(removeUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the user when the renew on expiry cannot reach the IdP', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      await act(async () => {
+        await capturedExpiredHandler?.();
+      });
+
+      expect(removeUser).not.toHaveBeenCalled();
     });
 
     it('unsubscribes from the event on unmount', () => {
@@ -207,54 +224,64 @@ describe('OidcAuthProvider token lifecycle', () => {
   });
 
   describe('silent-refresh registration', () => {
+    const runRefresher = async () => {
+      let result: RenewResult | undefined;
+      await act(async () => {
+        result = await getRegisteredRefresher()();
+      });
+      return result;
+    };
+
+    it('builds the UserManager from the OIDC config and hands it to react-oidc-context', () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+
+      expect(UserManager).toHaveBeenCalledWith(
+        expect.objectContaining({ authority: OIDC_CONFIG.authority, client_id: OIDC_CONFIG.clientId, automaticSilentRenew: true }),
+      );
+      const props = (ReactOidcProvider as unknown as jest.Mock).mock.calls[0][0];
+      expect(props.userManager).toBe((UserManager as jest.Mock).mock.results[0].value);
+    });
+
     it('registers a refresher that silently renews and persists the fresh token', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
       signinSilent.mockResolvedValue({ access_token: 'fresh-token', expired: false });
       (saveToken as jest.Mock).mockClear();
 
-      const refresher = getRegisteredRefresher();
-      let result: string | undefined;
-      await act(async () => {
-        result = await refresher();
-      });
-
-      expect(signinSilent).toHaveBeenCalledTimes(1);
+      expect(await runRefresher()).toEqual({ outcome: 'renewed', token: 'fresh-token' });
       expect(saveToken).toHaveBeenCalledWith('fresh-token');
-      expect(result).toBe('fresh-token');
       expect(removeUser).not.toHaveBeenCalled();
     });
 
-    // A proactive renew (pluginTokens) also calls the refresher, so a failure must not end the session.
-    it('returns undefined and keeps the user when the silent renew yields no valid user', async () => {
+    // A proactive renew (pluginTokens) also calls the refresher, so even a rejection must not end the session here.
+    it('reports a rejection and clears the token when the IdP rejects the renew', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
-      signinSilent.mockResolvedValue(null);
+      signinSilent.mockRejectedValue(rejected());
       (clearToken as jest.Mock).mockClear();
-      (saveToken as jest.Mock).mockClear();
 
-      const refresher = getRegisteredRefresher();
-      let result: string | undefined;
-      await act(async () => {
-        result = await refresher();
-      });
-
+      expect(await runRefresher()).toEqual({ outcome: 'rejected' });
       expect(clearToken).toHaveBeenCalledTimes(1);
       expect(removeUser).not.toHaveBeenCalled();
-      expect(saveToken).not.toHaveBeenCalled();
-      expect(result).toBeUndefined();
     });
 
-    it('treats an expired renewed user as a failed refresh', async () => {
+    it.each([
+      ['a network error', new TypeError('Failed to fetch')],
+      ['a timeout', new Error('Timed out')],
+    ])('reports the IdP as unavailable and keeps the token on %s', async (_, error) => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      signinSilent.mockRejectedValue(error);
+      (clearToken as jest.Mock).mockClear();
+
+      expect(await runRefresher()).toEqual({ outcome: 'unavailable' });
+      expect(clearToken).not.toHaveBeenCalled();
+      expect(removeUser).not.toHaveBeenCalled();
+    });
+
+    it('treats an expired renewed user as a rejection', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
       signinSilent.mockResolvedValue({ access_token: 'stale-token', expired: true });
       (saveToken as jest.Mock).mockClear();
 
-      const refresher = getRegisteredRefresher();
-      let result: string | undefined;
-      await act(async () => {
-        result = await refresher();
-      });
-
-      expect(result).toBeUndefined();
+      expect(await runRefresher()).toEqual({ outcome: 'rejected' });
       expect(saveToken).not.toHaveBeenCalled();
     });
 

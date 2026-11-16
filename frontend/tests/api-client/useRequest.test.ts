@@ -53,6 +53,21 @@ describe('useRequest error notification', () => {
     });
   });
 
+  // The session may still be alive, so "log in again" would be the wrong advice.
+  it('shows a network error when the 401 could not be fixed because the login server was unreachable', async () => {
+    failWith({ status: 401, message: 'expired', loginServerUnavailable: true });
+
+    await runRequest();
+
+    expect(showNotification).toHaveBeenCalledTimes(1);
+    expect(showNotification).toHaveBeenCalledWith({
+      id: 'network_error',
+      type: 'error',
+      title: 'errors.network_error.title',
+      message: 'errors.network_error.login_server_message',
+    });
+  });
+
   it('shows no notification for a 401 when the caller turned notifications off', async () => {
     failWith({ status: 401, message: 'Authorization header required' });
 

@@ -26,8 +26,9 @@ describe('endSession', () => {
 });
 
 describe('tokenRefresher', () => {
-  it('resolves to undefined when no refresher is registered', async () => {
-    await expect(refreshAccessToken()).resolves.toBeUndefined();
+  // Password mode cannot renew, so a 401 there means the session is over.
+  it('reports a rejection when no refresher is registered', async () => {
+    await expect(refreshAccessToken()).resolves.toEqual({ outcome: 'rejected' });
   });
 
   it('delegates to the registered refresher and returns its token', async () => {
@@ -75,7 +76,7 @@ describe('tokenRefresher', () => {
     setTokenRefresher(fn);
     setTokenRefresher(undefined);
 
-    await expect(refreshAccessToken()).resolves.toBeUndefined();
+    await expect(refreshAccessToken()).resolves.toEqual({ outcome: 'rejected' });
     expect(fn).not.toHaveBeenCalled();
   });
 });

@@ -71,7 +71,8 @@
     "errors": {
         "network_error": {
             "title": "Network error",
-            "message": "No connection to the server."
+            "message": "No connection to the server.",
+            "login_server_message": "Could not reach the login server."
         },
         "timeout_error": {
             "title": "Timeout",

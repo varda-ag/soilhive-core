@@ -10,7 +10,7 @@ import { refreshAccessToken, setSessionEnder, setTokenRefresher } from './tokenR
 import { getEmailFromAccessToken, isTokenExpired } from './tokenClaims';
 import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from './signinReturnTo';
 import { getPageState, setRestoredPageState } from './signinPageState';
-import { WebStorageStateStore } from 'oidc-client-ts';
+import { ErrorResponse, UserManager, WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useSignOutInOtherTab } from './useSignOutInOtherTab';
 
@@ -31,21 +31,32 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
     authenticate: false,
   });
 
+  // Built here, not by react-oidc-context, so a renew sees the error: only an IdP rejection ends the session.
+  const oidcConfig = authConfig?.authMode === AuthModes.OIDC ? authConfig.oidcConfig : undefined;
+  const userManager = useMemo(
+    () =>
+      oidcConfig &&
+      new UserManager({
+        authority: oidcConfig.authority,
+        client_id: oidcConfig.clientId,
+        redirect_uri: oidcConfig.redirectUri,
+        post_logout_redirect_uri: oidcConfig.postLogoutRedirectUri,
+        scope: oidcConfig.scope,
+        automaticSilentRenew: true,
+        silent_redirect_uri: oidcConfig.silentRedirectUri,
+        loadUserInfo: true,
+        revokeTokensOnSignout: true,
+        userStore: new WebStorageStateStore({ store: window.localStorage }),
+      }),
+    [oidcConfig],
+  );
+
   if (isAuthConfigLoading) return;
 
-  if (authConfig && authConfig.authMode === AuthModes.OIDC && authConfig.oidcConfig) {
+  if (userManager) {
     return (
       <ReactOidcProvider
-        authority={authConfig.oidcConfig.authority}
-        client_id={authConfig.oidcConfig.clientId}
-        redirect_uri={authConfig.oidcConfig.redirectUri}
-        post_logout_redirect_uri={authConfig.oidcConfig.postLogoutRedirectUri}
-        scope={authConfig.oidcConfig.scope}
-        automaticSilentRenew
-        silent_redirect_uri={authConfig.oidcConfig.silentRedirectUri}
-        loadUserInfo
-        revokeTokensOnSignout
-        userStore={new WebStorageStateStore({ store: window.localStorage })}
+        userManager={userManager}
         onSigninCallback={user => {
           // Runs before the provider stops loading, so the router is created on this URL and the pages
           // that put their state back find it when they mount.
@@ -53,7 +64,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
           window.history.replaceState({}, document.title, getReturnTo(user?.state) ?? window.location.pathname);
         }}
       >
-        <InnerProvider authMode={authConfig.authMode}>{children}</InnerProvider>
+        <OidcAuthProvider userManager={userManager}>{children}</OidcAuthProvider>
       </ReactOidcProvider>
     );
   } else {
@@ -64,8 +75,6 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
 // this is to prevent conditionally rendering hooks
 function InnerProvider({ children, authMode }: { children: React.ReactNode; authMode: AuthModesType }) {
   switch (authMode) {
-    case AuthModes.OIDC:
-      return <OidcAuthProvider>{children}</OidcAuthProvider>;
     case AuthModes.PASSWORD:
       return <PasswordAuthProvider>{children}</PasswordAuthProvider>;
     default:
@@ -77,7 +86,7 @@ function InnerProvider({ children, authMode }: { children: React.ReactNode; auth
 // The `token` key is not a sign-out signal: a throttled tab clears it when its own copy expires.
 const isOidcUserKey = (key: string) => key.startsWith('oidc.user:');
 
-function OidcAuthProvider({ children }: { children: React.ReactNode }) {
+function OidcAuthProvider({ children, userManager }: { children: React.ReactNode; userManager: UserManager }) {
   const reactOidcAuth = useReactOidcAuth();
 
   // Persist a token only if valid. Avoid saving an expired access_token
@@ -101,11 +110,12 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
 
   // react-oidc-context does not subscribe to accessTokenExpired, so on expiry it never clears the
   // stale user. Try a silent renew first: the scheduled one may only have missed its window (throttled
-  // tab, machine sleep). Sign out quietly only if the renew fails.
+  // tab, machine sleep). Sign out quietly only if the IdP rejects it.
   useEffect(() => {
     const handleExpired = async () => {
       // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
-      if (!(await refreshAccessToken())) await signOutHere();
+      const renew = await refreshAccessToken();
+      if (renew.outcome === 'rejected') await signOutHere();
     };
     events.addAccessTokenExpired(handleExpired);
     return () => events.removeAccessTokenExpired(handleExpired);
@@ -114,28 +124,32 @@ function OidcAuthProvider({ children }: { children: React.ReactNode }) {
   // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   useSignOutInOtherTab(isOidcUserKey, signOutHere);
 
-  // A 401 that the renew below could not fix ends the session, so the login UI shows.
+  // A 401 whose renew the IdP rejected ends the session, so the login UI shows.
   useEffect(() => {
     setSessionEnder(() => void signOutHere());
     return () => setSessionEnder(undefined);
   }, [signOutHere]);
 
   // Expose a one-shot silent renew to the standalone httpClient and to pluginTokens. It only renews:
-  // a proactive renew can fail while the token is still valid.
-  const { signinSilent } = reactOidcAuth;
+  // a proactive renew can fail while the token is still valid. Called on the UserManager, not through
+  // react-oidc-context, which hides the error.
   useEffect(() => {
     setTokenRefresher(async () => {
-      const renewed = await signinSilent();
-      const token = renewed && !renewed.expired ? renewed.access_token : undefined;
-      if (token) {
-        saveToken(token);
-      } else {
-        clearToken();
+      try {
+        const renewed = await userManager.signinSilent();
+        if (renewed && !renewed.expired) {
+          saveToken(renewed.access_token);
+          return { outcome: 'renewed', token: renewed.access_token };
+        }
+      } catch (error) {
+        // A timeout or a network error says nothing about the session: keep the token.
+        if (!(error instanceof ErrorResponse)) return { outcome: 'unavailable' };
       }
-      return token;
+      clearToken();
+      return { outcome: 'rejected' };
     });
     return () => setTokenRefresher(undefined);
-  }, [signinSilent]);
+  }, [userManager]);
 
   // Entitlements are keyed by the Subject, which the backend resolves email-first from the access
   // token. If this IdP does not put `email` there, no Subject is ever an email address and every

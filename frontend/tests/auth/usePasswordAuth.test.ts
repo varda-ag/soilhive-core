@@ -375,7 +375,7 @@ describe('usePasswordAuth', () => {
       const { result } = renderHook(() => usePasswordAuth());
 
       await act(async () => {
-        await expect(refreshAccessToken()).resolves.toBeUndefined();
+        await expect(refreshAccessToken()).resolves.toEqual({ outcome: 'rejected' });
       });
 
       expect(clearToken).not.toHaveBeenCalled();

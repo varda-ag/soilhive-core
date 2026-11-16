@@ -68,7 +68,7 @@ describe('httpClient', () => {
 
   it('refreshes and retries once with the fresh token when the first request 401s', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue('fresh');
+    refreshMock.mockResolvedValue({ outcome: 'renewed', token: 'fresh' });
     fetchMock
       .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }))
       .mockResolvedValueOnce(mockResponse({ ok: true, status: 200, body: { id: 2 } }));
@@ -82,9 +82,9 @@ describe('httpClient', () => {
     expect(data).toEqual({ id: 2 });
   });
 
-  it('does not retry and throws the 401 when the refresh yields no token', async () => {
+  it('ends the session and throws the 401 when the IdP rejects the renew', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue(undefined);
+    refreshMock.mockResolvedValue({ outcome: 'rejected' });
     fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 401, statusText: 'Unauthorized', body: { detail: 'expired' } }));
 
     await expect(httpClient({ url: '/datasets', method: 'GET' })).rejects.toMatchObject({
@@ -96,9 +96,22 @@ describe('httpClient', () => {
     expect(endSession).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the session and marks the 401 when the login server cannot be reached', async () => {
+    getTokenMock.mockReturnValue('stale');
+    refreshMock.mockResolvedValue({ outcome: 'unavailable' });
+    fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }));
+
+    await expect(httpClient({ url: '/datasets', method: 'GET' })).rejects.toMatchObject({
+      status: 401,
+      loginServerUnavailable: true,
+    });
+    expect(endSession).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('retries only once: a 401 on the retry is surfaced without a second refresh', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue('fresh');
+    refreshMock.mockResolvedValue({ outcome: 'renewed', token: 'fresh' });
     fetchMock
       .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }))
       .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, statusText: 'Unauthorized', body: { detail: 'still expired' } }));
@@ -125,7 +138,7 @@ describe('httpClient', () => {
 
   it('keeps the session when the refresh fixes the 401', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue('fresh');
+    refreshMock.mockResolvedValue({ outcome: 'renewed', token: 'fresh' });
     fetchMock
       .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }))
       .mockResolvedValueOnce(mockResponse({ ok: true, status: 200, body: { id: 1 } }));
