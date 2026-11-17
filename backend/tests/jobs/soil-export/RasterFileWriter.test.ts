@@ -99,6 +99,14 @@ describe('RasterFileWriter', () => {
       expect(FileService.getMainFilePath).toHaveBeenCalledWith(makeLayer().path);
     });
 
+    it('throws EX_NO_DATA when the source file cannot be opened', async () => {
+      jest
+        .spyOn(FileService, 'getMainFilePath')
+        .mockResolvedValue({ mainFilePath: path.join(TEST_OUTPUT_DIR, 'missing.tif'), tempZipExtractPath: null });
+      const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
+      await expect(writer.writeLayer(makeLayer(), TRIANGLE_AOI)).rejects.toMatchObject({ name: 'JobError', code: 'EX_NO_DATA' });
+    });
+
     it('produces a valid GeoTIFF with at least one raster band', async () => {
       const writer = new RasterFileWriter(RasterFileFormat.TIFF, TEST_OUTPUT_DIR);
       await writer.writeLayer(makeLayer(), TRIANGLE_AOI);
