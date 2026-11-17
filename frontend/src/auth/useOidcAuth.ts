@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { ErrorResponse, type UserManager } from 'oidc-client-ts';
 import { useTranslation } from 'react-i18next';
@@ -40,37 +40,46 @@ export function useOidcAuth(userManager: UserManager): AuthContext {
   // The renew at expiry could not reach the login server (e.g. right after the machine wakes). The token
   // is gone, so the user shows as signed out until a retry below renews it or the IdP rejects it.
   const [isWaitingForLoginServer, setIsWaitingForLoginServer] = useState(false);
+  // The same, for the expiry handler: it must see a change at once, not after the next render.
+  const isWaitingRef = useRef(false);
+  const setWaiting = useCallback((waiting: boolean) => {
+    isWaitingRef.current = waiting;
+    setIsWaitingForLoginServer(waiting);
+  }, []);
 
   // Ends the session in this tab. The `oidc.user:` key is shared, so the other tabs sign out too.
   // Also stops the retry: with no stored user it would sign in again through the hidden iframe.
   const { events, removeUser } = reactOidcAuth;
   const signOutHere = useCallback(() => {
     clearToken();
-    setIsWaitingForLoginServer(false);
+    setWaiting(false);
     return removeUser();
-  }, [removeUser]);
+  }, [removeUser, setWaiting]);
 
   // react-oidc-context does not subscribe to accessTokenExpired, so on expiry it never clears the
   // stale user. Try a silent renew first: the scheduled one may only have missed its window (throttled
   // tab, machine sleep). Sign out quietly only if the IdP rejects it.
   useEffect(() => {
     const handleExpired = async () => {
+      // While waiting, only the retries below renew. Each renew reads the user with getUser(), which sets
+      // this event to fire again 1 s later for an expired user: without this check, it would renew every second.
+      if (isWaitingRef.current) return;
       // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
       const renew = await refreshAccessToken();
       if (renew.outcome === 'rejected') await signOutHere();
-      setIsWaitingForLoginServer(renew.outcome === 'unavailable');
+      setWaiting(renew.outcome === 'unavailable');
     };
     events.addAccessTokenExpired(handleExpired);
     return () => events.removeAccessTokenExpired(handleExpired);
-  }, [events, signOutHere]);
+  }, [events, signOutHere, setWaiting]);
 
   // One more try at the renew while waiting. Ends the wait unless the login server is still unreachable.
   const retryRenew = useCallback(async () => {
     const renew = await refreshAccessToken();
     if (renew.outcome === 'rejected') await signOutHere();
-    if (renew.outcome !== 'unavailable') setIsWaitingForLoginServer(false);
+    if (renew.outcome !== 'unavailable') setWaiting(false);
     return renew.outcome;
-  }, [signOutHere]);
+  }, [signOutHere, setWaiting]);
 
   // Nothing else renews an expired token, so retry when the network or the tab comes back, and on a timer.
   useEffect(() => {
@@ -97,8 +106,8 @@ export function useOidcAuth(userManager: UserManager): AuthContext {
     const stored = await userManager.getUser();
     if (!stored || stored.expired) return;
     await userManager.events.load(stored);
-    setIsWaitingForLoginServer(false);
-  }, [userManager]);
+    setWaiting(false);
+  }, [userManager, setWaiting]);
   const onSignedInInOtherTab = useCallback(() => void takeUserFromOtherTab(), [takeUserFromOtherTab]);
   useSignInInOtherTab(isOidcUserKey, onSignedInInOtherTab);
 

@@ -296,6 +296,32 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(signinSilent).toHaveBeenCalledTimes(2);
     });
 
+    // getUser() sets the expiry event to fire again 1 s later for an expired user, so it repeats while waiting.
+    it('does not renew on another expiry event while waiting', async () => {
+      await renderUnreachable();
+
+      await act(async () => {
+        await capturedExpiredHandler?.();
+      });
+
+      expect(signinSilent).not.toHaveBeenCalled();
+    });
+
+    it('renews on an expiry event again once the wait is over', async () => {
+      await renderUnreachable();
+      comesBack();
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+      });
+      signinSilent.mockClear();
+
+      await act(async () => {
+        await capturedExpiredHandler?.();
+      });
+
+      expect(signinSilent).toHaveBeenCalledTimes(1);
+    });
+
     it('signs out when the IdP rejects a retry', async () => {
       await renderUnreachable();
       signinSilent.mockRejectedValue(rejected());
