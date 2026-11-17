@@ -340,6 +340,32 @@ describe('usePasswordAuth', () => {
 
   // ── extractUser / user shape ─────────────────────────────────────────────────
 
+  describe('sign-in in another tab', () => {
+    const fireSignIn = () =>
+      window.dispatchEvent(new StorageEvent('storage', { key: 'token', newValue: MOCK_ACCESS_TOKEN, storageArea: localStorage }));
+
+    it('signs in with the token another tab stored', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      expect(result.current.isAuthenticated).toBe(false);
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+
+      act(() => fireSignIn());
+
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.user?.access_token).toBe(MOCK_ACCESS_TOKEN);
+    });
+
+    it('ignores an expired token', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+      (jwtDecode as jest.Mock).mockReturnValue(mockDecodedToken({ exp: PAST_EXP }));
+
+      act(() => fireSignIn());
+
+      expect(result.current.isAuthenticated).toBe(false);
+    });
+  });
+
   describe('sign-out in another tab', () => {
     const fireStorage = (key: string) => {
       window.dispatchEvent(new StorageEvent('storage', { key, newValue: null, storageArea: localStorage }));

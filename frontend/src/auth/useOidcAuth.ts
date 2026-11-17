@@ -11,6 +11,7 @@ import { getEmailFromAccessToken } from './tokenClaims';
 import { getCurrentPath, type SigninState } from './signinReturnTo';
 import { type SigninPageState } from './signinPageState';
 import { useSignOutInOtherTab } from './useSignOutInOtherTab';
+import { useSignInInOtherTab } from './useSignInInOtherTab';
 
 const isOidcUserKey = (key: string) => key.startsWith('oidc.user:');
 
@@ -90,6 +91,16 @@ export function useOidcAuth(userManager: UserManager): AuthContext {
 
   // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   useSignOutInOtherTab(isOidcUserKey, signOutHere);
+
+  // Another tab signed in or renewed: take its user, so this tab shows the sign-in state its requests carry.
+  const takeUserFromOtherTab = useCallback(async () => {
+    const stored = await userManager.getUser();
+    if (!stored || stored.expired) return;
+    await userManager.events.load(stored);
+    setIsWaitingForLoginServer(false);
+  }, [userManager]);
+  const onSignedInInOtherTab = useCallback(() => void takeUserFromOtherTab(), [takeUserFromOtherTab]);
+  useSignInInOtherTab(isOidcUserKey, onSignedInInOtherTab);
 
   // A 401 whose renew the IdP rejected ends the session, so the login UI shows.
   useEffect(() => {

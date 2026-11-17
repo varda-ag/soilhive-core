@@ -5,6 +5,7 @@ import { useRequest } from '../api-client';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
 import { clearToken, getToken, saveToken, TOKEN_STORAGE_KEY } from './tokenStore';
 import { useSignOutInOtherTab } from './useSignOutInOtherTab';
+import { useSignInInOtherTab } from './useSignInInOtherTab';
 import { BACKEND_BASE_URL } from '../configuration/api';
 
 interface PasswordAuthState {
@@ -75,6 +76,15 @@ export function usePasswordAuth() {
   // Another tab signed out and removed the shared token.
   const signOutHere = useCallback(() => setState(SIGNED_OUT), []);
   useSignOutInOtherTab(isTokenKey, signOutHere);
+
+  // Another tab signed in: take its token, so this tab shows the sign-in state its requests carry.
+  const signInFromOtherTab = useCallback(() => {
+    const token = getToken();
+    const user = token ? extractUser(token) : undefined;
+    if (!user || isTokenExpired(user)) return;
+    setState({ isAuthenticated: true, isLoading: false, error: undefined, user });
+  }, []);
+  useSignInInOtherTab(isTokenKey, signInFromOtherTab);
 
   // Password tokens cannot be renewed, so a 401 ends the session in this tab too.
   useEffect(() => {

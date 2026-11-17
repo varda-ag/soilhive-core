@@ -395,6 +395,34 @@ describe('OidcAuthProvider token lifecycle', () => {
     });
   });
 
+  // Tabs share the stored token, so a tab that stayed signed out would still send the other tab's
+  // token: show the same sign-in state as the requests carry.
+  describe('sign-in in another tab', () => {
+    const fireSignIn = () =>
+      window.dispatchEvent(
+        new StorageEvent('storage', { key: 'oidc.user:https://idp.example.com:client', newValue: '{}', storageArea: localStorage }),
+      );
+
+    it('loads the user another tab stored', async () => {
+      renderWithUser(null);
+      const stored = { access_token: 'other-tab-token', expired: false };
+      mockGetUser.mockResolvedValue(stored);
+
+      await act(async () => fireSignIn());
+
+      expect(mockLoadUser).toHaveBeenCalledWith(stored);
+    });
+
+    it('ignores an expired stored user', async () => {
+      renderWithUser(null);
+      mockGetUser.mockResolvedValue({ access_token: 'old', expired: true });
+
+      await act(async () => fireSignIn());
+
+      expect(mockLoadUser).not.toHaveBeenCalled();
+    });
+  });
+
   describe('sign-out in another tab', () => {
     const fireStorage = (key: string | null) => {
       window.dispatchEvent(new StorageEvent('storage', { key, newValue: null, storageArea: localStorage }));
