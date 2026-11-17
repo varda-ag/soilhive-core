@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import type { AuthConfig } from './AuthConfig';
+import type { AuthConfig, OIDCConfig } from './AuthConfig';
 import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
 import { type AuthContext } from './AuthContext';
 import { usePasswordAuth } from './usePasswordAuth';
@@ -34,27 +34,30 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
   });
 
   // Built here, not by react-oidc-context, so a renew sees the error: only an IdP rejection ends the session.
+  // Keyed on the config content: react-oidc-context reads its userManager prop once, so a changed config
+  // needs both a new instance and a new provider (the `key` below). The same content keeps both.
   const oidcConfig = authConfig?.authMode === AuthModes.OIDC ? authConfig.oidcConfig : undefined;
-  const userManager = useMemo(
-    () =>
-      oidcConfig &&
-      new UserManager({
-        authority: oidcConfig.authority,
-        client_id: oidcConfig.clientId,
-        redirect_uri: oidcConfig.redirectUri,
-        post_logout_redirect_uri: oidcConfig.postLogoutRedirectUri,
-        scope: oidcConfig.scope,
-        // Started by the effect below, so only the kept instance renews.
-        automaticSilentRenew: false,
-        silent_redirect_uri: oidcConfig.silentRedirectUri,
-        loadUserInfo: true,
-        revokeTokensOnSignout: true,
-        userStore: new WebStorageStateStore({ store: window.localStorage }),
-      }),
-    [oidcConfig],
-  );
+  const oidcConfigKey = oidcConfig && JSON.stringify(oidcConfig);
+  const userManager = useMemo(() => {
+    if (!oidcConfigKey) return undefined;
+    // Read back from the key, so the instance depends on the content only.
+    const config = JSON.parse(oidcConfigKey) as OIDCConfig;
+    return new UserManager({
+      authority: config.authority,
+      client_id: config.clientId,
+      redirect_uri: config.redirectUri,
+      post_logout_redirect_uri: config.postLogoutRedirectUri,
+      scope: config.scope,
+      // Started by the effect below, so only the kept instance renews.
+      automaticSilentRenew: false,
+      silent_redirect_uri: config.silentRedirectUri,
+      loadUserInfo: true,
+      revokeTokensOnSignout: true,
+      userStore: new WebStorageStateStore({ store: window.localStorage }),
+    });
+  }, [oidcConfigKey]);
 
-  // StrictMode builds the memo twice, and a new config builds a new instance: only the one in use may
+  // StrictMode builds the memo twice, and a changed config builds a new instance: only the one in use may
   // run the renew timer.
   useEffect(() => {
     userManager?.startSilentRenew();
@@ -66,6 +69,7 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
   if (userManager) {
     return (
       <ReactOidcProvider
+        key={oidcConfigKey}
         userManager={userManager}
         onSigninCallback={user => {
           // Runs before the provider stops loading, so the router is created on this URL and the pages

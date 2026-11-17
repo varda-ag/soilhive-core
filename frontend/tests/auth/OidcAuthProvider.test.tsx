@@ -418,6 +418,58 @@ describe('OidcAuthProvider token lifecycle', () => {
     });
 
     // Not by the constructor: StrictMode builds the memo twice, and only the kept instance may renew.
+    describe('when the auth config is fetched again', () => {
+      // Counts mounts of the app below the providers, so a test sees whether ReactOidcProvider remounted.
+      let mounts = 0;
+      const MountCounter = () => {
+        React.useEffect(() => {
+          mounts += 1;
+        }, []);
+        return null;
+      };
+
+      const renderWithConfig = (oidcConfig: typeof OIDC_CONFIG) => {
+        mounts = 0;
+        (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth({ access_token: 'valid-token', expired: false }));
+        (useApiQuery as jest.Mock).mockReturnValue({ data: { authMode: 'oidc', oidcConfig }, isLoading: false });
+        const view = render(
+          <AuthContextProvider>
+            <MountCounter />
+          </AuthContextProvider>,
+        );
+        const refetch = (next: typeof OIDC_CONFIG) => {
+          (useApiQuery as jest.Mock).mockReturnValue({ data: { authMode: 'oidc', oidcConfig: next }, isLoading: false });
+          view.rerender(
+            <AuthContextProvider>
+              <MountCounter />
+            </AuthContextProvider>,
+          );
+        };
+        return refetch;
+      };
+
+      it('keeps the UserManager when the config content is the same', () => {
+        const refetch = renderWithConfig(OIDC_CONFIG);
+
+        refetch({ ...OIDC_CONFIG });
+
+        expect(UserManager).toHaveBeenCalledTimes(1);
+        expect(mounts).toBe(1);
+      });
+
+      // react-oidc-context reads its userManager prop once, so a new instance needs a new provider.
+      it('remounts the provider with a new UserManager when the config changes', () => {
+        const refetch = renderWithConfig(OIDC_CONFIG);
+
+        refetch({ ...OIDC_CONFIG, authority: 'https://other-idp.example.com' });
+
+        expect(UserManager).toHaveBeenCalledTimes(2);
+        expect(mounts).toBe(2);
+        const calls = (ReactOidcProvider as unknown as jest.Mock).mock.calls;
+        expect(calls[calls.length - 1][0].userManager).toBe((UserManager as jest.Mock).mock.results[1].value);
+      });
+    });
+
     it('starts the automatic silent renew on mount and stops it on unmount', () => {
       const { unmount } = renderWithUser({ access_token: 'valid-token', expired: false });
       expect(mockStartSilentRenew).toHaveBeenCalledTimes(1);
