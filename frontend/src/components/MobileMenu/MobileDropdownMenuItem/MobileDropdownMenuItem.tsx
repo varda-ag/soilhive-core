@@ -14,7 +14,9 @@ interface Props {
 }
 
 export default function MobileDropdownMenuItem({ menuEntry, onLinkClick }: Props) {
-  const { t } = useTranslation('common');
+  // 'consent' holds the Cookie settings label. Waiting for it would hide the whole app behind the
+  // root Suspense, while the label only shows once the menu is opened.
+  const { t } = useTranslation(['common', 'consent'], { useSuspense: false });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const submenuEntries = useMemo(() => {
@@ -35,8 +37,18 @@ export default function MobileDropdownMenuItem({ menuEntry, onLinkClick }: Props
       </div>
 
       <div className={styles.Menu}>
-        {submenuEntries.map(({ name, route, type }) => (
-          <MenuLink key={route} to={`${route}`} type={type} text={t(name)} className={styles.MenuLink} onClick={onLinkClick} />
+        {submenuEntries.map(({ name, route, type, onClick }) => (
+          <MenuLink
+            key={name}
+            to={route}
+            type={type}
+            text={t(name)}
+            className={styles.MenuLink}
+            onClick={() => {
+              onClick?.();
+              onLinkClick?.();
+            }}
+          />
         ))}
       </div>
     </div>

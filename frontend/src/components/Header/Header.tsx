@@ -7,6 +7,7 @@ import PlanetIcon from 'assets/icons/planet-icon.svg?react';
 import ScalesIcon from 'assets/icons/scales-icon.svg?react';
 import AwardIcon from 'assets/icons/award-icon.svg?react';
 import LockIcon from 'assets/icons/lock-icon.svg?react';
+import SettingsIcon from 'assets/icons/settings-icon.svg?react';
 
 import MobileMenu from 'components/MobileMenu/MobileMenu';
 import { DownloadsStatus } from 'components/DownloadsStatus/DownloadsStatus';
@@ -14,6 +15,7 @@ import { AccountWidget } from 'components/AccountWidget/AccountWidget';
 import { UserAvatar } from 'components/AccountWidget/UserAvatar/UserAvatar';
 import { LoginButton } from 'components/AccountWidget/LoginButton/LoginButton';
 import { Logo } from 'components/Logo/Logo';
+import { useCookieConsent } from 'components/CookieConsentProvider';
 import { useAuthContext } from '../../auth/AuthContextProvider';
 import useTheme from 'hooks/useTheme';
 import useRemotes from 'hooks/useRemotes';
@@ -33,6 +35,7 @@ export default function Header() {
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const { plugins } = useRemotes();
+  const { hasOptionalCookies, showPreferences } = useCookieConsent();
   const singlePages = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
   const newTabs = useMemo(() => plugins.filter(isNewTabModule), [plugins]);
 
@@ -60,17 +63,23 @@ export default function Header() {
     // Adding plugins after Home
     output.push(...pluginEntries);
 
-    if (!isLoadingThemeConfig && (themeConfig.termsAndConditionsHtml || themeConfig.privacyPolicyHtml)) {
-      const children: NavMenuEntry[] = [];
+    const children: NavMenuEntry[] = [];
 
-      if (themeConfig.termsAndConditionsHtml) {
-        children.push({ name: 'nav_menu.terms', route: TERMS_OF_USE_ROUTE, type: 'internal', Icon: AwardIcon });
-      }
+    if (!isLoadingThemeConfig && themeConfig.termsAndConditionsHtml) {
+      children.push({ name: 'nav_menu.terms', route: TERMS_OF_USE_ROUTE, type: 'internal', Icon: AwardIcon });
+    }
 
-      if (themeConfig.privacyPolicyHtml) {
-        children.push({ name: 'nav_menu.privacy_policy', route: PRIVACY_POLICY_ROUTE, type: 'internal', Icon: LockIcon });
-      }
+    if (!isLoadingThemeConfig && themeConfig.privacyPolicyHtml) {
+      children.push({ name: 'nav_menu.privacy_policy', route: PRIVACY_POLICY_ROUTE, type: 'internal', Icon: LockIcon });
+    }
 
+    // Reopens the cookie preferences, the only way to withdraw a consent without clearing the cookie
+    if (hasOptionalCookies) {
+      // The label lives with the cookie banner's texts, which come in more languages than the rest of the app
+      children.push({ name: 'consent:cookieSettingsLink', type: 'action', onClick: showPreferences, Icon: SettingsIcon });
+    }
+
+    if (children.length) {
       output.push({
         name: 'nav_menu.legal',
         type: 'internal',
@@ -80,7 +89,14 @@ export default function Header() {
     }
 
     return output;
-  }, [pluginEntries, isLoadingThemeConfig, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
+  }, [
+    pluginEntries,
+    isLoadingThemeConfig,
+    themeConfig.termsAndConditionsHtml,
+    themeConfig.privacyPolicyHtml,
+    hasOptionalCookies,
+    showPreferences,
+  ]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);

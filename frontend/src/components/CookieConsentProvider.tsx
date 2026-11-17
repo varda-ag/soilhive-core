@@ -2,16 +2,18 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import * as CookieConsent from 'vanilla-cookieconsent';
 import 'vanilla-cookieconsent/dist/cookieconsent.css';
 
-import { CONSENT_CATEGORIES, CONSENT_PARAMS, GA4_SERVICE_NAME } from '../configuration/analytics';
+import { CONSENT_CATEGORIES, GA4_SERVICE_NAME } from '../configuration/analytics';
 import { COOKIE_DOMAIN, GTM_CONTAINER_ID } from '../utilities/environmentVariables';
 import enTranslations from '../../public/locales/en/consent.json';
 import itTranslations from '../../public/locales/it/consent.json';
 import deTranslations from '../../public/locales/de/consent.json';
 import esTranslations from '../../public/locales/es/consent.json';
-import { isGoogleTagManagerLoaded, loadGoogleTagManager } from 'utilities/analytics';
+import { isGoogleTagManagerLoaded, startGoogleTagManager, updateAnalyticsConsent } from 'utilities/analytics';
 
 interface CookieConsentContextType {
   analyticsAccepted: boolean;
+  // Whether the banner offers cookies beyond the necessary ones, so the visitor has a choice to change later
+  hasOptionalCookies: boolean;
   showPreferences: () => void;
 }
 
@@ -22,40 +24,6 @@ export const useCookieConsent = (): CookieConsentContextType => {
   if (!ctx) throw new Error('useCookieConsent must be used inside CookieConsentProvider');
   return ctx;
 };
-
-const updateGA4Consent = (analyticsGranted: boolean): void => {
-  if (typeof window.gtag !== 'function') return;
-
-  window.gtag('consent', 'update', {
-    [CONSENT_PARAMS.ANALYTICS_STORAGE]: analyticsGranted ? 'granted' : 'denied',
-    [CONSENT_PARAMS.AD_STORAGE]: analyticsGranted ? 'granted' : 'denied',
-    [CONSENT_PARAMS.AD_USER_DATA]: analyticsGranted ? 'granted' : 'denied',
-    [CONSENT_PARAMS.AD_PERSONALIZATION]: analyticsGranted ? 'granted' : 'denied',
-    [CONSENT_PARAMS.FUNCTIONALITY_STORAGE]: 'granted', // always allow functional cookies
-    [CONSENT_PARAMS.PERSONALIZATION_STORAGE]: analyticsGranted ? 'granted' : 'denied',
-  });
-};
-
-function injectGoogleAnalytics() {
-  const dataLayer = window.dataLayer || [];
-  const gtag = (...args: any) => dataLayer.push(args);
-
-  // Default-denied BEFORE any script loads
-  gtag('consent', 'default', {
-    [CONSENT_PARAMS.ANALYTICS_STORAGE]: 'denied',
-    [CONSENT_PARAMS.AD_STORAGE]: 'denied',
-    [CONSENT_PARAMS.AD_USER_DATA]: 'denied',
-    [CONSENT_PARAMS.AD_PERSONALIZATION]: 'denied',
-    [CONSENT_PARAMS.FUNCTIONALITY_STORAGE]: 'denied',
-    [CONSENT_PARAMS.PERSONALIZATION_STORAGE]: 'denied',
-    wait_for_update: 500,
-  });
-
-  if (GTM_CONTAINER_ID) {
-    // Inject GTM script dynamically
-    loadGoogleTagManager(GTM_CONTAINER_ID);
-  }
-}
 
 export const CookieConsentProvider = ({ children }: { children: ReactNode }) => {
   const [analyticsAccepted, setAnalyticsAccepted] = useState(false);
@@ -71,22 +39,22 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
           services: {
             [GA4_SERVICE_NAME]: {
               label: 'Google Analytics 4',
-              onAccept: () => updateGA4Consent(true),
-              onReject: () => updateGA4Consent(false),
             },
           },
         },
       }),
     };
 
+    // Runs on every consent the library reports: the stored one on each page load, a first choice, a change
     const handleConsentUpdate = (): void => {
       const isAnalyticsAccepted = CookieConsent.acceptedService(GA4_SERVICE_NAME, CONSENT_CATEGORIES.ANALYTICS);
       setAnalyticsAccepted(isAnalyticsAccepted);
-      updateGA4Consent(isAnalyticsAccepted);
-      if (isAnalyticsAccepted) {
-        injectGoogleAnalytics();
-      } else if (isGoogleTagManagerLoaded()) {
-        // GTM cannot be taken off the page: reloading without it stops the tracking at once
+      if (isAnalyticsAccepted && GTM_CONTAINER_ID) {
+        startGoogleTagManager(GTM_CONTAINER_ID);
+      } else if (!isAnalyticsAccepted && isGoogleTagManagerLoaded()) {
+        // GTM cannot be taken off the page: its Google tags stop storing at once, and reloading
+        // without GTM stops the tracking
+        updateAnalyticsConsent(false);
         window.location.reload();
       }
     };
@@ -130,7 +98,9 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
   }, []);
 
   return (
-    <CookieConsentContext.Provider value={{ analyticsAccepted, showPreferences: CookieConsent.showPreferences }}>
+    <CookieConsentContext.Provider
+      value={{ analyticsAccepted, hasOptionalCookies: !!GTM_CONTAINER_ID, showPreferences: CookieConsent.showPreferences }}
+    >
       {children}
     </CookieConsentContext.Provider>
   );

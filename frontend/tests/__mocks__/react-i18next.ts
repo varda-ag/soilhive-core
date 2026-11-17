@@ -42,13 +42,20 @@ function lookup(translations: TranslationObject, key: string): string {
 }
 
 export const useTranslation = (ns: string | string[] = 'translation') => {
-  const namespace = Array.isArray(ns) ? ns[0] : ns;
+  const namespaces = Array.isArray(ns) ? ns : [ns];
+  const namespace = namespaces[0];
   const translations = loadNamespaceTranslations(namespace, __resolvedLanguage);
 
   return {
     t: (k: string, options?: { defaultValue?: string }) => {
-      const v = lookup(translations, k);
-      return v === k ? (options?.defaultValue ?? k) : v;
+      // As i18next does, 'consent:key' reads another of the namespaces the component asked for
+      const [prefix, ...rest] = k.split(':');
+      const [source, key] =
+        rest.length && namespaces.slice(1).includes(prefix)
+          ? [loadNamespaceTranslations(prefix, __resolvedLanguage), rest.join(':')]
+          : [translations, k];
+      const v = lookup(source, key);
+      return v === key ? (options?.defaultValue ?? k) : v;
     },
     i18n: {
       resolvedLanguage: __resolvedLanguage,

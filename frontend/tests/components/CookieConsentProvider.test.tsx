@@ -1,6 +1,6 @@
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import * as CookieConsent from 'vanilla-cookieconsent';
-import { CookieConsentProvider } from 'components/CookieConsentProvider';
+import { CookieConsentProvider, useCookieConsent } from 'components/CookieConsentProvider';
 
 jest.mock('vanilla-cookieconsent', () => ({
   run: jest.fn(),
@@ -19,6 +19,12 @@ const gtmScripts = () => document.querySelectorAll('script[src^="https://www.goo
 // jsdom cannot reload a page: it reports the attempt as a "navigation" it does not implement
 const reloadAttempts = (consoleError: jest.SpyInstance) =>
   consoleError.mock.calls.filter(([error]) => String(error?.message ?? error).includes('navigation')).length;
+// The dataLayer entries, with each gtag command (an arguments object) as the array of its arguments
+const dataLayerEntries = () =>
+  ((window.dataLayer ?? []) as unknown[]).map(entry =>
+    Object.prototype.toString.call(entry) === '[object Arguments]' ? Array.from(entry as IArguments) : entry,
+  );
+const consentCommands = () => dataLayerEntries().filter(entry => Array.isArray(entry) && entry[0] === 'consent');
 
 describe('CookieConsentProvider', () => {
   let consoleError: jest.SpyInstance;
@@ -56,6 +62,60 @@ describe('CookieConsentProvider', () => {
     expect(reloadAttempts(consoleError)).toBe(1);
   });
 
+  it('queues the Consent Mode default and the update granting analytics before gtm.js when a visitor accepts', () => {
+    acceptedServiceMock.mockReturnValue(false);
+    render(<CookieConsentProvider>content</CookieConsentProvider>);
+    expect(window.dataLayer).toBeUndefined();
+
+    acceptedServiceMock.mockReturnValue(true);
+    act(() => runMock.mock.lastCall[0].onConsent());
+
+    const entries = dataLayerEntries();
+    expect(entries[0]).toEqual(['consent', 'default', expect.objectContaining({ analytics_storage: 'denied', ad_storage: 'denied' })]);
+    expect(entries[1]).toEqual(['consent', 'update', { analytics_storage: 'granted' }]);
+    expect(entries[2]).toEqual(expect.objectContaining({ event: 'gtm.js' }));
+  });
+
+  it('grants analytics once on each load for a returning visitor who accepted', () => {
+    acceptedServiceMock.mockReturnValue(true);
+    runMock.mockImplementation(({ onConsent }) => onConsent());
+
+    render(<CookieConsentProvider>content</CookieConsentProvider>);
+
+    expect(consentCommands()).toEqual([
+      ['consent', 'default', expect.any(Object)],
+      ['consent', 'update', { analytics_storage: 'granted' }],
+    ]);
+  });
+
+  it('denies analytics before reloading when a visitor withdraws the consent', () => {
+    acceptedServiceMock.mockReturnValue(true);
+    render(<CookieConsentProvider>content</CookieConsentProvider>);
+
+    acceptedServiceMock.mockReturnValue(false);
+    act(() => runMock.mock.lastCall[0].onChange());
+
+    expect(consentCommands().slice(-1)[0]).toEqual(['consent', 'update', { analytics_storage: 'denied' }]);
+    expect(reloadAttempts(consoleError)).toBe(1);
+  });
+
+  it('lets the page reopen the cookie preferences', () => {
+    const Consumer = () => {
+      const { hasOptionalCookies, showPreferences } = useCookieConsent();
+      return hasOptionalCookies ? <button onClick={showPreferences}>Cookie settings</button> : null;
+    };
+    acceptedServiceMock.mockReturnValue(false);
+
+    render(
+      <CookieConsentProvider>
+        <Consumer />
+      </CookieConsentProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Cookie settings' }));
+
+    expect(CookieConsent.showPreferences).toHaveBeenCalledTimes(1);
+  });
+
   it('does not reload for a visitor who never accepted analytics', () => {
     acceptedServiceMock.mockReturnValue(false);
     render(<CookieConsentProvider>content</CookieConsentProvider>);
@@ -63,5 +123,6 @@ describe('CookieConsentProvider', () => {
 
     expect(gtmScripts()).toHaveLength(0);
     expect(reloadAttempts(consoleError)).toBe(0);
+    expect(window.dataLayer).toBeUndefined();
   });
 });

@@ -19,7 +19,9 @@ export type NestedCheckboxRef = {
 export type NavMenuEntry = {
   name: string;
   route?: string;
-  type: 'internal' | 'external';
+  // An 'action' entry has no route: it runs onClick, e.g. reopening the cookie preferences
+  type: 'internal' | 'external' | 'action';
+  onClick?: () => void;
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
   children?: NavMenuEntry[];
 };

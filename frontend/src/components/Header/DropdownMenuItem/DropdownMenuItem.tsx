@@ -14,7 +14,9 @@ interface Props {
 }
 
 export default function DropdownMenuItem({ menuEntry }: Props) {
-  const { t } = useTranslation('common');
+  // 'consent' holds the Cookie settings label. Waiting for it would hide the whole app behind the
+  // root Suspense, while the label only shows once the menu is opened.
+  const { t } = useTranslation(['common', 'consent'], { useSuspense: false });
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuItemRef = useRef(null);
 
@@ -35,16 +37,19 @@ export default function DropdownMenuItem({ menuEntry }: Props) {
       </span>
 
       <div className={styles.Menu}>
-        {submenuEntries.map(({ name, route, type, Icon }) => (
+        {submenuEntries.map(({ name, route, type, Icon, onClick }) => (
           <MenuLink
-            key={route}
-            to={`${route}`}
+            key={name}
+            to={route}
             text={t(name)}
             type={type}
             className={styles.MenuLink}
             activeClassName={styles.Active}
             Icon={Icon}
-            onClick={() => setIsMenuOpen(false)}
+            onClick={() => {
+              onClick?.();
+              setIsMenuOpen(false);
+            }}
           />
         ))}
       </div>
