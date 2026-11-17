@@ -1722,8 +1722,10 @@ paths:
       summary: Ask for access to private Datasets
       description: >-
         Only while admins have turned Access Requests on (`accessRequestsEnabled` in the theme
-        config). Names private, published Datasets; asking for what the caller already holds on one
-        is a 400, and a Dataset already in one of the caller's pending requests is a 409 carrying
+        config), and only for a person whose access token carries `email`, so that an approval is
+        keyed by their email: anyone else gets a 403 with `email_required` (docs/adr/0081). Names
+        private, published Datasets; asking for what the caller already holds on one is a 400, and
+        a Dataset already in one of the caller's pending requests is a 409 carrying
         `pending_request_id` (docs/adr/0082).
       tags:
         - access-requests
@@ -1941,10 +1943,13 @@ paths:
       x-eov-operation-id: redeemInvite
       summary: Redeem an Invite
       description: >-
-        Grants what the Invite holds to the caller's own Subject, whole or not at all. Redeeming
-        again what the caller already redeemed succeeds and changes nothing. A 403 with
-        `recipient_hint` means the Invite is for another person; a 403 without it means its
-        creator can no longer share what it grants. Either way the Invite stays pending.
+        Grants what the Invite holds to the caller's own Subject, whole or not at all. Only a
+        person whose access token carries `email` may redeem, so that the grant is keyed by their
+        email (docs/adr/0081). Redeeming again what the caller already redeemed succeeds and
+        changes nothing. A 403 with `email_required` means the caller's token has no `email` or is
+        a Machine caller's; with `recipient_hint`, the Invite is for another person; with
+        neither, its creator can no longer share what it grants. Either way the Invite stays
+        pending.
       tags:
         - invites
       security:
@@ -1978,7 +1983,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: The Invite is for another person, or its creator can no longer share what it grants
+          description: >-
+            The caller's token has no `email` or is a Machine caller's, the Invite is for another
+            person, or its creator can no longer share what it grants
           content:
             application/json:
               schema:
@@ -1986,6 +1993,9 @@ paths:
                   - $ref: '#/components/schemas/ErrorResponse'
                   - type: object
                     properties:
+                      email_required:
+                        type: boolean
+                        description: Set when the caller's token has no `email` or is a Machine caller's
                       recipient_hint:
                         type: string
                         description: The recipient's email with most of it hidden, e.g. `j•••@example.com`
@@ -1993,12 +2003,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '410':
           $ref: '#/components/responses/Gone'
-        '502':
-          description: The identity provider could not confirm the caller's email
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
 
   /invites/{inviteId}:
     delete:

@@ -1,17 +1,15 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { StatusCodes } from 'http-status-codes';
 import request from 'supertest';
+import { EntityManager } from 'typeorm';
 import { app } from '../../src/app';
 import DatasetEntity from '../../src/entities/Dataset';
 import { RequestData } from '../../src/interfaces/RequestData';
 import InviteService from '../../src/services/InviteService';
 import { EntitlementScope } from '../../src/types/Entitlements';
-import { TOKEN_ISSUER } from '../../src/types/enums';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addDataset } from '../../src/utils/mock';
-import { signPasswordGrantToken } from '../../src/utils/password-grant-key';
-import { resetUserinfoEndpoint } from '../../src/utils/userinfo';
-import { getSuperAdminToken, getUserToken } from '../helper';
+import { getMachineToken, getSuperAdminToken, getUserToken, getUserTokenWithoutEmail } from '../helper';
 
 const CONFIG_ID = 'plugin:dashboards:dashboards:1';
 const OWNER = 'owner@example.com';
@@ -177,62 +175,48 @@ describe('Invites', () => {
       await redeem(janeToken, token).expect(StatusCodes.OK);
     });
 
-    describe('a recipient on a deployment whose access tokens carry no email', () => {
-      const authority = 'https://idp.example/realms/soilhive';
-      let tokenWithoutEmail: string;
-      let fetchSpy: jest.SpiedFunction<typeof fetch>;
+    it('refuses a token without email and a Machine caller, granting nothing and leaving it pending', async () => {
+      const { token } = (await createInvite(ownerToken, readInvite)).body;
 
-      beforeEach(() => {
-        tokenWithoutEmail = signPasswordGrantToken({ sub: 'jane-sub', scope: 'user', iss: TOKEN_ISSUER }, 3600);
-        process.env.OIDC_AUTHORITY = authority;
-        resetUserinfoEndpoint();
-        fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(async input => {
-          const url = String(input);
-          if (url === `${authority}/.well-known/openid-configuration`) {
-            return { ok: true, json: async () => ({ userinfo_endpoint: `${authority}/userinfo` }) } as Response;
-          }
-          return { ok: true, json: async () => ({ sub: 'jane-sub', email: JANE }) } as Response;
-        });
-      });
+      for (const caller of [getUserTokenWithoutEmail('jane-sub'), getMachineToken('robot')]) {
+        const refused = await redeem(caller, token);
+        expect(refused.statusCode).toBe(StatusCodes.FORBIDDEN);
+        expect(refused.body.email_required).toBe(true);
+      }
 
-      afterEach(() => {
-        delete process.env.OIDC_AUTHORITY;
-        fetchSpy.mockRestore();
-      });
+      expect(await grantsOf('jane-sub')).toBeUndefined();
+      expect(await grantsOf('robot')).toBeUndefined();
+      await redeem(janeToken, token).expect(StatusCodes.OK);
+    });
 
-      it("matches the identity provider's email and grants to the person's sub", async () => {
-        const { token } = (await createInvite(ownerToken, { ...readInvite, recipient: JANE })).body;
-
-        await redeem(tokenWithoutEmail, token).expect(StatusCodes.OK);
-
-        expect((await grantsOf('jane-sub')).configs).toEqual({ [CONFIG_ID]: ['read'] });
-        expect(await grantsOf(JANE)).toBeUndefined();
-      });
-
-      it('grants what the Invite holds when it is used up, not what it held when the redeem began', async () => {
-        const otherId = 'plugin:dashboards:dashboards:2';
-        await request(app).put(`/configs/${otherId}`).set(auth(ownerToken)).send({ title: 'Other' }).expect(StatusCodes.OK);
-        const { token } = (
-          await createInvite(ownerToken, { grants: { configs: { [CONFIG_ID]: ['read'], [otherId]: ['read'] } }, recipient: JANE })
-        ).body;
-        // A config item delete's cleanup commits while the redeem waits for the identity provider
-        fetchSpy.mockImplementation(async input => {
-          if (String(input) === `${authority}/.well-known/openid-configuration`) {
-            return { ok: true, json: async () => ({ userinfo_endpoint: `${authority}/userinfo` }) } as Response;
-          }
+    it('grants what the Invite holds when it is used up, not what it held when the redeem began', async () => {
+      const otherId = 'plugin:dashboards:dashboards:2';
+      await request(app).put(`/configs/${otherId}`).set(auth(ownerToken)).send({ title: 'Other' }).expect(StatusCodes.OK);
+      const { token } = (await createInvite(ownerToken, { grants: { configs: { [CONFIG_ID]: ['read'], [otherId]: ['read'] } } })).body;
+      // A config item delete's cleanup commits after the redeem read the Invite, just before it uses it up
+      const query = EntityManager.prototype.query;
+      let dropped = false;
+      const spy = jest.spyOn(EntityManager.prototype, 'query').mockImplementation(async function (this: EntityManager, ...args) {
+        if (!dropped && args[0].startsWith('UPDATE "invites" SET "used_at"')) {
+          dropped = true;
           await new InviteService().dropFromPendingInvites(
             { entityManager: await getEntityManager(), entitlements: {} } as RequestData,
             EntitlementScope.CONFIGS,
             otherId,
           );
-          return { ok: true, json: async () => ({ sub: 'jane-sub', email: JANE }) } as Response;
-        });
-
-        const redeemed = await redeem(tokenWithoutEmail, token).expect(StatusCodes.OK);
-
-        expect(redeemed.body.grants).toEqual({ configs: { [CONFIG_ID]: ['read'] } });
-        expect((await grantsOf('jane-sub')).configs).toEqual({ [CONFIG_ID]: ['read'] });
+        }
+        return query.apply(this, args);
       });
+
+      try {
+        const redeemed = await redeem(janeToken, token).expect(StatusCodes.OK);
+
+        expect(dropped).toBe(true);
+        expect(redeemed.body.grants).toEqual({ configs: { [CONFIG_ID]: ['read'] } });
+        expect((await grantsOf(JANE)).configs).toEqual({ [CONFIG_ID]: ['read'] });
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 

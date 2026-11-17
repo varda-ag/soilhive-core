@@ -16,7 +16,7 @@ import {
 } from '../types/AccessRequests';
 import { IngestionStatus } from '../types/data';
 import { Capability } from '../types/enums';
-import { datasetCapabilities, datasetExistsFor, getSubject, isPrivilegedCaller, subjectOf } from '../utils/auth';
+import { datasetCapabilities, datasetExistsFor, getSubject, isPrivilegedCaller, requireEmailSubject, subjectOf } from '../utils/auth';
 import { ErrorResponse } from '../utils/error';
 import EntitlementService from './EntitlementService';
 
@@ -73,6 +73,8 @@ export default class AccessRequestService {
     if (isPrivilegedCaller(requestData.token)) {
       throw invalid('An admin already has access to every Dataset');
     }
+    // An approval grants to this Subject, so it must be an email an admin can read (docs/adr/0081)
+    const subject = requireEmailSubject(requestData, 'ask for access');
     const capabilities = sortedUnique(body.capabilities);
     if (capabilities.length === 0 || !capabilities.every(c => ACCESS_REQUEST_CAPABILITIES.includes(c))) {
       throw invalid(`An access request asks for ${ACCESS_REQUEST_CAPABILITIES.join(' or ')}`);
@@ -96,7 +98,6 @@ export default class AccessRequestService {
       datasets.set(dataset.id, dataset);
     }
 
-    const subject = getSubject(requestData);
     await this.assertNonePending(requestData, subject, [...datasets.values()]);
 
     const manager = requestData.entityManager;

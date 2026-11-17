@@ -410,7 +410,8 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A non-admin **Subject** may self-claim `write` on a plugin-owned config item's own Entitlements the first time it is accessed, granting only itself; every other Entitlement write requires an existing `write` grant or a **Privileged caller** (see ADR 0035)
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
 - An **Invite** grants nothing until it is redeemed, and then only to the redeemer's own **Subject**, never to `everyone`; its creator may put into it only **Entitlements** they could grant directly
-- An **Invite** naming a recipient can be redeemed only by a person whose email matches it, ignoring case, never by a **Machine caller**; what is granted goes to the redeemer's **Subject** as it is, not to the email the Invite names. The email matched is the one the identity provider holds for that person, even on a deployment where it is not their Subject. An attempt by anyone else leaves the Invite pending
+- Only a person whose **Subject** is their email can redeem an **Invite** or make an **Access Request**: never a **Machine caller**, nor a person whose access token carries no `email`. Creating an Invite and deciding an Access Request need no email
+- An **Invite** naming a recipient can be redeemed only by the person whose **Subject** matches it, ignoring case; what is granted goes to that Subject as the token spells it. An attempt by anyone else leaves the Invite pending
 - Every **Invite** expires. One naming a recipient is used up when that recipient redeems it; one naming none is used up by its first redemption, unless its creator made it reusable until it expires
 - Approving an **Access Request** grants straight to the **Subject** that made it; it never becomes an **Invite**
 - An **Access Request** names only private, published **Datasets** and asks for `preview`, `download` or both; it may be approved for less than it asks
@@ -467,7 +468,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 > **Domain expert:** "No — its Layers recorded no date, so they matched through the **Dataset fallback** on the Dataset's 2018 period. The fallback decides what matches; the rows still show what was recorded. Filter `min_sampling_date: null` instead to see only the data with no recorded date."
 
 > **Dev:** "Jane wants `download` on three private **Datasets**, and her identity provider doesn't put `email` in tokens. Should the admin send her an **Invite**?"
-> **Domain expert:** "She can make an **Access Request** instead: she's signed in when she asks, so approving it grants straight to her **Subject**, `sub` or not. An Invite is for when the admin makes the first move. If the admin names her email on one, she can still redeem it, because her email is matched where her identity provider keeps it, but the grant still lands on her Subject."
+> **Domain expert:** "Neither an Invite nor an **Access Request** works for her: both need her **Subject** to be her email. A grant on her `sub` would be one nobody can read, and it would stop matching the day the identity provider starts sending `email`. Putting `email` in the access tokens comes first; after that, either one works."
 
 **Preprocessing Steps** (`preprocessing_steps`):
 An optional free-text field on a Dataset that documents the data cleaning and transformation steps applied to the raw source data prior to ingestion. Set by data admins; not computed by the system.
@@ -504,7 +505,7 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 
 - **"sub" was used to mean both the token claim and the Subject** — and the two are different strings whenever a token carries an email. Resolved: the **Subject** is what Entitlements and `created_by` are keyed by; `sub` is one claim that only *sometimes* supplies it. The confusion was load-bearing, not cosmetic: the request path resolved Entitlements by email while the job path resolved them by `sub`, so a job saw only `everyone`'s Entitlements and silently skipped private Datasets its submitter was entitled to. Say **Subject** in domain discussions and reserve `sub` for the JWT claim.
 
-- **"A person's email" is not always their Subject.** Where the identity provider leaves `email` out of access tokens, a person still has an email there, but their **Subject** is their `sub`. Resolved: an **Invite**'s recipient is matched against the person's email, and what it grants is keyed by their Subject; neither stands in for the other.
+- **"A person's email" is not always their Subject.** Where the identity provider leaves `email` out of access tokens, a person still has an email there, but their **Subject** is their `sub`. Resolved: only the access token's `email` counts. **Invites** and **Access Requests** need a Subject that is an email, so the email an Invite names and the Subject it grants to are the same address, ignoring case.
 
 - **"Self-signed token" named three different tokens** — the password-mode sign-in token, the job-to-API internal token and the presigned download token all came from one platform secret. Resolved: only the first is a domain concept, the **Password-grant token**, and of the three it is the only one whose key is published. The **Plugin token** is a fourth, signed with a key of its own and published apart.
 

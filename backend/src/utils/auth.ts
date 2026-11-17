@@ -73,10 +73,19 @@ const CLIENT_CREDENTIALS_GRANT = 'client_credentials';
 export const isMachineCaller = (token?: Token): boolean => token?.gty === CLIENT_CREDENTIALS_GRANT;
 
 /**
+ * A person's access token `email`, exactly as sent. Undefined for a Machine caller, and when the
+ * claim is absent or blank: taken as it is, every person whose token carries a blank one would
+ * share the Subject `''`, and each other's grants.
+ */
+const personEmail = (token?: Token): string | undefined => {
+  const email = token?.email;
+  return !isMachineCaller(token) && typeof email === 'string' && email.trim() ? email : undefined;
+};
+
+/**
  * Resolves the caller's Subject: Entitlements and every `created_by` will take this value:
  * - A **Machine caller** (`gty` equals client-credentials grant) is its `client_id`.
- * - Everyone else is their `email`, else `sub`. A blank `email` counts as none: taken as it is,
- *   every person whose token carries one would share the Subject `''`, and each other's grants.
+ * - Everyone else is their `email`, else `sub`. A blank `email` counts as none (see personEmail).
  *   Any other email is kept exactly as sent, so no existing Subject changes.
  * Note the ordering: `requireSub` runs first, so a token carrying `client_id` but no `sub` is
  * still a 401 rather than resolving to the client.
@@ -86,8 +95,26 @@ export const getSubject = (requestData: RequestData): string => {
   if (isMachineCaller(requestData.token)) {
     return requestData.token!.client_id ?? sub;
   }
-  const email = requestData.token?.email;
-  return typeof email === 'string' && email.trim() ? email : sub;
+  return personEmail(requestData.token) ?? sub;
+};
+
+/**
+ * The caller's Subject, which must be their email: a person whose access token carries one. A 403
+ * with `email_required` for a Machine caller, and for a person whose token has no `email`, whose
+ * Subject is then their `sub`. For the flows that grant to the caller and must not grant to a
+ * `sub` (docs/adr/0081). `action` completes the message, e.g. "redeem an Invite".
+ */
+export const requireEmailSubject = (requestData: RequestData, action: string): string => {
+  requireSub(requestData);
+  const email = personEmail(requestData.token);
+  if (!email) {
+    throw new ErrorResponse(
+      `Only a person signed in with an email address can ${action}. Your sign-in does not share an email address with this service.`,
+      StatusCodes.FORBIDDEN,
+      { email_required: true },
+    );
+  }
+  return email;
 };
 
 /**

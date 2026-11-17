@@ -16,10 +16,9 @@ import {
   type InviteStatus,
   type InviteView,
 } from '../types/Invites';
-import { getSubject, isMachineCaller, isPrivilegedCaller, subjectOf } from '../utils/auth';
+import { getSubject, isPrivilegedCaller, requireEmailSubject, subjectOf } from '../utils/auth';
 import { ErrorResponse } from '../utils/error';
 import { existingDatasetsByName } from '../utils/slugs';
-import { emailClaim, getUserinfoEmail } from '../utils/userinfo';
 import EntitlementService from './EntitlementService';
 
 const entitlementService = new EntitlementService();
@@ -68,7 +67,7 @@ const toView = (invite: InviteEntity, redemptions: InviteRedemptionEntity[]): In
 export default class InviteService {
   createInvite = async (requestData: RequestData, body: InviteCreateBody): Promise<InviteCreated> => {
     const grants = await this.checkGrants(requestData, body.grants);
-    const recipient = emailClaim(body.recipient) ?? null;
+    const recipient = body.recipient?.trim() || null;
     const reusable = body.reusable ?? false;
     if (recipient && reusable) {
       throw invalid('An Invite with a recipient is used up by that recipient, so it cannot be reusable');
@@ -98,17 +97,18 @@ export default class InviteService {
   };
 
   /**
-   * Grants what the Invite holds to the caller's own Subject, whole or not at all. A single-use
-   * Invite is used up by the conditional update, so two redemptions racing for it can't both win.
-   * Redeeming again what one already redeemed succeeds and changes nothing.
+   * Grants what the Invite holds to the caller's own Subject, whole or not at all; only a person
+   * whose Subject is their email may redeem (docs/adr/0081). A single-use Invite is used up by the
+   * conditional update, so two redemptions racing for it can't both win. Redeeming again what one
+   * already redeemed succeeds and changes nothing.
    */
   redeemInvite = async (requestData: RequestData, token: string): Promise<Entitlements> => {
+    const subject = requireEmailSubject(requestData, 'redeem an Invite');
     const manager = requestData.entityManager;
     const invite = await manager.getRepository(InviteEntity).findOneBy({ token_hash: hashToken(token) });
     if (!invite) {
       throw notFound();
     }
-    const subject = getSubject(requestData);
     const status = statusOf(invite);
     if (status === 'used' && (await manager.getRepository(InviteRedemptionEntity).existsBy({ invite_id: invite.id, subject }))) {
       return invite.grants;
@@ -118,7 +118,7 @@ export default class InviteService {
     }
 
     if (invite.recipient) {
-      await this.assertRecipient(requestData, invite.recipient);
+      this.assertRecipient(subject, invite.recipient);
     }
     if (!invite.created_by_privileged) {
       await this.assertCreatorStillHolds(requestData, invite);
@@ -277,19 +277,13 @@ export default class InviteService {
     return checked;
   };
 
-  /** The recipient against the person's email: the access token's, else the identity provider's (docs/adr/0081). */
-  private assertRecipient = async (requestData: RequestData, recipient: string): Promise<void> => {
-    const token = requestData.token!;
-    const hint = maskEmail(recipient);
-    const refused = new ErrorResponse(`This Invite is for ${hint}. Sign in with that account to redeem it.`, StatusCodes.FORBIDDEN, {
-      recipient_hint: hint,
-    });
-    if (isMachineCaller(token)) {
-      throw refused;
-    }
-    const email = emailClaim(token.email) ?? (await getUserinfoEmail(token));
-    if (email?.toLowerCase() !== recipient.toLowerCase()) {
-      throw refused;
+  /** The recipient against the redeemer's Subject, their email, ignoring case (docs/adr/0081). */
+  private assertRecipient = (subject: string, recipient: string): void => {
+    if (subject.trim().toLowerCase() !== recipient.toLowerCase()) {
+      const hint = maskEmail(recipient);
+      throw new ErrorResponse(`This Invite is for ${hint}. Sign in with that account to redeem it.`, StatusCodes.FORBIDDEN, {
+        recipient_hint: hint,
+      });
     }
   };
 

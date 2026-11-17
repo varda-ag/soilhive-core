@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { StatusCodes } from 'http-status-codes';
 import { EntityManager } from 'typeorm';
-import { datasetCapabilities, requireSub, getSubject } from '../../src/utils/auth';
+import { datasetCapabilities, requireSub, getSubject, requireEmailSubject } from '../../src/utils/auth';
 import { Capability } from '../../src/types/enums';
 import { ErrorResponse } from '../../src/utils/error';
 import { RequestData } from '../../src/interfaces/RequestData';
@@ -129,6 +129,36 @@ describe('getSubject', () => {
   it('should throw a 401 ErrorResponse when the token is missing', () => {
     const requestData = buildRequestData();
     expect(() => getSubject(requestData)).toThrow(ErrorResponse);
+  });
+});
+
+describe('requireEmailSubject', () => {
+  const statusOf = (requestData: RequestData): number | undefined => {
+    try {
+      requireEmailSubject(requestData, 'test');
+    } catch (error) {
+      return (error as ErrorResponse).status;
+    }
+    return undefined;
+  };
+
+  it("should return a person's email exactly as sent, the same as their Subject", () => {
+    const requestData = buildRequestData({ sub: 'auth|123', email: ' user@example.com' });
+    expect(requireEmailSubject(requestData, 'test')).toBe(getSubject(requestData));
+  });
+
+  it.each([
+    ['no email', { sub: 'auth|123' }],
+    ['a blank email', { sub: 'auth|123', email: '  ' }],
+    ['a Machine caller, even with an email', { sub: 'sa-uuid', client_id: 'client-1', gty: 'client_credentials', email: 'sa@example.com' }],
+  ])('should throw a 403 with email_required for %s', (_label, token) => {
+    const requestData = buildRequestData(token);
+    expect(statusOf(requestData)).toBe(StatusCodes.FORBIDDEN);
+    expect(() => requireEmailSubject(requestData, 'test')).toThrow(expect.objectContaining({ extensions: { email_required: true } }));
+  });
+
+  it('should throw a 401 when the token is missing', () => {
+    expect(statusOf(buildRequestData())).toBe(StatusCodes.UNAUTHORIZED);
   });
 });
 

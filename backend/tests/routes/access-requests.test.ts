@@ -9,7 +9,7 @@ import { RequestData } from '../../src/interfaces/RequestData';
 import AccessRequestService from '../../src/services/AccessRequestService';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addDataset } from '../../src/utils/mock';
-import { getSuperAdminToken, getUserToken } from '../helper';
+import { getMachineToken, getSuperAdminToken, getUserToken, getUserTokenWithoutEmail } from '../helper';
 
 const JANE = 'jane@example.com';
 
@@ -102,6 +102,16 @@ describe('Access Requests', () => {
 
       await request(app).delete(`/access-requests/${first.id}`).set(auth(janeToken)).expect(StatusCodes.NO_CONTENT);
       expect((await ask(janeToken, { datasets: [b.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.CREATED);
+    });
+
+    it('refuses a token without email and a Machine caller', async () => {
+      for (const caller of [getUserTokenWithoutEmail('jane-sub'), getMachineToken('robot')]) {
+        const refused = await ask(caller, { datasets: [a.slug], capabilities: ['preview'] });
+        expect(refused.statusCode).toBe(StatusCodes.FORBIDDEN);
+        expect(refused.body.email_required).toBe(true);
+      }
+      const admin = await request(app).get('/access-requests').set(auth(adminToken)).expect(StatusCodes.OK);
+      expect(admin.body).toEqual([]);
     });
   });
 
