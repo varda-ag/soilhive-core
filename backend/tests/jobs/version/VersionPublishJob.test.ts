@@ -124,21 +124,24 @@ const getDataset = async (id: string): Promise<DatasetEntity | null> =>
 
 /** The records with a square of their own each in place of their point, so they load as polygonal features. */
 const asPolygons = (records: SoilRecord[]): SoilRecord[] =>
-  records.map((record, i) => ({
-    ...record,
-    geometry: {
-      type: 'Polygon',
-      coordinates: [
-        [
-          [i, 0],
-          [i, 1],
-          [i + 1, 1],
-          [i + 1, 0],
-          [i, 0],
-        ],
-      ],
-    },
-  } as SoilRecord));
+  records.map(
+    (record, i) =>
+      ({
+        ...record,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [i, 0],
+              [i, 1],
+              [i + 1, 1],
+              [i + 1, 0],
+              [i, 0],
+            ],
+          ],
+        },
+      }) as SoilRecord,
+  );
 
 describe('version-publish', () => {
   afterEach(() => {
