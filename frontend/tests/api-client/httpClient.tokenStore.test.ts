@@ -31,7 +31,7 @@ beforeEach(() => {
 describe('httpClient and the stored token', () => {
   it('keeps the token when the renew after a 401 cannot reach the login server', async () => {
     saveToken('still-mine');
-    (refreshAccessToken as jest.Mock).mockResolvedValue({ outcome: 'unavailable' });
+    (refreshAccessToken as jest.Mock).mockResolvedValue({ outcome: 'unavailable', noResponse: true });
     fetchMock.mockResolvedValueOnce(unauthorized());
 
     await expect(httpClient({ url: '/datasets', method: 'GET' })).rejects.toMatchObject({ status: 401 });

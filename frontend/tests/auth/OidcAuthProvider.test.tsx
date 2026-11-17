@@ -15,8 +15,9 @@ import { useAuthContext } from '../../src/auth/AuthContextProvider';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { saveToken, clearToken } from '../../src/auth/tokenStore';
 import { endSession, setTokenRefresher, type RenewResult } from '../../src/auth/tokenRefresher';
+import { IDP_SESSION_NOT_ENDED_KEY } from '../../src/auth/useOidcAuth';
 import { peekRestoredPageState, setRestoredPageState } from '../../src/auth/signinPageState';
-import { ErrorResponse, UserManager } from 'oidc-client-ts';
+import { ErrorResponse, ErrorTimeout, UserManager } from 'oidc-client-ts';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,8 @@ jest.mock('react-oidc-context', () => ({
 
 // The app builds the UserManager itself, so its renew can tell an IdP rejection from a timeout.
 const mockSigninSilent = jest.fn();
+const mockSigninRedirect = jest.fn();
+const mockSignoutRedirect = jest.fn();
 const mockStartSilentRenew = jest.fn();
 const mockStopSilentRenew = jest.fn();
 const mockGetUser = jest.fn();
@@ -37,12 +40,15 @@ jest.mock('oidc-client-ts', () => ({
   WebStorageStateStore: jest.fn().mockImplementation(() => ({})),
   UserManager: jest.fn().mockImplementation(() => ({
     signinSilent: mockSigninSilent,
+    signinRedirect: mockSigninRedirect,
+    signoutRedirect: mockSignoutRedirect,
     startSilentRenew: mockStartSilentRenew,
     stopSilentRenew: mockStopSilentRenew,
     getUser: mockGetUser,
     events: { load: mockLoadUser },
   })),
   ErrorResponse: class ErrorResponse extends Error {},
+  ErrorTimeout: class ErrorTimeout extends Error {},
 }));
 
 const mockShowNotification = jest.fn();
@@ -95,7 +101,9 @@ const rejected = () => new (ErrorResponse as unknown as new (m: string) => Error
 
 type OidcUser = { access_token: string; expired: boolean } | null | undefined;
 
-const signinRedirect = jest.fn();
+// Called on the UserManager, not through react-oidc-context, so a failure to start them shows.
+const signinRedirect = mockSigninRedirect;
+const signoutRedirect = mockSignoutRedirect;
 
 // The UserManager reads the same user from storage as react-oidc-context holds.
 const buildAuth = (user: OidcUser) => {
@@ -105,8 +113,6 @@ const buildAuth = (user: OidcUser) => {
     isLoading: false,
     error: undefined,
     user,
-    signinRedirect,
-    signoutRedirect: jest.fn(),
     signinSilent,
     removeUser,
     events: { addAccessTokenExpired, removeAccessTokenExpired },
@@ -131,6 +137,7 @@ const renderWithUser = (user: OidcUser) => {
 beforeEach(() => {
   jest.clearAllMocks();
   capturedExpiredHandler = undefined;
+  localStorage.removeItem(IDP_SESSION_NOT_ENDED_KEY);
   (useApiQuery as jest.Mock).mockReturnValue({
     data: { authMode: 'oidc', oidcConfig: OIDC_CONFIG },
     isLoading: false,
@@ -367,8 +374,11 @@ describe('OidcAuthProvider token lifecycle', () => {
         expect(getByTestId('auth')).toHaveTextContent('true:valid-token');
       });
 
-      it('stays on the page and says the login server is unreachable', async () => {
-        await renderAndClick(() => signinSilent.mockRejectedValue(new TypeError('Failed to fetch')));
+      it.each([
+        ['a network error', () => new TypeError('Failed to fetch')],
+        ['a timeout', () => new ErrorTimeout('Network timed out')],
+      ])('stays on the page and says the login server is unreachable on %s', async (_, error) => {
+        await renderAndClick(() => signinSilent.mockRejectedValue(error()));
 
         expect(signinRedirect).not.toHaveBeenCalled();
         expect(mockShowNotification).toHaveBeenCalledWith({
@@ -377,6 +387,20 @@ describe('OidcAuthProvider token lifecycle', () => {
           title: 'errors.network_error.title',
           message: 'errors.network_error.login_server_message',
         });
+      });
+
+      // Every renew would fail the same way, and a reload would bring the stored user back: without the
+      // redirect, the user could not log in at all.
+      it.each([
+        ['a token that fails the checks', () => new Error('sub in id_token does not match current sub')],
+        ['a page that is not a token response', () => new Error('Invalid response Content-Type: text/html')],
+        ['a server error', () => new Error('Service Unavailable (503)')],
+      ])('redirects, keeping the stored user, when something answered with %s', async (_, error) => {
+        await renderAndClick(() => signinSilent.mockRejectedValue(error()));
+
+        expect(signinRedirect).toHaveBeenCalledTimes(1);
+        expect(removeUser).not.toHaveBeenCalled();
+        expect(mockShowNotification).not.toHaveBeenCalled();
       });
 
       it('ends the session and redirects when the IdP rejects the renew', async () => {
@@ -606,14 +630,15 @@ describe('OidcAuthProvider token lifecycle', () => {
     });
 
     it.each([
-      ['a network error', new TypeError('Failed to fetch')],
-      ['a timeout', new Error('Timed out')],
-    ])('reports the IdP as unavailable and keeps the token on %s', async (_, error) => {
+      ['a network error', new TypeError('Failed to fetch'), true],
+      ['a timeout', new ErrorTimeout('Network timed out'), true],
+      ['a server error page', new Error('Service Unavailable (503)'), false],
+    ])('reports the IdP as unavailable and keeps the token on %s', async (_, error, noResponse) => {
       renderWithUser({ access_token: 'valid-token', expired: false });
       signinSilent.mockRejectedValue(error);
       (clearToken as jest.Mock).mockClear();
 
-      expect(await runRefresher()).toEqual({ outcome: 'unavailable' });
+      expect(await runRefresher()).toEqual({ outcome: 'unavailable', noResponse });
       expect(clearToken).not.toHaveBeenCalled();
       expect(removeUser).not.toHaveBeenCalled();
     });
@@ -671,6 +696,144 @@ describe('OidcAuthProvider token lifecycle', () => {
       });
 
       expect(removeUser).not.toHaveBeenCalled();
+    });
+  });
+
+  // Before leaving the page, the UserManager fetches the IdP's configuration, so the redirect fails while
+  // the IdP is down. Without a toast, the click would do nothing.
+  describe('Log in while the IdP is down', () => {
+    const renderAndClick = async () => {
+      const LoginTrigger = () => {
+        const { login } = useAuthContext();
+        return <button onClick={() => login()}>login</button>;
+      };
+      (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(null));
+      const { getByRole } = render(
+        <AuthContextProvider>
+          <LoginTrigger />
+        </AuthContextProvider>,
+      );
+      await act(async () => {
+        fireEvent.click(getByRole('button', { name: 'login' }));
+      });
+    };
+
+    it('says the login server is unreachable when the sign-in cannot start', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      signinRedirect.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      await renderAndClick();
+
+      expect(mockShowNotification).toHaveBeenCalledWith({
+        id: 'network_error',
+        type: 'error',
+        title: 'errors.network_error.title',
+        message: 'errors.network_error.login_server_message',
+      });
+      warn.mockRestore();
+    });
+
+    it('shows nothing while the page leaves for the IdP', async () => {
+      // A real redirect never settles: the page unloads.
+      signinRedirect.mockReturnValueOnce(new Promise(() => {}));
+
+      await renderAndClick();
+
+      expect(signinRedirect).toHaveBeenCalledTimes(1);
+      expect(mockShowNotification).not.toHaveBeenCalled();
+    });
+  });
+
+  // The sign-out at the IdP takes the network: it revokes the tokens before leaving the page.
+  describe('Log out', () => {
+    const AuthButtons = () => {
+      const { isAuthenticated, login, logout } = useAuthContext();
+      return (
+        <>
+          <span data-testid="auth">{String(isAuthenticated)}</span>
+          <button onClick={() => login()}>login</button>
+          <button onClick={() => logout()}>logout</button>
+        </>
+      );
+    };
+
+    const renderAndClick = async (button: 'login' | 'logout', user: OidcUser = { access_token: 'valid-token', expired: false }) => {
+      (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(user));
+      const view = render(
+        <AuthContextProvider>
+          <AuthButtons />
+        </AuthContextProvider>,
+      );
+      await act(async () => {
+        fireEvent.click(view.getByRole('button', { name: button }));
+      });
+      return view;
+    };
+
+    it('signs out at the IdP', async () => {
+      // A real sign-out never settles: the page unloads.
+      signoutRedirect.mockReturnValueOnce(new Promise(() => {}));
+
+      await renderAndClick('logout');
+
+      expect(signoutRedirect).toHaveBeenCalledTimes(1);
+      expect(clearToken).toHaveBeenCalled();
+      expect(removeUser).not.toHaveBeenCalled();
+      expect(mockShowNotification).not.toHaveBeenCalled();
+    });
+
+    describe('when the IdP cannot be reached', () => {
+      let warn: jest.SpyInstance;
+      beforeEach(() => {
+        warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+        signoutRedirect.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      });
+      afterEach(() => warn.mockRestore());
+
+      it('signs out on this device, which signs out the other tabs too, and says so', async () => {
+        await renderAndClick('logout');
+
+        expect(clearToken).toHaveBeenCalled();
+        expect(removeUser).toHaveBeenCalledTimes(1);
+        expect(mockShowNotification).toHaveBeenCalledWith({
+          id: 'signed_out_on_this_device',
+          type: 'warning',
+          title: 'auth.signed_out_on_this_device.title',
+          message: 'auth.signed_out_on_this_device.message',
+        });
+      });
+
+      // The IdP session may still be alive: without this, the next login would take it with no password.
+      it('remembers that the IdP session may still be alive', async () => {
+        await renderAndClick('logout');
+
+        expect(localStorage.getItem(IDP_SESSION_NOT_ENDED_KEY)).not.toBeNull();
+      });
+    });
+
+    it('asks the IdP for the password at the next login after a sign-out that could not reach it', async () => {
+      localStorage.setItem(IDP_SESSION_NOT_ENDED_KEY, 'true');
+      window.history.replaceState({}, '', '/');
+
+      await renderAndClick('login', null);
+
+      expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/' }, prompt: 'login' });
+    });
+
+    it('stops asking for the password once signed in again', () => {
+      localStorage.setItem(IDP_SESSION_NOT_ENDED_KEY, 'true');
+
+      renderWithUser({ access_token: 'valid-token', expired: false });
+
+      expect(localStorage.getItem(IDP_SESSION_NOT_ENDED_KEY)).toBeNull();
+    });
+
+    it('keeps asking while signed out', () => {
+      localStorage.setItem(IDP_SESSION_NOT_ENDED_KEY, 'true');
+
+      renderWithUser(null);
+
+      expect(localStorage.getItem(IDP_SESSION_NOT_ENDED_KEY)).not.toBeNull();
     });
   });
 

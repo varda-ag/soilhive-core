@@ -97,7 +97,7 @@ describe('httpClient', () => {
 
   it('keeps the session and marks the 401 when the login server cannot be reached', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue({ outcome: 'unavailable' });
+    refreshMock.mockResolvedValue({ outcome: 'unavailable', noResponse: true });
     fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }));
 
     await expect(httpClient({ url: '/datasets', method: 'GET' })).rejects.toMatchObject({

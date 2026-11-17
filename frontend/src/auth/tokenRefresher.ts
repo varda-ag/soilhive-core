@@ -7,8 +7,10 @@
 // refreshAccessToken() to force a one-shot silent renew and retry.
 
 // How a renew ended. `rejected`: the IdP ended the session, or this auth mode cannot renew.
-// `unavailable`: the IdP could not be reached (timeout, network), so the session may still be alive.
-export type RenewResult = { outcome: 'renewed'; token: string } | { outcome: 'rejected' } | { outcome: 'unavailable' };
+// `unavailable`: the renew failed without the IdP saying the session is over, so it may still be alive.
+// `noResponse` is true when nothing answered at all (network error, timeout): the login server is likely
+// out of reach. False when something answered, but not with a renewed user (e.g. a server error page).
+export type RenewResult = { outcome: 'renewed'; token: string } | { outcome: 'rejected' } | { outcome: 'unavailable'; noResponse: boolean };
 
 type RefreshFn = () => Promise<RenewResult>;
 
