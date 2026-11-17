@@ -117,16 +117,18 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
     }
   }, [validToken]);
 
-  // Ends the session in this tab. The `oidc.user:` key is shared, so the other tabs sign out too.
-  const { events, removeUser } = reactOidcAuth;
-  const signOutHere = useCallback(() => {
-    clearToken();
-    return removeUser();
-  }, [removeUser]);
-
   // The renew at expiry could not reach the login server (e.g. right after the machine wakes). The token
   // is gone, so the user shows as signed out until a retry below renews it or the IdP rejects it.
   const [isWaitingForLoginServer, setIsWaitingForLoginServer] = useState(false);
+
+  // Ends the session in this tab. The `oidc.user:` key is shared, so the other tabs sign out too.
+  // Also stops the retry: with no stored user it would sign in again through the hidden iframe.
+  const { events, removeUser } = reactOidcAuth;
+  const signOutHere = useCallback(() => {
+    clearToken();
+    setIsWaitingForLoginServer(false);
+    return removeUser();
+  }, [removeUser]);
 
   // react-oidc-context does not subscribe to accessTokenExpired, so on expiry it never clears the
   // stale user. Try a silent renew first: the scheduled one may only have missed its window (throttled

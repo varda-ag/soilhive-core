@@ -357,6 +357,24 @@ describe('OidcAuthProvider token lifecycle', () => {
       });
     });
 
+    // A retry with no stored user would sign in again through the hidden iframe while the IdP session
+    // is still alive, e.g. while the other tab's sign-out is on its way.
+    it('stops retrying when another tab signs out', async () => {
+      await renderUnreachable();
+      comesBack();
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', { key: 'oidc.user:https://idp.example.com:client', newValue: null, storageArea: localStorage }),
+        );
+      });
+
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+      });
+
+      expect(signinSilent).not.toHaveBeenCalled();
+    });
+
     it('stops retrying once the renew succeeds', async () => {
       await renderUnreachable();
       comesBack();
