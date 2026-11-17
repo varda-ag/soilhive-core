@@ -9,7 +9,8 @@ export type AuthContext = {
   /**
    * Starts a sign-in. Under OIDC the identity provider sends the user back to the current page, which
    * reloads the app: `pageState` comes back with them through `useRestoredPageState`. Password mode signs
-   * in on the page, so it ignores it.
+   * in on the page, so it ignores it. Under OIDC, while the login server was unreachable after the token
+   * expired, it tries a silent renew first and leaves the page only if the IdP rejects it.
    */
   login: (pageState?: SigninPageState) => void;
   logout: () => void;

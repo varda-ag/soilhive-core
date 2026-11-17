@@ -45,6 +45,16 @@ jest.mock('oidc-client-ts', () => ({
   ErrorResponse: class ErrorResponse extends Error {},
 }));
 
+const mockShowNotification = jest.fn();
+jest.mock('hooks/useNotifications', () => ({
+  __esModule: true,
+  default: () => ({ showNotification: mockShowNotification }),
+}));
+
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 jest.mock('hooks/useApiQuery', () => ({
   useApiQuery: jest.fn(),
 }));
@@ -293,6 +303,60 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(removeUser).toHaveBeenCalledTimes(1);
     });
 
+    // Log in tries the renew first: a redirect would reload the page, or leave it for a browser error page.
+    describe('Log in while waiting', () => {
+      const LoginTrigger = () => {
+        const { login } = useAuthContext();
+        return <button onClick={() => login()}>login</button>;
+      };
+
+      const renderAndClick = async (outcome: () => void) => {
+        (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth({ access_token: 'valid-token', expired: false }));
+        const view = render(
+          <AuthContextProvider>
+            <AuthState />
+            <LoginTrigger />
+          </AuthContextProvider>,
+        );
+        signinSilent.mockRejectedValue(new TypeError('Failed to fetch'));
+        await act(async () => {
+          await capturedExpiredHandler?.();
+        });
+        signinSilent.mockReset();
+        outcome();
+        await act(async () => {
+          fireEvent.click(view.getByRole('button', { name: 'login' }));
+        });
+        return view;
+      };
+
+      it('signs back in without a redirect when the renew succeeds', async () => {
+        const { getByTestId } = await renderAndClick(comesBack);
+
+        expect(signinRedirect).not.toHaveBeenCalled();
+        expect(getByTestId('auth')).toHaveTextContent('true:valid-token');
+      });
+
+      it('stays on the page and says the login server is unreachable', async () => {
+        await renderAndClick(() => signinSilent.mockRejectedValue(new TypeError('Failed to fetch')));
+
+        expect(signinRedirect).not.toHaveBeenCalled();
+        expect(mockShowNotification).toHaveBeenCalledWith({
+          id: 'network_error',
+          type: 'error',
+          title: 'errors.network_error.title',
+          message: 'errors.network_error.login_server_message',
+        });
+      });
+
+      it('ends the session and redirects when the IdP rejects the renew', async () => {
+        await renderAndClick(() => signinSilent.mockRejectedValue(rejected()));
+
+        expect(removeUser).toHaveBeenCalledTimes(1);
+        expect(signinRedirect).toHaveBeenCalledTimes(1);
+      });
+    });
+
     it('stops retrying once the renew succeeds', async () => {
       await renderUnreachable();
       comesBack();
@@ -493,6 +557,7 @@ describe('OidcAuthProvider token lifecycle', () => {
       fireEvent.click(getByRole('button', { name: 'login' }));
 
       expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/dashboards/abc?tab=2#w' } });
+      expect(signinSilent).not.toHaveBeenCalled();
     });
 
     it('carries the page state the caller gives beside the current path', () => {

@@ -9,10 +9,12 @@ import { clearToken, saveToken, getToken } from './tokenStore';
 import { refreshAccessToken, setSessionEnder, setTokenRefresher } from './tokenRefresher';
 import { getEmailFromAccessToken, isTokenExpired } from './tokenClaims';
 import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from './signinReturnTo';
-import { getPageState, setRestoredPageState } from './signinPageState';
+import { getPageState, setRestoredPageState, type SigninPageState } from './signinPageState';
 import { ErrorResponse, UserManager, WebStorageStateStore } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
 import { useSignOutInOtherTab } from './useSignOutInOtherTab';
+import { useTranslation } from 'react-i18next';
+import useNotifications from 'hooks/useNotifications';
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -136,14 +138,18 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
     return () => events.removeAccessTokenExpired(handleExpired);
   }, [events, signOutHere]);
 
+  // One more try at the renew while waiting. Ends the wait unless the login server is still unreachable.
+  const retryRenew = useCallback(async () => {
+    const renew = await refreshAccessToken();
+    if (renew.outcome === 'rejected') await signOutHere();
+    if (renew.outcome !== 'unavailable') setIsWaitingForLoginServer(false);
+    return renew.outcome;
+  }, [signOutHere]);
+
   // Nothing else renews an expired token, so retry when the network or the tab comes back, and on a timer.
   useEffect(() => {
     if (!isWaitingForLoginServer) return;
-    const retry = async () => {
-      const renew = await refreshAccessToken();
-      if (renew.outcome === 'rejected') await signOutHere();
-      if (renew.outcome !== 'unavailable') setIsWaitingForLoginServer(false);
-    };
+    const retry = () => void retryRenew();
     const retryIfVisible = () => {
       if (document.visibilityState === 'visible') void retry();
     };
@@ -155,7 +161,7 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
       document.removeEventListener('visibilitychange', retryIfVisible);
       clearInterval(timer);
     };
-  }, [isWaitingForLoginServer, signOutHere]);
+  }, [isWaitingForLoginServer, retryRenew]);
 
   // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   useSignOutInOtherTab(isOidcUserKey, signOutHere);
@@ -213,6 +219,26 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
   // unknown; hiding the app for the others would remount it and lose page state.
   const isRestoringSession = reactOidcAuth.isLoading && !reactOidcAuth.activeNavigator;
 
+  const { t } = useTranslation('common');
+  const { showNotification } = useNotifications();
+  const redirectToLogin = (pageState?: SigninPageState) =>
+    reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath(), ...(pageState && { pageState }) } satisfies SigninState });
+
+  // While waiting for the login server, try the renew first: a redirect would reload the page, or leave
+  // it for a browser error page if the network is still down.
+  const loginAfterWait = async (pageState?: SigninPageState) => {
+    const outcome = await retryRenew();
+    if (outcome === 'rejected') return redirectToLogin(pageState);
+    if (outcome === 'unavailable') {
+      showNotification({
+        id: 'network_error',
+        type: 'error',
+        title: t('errors.network_error.title'),
+        message: t('errors.network_error.login_server_message'),
+      });
+    }
+  };
+
   // react-oidc-context sets isAuthenticated when the user loads and never on expiry.
   const isAuthenticated = !!reactOidcAuth.isAuthenticated && !isWaitingForLoginServer;
 
@@ -224,8 +250,7 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
     // authenticated, like the other providers, or callers gating on `user` send token-less
     // requests to auth-only routes (e.g. GET /entitlements → 401 toast).
     user: isAuthenticated ? reactOidcAuth.user : null,
-    login: pageState =>
-      reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath(), ...(pageState && { pageState }) } satisfies SigninState }),
+    login: pageState => void (isWaitingForLoginServer ? loginAfterWait(pageState) : redirectToLogin(pageState)),
     logout: () => {
       clearToken();
       reactOidcAuth.signoutRedirect();
