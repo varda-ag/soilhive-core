@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { createSignedPath, verifySignedPath } from '../../src/utils/presigned-url';
-import { signToken } from '../../src/utils/utils';
+import jwt from 'jsonwebtoken';
+import { createSignedPath, DOWNLOAD_TOKEN_KID, verifySignedPath } from '../../src/utils/presigned-url';
+import { TokenScopes } from '../../src/types/enums';
+
+const tokenOf = (signedPath: string): string => new URL(signedPath, 'http://localhost').searchParams.get('token')!;
 
 describe('Testing signed URL utilities', () => {
   beforeEach(() => {
@@ -39,9 +42,23 @@ describe('Testing signed URL utilities', () => {
     });
 
     it('should throw 410 if token is expired', () => {
-      const token = signToken({ filePath: '/files/myfile.csv' }, -1); // already expired
+      const token = tokenOf(createSignedPath('/files/myfile.csv', -1)); // already expired
       expect(() => verifySignedPath('/files/myfile.csv', token)).toThrow(expect.objectContaining({ message: 'Download link has expired' }));
     });
+
+    it('signs with its own kid', () => {
+      const token = tokenOf(createSignedPath('/files/myfile.csv'));
+      expect(jwt.decode(token, { complete: true })?.header.kid).toBe(DOWNLOAD_TOKEN_KID);
+    });
+
+    // The internal-request token's key: a token signed with it is never a download token (docs/adr/0080)
+    it.each([DOWNLOAD_TOKEN_KID, TokenScopes.INTERNAL_REQUEST])(
+      'should throw 401 for a token signed with SELF_SIGNING_SECRET itself, kid %p',
+      kid => {
+        const token = jwt.sign({ filePath: '/files/myfile.csv' }, process.env.SELF_SIGNING_SECRET!, { algorithm: 'HS256', keyid: kid });
+        expect(() => verifySignedPath('/files/myfile.csv', token)).toThrow(expect.objectContaining({ message: 'Invalid download token' }));
+      },
+    );
 
     it('should throw 401 if token is tampered with', () => {
       expect(() => verifySignedPath('/files/myfile.csv', 'this.is.not.a.valid.token')).toThrow(

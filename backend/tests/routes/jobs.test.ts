@@ -6,8 +6,8 @@ import { Token } from '../../src/interfaces/Token';
 import { getPgBoss, initPgBoss, PG_BOSS_SCHEMA, stopPgBoss } from '../../src/services/PgBoss';
 import { JobQueues, SoilIndexType, StatisticsType } from '../../src/types/enums';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
-import { getRawTableName, signToken, sleep } from '../../src/utils/utils';
-import { INTERNAL_REQUEST_TOKEN_PAYLOAD, THEME_CONFIG_ID } from '../../src/constants/constants';
+import { getRawTableName, signInternalRequestToken, sleep } from '../../src/utils/utils';
+import { THEME_CONFIG_ID } from '../../src/constants/constants';
 import { JsonStorage } from '../../src/entities/JsonStorage';
 import { getDataAdminToken, getUserToken } from '../helper';
 import { RequestData } from '../../src/interfaces/RequestData';
@@ -573,7 +573,7 @@ describe('Testing /jobs routes', () => {
         // The running bulk load writes its own batches here under an internal token
         const internal = await request(app)
           .post(`${base}/dataset-file-mapping/${uuidv4()}/soil-data`)
-          .set('Authorization', `Bearer ${signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD)}`)
+          .set('Authorization', `Bearer ${signInternalRequestToken()}`)
           .send([]);
         expect(internal.statusCode).not.toBe(409);
       } finally {

@@ -5,7 +5,6 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 import request from 'supertest';
 import { v4 as uuidv4 } from 'uuid';
 import { app } from '../../src/app';
-import { INTERNAL_REQUEST_TOKEN_PAYLOAD } from '../../src/constants/constants';
 import { getSwaggerDocument } from '../../src/middlewares/openapi';
 import DatasetService from '../../src/services/DatasetService';
 import { MINTS_PER_SUBJECT_PER_WINDOW, MINTS_PER_WINDOW, resetPluginTokenRateLimit } from '../../src/services/PluginTokenService';
@@ -15,7 +14,7 @@ import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
 import { getPasswordGrantKey } from '../../src/utils/password-grant-key';
 import { getPluginTokenKey } from '../../src/utils/plugin-token-key';
-import { signToken } from '../../src/utils/utils';
+import { signInternalRequestToken } from '../../src/utils/utils';
 import { getDataAdminToken, getSuperAdminToken, getUserToken } from '../helper';
 
 const CORE_PUBLIC_URL = 'https://api.example/api/v1';
@@ -100,7 +99,7 @@ describe('Plugin tokens', () => {
     });
 
     it('refuses an internal-request token', async () => {
-      const res = await mint(signToken(INTERNAL_REQUEST_TOKEN_PAYLOAD, 60));
+      const res = await mint(signInternalRequestToken());
       expect(res.statusCode).toBe(StatusCodes.FORBIDDEN);
     });
 
