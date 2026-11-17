@@ -208,6 +208,107 @@ describe('OidcAuthProvider token lifecycle', () => {
     });
   });
 
+  // The renew at expiry could not reach the login server. The token is gone, so requests go out without
+  // it: show the user as signed out, and keep trying until the login server answers.
+  describe('login server unreachable at expiry', () => {
+    const AuthState = () => {
+      const { isAuthenticated, user } = useAuthContext();
+      return <span data-testid="auth">{`${isAuthenticated}:${user?.access_token ?? 'none'}`}</span>;
+    };
+
+    const renderUnreachable = async () => {
+      (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth({ access_token: 'valid-token', expired: false }));
+      const view = render(
+        <AuthContextProvider>
+          <AuthState />
+        </AuthContextProvider>,
+      );
+      signinSilent.mockRejectedValue(new TypeError('Failed to fetch'));
+      await act(async () => {
+        await capturedExpiredHandler?.();
+      });
+      signinSilent.mockClear();
+      return view;
+    };
+
+    const comesBack = () => signinSilent.mockResolvedValue({ access_token: 'fresh-token', expired: false });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('shows the user as signed out without removing the user', async () => {
+      const { getByTestId } = await renderUnreachable();
+
+      expect(getByTestId('auth')).toHaveTextContent('false:none');
+      expect(removeUser).not.toHaveBeenCalled();
+    });
+
+    it('renews and shows the user as signed in again when the browser comes back online', async () => {
+      const { getByTestId } = await renderUnreachable();
+      comesBack();
+
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+      });
+
+      expect(signinSilent).toHaveBeenCalledTimes(1);
+      expect(getByTestId('auth')).toHaveTextContent('true:valid-token');
+    });
+
+    it('retries when the tab becomes visible', async () => {
+      await renderUnreachable();
+      comesBack();
+
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      expect(signinSilent).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries every 30 seconds', async () => {
+      jest.useFakeTimers();
+      await renderUnreachable();
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(30_000);
+      });
+      expect(signinSilent).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(30_000);
+      });
+      expect(signinSilent).toHaveBeenCalledTimes(2);
+    });
+
+    it('signs out when the IdP rejects a retry', async () => {
+      await renderUnreachable();
+      signinSilent.mockRejectedValue(rejected());
+
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+      });
+
+      expect(removeUser).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops retrying once the renew succeeds', async () => {
+      await renderUnreachable();
+      comesBack();
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+      });
+      signinSilent.mockClear();
+
+      await act(async () => {
+        window.dispatchEvent(new Event('online'));
+      });
+
+      expect(signinSilent).not.toHaveBeenCalled();
+    });
+  });
+
   describe('sign-out in another tab', () => {
     const fireStorage = (key: string | null) => {
       window.dispatchEvent(new StorageEvent('storage', { key, newValue: null, storageArea: localStorage }));

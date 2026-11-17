@@ -94,6 +94,8 @@ function InnerProvider({ children, authMode }: { children: React.ReactNode; auth
 // The `token` key is not a sign-out signal: a throttled tab clears it when its own copy expires.
 const isOidcUserKey = (key: string) => key.startsWith('oidc.user:');
 
+const LOGIN_SERVER_RETRY_MS = 30_000;
+
 function OidcAuthProvider({ children, userManager }: { children: React.ReactNode; userManager: UserManager }) {
   const reactOidcAuth = useReactOidcAuth();
 
@@ -116,6 +118,10 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
     return removeUser();
   }, [removeUser]);
 
+  // The renew at expiry could not reach the login server (e.g. right after the machine wakes). The token
+  // is gone, so the user shows as signed out until a retry below renews it or the IdP rejects it.
+  const [isWaitingForLoginServer, setIsWaitingForLoginServer] = useState(false);
+
   // react-oidc-context does not subscribe to accessTokenExpired, so on expiry it never clears the
   // stale user. Try a silent renew first: the scheduled one may only have missed its window (throttled
   // tab, machine sleep). Sign out quietly only if the IdP rejects it.
@@ -124,10 +130,32 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
       // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
       const renew = await refreshAccessToken();
       if (renew.outcome === 'rejected') await signOutHere();
+      setIsWaitingForLoginServer(renew.outcome === 'unavailable');
     };
     events.addAccessTokenExpired(handleExpired);
     return () => events.removeAccessTokenExpired(handleExpired);
   }, [events, signOutHere]);
+
+  // Nothing else renews an expired token, so retry when the network or the tab comes back, and on a timer.
+  useEffect(() => {
+    if (!isWaitingForLoginServer) return;
+    const retry = async () => {
+      const renew = await refreshAccessToken();
+      if (renew.outcome === 'rejected') await signOutHere();
+      if (renew.outcome !== 'unavailable') setIsWaitingForLoginServer(false);
+    };
+    const retryIfVisible = () => {
+      if (document.visibilityState === 'visible') void retry();
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', retryIfVisible);
+    const timer = setInterval(retry, LOGIN_SERVER_RETRY_MS);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', retryIfVisible);
+      clearInterval(timer);
+    };
+  }, [isWaitingForLoginServer, signOutHere]);
 
   // Another tab signed out. No silent renew: the IdP session may still be alive for a moment.
   useSignOutInOtherTab(isOidcUserKey, signOutHere);
@@ -185,14 +213,17 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
   // unknown; hiding the app for the others would remount it and lose page state.
   const isRestoringSession = reactOidcAuth.isLoading && !reactOidcAuth.activeNavigator;
 
+  // react-oidc-context sets isAuthenticated when the user loads and never on expiry.
+  const isAuthenticated = !!reactOidcAuth.isAuthenticated && !isWaitingForLoginServer;
+
   const value: AuthContext = {
-    isAuthenticated: !!reactOidcAuth.isAuthenticated,
+    isAuthenticated,
     isLoading: isRestoringSession,
     error: reactOidcAuth.error,
     // react-oidc-context keeps an expired user restored from storage. Expose it only while
     // authenticated, like the other providers, or callers gating on `user` send token-less
     // requests to auth-only routes (e.g. GET /entitlements → 401 toast).
-    user: reactOidcAuth.isAuthenticated ? reactOidcAuth.user : null,
+    user: isAuthenticated ? reactOidcAuth.user : null,
     login: pageState =>
       reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath(), ...(pageState && { pageState }) } satisfies SigninState }),
     logout: () => {
