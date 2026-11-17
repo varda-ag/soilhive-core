@@ -97,17 +97,21 @@ type OidcUser = { access_token: string; expired: boolean } | null | undefined;
 
 const signinRedirect = jest.fn();
 
-const buildAuth = (user: OidcUser) => ({
-  isAuthenticated: !!user && !user.expired,
-  isLoading: false,
-  error: undefined,
-  user,
-  signinRedirect,
-  signoutRedirect: jest.fn(),
-  signinSilent,
-  removeUser,
-  events: { addAccessTokenExpired, removeAccessTokenExpired },
-});
+// The UserManager reads the same user from storage as react-oidc-context holds.
+const buildAuth = (user: OidcUser) => {
+  mockGetUser.mockResolvedValue(user ?? null);
+  return {
+    isAuthenticated: !!user && !user.expired,
+    isLoading: false,
+    error: undefined,
+    user,
+    signinRedirect,
+    signoutRedirect: jest.fn(),
+    signinSilent,
+    removeUser,
+    events: { addAccessTokenExpired, removeAccessTokenExpired },
+  };
+};
 
 // Returns the latest refresher registered via setTokenRefresher.
 const getRegisteredRefresher = (): (() => Promise<RenewResult>) => {
@@ -557,6 +561,16 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(await runRefresher()).toEqual({ outcome: 'unavailable' });
       expect(clearToken).not.toHaveBeenCalled();
       expect(removeUser).not.toHaveBeenCalled();
+    });
+
+    // With no user, signinSilent() would sign in through the hidden iframe: right after another tab's
+    // sign-out, while the IdP session is still alive, that brings the user back in every tab.
+    it('reports a rejection without asking the IdP when no user is stored', async () => {
+      renderWithUser(null);
+      mockGetUser.mockResolvedValue(null);
+
+      expect(await runRefresher()).toEqual({ outcome: 'rejected' });
+      expect(signinSilent).not.toHaveBeenCalled();
     });
 
     it('treats an expired renewed user as a rejection', async () => {

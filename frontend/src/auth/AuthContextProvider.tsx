@@ -184,6 +184,12 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
   useEffect(() => {
     setTokenRefresher(async () => {
       const before = await userManager.getUser();
+      // No user, nothing to renew. signinSilent() would sign in through the hidden iframe instead, which
+      // brings the user back while another tab's sign-out is still on its way to the IdP.
+      if (!before) {
+        clearToken();
+        return { outcome: 'rejected' };
+      }
       try {
         const renewed = await userManager.signinSilent();
         if (renewed && !renewed.expired) {
