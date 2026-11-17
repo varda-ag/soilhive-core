@@ -19,9 +19,14 @@ export function useRefetchOnSignInChange() {
   useEffect(() => {
     if (previous.current === signedInAs) return;
     previous.current = signedInAs;
-    // Not resetQueries: it would also blank /auth/config and the theme, which unmounts the app.
-    // Pages not on screen start empty instead of showing the old user's data while they refetch.
-    queryClient.removeQueries({ type: 'inactive' });
-    void queryClient.invalidateQueries();
+    // After this commit's effects: React Query applies each query's new `enabled` in an effect of its own,
+    // so a query the sign-out disabled (e.g. entitlements) would otherwise refetch without a token and 401.
+    const timer = setTimeout(() => {
+      // Not resetQueries: it would also blank /auth/config and the theme, which unmounts the app.
+      // Pages not on screen start empty instead of showing the old user's data while they refetch.
+      queryClient.removeQueries({ type: 'inactive' });
+      void queryClient.invalidateQueries();
+    });
+    return () => clearTimeout(timer);
   }, [signedInAs, queryClient]);
 }
