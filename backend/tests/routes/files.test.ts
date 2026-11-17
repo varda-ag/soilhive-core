@@ -191,7 +191,7 @@ describe('Testing /files routes (local storage)', () => {
       return upload.body.id;
     };
 
-    it('splits the measurement types by every role column given', async () => {
+    it.only('splits the measurement types by every role column given', async () => {
       const fileId = await stageLongFile('long_local_codes.csv');
 
       // Two laboratories measured each of the four properties

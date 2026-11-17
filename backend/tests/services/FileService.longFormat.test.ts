@@ -6,13 +6,20 @@ import FileService from '../../src/services/FileService';
 import DataMappingService from '../../src/services/DataMappingService';
 import FileEntity from '../../src/entities/File';
 import { getDataSource, getEntityManager } from '../../src/utils/data-source';
-import { addCategory, addDataMapping, addSoilProperty, linkMapping } from '../../src/utils/mock';
+import { addCategory, addDataMapping, addProcedure, addSoilProperty, linkMapping } from '../../src/utils/mock';
 import { getLongTableName, getRawTableName } from '../../src/utils/utils';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
-import { IngestionStatus } from '../../src/types/data';
+import { IngestionStatus, ProcedureTechnique } from '../../src/types/data';
+import SoilPropertyEntity from '../../src/entities/SoilProperty';
+import ProcedureEntity from '../../src/entities/Procedure';
 import { JobQueues } from '../../src/types/enums';
-import { MAX_MEASUREMENT_TYPES } from '../../src/types/DataMapping';
+import { DataMappingObject, MAX_MEASUREMENT_TYPES } from '../../src/types/DataMapping';
+import { VectorFileMetadata } from '../../src/interfaces/File';
+import { CellDeleteReason } from '../../src/interfaces/CleaningReport';
+import VectorDataLoad from '../../src/data-layer/VectorDataLoad';
+import DataMappingEntity from '../../src/entities/DataMapping';
+import DatasetFileMappingEntity from '../../src/entities/DatasetFileMapping';
 import * as DatasetJobs from '../../src/data-layer/DatasetJobs';
 import { getTableColumns } from '../helper';
 import { writableAssets } from '../assets';
@@ -173,6 +180,120 @@ describe('FileService - long files', () => {
       ]);
     });
 
+    it('counts the rows the pivot leaves out, for the preview stats', async () => {
+      const name = 'long_left_out.csv';
+      fs.writeFileSync(
+        path.join(vectorFilesPassPath, name),
+        [
+          'WKT,top,bottom,det,conc',
+          'POINT (12.8 42.4),0,20,pH,6.8',
+          'POINT (12.8 42.4),0,20,pH,6.8',
+          'POINT (12.8 42.4),0,20,clay,30',
+          'POINT (12.8 42.4),0,20,clay,',
+          'POINT (12.8 42.4),0,20,,5',
+          'POINT (12.8 42.4),0,20,silt,12',
+          '',
+        ].join('\n'),
+      );
+      const file = await createFile(name);
+      const property = await addSoilProperty('P', (await addCategory()).id);
+      const mapping = localCodesMapping(property.slug, ['pH', 'clay']);
+      await linkMapping(file, mapping);
+      await fileService.longStage(requestData, file.slug);
+
+      await fileService.fileToDB(requestData, file.slug);
+
+      // One row for each reason: the repeated pH, the clay with no value, the value with no code and the silt
+      const expected = {
+        source_rows: 6,
+        empty_value_rows: 1,
+        empty_property_rows: 1,
+        unmapped_measurement_type_rows: 1,
+        repeated_values_removed: 1,
+      };
+      const reloaded = await entityManager.findOneByOrFail(FileEntity, { id: file.id });
+      expect((reloaded.metadata as VectorFileMetadata).long_format_stats).toEqual(expected);
+      const config = await new DataMappingService().parseDataMapping(requestData, (await addDataMapping(mapping)).id);
+      const stats = await new VectorDataLoad().getDataPreviewStats(entityManager, config, file.id);
+      expect(stats.long_format).toEqual(expected);
+    });
+
+    it('drops the long table and the pivot counts when the file is staged as wide', async () => {
+      const file = await createFile('long_local_codes.csv');
+      const property = await addSoilProperty('P', (await addCategory()).id);
+      await linkMapping(file, localCodesMapping(property.slug, ['pH_H2O']));
+      await fileService.longStage(requestData, file.slug);
+      await fileService.fileToDB(requestData, file.slug);
+      // The user switches the file to wide and saves its mapping
+      const link = await entityManager.findOneOrFail(DatasetFileMappingEntity, {
+        where: { file_id: file.id },
+        relations: ['data_mapping'],
+      });
+      await entityManager.update(DataMappingEntity, link.data_mapping.id, {
+        data_mapping: { top: 'min_depth', bottom: 'max_depth', conc: { property_id: property.slug } } as DataMappingObject,
+      });
+
+      await fileService.fileToDB(requestData, file.slug);
+
+      expect(await getTableColumns(getLongTableName(file.id))).toEqual([]);
+      const reloaded = await entityManager.findOneByOrFail(FileEntity, { id: file.id });
+      expect(reloaded.status).toBe(IngestionStatus.STAGED);
+      expect((reloaded.metadata as VectorFileMetadata).long_format_stats).toBeUndefined();
+      expect((reloaded.metadata as VectorFileMetadata).field_names).toContain('det');
+    });
+
+    it('takes the class code of a categorical property from the value column, not its label', async () => {
+      const name = 'long_classes.csv';
+      fs.writeFileSync(
+        path.join(vectorFilesPassPath, name),
+        [
+          'WKT,min_depth,max_depth,soil_property,value,value_label',
+          'POINT (12.8 42.4),0,20,texture,8,Silty Loam',
+          'POINT (12.8 42.4),0,20,ph,6.8,',
+          'POINT (139.6917 35.6895),0,20,texture,1,Clay',
+          'POINT (139.6917 35.6895),0,20,ph,5.9,',
+          'POINT (36.8219 -1.2921),0,20,texture,8,Silty Loam',
+          'POINT (36.8219 -1.2921),0,20,ph,6.2,',
+          '',
+        ].join('\n'),
+      );
+      const file = await createFile(name);
+      // An export of SoilHive has both columns: the code is what the loader stores
+      expect((file.metadata as VectorFileMetadata).detected_long_roles).toMatchObject({
+        property_col: 'soil_property',
+        value_col: 'value',
+      });
+      const category = await addCategory();
+      const texture = await addSoilProperty('Texture', category.id, undefined, { '1': { label: 'Clay' }, '8': { label: 'Silty Loam' } });
+      const ph = await addSoilProperty('pH', category.id);
+      const mapping = {
+        min_depth: 'min_depth',
+        max_depth: 'max_depth',
+        long_format: {
+          property_col: 'soil_property',
+          value_col: 'value',
+          measurement_types: [
+            { col: 's1', match: { property: 'texture' }, property_id: texture.slug },
+            { col: 's2', match: { property: 'ph' }, property_id: ph.slug },
+          ],
+        },
+      };
+      await linkMapping(file, mapping);
+      await fileService.longStage(requestData, file.slug);
+
+      await fileService.fileToDB(requestData, file.slug);
+
+      const rows = await rawRows(file);
+      expect(rows.map(r => [r.record_id, r.s1, r.s2])).toEqual([
+        [1, '8', '6.8'],
+        [3, '1', '5.9'],
+        [5, '8', '6.2'],
+      ]);
+      const config = await new DataMappingService().parseDataMapping(requestData, (await addDataMapping(mapping)).id);
+      const stats = await new VectorDataLoad().getDataPreviewStats(entityManager, config, file.id);
+      expect(stats.cell_deletions.filter(d => d.reason === CellDeleteReason.UNKNOWN_CLASS)).toEqual([]);
+    });
+
     it('loads every measurement type under the fixed property of a file with no property column', async () => {
       const file = await createFile('long_no_property.csv');
       const property = await addSoilProperty('P', (await addCategory()).id);
@@ -257,12 +378,11 @@ describe('FileService - long files', () => {
 
       const types = await fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' });
 
-      expect(types.map(t => t.match).sort((a, b) => a.property! < b.property! ? -1 : 1)).toEqual([
-        { property: 'OC_WB' },
-        { property: 'P_OLSEN_2' },
-        { property: 'XK_17' },
-        { property: 'pH_H2O' },
-      ].sort((a, b) => a.property! < b.property! ? -1 : 1));
+      expect(types.map(t => t.match).sort((a, b) => (a.property! < b.property! ? -1 : 1))).toEqual(
+        [{ property: 'OC_WB' }, { property: 'P_OLSEN_2' }, { property: 'XK_17' }, { property: 'pH_H2O' }].sort((a, b) =>
+          a.property! < b.property! ? -1 : 1,
+        ),
+      );
       expect(types.find(t => t.match.property === 'P_OLSEN_2')).toMatchObject({
         row_count: 3,
         min_value: 8.1,
@@ -300,6 +420,66 @@ describe('FileService - long files', () => {
       expect(suggestion('P_OLSEN_2')).toEqual({ property_id: mapped.slug, max_val: 500 });
       expect(suggestion('XK_17')).toEqual({ property_id: named.slug });
       expect(suggestion('OC_WB')).toBeUndefined();
+    });
+
+    it('reads earlier answers from long mappings only, and suggests the procedures that still exist', async () => {
+      const name = 'long_earlier_answers.csv';
+      fs.writeFileSync(
+        path.join(vectorFilesPassPath, name),
+        ['WKT,det,conc', 'POINT (12.8 42.4),K_EXCH_7,0.4', 'POINT (12.8 42.4),NA_EXCH_7,0.2', 'POINT (12.8 42.4),CA_EXCH_7,4.1', ''].join(
+          '\n',
+        ),
+      );
+      const category = await addCategory();
+      const property = await addSoilProperty('Exchangeable bases', category.id);
+      const procedure = await addProcedure(`pretreatment-${Date.now()}`);
+      // A wide mapping with a column named like a code is not an answer to it
+      await addDataMapping({ CA_EXCH_7: { property_id: property.slug } });
+      await addDataMapping({
+        long_format: {
+          property_col: 'analyte',
+          value_col: 'result',
+          measurement_types: [
+            { col: 's1', match: { property: 'K_EXCH_7' }, property_id: property.slug, procedure_id: procedure.slug },
+            { col: 's2', match: { property: 'NA_EXCH_7' }, property_id: property.slug, procedure_id: 'deleted-procedure' },
+          ],
+        },
+      });
+      const file = await createFile(name);
+      await fileService.longStage(requestData, file.slug);
+
+      const types = await fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' });
+
+      const suggestion = (code: string) => types.find(t => t.match.property === code)?.suggestion;
+      expect(suggestion('K_EXCH_7')).toEqual({ property_id: property.slug, procedure_id: procedure.slug });
+      expect(suggestion('NA_EXCH_7')).toEqual({ property_id: property.slug });
+      expect(suggestion('CA_EXCH_7')).toBeUndefined();
+    });
+
+    it('suggests a renamed property and procedure of an earlier answer by their current slugs', async () => {
+      const name = 'long_renamed.csv';
+      fs.writeFileSync(path.join(vectorFilesPassPath, name), ['WKT,det,conc', 'POINT (12.8 42.4),MG_EXCH_9,1.3', ''].join('\n'));
+      const property = await addSoilProperty(`Magnesium before rename ${Date.now()}`, (await addCategory()).id);
+      const procedure = await addProcedure(`pretreatment-renamed-${Date.now()}`);
+      await addDataMapping({
+        long_format: {
+          property_col: 'analyte',
+          value_col: 'result',
+          measurement_types: [{ col: 's1', match: { property: 'MG_EXCH_9' }, property_id: property.slug, procedure_id: procedure.slug }],
+        },
+      });
+      // The triggers give both new slugs and keep the old ones in slug_history
+      await entityManager.update(SoilPropertyEntity, property.id, { property_name: `Magnesium after rename ${Date.now()}` });
+      await entityManager.update(ProcedureEntity, procedure.id, { technique: ProcedureTechnique.CALCULATED });
+      const renamedProperty = await entityManager.findOneByOrFail(SoilPropertyEntity, { id: property.id });
+      const renamedProcedure = await entityManager.findOneByOrFail(ProcedureEntity, { id: procedure.id });
+      expect([renamedProperty.slug, renamedProcedure.slug]).not.toEqual([property.slug, procedure.slug]);
+      const file = await createFile(name);
+      await fileService.longStage(requestData, file.slug);
+
+      const [type] = await fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' });
+
+      expect(type!.suggestion).toEqual({ property_id: renamedProperty.slug, procedure_id: renamedProcedure.slug });
     });
 
     it('answers 400 for a column that is not in the file', async () => {

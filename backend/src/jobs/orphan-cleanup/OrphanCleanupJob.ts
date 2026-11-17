@@ -18,6 +18,7 @@ export async function processOrphanCleanup(): Promise<void> {
   const entityManager = await getEntityManager();
   await processOrphanFileCleanup(entityManager);
   await processOrphanStagingTableCleanup(entityManager);
+  await processOrphanLongTableCleanup(entityManager);
   await processOrphanRasterFilterStagingCleanup(entityManager);
 }
 
@@ -107,6 +108,45 @@ async function processOrphanStagingTableCleanup(entityManager: Awaited<ReturnTyp
   }
 
   log.info('Orphan staging table cleanup complete', { dropped, errors });
+}
+
+// Drops the long tables (file_<file id>_long, docs/adr/0081) of Files that are gone, soft-deleted or LOADED.
+// The Bulk Load drops its own and a wide file-to-db run drops the one of a File switched from long to wide;
+// these are left by Files deleted before their load, including the orphans hard-deleted above.
+async function processOrphanLongTableCleanup(entityManager: Awaited<ReturnType<typeof getEntityManager>>): Promise<void> {
+  const schema = process.env.POSTGRES_SCHEMA!;
+  const orphans: { table: string }[] = await entityManager.query(
+    `SELECT c.relname AS table
+     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE n.nspname = $1 AND c.relkind = 'r'
+       AND c.relname ~ '^file_[0-9a-f_]+_long$'
+       AND NOT EXISTS (
+         SELECT 1 FROM files f
+         -- As getLongTableName names it: sanitizeField drops the leading digits of the id
+         WHERE 'file_' || regexp_replace(replace(f.id::text, '-', '_'), '^[0-9]+', '') || '_long' = c.relname
+           AND f.deleted_at IS NULL AND f.status <> $2
+       )`,
+    [schema, IngestionStatus.LOADED],
+  );
+
+  if (orphans.length === 0) {
+    log.info('No orphan long tables to clean up');
+    return;
+  }
+
+  let dropped = 0;
+  let errors = 0;
+  for (const { table } of orphans) {
+    try {
+      await entityManager.query(`DROP TABLE IF EXISTS "${schema}"."${table}"`);
+      dropped++;
+    } catch (error) {
+      errors++;
+      log.error('Failed to drop orphan long table', { table, error: getErrorMessage(error) });
+    }
+  }
+
+  log.info('Orphan long table cleanup complete', { dropped, errors });
 }
 
 // Drops the staging tables (_rfi_<job id> and its o_<factor>__rfi_<job id> overviews) of Raster Filter

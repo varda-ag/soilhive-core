@@ -3477,6 +3477,8 @@ components:
               description: Procedure field to the column holding it
               additionalProperties:
                 type: string
+        long_format_stats:
+          $ref: '#/components/schemas/LongFormatStats'
         field_names:
           type: array
           items:
@@ -4374,14 +4376,22 @@ components:
         long_format:
           $ref: '#/components/schemas/LongFormatMapping'
       additionalProperties:
-        oneOf:
+        # anyOf, not oneOf: a band entry also matches PropertyMapping, which leaves its other keys open
+        anyOf:
           - type: string
           - $ref: '#/components/schemas/PropertyMapping'
+          - $ref: '#/components/schemas/RasterBandMapping'
       description: >
-        Dynamic object where keys are column names from the source data.
+        Dynamic object where keys are column names from the source data, or band numbers for a
+        raster file's band mapping.
         Values can be either:
         - A string (for metadata columns like 'min_depth', 'max_depth', 'sampling_date', etc.)
         - A PropertyMapping object (for property columns with conversion/procedure info)
+        - A RasterBandMapping object (for a band of a raster file)
+
+        Two property columns mapped to the same soil property, procedure and unit conversion are
+        refused with 400. Bands are exempt, and are told apart by their min_depth and max_depth keys,
+        so a band entry must always send both, null when unknown.
 
         A mapping with long_format is of a long file, with one row per measured value: it maps
         measurement types in place of property columns, so it holds no PropertyMapping value.
@@ -4416,6 +4426,56 @@ components:
         procedure_id:
           type: string
           description: Optional slug for the procedure
+
+    RasterBandMapping:
+      type: object
+      description: >
+        What one band of a raster file measures. Both depth keys are required, null when unknown:
+        they are what tells a band from a property column.
+      required:
+        - property_id
+        - min_depth
+        - max_depth
+      properties:
+        property_id:
+          type: string
+          description: Slug of the soil property
+        conversion_id:
+          type: string
+          nullable: true
+          description: Slug of the unit conversion, or null when the property declares none
+        procedure_id:
+          type: string
+          nullable: true
+          description: Slug of the procedure
+        min_depth:
+          type: number
+          nullable: true
+          description: Upper depth of the band in cm, or null when unknown
+        max_depth:
+          type: number
+          nullable: true
+          description: Lower depth of the band in cm, or null when unknown
+        reference_period_start:
+          type: string
+          nullable: true
+        reference_period_stop:
+          type: string
+          nullable: true
+        layer_description:
+          type: string
+          description: Free text about the band's raster layer
+        additional_resources:
+          type: array
+          description: Files to attach to the band's raster layer
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              file_id:
+                type: string
+                description: Slug of the file
 
     LongFormatMapping:
       type: object
@@ -5017,3 +5077,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/cleaningReportCellDeletions'
+        long_format:
+          $ref: '#/components/schemas/LongFormatStats'
+    LongFormatStats:
+      type: object
+      description: >
+        What the pivot of a long file left out, in rows of the file. Each row is counted once, under
+        the first reason that applies, so the values passed on to the cleaning are source_rows less
+        the rest. Written when the file is staged; only for a long file.
+      properties:
+        source_rows:
+          type: integer
+          description: Rows read from the file
+        empty_value_rows:
+          type: integer
+          description: Rows with no value
+        empty_property_rows:
+          type: integer
+          description: Rows with no property code
+        unmapped_measurement_type_rows:
+          type: integer
+          description: Rows of measurement types that are not mapped, and so are not loaded
+        repeated_values_removed:
+          type: integer
+          description: Rows that repeat the value of an earlier row at the same location, depth and measurement type

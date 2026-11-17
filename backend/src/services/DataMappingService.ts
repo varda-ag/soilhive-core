@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
-import { DetectableFields, type DataMappingObject } from '../types/DataMapping';
+import { DetectableFields, type DataMappingObject, type LongFormatMapping } from '../types/DataMapping';
 import type { RasterMappingObject, ResolvedBandMapping } from '../interfaces/RasterMapping';
 import { ErrorResponse } from '../utils/error';
 import { getSubject } from '../utils/auth';
@@ -26,7 +26,8 @@ const RESERVED_KEYS = ['drop_records', 'long_format'];
  * the same value the Bulk Load fails, since the two make one Observation. null when there is none.
  *
  * A Band Mapping is left alone: two bands of one property are two depths or periods. Its entries
- * are told apart by their depth keys, which a column's entry never has.
+ * are told apart by their depth keys, which a column's entry never has. The raster mapping step
+ * requires both depths of every mapped band, so each band entry it saves carries them.
  */
 export const sameWayMappedColumns = (mapping: DataMappingObject): [string, string] | null => {
   const seen = new Map<string, string>();
@@ -59,7 +60,8 @@ export default class DataMappingService {
     const sameWay = sameWayMappedColumns(dataMapping);
     if (sameWay) {
       throw new ErrorResponse(
-        `Columns '${sameWay[0]}' and '${sameWay[1]}' are mapped to the same soil property, procedure and unit. Map only one of them, or give them different procedures.`,
+        `Columns '${sameWay[0]}' and '${sameWay[1]}' are mapped to the same soil property, procedure and unit. Map only one of them, or give them different procedures. ` +
+          'For a band mapping, send min_depth and max_depth on each band, null when unknown.',
         StatusCodes.BAD_REQUEST,
       );
     }
@@ -284,6 +286,20 @@ export default class DataMappingService {
   getDataMappings = async (requestData: RequestData): Promise<DataMappingEntity[]> => {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     return await repo.find();
+  };
+
+  /**
+   * The long_format of each long mapping, newest first: what earlier answers to Measurement Types
+   * are read from (docs/adr/0081). Wide mappings, the most of them, are left in the database.
+   */
+  getLongFormats = async (requestData: RequestData): Promise<LongFormatMapping[]> => {
+    const rows: { long_format: LongFormatMapping }[] = await requestData.entityManager.query(
+      `SELECT data_mapping -> 'long_format' AS long_format
+       FROM data_mappings
+       WHERE jsonb_typeof(data_mapping -> 'long_format') = 'object' AND deleted_at IS NULL
+       ORDER BY created_at DESC`,
+    );
+    return rows.map(row => row.long_format);
   };
 
   getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingEntity> => {

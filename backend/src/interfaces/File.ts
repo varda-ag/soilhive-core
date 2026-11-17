@@ -1,6 +1,7 @@
 import type { IngestionStatus, ProcedureField } from '../types/data';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import type { Envelope } from '../utils/GdalCLI';
+import type { LongFormatStats } from './CleaningReport';
 
 export interface File {
   id: string;
@@ -69,6 +70,7 @@ export interface VectorFileMetadata extends GeoreferenceMetadata {
   detected_mapping: DataMappingObject;
   detected_format?: VectorFormat; // Suggested from a sample of rows. Absent on files that predate it: read as 'wide'
   detected_long_roles?: LongRoles; // Only when detected_format is 'long'
+  long_format_stats?: LongFormatStats; // Written by file-to-db when it pivots a long File; removed when it stages the File as wide
   geometry_detected: boolean;
   driver?: string;
   epsg?: number;

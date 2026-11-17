@@ -1,3 +1,4 @@
+import { EntityManager } from 'typeorm';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import { matchColumns, matchKey, metadataEntries } from '../utils/longFormat';
 import { getLongTableName, getRawTableName, sanitizeField } from '../utils/utils';
@@ -7,6 +8,9 @@ interface LongPivot {
   createSql: string;
   /** Fills it from the long table. */
   insertSql: string;
+  /** Counts the rows of the long table the pivot leaves out, as LongFormatStats. */
+  statsSql: string;
+  /** For both insertSql and statsSql. */
   values: unknown[];
   /** The columns of the long table the pivot reads. */
   sourceColumns: string[];
@@ -15,6 +19,22 @@ interface LongPivot {
 export const NUMERIC_RE = `'^-?[0-9]+(\\.[0-9]+)?$'`;
 
 export const quote = (identifier: string): string => `"${identifier.replace(/"/g, '""')}"`;
+
+/**
+ * work_mem for the statements that group the rows of a long table. The planner multiplies the
+ * distinct values of each role column as if they were unrelated, so it expects about one group
+ * per row where a File has a few dozen. With the default 4MB it then sorts every row on disk
+ * instead of grouping in memory. 32MB keeps the grouping in memory up to 570k rows, measured.
+ * A limit, not memory taken: the few real groups use far less.
+ */
+const LONG_WORK_MEM = '32MB';
+
+/** Runs `run` in a transaction where work_mem is LONG_WORK_MEM. SET LOCAL ends with the transaction. */
+export const withLongWorkMem = <T>(entityManager: EntityManager, run: (tx: EntityManager) => Promise<T>): Promise<T> =>
+  entityManager.transaction(async tx => {
+    await tx.query(`SET LOCAL work_mem = '${LONG_WORK_MEM}'`);
+    return run(tx);
+  });
 
 /**
  * The statements that pivot a staged long File into the raw table a wide File gets: one row per
@@ -27,6 +47,7 @@ export const quote = (identifier: string): string => `"${identifier.replace(/"/g
  *   the first row that put a value on it. It is worked out over every row, mapped or not, so it
  *   stays the same when the mapped Measurement Types change, and `drop_records` keep their rows.
  * - Rows of a Measurement Type the mapping does not list, and rows with no value, are left out.
+ *   statsSql counts them, for the preview stats.
  */
 export function buildLongPivot(mapping: DataMappingObject, fileId: string): LongPivot {
   const schema = process.env.POSTGRES_SCHEMA;
@@ -68,8 +89,8 @@ export function buildLongPivot(mapping: DataMappingObject, fileId: string): Long
     )
     .join(',\n    ');
 
-  const insertSql = `INSERT INTO ${rawTable} (record_id, geometry${[...metadataNames, ...cols].map(c => `, ${c}`).join('')})
-WITH measurement_types (col, key) AS (
+  // What both statements start from: the mapped Measurement Types, and each source row with its group
+  const common = `WITH measurement_types (col, key) AS (
   VALUES
     ${measurementTypes}
 ),
@@ -84,7 +105,10 @@ src AS (
 grouped AS (
   SELECT s.*, MIN(s.source_id) OVER (PARTITION BY ${['ST_AsBinary(s.geometry)', ...metadataNames.map(n => `s.${n}`)].join(', ')}) AS _group_id
   FROM src s
-),
+)`;
+
+  const insertSql = `INSERT INTO ${rawTable} (record_id, geometry${[...metadataNames, ...cols].map(c => `, ${c}`).join('')})
+${common},
 placed AS (
   SELECT d.*, DENSE_RANK() OVER (PARTITION BY d._group_id, d._key ORDER BY d._first_id) AS _k
   FROM (
@@ -115,9 +139,29 @@ SELECT v.record_id, g.geometry${[...metadataNames.map(n => `g.${n}`), ...cols.ma
 FROM pivoted v
 JOIN groups g USING (_group_id)`;
 
+  // The key starts with the property code when there is a property column (matchColumns)
+  const noProperty = long.property_col ? 'g._key[1] IS NULL' : 'false';
+  const unmapped = 'NOT EXISTS (SELECT 1 FROM measurement_types t WHERE t.key = g._key)';
+  // Each row is counted once, under the first reason that applies
+  const statsSql = `${common},
+mapped AS (
+  SELECT COUNT(*) AS n
+  FROM grouped g
+  JOIN measurement_types t ON t.key = g._key
+  WHERE g._value IS NOT NULL
+  GROUP BY g._group_id, g._key, g._value
+)
+SELECT
+  (SELECT COUNT(*) FROM grouped)::int AS source_rows,
+  (SELECT COUNT(*) FROM grouped WHERE _value IS NULL)::int AS empty_value_rows,
+  (SELECT COUNT(*) FROM grouped g WHERE g._value IS NOT NULL AND ${noProperty} AND ${unmapped})::int AS empty_property_rows,
+  (SELECT COUNT(*) FROM grouped g WHERE g._value IS NOT NULL AND NOT (${noProperty}) AND ${unmapped})::int AS unmapped_measurement_type_rows,
+  (SELECT COALESCE(SUM(n - 1), 0) FROM mapped)::int AS repeated_values_removed`;
+
   return {
     createSql,
     insertSql,
+    statsSql,
     values,
     sourceColumns: [...new Set([long.value_col, ...keyColumns, ...metadataEntries(mapping).map(([column]) => column)])],
   };

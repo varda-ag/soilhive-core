@@ -14,6 +14,7 @@ import { SHAPE_SAMPLE_ROWS, ShapeSuggestion, suggestShape } from '../utils/vecto
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath, VectorFileMetadata } from '../interfaces/File';
+import { LongFormatStats } from '../interfaces/CleaningReport';
 import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
 import { categoryLabels } from '../utils/raster';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
@@ -22,12 +23,21 @@ import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName, getLongTableName } from '../utils/utils';
 import { JobQueues, StorageModes } from '../types/enums';
 import { EntityType, IngestionStatus, ProcedureField, ProcedureTechnique } from '../types/data';
-import { DataMappingObject, DetectableFields, LongRoleColumns, MAX_MEASUREMENT_TYPES } from '../types/DataMapping';
-import { buildLongPivot } from '../data-layer/LongPivot';
+import {
+  DataMappingObject,
+  DetectableFields,
+  LongFormatMapping,
+  LongRoleColumns,
+  MAX_MEASUREMENT_TYPES,
+  MeasurementTypeMapping,
+} from '../types/DataMapping';
+import { PropertyMapping } from '../interfaces/PropertyMapping';
+import { buildLongPivot, withLongWorkMem } from '../data-layer/LongPivot';
 import { buildMeasurementTypesQuery } from '../data-layer/LongMeasurementTypes';
 import { hasActiveFileJob } from '../data-layer/DatasetJobs';
 import { isLongMapping, longFormatProblem } from '../utils/longFormat';
 import { FoundMeasurementType, SuggestionSources, suggestMeasurementType } from '../utils/measurementTypes';
+import { MappingSlugs, loadMappingSlugs, withCurrentSlugs } from '../data-layer/MappingSlugs';
 import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
 import { JsonStorage } from '../entities/JsonStorage';
@@ -43,7 +53,6 @@ import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import SoilPropertyEntity from '../entities/SoilProperty';
 import UnitConversionEntity from '../entities/UnitConversion';
 import VocabularyEntity from '../entities/Vocabulary';
-import ProcedureEntity from '../entities/Procedure';
 import RasterFilterEntity from '../entities/RasterFilter';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
@@ -77,6 +86,9 @@ const ALLOWED_GEOMETRY_TYPES = new Set([
 ]);
 
 const unknownGeomDrivers = ['CSV', 'XLSX'];
+
+/** An entry of a column mapping that names a property, as opposed to a metadata role such as 'min_depth'. */
+const isMappingEntry = (entry: unknown): entry is PropertyMapping => entry !== null && typeof entry === 'object' && !Array.isArray(entry);
 
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {
@@ -490,14 +502,24 @@ export default class FileService {
     return { layer, geometryDetected };
   };
 
-  getDetectedMapping(fieldNames: string[], mappings: DataMappingObject[]): DataMappingObject {
+  /**
+   * For each column, the entry earlier mappings gave a column of that name, the one with the most
+   * keys winning. With `slugs`, each entry names what it names by its current slug, and one whose
+   * property is gone is passed over.
+   */
+  getDetectedMapping(fieldNames: string[], mappings: DataMappingObject[], slugs?: MappingSlugs): DataMappingObject {
     const output: DataMappingObject = {};
 
     for (const fieldName of fieldNames) {
       for (const mapping of mappings) {
-        const current = mapping[fieldName];
+        let current = mapping[fieldName];
         if (!current) {
           continue;
+        }
+        if (slugs && isMappingEntry(current)) {
+          const resolved = withCurrentSlugs(current, slugs);
+          if (!resolved) continue;
+          current = resolved;
         }
         if (!output[fieldName]) {
           // First match
@@ -601,7 +623,10 @@ export default class FileService {
       horizonFieldName = FileService.detectField(fieldNames, ['horizon', 'layername'], true);
 
       const mappings: DataMappingObject[] = (await dataMappingService.getDataMappings(requestData)).map(dm => dm.data_mapping);
-      const detected_mapping: DataMappingObject = this.getDetectedMapping(fieldNames, mappings);
+      // The entries this file's columns could take, for the current slugs of what they name
+      const candidates = mappings.flatMap(mapping => fieldNames.map(field => mapping[field]).filter(isMappingEntry));
+      const slugs = await loadMappingSlugs(requestData.entityManager, candidates);
+      const detected_mapping: DataMappingObject = this.getDetectedMapping(fieldNames, mappings, slugs);
 
       const georeference = vectorGeoreference(layer);
       const georeference_wgs84 = georeference && layer.epsg ? await georeferenceToWgs84(georeference, `EPSG:${layer.epsg}`) : undefined;
@@ -800,8 +825,9 @@ export default class FileService {
 
     try {
       if (isLongMapping(mapping)) {
-        await this.pivotLongFile(requestData, fileEntity, mapping);
-        await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
+        const long_format_stats = await this.pivotLongFile(requestData, fileEntity, mapping);
+        // Read by the preview stats; the long table may be gone by then
+        await repo.update(fileEntity.id, { status: IngestionStatus.STAGED, metadata: { ...fileMetadata, long_format_stats } });
         return;
       }
       if (mappingNonGeomFields.length === 0) {
@@ -838,7 +864,10 @@ export default class FileService {
         }
       }
 
-      await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
+      // A File switched from long to wide keeps neither its long table nor the counts of its pivot
+      await requestData.entityManager.query(`DROP TABLE IF EXISTS "${getLongTableName(fileEntity.id)}"`);
+      const { long_format_stats, ...wideMetadata } = fileMetadata;
+      await repo.update(fileEntity.id, { status: IngestionStatus.STAGED, ...(long_format_stats && { metadata: wideMetadata }) });
     } catch (error) {
       await repo.update(fileEntity.id, { status: IngestionStatus.PENDING });
       if (JobError.isJobError(error)) {
@@ -998,25 +1027,41 @@ export default class FileService {
       throw new ErrorResponse(`Column '${missing}' is not a column of file '${file.name}'`, StatusCodes.BAD_REQUEST);
     }
 
-    const rows: Record<string, string | number | null>[] = await em.query(query.sql, query.values);
+    const rows: Record<string, string | number | null>[] = await withLongWorkMem(em, tx => tx.query(query.sql, query.values));
     if (rows.length > MAX_MEASUREMENT_TYPES) {
       const code = 'FTD_LONG_TOO_MANY_MEASUREMENT_TYPES';
       const { message, actions } = translateJobError(code, { file_name: file.name, max: MAX_MEASUREMENT_TYPES });
       throw new ErrorResponse(message, StatusCodes.UNPROCESSABLE_ENTITY, { code, actions });
     }
 
-    const [mappings, properties, conversions, procedures, vocabulary] = await Promise.all([
-      dataMappingService.getDataMappings(requestData),
-      em.getRepository(SoilPropertyEntity).find({ select: { id: true, slug: true, property_name: true, property_acronym: true } }),
-      em.getRepository(UnitConversionEntity).find({ select: { slug: true, property_id: true, original_unit_of_measurement: true } }),
-      em.getRepository(ProcedureEntity).find({ select: { slug: true } }),
-      FileService.procedureLists(em),
+    // Earlier answers name entities by their slug when saved; a renamed one is suggested by its slug now
+    const earlier = await dataMappingService.getLongFormats(requestData);
+    const answers = (long: LongFormatMapping) => (Array.isArray(long?.measurement_types) ? long.measurement_types.filter(Boolean) : []);
+    const slugs = await loadMappingSlugs(em, earlier.flatMap(answers));
+    const longFormats = earlier.map(long => ({
+      ...long,
+      measurement_types: answers(long)
+        .map(answer => withCurrentSlugs(answer, slugs))
+        .filter((answer): answer is MeasurementTypeMapping => answer !== null),
+    }));
+    const hasProcedureCols = Object.keys(roles.procedure_cols ?? {}).length > 0;
+    const [properties, conversions, vocabulary] = await Promise.all([
+      em.getRepository(SoilPropertyEntity).find({
+        select: { id: true, slug: true, property_name: true, property_acronym: true },
+        cache: CACHE_TTL_REFERENCE_MS,
+      }),
+      em.getRepository(UnitConversionEntity).find({
+        select: { slug: true, property_id: true, original_unit_of_measurement: true },
+        cache: CACHE_TTL_REFERENCE_MS,
+      }),
+      // Only procedure values are matched against it
+      hasProcedureCols ? FileService.procedureLists(em) : {},
     ]);
     const sources: SuggestionSources = {
-      mappings: mappings.sort((a, b) => b.created_at.getTime() - a.created_at.getTime()).map(m => m.data_mapping),
+      longFormats,
       properties,
       conversions,
-      procedures: procedures.map(p => p.slug),
+      procedures: [...slugs.procedure.values()],
       vocabulary,
       ...(fixedProperty && { fixedProperty }),
     };
@@ -1041,9 +1086,9 @@ export default class FileService {
 
   /**
    * Builds the raw table of a long File from its long table, one column per mapped Measurement
-   * Type (docs/adr/0081), in place of the ogr2ogr run of a wide File.
+   * Type (docs/adr/0081), in place of the ogr2ogr run of a wide File. Returns what it left out.
    */
-  private async pivotLongFile(requestData: RequestData, file: FileEntity, mapping: DataMappingObject): Promise<void> {
+  private async pivotLongFile(requestData: RequestData, file: FileEntity, mapping: DataMappingObject): Promise<LongFormatStats> {
     const long = mapping.long_format!;
     if (!long.value_col) {
       throw new JobError('FTD_LONG_NO_VALUE_COLUMN', { file_name: file.name });
@@ -1082,7 +1127,7 @@ export default class FileService {
     await em.query(`DROP TABLE IF EXISTS "${tableName}"`);
     await em.query(pivot.createSql);
     try {
-      await em.query(pivot.insertSql, pivot.values);
+      await withLongWorkMem(em, tx => tx.query(pivot.insertSql, pivot.values));
     } catch (error) {
       await em.query(`DROP TABLE IF EXISTS "${tableName}"`);
       throw error;
@@ -1095,6 +1140,9 @@ export default class FileService {
         throw new JobError('FTD_INVALID_DEPTH_RANGE');
       }
     }
+
+    const [stats]: LongFormatStats[] = await withLongWorkMem(em, tx => tx.query(pivot.statsSql, pivot.values));
+    return stats!;
   }
 
   /**

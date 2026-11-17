@@ -36,9 +36,34 @@ A geometry field, or separate latitude and longitude columns, is required, becau
 - Sampling date, in `YYYY`, `YYYY-MM`, or `YYYY-MM-DD` format
 - Depth, as upper and lower values in centimetres, either in separate columns or as a single depth range value with the upper and lower bounds separated by a dash (e.g. `10-15` or `10 cm - 15 cm`)
 - License at the record level, if individual observations carry different licenses (if the whole dataset shares a single license, it can instead be set as a fixed value in a later step; see the [list of supported licenses](../../backend/docs/data-model/6-license_options.csv))
-- Soil properties, each in its own column: one column per property, unit, and analytical procedure
+- Soil properties, either each in its own column (a **wide** file: one column per property, unit, and analytical procedure) or one row per measured value (a **long** file, see below)
 
 > **Note:** If sampling date, depth, or license are not present in the file, fixed values can be applied at the dataset level in a later step.
+
+### Long files
+
+A long file has one row per measured value instead of one column per property. The same location and depth then repeat on several rows:
+
+| geometry | min_depth | max_depth | property | value | unit | laboratory_method |
+|---|---|---|---|---|---|---|
+| POINT (12.8 42.4) | 0 | 20 | P_OLSEN | 14.2 | mg/kg | Olsen |
+| POINT (12.8 42.4) | 0 | 20 | pH_H2O | 6.8 | | |
+| POINT (12.8 42.4) | 0 | 20 | OC | 1.84 | % | Walkley-Black |
+
+Such a file needs one column for the value. Other columns may name what the value is:
+
+- a **property code** column, with your own codes for the soil properties;
+- a **unit** column;
+- a **method code** column;
+- one column for each analytical methodology field (see the list under Field Mapping).
+
+A file may also have no property code column, for example a file that holds one soil property only, or a file exported from SoilHive. You then pick one soil property for the whole file, and every value in it is loaded under that property.
+
+Each different combination of property code, unit, method code and methodology values is a **measurement type**, and you map each one as you would map one column of a wide file. A file can hold at most 100 measurement types.
+
+On upload SoilHive reads the first rows of the file and suggests whether it is wide or long, and for a long file which column plays which role. Check the suggestion in Field Mapping.
+
+For a **categorical** soil property, such as a texture class, the value column must hold the class code, which is what SoilHive stores. A file exported from SoilHive has both a `value` column with the code and a `value_label` column with the class name: pick `value` as the value column. Class names in the value column are also accepted, and are converted to their codes during cleaning.
 
 ### Uploading multiple files
 
@@ -76,6 +101,12 @@ For each mapped property, you can expand the methodology panel to record how the
 - **Limit of detection**: the lowest concentration reliably distinguishable from zero
 
 See [Analytical Methodology Vocabulary](4d-analytical-methodology-vocabulary.md).
+
+**Long files**
+
+For a long file you first say which column holds the value, and which hold the property code, the unit, the method code and the methodology fields. SoilHive then lists the measurement types it finds in the file, each with its number of rows and its range of values, and you map each one to a soil property, a unit and an analytical methodology. Where an earlier long file had the same property code, or where a code, unit or methodology value matches the SoilHive vocabulary, the answer is filled in for you to check.
+
+A measurement type you leave unmapped is not loaded, as with an unmapped column of a wide file. Two values of the same measurement type at the same location, depth and date are both kept, on separate rows; a value repeated exactly is kept once.
 
 When you press **Continue**, each file is staged for loading: read, parsed against your mapping, and written to a temporary table before the preview opens.
 
@@ -115,6 +146,17 @@ Your data may be subject to modification, and some data may be discarded if it d
 | The value is a percentage above 100% | *Out-of-bounds value* |
 | The value is exactly -999, the recognised "below limit of detection" convention | *Below limit of detection* |
 | The categorical value is not found in the stored labels, aliases or values from the class mapping | *Not a class of the categorical property* |
+
+**Rows left out of a long file.** Before cleaning, the rows of a long file are turned into one row per location, depth and date. The summary counts the rows of the file left out at that step, which are not in the preview table:
+
+| What happens | Counted as |
+|---|---|
+| The row has no value | *Rows with no value* |
+| The row has no property code | *Rows with no property code* |
+| The row's measurement type is not mapped | *Rows of unmapped measurement types* |
+| The row repeats the value of another row at the same location, depth, date and measurement type | *Repeated values removed* |
+
+Each row is counted once, under the first reason in this list that applies.
 
 You can review exactly which rows and cells were affected directly in the preview table, and you can delete additional individual rows yourself as a final quality check before confirming the upload.
 

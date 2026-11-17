@@ -1,7 +1,7 @@
-import { DataMappingObject, LongRoleColumns, MeasurementTypeMapping, MeasurementTypeMatchKey } from '../types/DataMapping';
+import { LongFormatMapping, LongRoleColumns, MeasurementTypeMapping, MeasurementTypeMatchKey } from '../types/DataMapping';
 import { PropertyMapping } from '../interfaces/PropertyMapping';
 import { ProcedureField } from '../types/data';
-import { PROCEDURE_FIELDS, isLongMapping, matchColumns, normalizeMatchValue } from './longFormat';
+import { PROCEDURE_FIELDS, matchColumns, normalizeMatchValue } from './longFormat';
 
 /** The answers put forward for one Measurement Type. The ids are slugs, as a mapping holds them. */
 export interface MeasurementTypeSuggestion extends Partial<PropertyMapping> {
@@ -22,10 +22,10 @@ export interface FoundMeasurementType {
 
 /** What suggestions are read from. */
 export interface SuggestionSources {
-  mappings: DataMappingObject[]; // Earlier mappings, newest first
+  longFormats: LongFormatMapping[]; // The long_format of earlier long mappings, newest first, with current slugs
   properties: { id: string; slug: string; property_name: string; property_acronym: string }[];
   conversions: { slug: string; property_id: string; original_unit_of_measurement?: string }[];
-  procedures: string[]; // Slugs
+  procedures: string[]; // Current slugs. Only those earlier answers name are needed
   vocabulary: Partial<Record<ProcedureField, string[]>>; // The fixed list of each procedure field
   fixedProperty?: string; // Slug of the Soil Property of the whole File, when it has no property column
 }
@@ -55,9 +55,9 @@ const earlierAnswer = (
   const otherKeys: MeasurementTypeMatchKey[] = ['method_code', ...PROCEDURE_FIELDS];
   let best: MeasurementTypeMapping | undefined;
   let bestScore = -1;
-  for (const mapping of sources.mappings) {
-    if (!isLongMapping(mapping) || !Array.isArray(mapping.long_format!.measurement_types)) continue;
-    for (const earlier of mapping.long_format!.measurement_types) {
+  for (const long of sources.longFormats) {
+    if (!Array.isArray(long?.measurement_types)) continue;
+    for (const earlier of long.measurement_types) {
       if (!earlier?.match || !same(earlier.match.property, match.property)) continue;
       if (roles.unit_col && !same(earlier.match.unit, match.unit)) continue;
       if (!sources.properties.some(p => p.slug === earlier.property_id)) continue;

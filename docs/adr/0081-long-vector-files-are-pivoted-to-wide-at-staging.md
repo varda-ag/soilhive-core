@@ -23,12 +23,13 @@ The shape is suggested at upload from a sample of rows (`detected_format`: `wide
 
 - `record_id` of a long File is a row number of the source, not the OGR FID of the pivoted table: the first row of its group, or for an extra row the first row that put a value on it. It is worked out over every row, before unmapped Measurement Types are removed, so `drop_records` survive a second `file-to-db` run and a change of which Measurement Types are mapped.
 - Rows are grouped by geometry, depths, sampling date, license and horizon. A second value for the same Measurement Type in one group goes to an extra row; an exact repeat is removed and counted.
-- A File holds at most 500 Measurement Types, since each is a column of the staging table.
+- A File holds at most 100 Measurement Types, since each is a column of the staging table and of every preview query.
 - A File with one value column and no unit or procedure columns is still suggested as wide: it is a wide File with one property column, and loads as before.
 - Only the first layer of a File is read, as before, so a File with one property per layer loads the first one only.
 - Changing the geometry, latitude, longitude or CRS of a long File runs `long-stage` again; changing any other role only lists the Measurement Types again.
 - A Measurement Type present in the staged rows but absent from the mapping is not loaded and raises no error, whether the user left it unmapped or the File was staged again with new codes. Its rows are counted in the pivot's report, which is the only place the loss shows.
 - A mapping must hold at least one mapped Measurement Type.
-- `file_<id>_long` lives until the Bulk Load drops it with the raw table, so a File can be mapped and pivoted again without a second read.
+- `file_<id>_long` lives until the Bulk Load drops it with the raw table, so a File can be mapped and pivoted again without a second read. A `file-to-db` run that stages the File as wide drops it too, and the daily orphan cleanup drops the ones of Files deleted or loaded.
+- The pivot's counts (rows with no value, with no property code, of unmapped Measurement Types, and repeats removed) are stored in the File's metadata as `long_format_stats` when it runs, since the long table may be gone when the preview stats are asked for. They are returned as the `long_format` block of the cleaning report.
 - A source column named `long_format` can no longer be mapped to a Soil Property, as with `drop_records`. The key is not `long`, which is a common name for a longitude column.
 - `long-stage` and the `file-to-db` of the same File refuse to run while the other does: one writes `file_<id>_long` and the other reads it.

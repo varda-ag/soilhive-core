@@ -1,12 +1,12 @@
 import { describe, it, expect } from '@jest/globals';
 import { SuggestionSources, suggestMeasurementType } from '../../src/utils/measurementTypes';
 import { buildMeasurementTypesQuery } from '../../src/data-layer/LongMeasurementTypes';
-import { DataMappingObject, LongRoleColumns } from '../../src/types/DataMapping';
+import { LongFormatMapping, LongRoleColumns } from '../../src/types/DataMapping';
 
 const ROLES: LongRoleColumns = { property_col: 'det', value_col: 'conc', unit_col: 'um' };
 
 const sources = (overrides: Partial<SuggestionSources> = {}): SuggestionSources => ({
-  mappings: [],
+  longFormats: [],
   properties: [
     { id: 'id-p', slug: 'phosphorus', property_name: 'Phosphorus', property_acronym: 'P' },
     { id: 'id-ph', slug: 'ph', property_name: 'pH in water', property_acronym: 'pH' },
@@ -23,7 +23,7 @@ const sources = (overrides: Partial<SuggestionSources> = {}): SuggestionSources 
 });
 
 const earlier = (measurement_types: unknown[], roles: object = { property_col: 'code', value_col: 'v', unit_col: 'u' }) =>
-  ({ long_format: { ...roles, measurement_types } }) as unknown as DataMappingObject;
+  ({ ...roles, measurement_types }) as unknown as LongFormatMapping;
 
 describe('suggestMeasurementType', () => {
   describe('from the vocabularies', () => {
@@ -81,7 +81,7 @@ describe('suggestMeasurementType', () => {
     };
 
     it('repeats the answers given to the same property code and unit', () => {
-      const from = sources({ mappings: [earlier([answered])] });
+      const from = sources({ longFormats: [earlier([answered])] });
 
       expect(suggestMeasurementType({ property: 'p_olsen_2', unit: 'mg kg-1' }, ROLES, from)).toEqual({
         property_id: 'phosphorus',
@@ -93,13 +93,13 @@ describe('suggestMeasurementType', () => {
     });
 
     it('passes over an answer given to another unit', () => {
-      const from = sources({ mappings: [earlier([answered])] });
+      const from = sources({ longFormats: [earlier([answered])] });
 
       expect(suggestMeasurementType({ property: 'P_OLSEN_2', unit: 'g/kg' }, ROLES, from)).toBeUndefined();
     });
 
     it('does not compare units for a file with no unit column', () => {
-      const from = sources({ mappings: [earlier([answered])] });
+      const from = sources({ longFormats: [earlier([answered])] });
       const roles: LongRoleColumns = { property_col: 'det', value_col: 'conc' };
 
       expect(suggestMeasurementType({ property: 'P_OLSEN_2' }, roles, from)?.property_id).toBe('phosphorus');
@@ -109,7 +109,7 @@ describe('suggestMeasurementType', () => {
       const newest = { ...answered, match: { property: 'P_OLSEN_2', unit: 'mg kg-1' }, property_id: 'ph' };
       const withMethod = { ...answered, match: { ...answered.match, method_code: 'M7' } };
       const otherMethod = { ...answered, match: { ...answered.match, method_code: 'M9' }, property_id: 'organic-carbon' };
-      const from = sources({ mappings: [earlier([newest]), earlier([otherMethod, withMethod])] });
+      const from = sources({ longFormats: [earlier([newest]), earlier([otherMethod, withMethod])] });
       const roles: LongRoleColumns = { ...ROLES, method_code_col: 'method' };
 
       expect(suggestMeasurementType({ property: 'P_OLSEN_2', unit: 'mg kg-1' }, ROLES, from)?.property_id).toBe('ph');
@@ -119,7 +119,7 @@ describe('suggestMeasurementType', () => {
     });
 
     it('leaves out slugs that no longer exist', () => {
-      const from = sources({ mappings: [earlier([answered])], conversions: [], procedures: [] });
+      const from = sources({ longFormats: [earlier([answered])], conversions: [], procedures: [] });
 
       expect(suggestMeasurementType({ property: 'P_OLSEN_2', unit: 'mg kg-1' }, ROLES, from)).toEqual({
         property_id: 'phosphorus',
@@ -127,12 +127,6 @@ describe('suggestMeasurementType', () => {
         max_val: 500,
       });
       expect(suggestMeasurementType({ property: 'P_OLSEN_2', unit: 'mg kg-1' }, ROLES, { ...from, properties: [] })).toBeUndefined();
-    });
-
-    it('reads nothing from a wide mapping', () => {
-      const wide = { P_OLSEN_2: { property_id: 'phosphorus' } } as DataMappingObject;
-
-      expect(suggestMeasurementType({ property: 'P_OLSEN_2', unit: null }, ROLES, sources({ mappings: [wide] }))).toBeUndefined();
     });
   });
 });

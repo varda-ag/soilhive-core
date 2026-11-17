@@ -138,7 +138,7 @@ const asPolygons = (records: SoilRecord[]): SoilRecord[] =>
         ],
       ],
     },
-  }));
+  } as SoilRecord));
 
 describe('version-publish', () => {
   afterEach(() => {

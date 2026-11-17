@@ -36,9 +36,9 @@ Job status values: `created`, `active`, `completed`, `cancelled`, `failed`.
 
 ## `file-to-db`
 
-Converts an uploaded geospatial file into a raw PostgreSQL table, making it available for column mapping and ingestion.
+Converts an uploaded geospatial file into a raw PostgreSQL table, which the cleaning, the preview and `bulk-load` read.
 
-This is the first step in the data ingestion pipeline. It must complete before `bulk-load` can run on the same file.
+This step needs the file's column mapping, so it runs after the mapping is saved. It must complete before `bulk-load` can run on the same file.
 
 **Trigger**
 ```json
@@ -51,15 +51,38 @@ POST /jobs
 
 **Sequence of operations**
 
-1. Retrieve the file record and resolve its storage path.
-2. If the file is a ZIP archive, extract its contents to a temporary directory.
-3. Auto-detect the geometry column (longitude/latitude pair or a native geometry field).
-4. Use GDAL to open the source file — supports GeoJSON, Shapefile, GeoPackage, GML, KML, and other OGR-compatible formats.
-5. Reproject all geometries to EPSG:4326 (WGS84).
-6. Create a raw staging table named `raw_<file_id>` in PostgreSQL with sanitised field names and a `geometry` column.
-7. Clean up any temporary extraction directories.
+1. Retrieve the file record and its column mapping. A LOADED file, a raster file and a file with no mapping are refused.
+2. For a long file (the mapping holds `long_format`), pivot it: see below. Otherwise:
+3. If the file is a ZIP archive, extract its contents to a temporary directory.
+4. Read the geometry as the mapping says (longitude/latitude pair or a native geometry field).
+5. Use GDAL to open the source file — supports GeoJSON, Shapefile, GeoPackage, GML, KML, and other OGR-compatible formats.
+6. Reproject all geometries to EPSG:4326 (WGS84).
+7. Create a raw staging table named `file_<file_id>_raw` in PostgreSQL with sanitised field names and a `geometry` column.
+8. Drop `file_<file_id>_long`, if the file was staged as long before, and the `long_format_stats` of its metadata.
+9. Clean up any temporary extraction directories.
 
-Once the job completes, the raw table is ready for the user to configure a data mapping, which is then consumed by `bulk-load`.
+**Long files** (ADR 0081). `file_<file_id>_raw` is built from `file_<file_id>_long`, which `long-stage` wrote, with no second read of the file: one row per location, depth, date, license and horizon, and one text column (`s1`, `s2`, …) per mapped Measurement Type. Rows of a Measurement Type the mapping leaves out, rows with no value and exact repeats are left out. The job counts them and stores the counts in the file's metadata as `long_format_stats`; the preview stats return them as `long_format`. It fails when `long-stage` is queued or running for the file, or when `file_<file_id>_long` is missing, in which case the file must be staged again.
+
+The file ends STAGED, or PENDING when the job fails.
+
+---
+
+## `long-stage`
+
+Copies a long file, as it is, into `file_<file_id>_long`, for the measurement types endpoint (`GET /files/{fileId}/measurement-types`) to list and `file-to-db` to pivot (ADR 0081).
+
+**Trigger**
+```json
+POST /jobs
+{
+  "type": "long-stage",
+  "file_id": "<file_id>"
+}
+```
+
+It is run again when the geometry, latitude, longitude or CRS of the file changes, since those are read as `file-to-db` reads them. Other columns are copied as text, so a code such as `007` is kept. Only the first layer of the file is read. The file stays PENDING, and a LOADED file is refused.
+
+`file_<file_id>_long` is dropped by `bulk-load` with the raw table, by a `file-to-db` run that stages the file as wide, and, for a file that is deleted or loaded, by the daily orphan cleanup.
 
 ---
 
@@ -88,7 +111,7 @@ POST /jobs
    - Read records from the raw staging table in batches of 100.
    - Group every 10 records into a payload and send it to the internal endpoint `POST /datasets/{datasetSlug}/dataset-file-mapping/{datasetFileMappingId}/soil-data` using an internal service token.
    - Mark the file as `LOADED`.
-   - Drop the raw staging table (`raw_<file_id>`).
+   - Drop the raw staging table (`file_<file_id>_raw`), and for a long file `file_<file_id>_long`.
    - Delete source files from storage if requested.
 4. Recalculate and persist dataset metadata: observation count, depth range, sampling date range, spatial extent, measured properties, and licence information. The dataset ends LOADED.
 

@@ -11,7 +11,7 @@ import { sanitizeField } from '../utils/utils';
 import { LayerFields } from '../types/DataMapping';
 import { createCursor, decodeCursor, encodeCursor } from '../utils/cursor';
 import { buildCleaningCte } from './CleaningCte';
-import { CleaningReport, RowDeleteReason, CellDeleteReason, CellModifyReason } from '../interfaces/CleaningReport';
+import { CleaningReport, RowDeleteReason, CellDeleteReason, CellModifyReason, LongFormatStats } from '../interfaces/CleaningReport';
 import { hasClasses, isStorableClassValue } from '../utils/soilPropertyClasses';
 
 export default class VectorDataLoad {
@@ -134,6 +134,11 @@ export default class VectorDataLoad {
       (SELECT json_agg(cell_modify_stats) FROM cell_modify_stats)   AS modifications`;
     // Workaround using raw query to be able to use dynamic table name without entity
     const [row] = await entityManager.query(query, values);
+    // What the pivot of a long File left out before the cleaning saw it (docs/adr/0081)
+    const [file]: { long_format: LongFormatStats | null }[] = await entityManager.query(
+      `SELECT metadata -> 'long_format_stats' AS long_format FROM files WHERE id = $1`,
+      [fileId],
+    );
     return {
       summary: {
         rows_deleted: row.rows_deleted,
@@ -148,6 +153,7 @@ export default class VectorDataLoad {
         count: r.count,
       })),
       modifications: (row.modifications ?? []).map((r: any) => ({ reason: r.reason as CellModifyReason, count: r.count })),
+      ...(file?.long_format && { long_format: file.long_format }),
     };
   };
 

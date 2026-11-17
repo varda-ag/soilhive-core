@@ -6,7 +6,7 @@ import { IngestionStatus } from '../../../src/types/data';
 import { getDataSource } from '../../../src/utils/data-source';
 import { addFile, addDataset, addDataMapping } from '../../../src/utils/mock';
 import FileService from '../../../src/services/FileService';
-import { getRawTableName } from '../../../src/utils/utils';
+import { getLongTableName, getRawTableName } from '../../../src/utils/utils';
 
 const makeOld = async (fileId: string, daysAgo = 8) => {
   const dataSource = await getDataSource();
@@ -18,6 +18,20 @@ const makeOld = async (fileId: string, daysAgo = 8) => {
 const createStagingTable = async (fileId: string) => {
   const dataSource = await getDataSource();
   await dataSource.query(`CREATE TABLE IF NOT EXISTS "${process.env.POSTGRES_SCHEMA}"."${getRawTableName(fileId)}" (id serial)`);
+};
+
+const createLongTable = async (fileId: string) => {
+  const dataSource = await getDataSource();
+  await dataSource.query(`CREATE TABLE IF NOT EXISTS "${process.env.POSTGRES_SCHEMA}"."${getLongTableName(fileId)}" (source_id serial)`);
+};
+
+const longTableExists = async (fileId: string): Promise<boolean> => {
+  const dataSource = await getDataSource();
+  const result = await dataSource.query(`SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`, [
+    process.env.POSTGRES_SCHEMA,
+    getLongTableName(fileId),
+  ]);
+  return result.length > 0;
 };
 
 const stagingTableExists = async (fileId: string): Promise<boolean> => {
@@ -116,6 +130,49 @@ describe('OrphanFileCleanupJob', () => {
       await processOrphanCleanup();
 
       expect(await stagingTableExists(file.id)).toBe(true);
+    });
+  });
+
+  describe('orphan long table cleanup', () => {
+    it('drops the long table of a soft-deleted file', async () => {
+      const file = await addFile('deleted_long_file');
+      await createLongTable(file.id);
+      await (await getDataSource()).getRepository(FileEntity).softDelete(file.id);
+
+      await processOrphanCleanup();
+
+      expect(await longTableExists(file.id)).toBe(false);
+    });
+
+    it('drops the long table of a LOADED file', async () => {
+      const file = await addFile('loaded_long_file');
+      await (await getDataSource()).getRepository(FileEntity).update(file.id, { status: IngestionStatus.LOADED });
+      await createLongTable(file.id);
+
+      await processOrphanCleanup();
+
+      expect(await longTableExists(file.id)).toBe(false);
+    });
+
+    it('drops the long table of an orphan file it hard-deletes', async () => {
+      const file = await addFile('orphan_long_file');
+      await (await getDataSource()).getRepository(FileEntity).update(file.id, { status: IngestionStatus.PENDING });
+      await makeOld(file.id);
+      await createLongTable(file.id);
+
+      await processOrphanCleanup();
+
+      expect(await longTableExists(file.id)).toBe(false);
+    });
+
+    it('keeps the long table of a file still being mapped', async () => {
+      const file = await addFile('mapping_long_file');
+      await (await getDataSource()).getRepository(FileEntity).update(file.id, { status: IngestionStatus.PENDING });
+      await createLongTable(file.id);
+
+      await processOrphanCleanup();
+
+      expect(await longTableExists(file.id)).toBe(true);
     });
   });
 });
