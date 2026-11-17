@@ -143,6 +143,7 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
   // react-oidc-context, which hides the error.
   useEffect(() => {
     setTokenRefresher(async () => {
+      const before = await userManager.getUser();
       try {
         const renewed = await userManager.signinSilent();
         if (renewed && !renewed.expired) {
@@ -156,6 +157,14 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
           console.warn('Silent renew could not reach the login server:', error);
           return { outcome: 'unavailable' };
         }
+      }
+      // With refresh-token rotation, another tab renewing at the same time makes this renew fail. Its
+      // new user is already stored: load it here instead of ending the session in every tab.
+      const stored = await userManager.getUser();
+      if (stored && !stored.expired && stored.access_token !== before?.access_token) {
+        await userManager.events.load(stored);
+        saveToken(stored.access_token);
+        return { outcome: 'renewed', token: stored.access_token };
       }
       clearToken();
       return { outcome: 'rejected' };

@@ -31,12 +31,16 @@ jest.mock('react-oidc-context', () => ({
 const mockSigninSilent = jest.fn();
 const mockStartSilentRenew = jest.fn();
 const mockStopSilentRenew = jest.fn();
+const mockGetUser = jest.fn();
+const mockLoadUser = jest.fn();
 jest.mock('oidc-client-ts', () => ({
   WebStorageStateStore: jest.fn().mockImplementation(() => ({})),
   UserManager: jest.fn().mockImplementation(() => ({
     signinSilent: mockSigninSilent,
     startSilentRenew: mockStartSilentRenew,
     stopSilentRenew: mockStopSilentRenew,
+    getUser: mockGetUser,
+    events: { load: mockLoadUser },
   })),
   ErrorResponse: class ErrorResponse extends Error {},
 }));
@@ -278,6 +282,33 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(await runRefresher()).toEqual({ outcome: 'rejected' });
       expect(clearToken).toHaveBeenCalledTimes(1);
       expect(removeUser).not.toHaveBeenCalled();
+    });
+
+    // With refresh-token rotation, two tabs renewing at once make the slower one get invalid_grant.
+    it('uses the token another tab just renewed when the IdP rejects this renew', async () => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      const winner = { access_token: 'other-tab-token', expired: false };
+      mockGetUser.mockResolvedValueOnce({ access_token: 'valid-token', expired: false }).mockResolvedValueOnce(winner);
+      signinSilent.mockRejectedValue(rejected());
+      (clearToken as jest.Mock).mockClear();
+
+      expect(await runRefresher()).toEqual({ outcome: 'renewed', token: 'other-tab-token' });
+      expect(saveToken).toHaveBeenCalledWith('other-tab-token');
+      expect(mockLoadUser).toHaveBeenCalledWith(winner);
+      expect(clearToken).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['still holds the token this renew used', { access_token: 'valid-token', expired: false }],
+      ['holds an expired token', { access_token: 'other-tab-token', expired: true }],
+      ['holds no user', null],
+    ])('reports a rejection when the IdP rejects the renew and storage %s', async (_, stored) => {
+      renderWithUser({ access_token: 'valid-token', expired: false });
+      mockGetUser.mockResolvedValueOnce({ access_token: 'valid-token', expired: false }).mockResolvedValueOnce(stored);
+      signinSilent.mockRejectedValue(rejected());
+
+      expect(await runRefresher()).toEqual({ outcome: 'rejected' });
+      expect(mockLoadUser).not.toHaveBeenCalled();
     });
 
     it.each([
