@@ -1,6 +1,6 @@
 # Invites and Access Requests are pending grants in their own tables
 
-**Status:** Proposed — agreed in design, not built yet.
+**Status:** Accepted (SP-5967)
 
 An **Invite** and an **Access Request** are both **Entitlements** waiting for one act: a redemption, or an admin's decision. Each lives in a table of its own. An Invite holds its grants in the same shape as `entitlements.data` (`{ datasets: {...}, configs: {...} }`), so redeeming merges them into the redeemer's row with the atomic union upsert that first-access self-grants already use (ADR 0054). The link carries a random 256-bit token in its URL fragment, so servers never log it, and only its sha256 is stored. A single-use Invite is used up by a conditional `UPDATE ... RETURNING` in the redeem transaction.
 

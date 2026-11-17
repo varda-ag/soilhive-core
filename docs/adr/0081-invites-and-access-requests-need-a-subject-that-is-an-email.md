@@ -1,6 +1,6 @@
 # Invites and Access Requests need a Subject that is an email
 
-**Status:** Proposed — agreed in design, not built yet.
+**Status:** Accepted (SP-5967)
 
 Redeeming an **Invite** and making an **Access Request** both need the caller's **Subject** to be their email: a person whose access token carries a non-blank `email` (`requireEmailSubject`). Anyone else gets a 403 with `email_required`: a **Machine caller**, whose Subject is its client id, and a person whose access token has no `email`, whose Subject is their `sub`. An Invite that names a recipient can be redeemed only by the person whose Subject matches it, ignoring case. What either flow grants goes to that Subject.
 
