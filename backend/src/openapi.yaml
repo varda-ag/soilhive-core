@@ -824,12 +824,15 @@ paths:
       x-entitlements-required: true
       summary: Starts async job
       description: >-
-        bulk-load, raster-load, file-to-db and bulk-delete jobs require data-admin or super-admin scope.
+        bulk-load, raster-load, file-to-db, long-stage and bulk-delete jobs require data-admin or super-admin scope.
         Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
         A bulk-load, raster-load or bulk-delete job is refused with 409 while its dataset already has one of
         those, or a version-reset or version-discard, queued or running, and its dataset_id is stored as the
         dataset's current id. A bulk-load or raster-load into a version is refused with 400 when it sets
         delete_source_files: resetting the version loads its files again from their uploads.
+        A long-stage job copies a long file into a staging table of its own, which the file-to-db job of
+        a mapping with long_format then pivots. Start it again after the geometry, latitude, longitude or
+        CRS of the file changes. It fails for a loaded file, and while the file is staged or its dataset loads.
         An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
         within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
         While administrators require a signed-in user to export (exportRequiresSignIn in the theme config's exportLimits),
@@ -851,6 +854,7 @@ paths:
                 - $ref: '#/components/schemas/RasterLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
+                - $ref: '#/components/schemas/LongStageJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
               discriminator:
                 propertyName: type
@@ -859,6 +863,7 @@ paths:
                   raster-load: '#/components/schemas/RasterLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
+                  long-stage: '#/components/schemas/LongStageJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
       responses:
         '200':
@@ -3308,6 +3313,34 @@ components:
         detected_mapping:
           type: object
           additionalProperties: true
+        detected_format:
+          type: string
+          enum: [wide, long]
+          description: >
+            Suggested from the first rows of the file. wide: one column per property. long: one row per
+            measured value. Absent on older files, which read as wide.
+        detected_long_roles:
+          type: object
+          description: The suggested role columns of a long file. Only when detected_format is long.
+          properties:
+            property_col:
+              type: string
+              nullable: true
+              description: null when the file names no property, so one is set for the whole file
+            value_col:
+              type: string
+              nullable: true
+            unit_col:
+              type: string
+              nullable: true
+            method_code_col:
+              type: string
+              nullable: true
+            procedure_cols:
+              type: object
+              description: Procedure field to the column holding it
+              additionalProperties:
+                type: string
         field_names:
           type: array
           items:
@@ -4202,6 +4235,8 @@ components:
           items:
             type: integer
           description: Row indices to exclude from the import
+        long_format:
+          $ref: '#/components/schemas/LongFormatMapping'
       additionalProperties:
         oneOf:
           - type: string
@@ -4211,6 +4246,9 @@ components:
         Values can be either:
         - A string (for metadata columns like 'min_depth', 'max_depth', 'sampling_date', etc.)
         - A PropertyMapping object (for property columns with conversion/procedure info)
+
+        A mapping with long_format is of a long file, with one row per measured value: it maps
+        measurement types in place of property columns, so it holds no PropertyMapping value.
       example:
         magnesium:
           property_id: 'magnesium'
@@ -4230,6 +4268,104 @@ components:
         property_id:
           type: string
           description: ID of the soil property
+        conversion_id:
+          type: string
+          description: Optional ID for unit conversion
+        min_val:
+          type: number
+          description: Optional minimum value constraint
+        max_val:
+          type: number
+          description: Optional maximum value constraint
+        procedure_id:
+          type: string
+          description: Optional slug for the procedure
+
+    LongFormatMapping:
+      type: object
+      description: >
+        The role columns of a long file and its mapped measurement types. A measurement type is one
+        combination of property code, unit and procedure values found in the file. One that is not
+        listed is not loaded. Either property_col or fixed_property_id is set, not both.
+      required:
+        - value_col
+        - measurement_types
+      properties:
+        property_col:
+          type: string
+          description: Column holding the property code of each row
+        fixed_property_id:
+          type: string
+          description: The soil property of the whole file, for a file with no property column
+        value_col:
+          type: string
+          description: Column holding the measured value
+        unit_col:
+          type: string
+          description: Optional column holding the unit of each row
+        method_code_col:
+          type: string
+          description: Optional column holding a method code of each row
+        procedure_cols:
+          type: object
+          description: Optional. Procedure field to the column holding it
+          properties:
+            technique:
+              type: string
+            sample_pretreatment:
+              type: string
+            laboratory_method:
+              type: string
+            extractant_concentration:
+              type: string
+            extraction_ratio:
+              type: string
+            extraction_base:
+              type: string
+            measurement_procedure:
+              type: string
+            limit_of_detection:
+              type: string
+          additionalProperties: false
+        measurement_types:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/MeasurementTypeMapping'
+      example:
+        property_col: det
+        value_col: conc
+        unit_col: um
+        measurement_types:
+          - col: s1
+            match:
+              property: P_OLSEN_2
+              unit: mg kg-1
+            property_id: 'phosphorus-extractable'
+            conversion_id: 'mg-kg'
+
+    MeasurementTypeMapping:
+      type: object
+      required:
+        - col
+        - match
+      properties:
+        col:
+          type: string
+          pattern: '^s[1-9][0-9]*$'
+          description: Name of its column in the staged table, such as s1. Unique in the mapping, and kept once given.
+        match:
+          type: object
+          description: >
+            The values of the file that define the measurement type, one per role column of the mapping:
+            property, unit, method_code and the procedure fields. Compared trimmed; null or absent matches an empty cell.
+          additionalProperties:
+            type: string
+            nullable: true
+        property_id:
+          type: string
+          description: ID of the soil property. May be left out when the mapping sets fixed_property_id.
         conversion_id:
           type: string
           description: Optional ID for unit conversion
@@ -4362,6 +4498,21 @@ components:
           nullable: true
           description: Optional. Dataset the file belongs to — used to surface staging errors per dataset. If omitted, errors for this job will not appear in GET /errors/datasets.
 
+    LongStageJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [long-stage]
+          description: Job type
+        file_id:
+          type: string
+          description: Long file to copy into its staging table, as it is
+        dataset_id:
+          type: string
+          nullable: true
+          description: Optional. Dataset the file belongs to — used to surface staging errors per dataset. If omitted, errors for this job will not appear in GET /errors/datasets.
+
     BulkDeleteJob:
       type: object
       properties:
@@ -4402,6 +4553,7 @@ components:
             - $ref: '#/components/schemas/BulkLoadJob'
             - $ref: '#/components/schemas/ExportJob'
             - $ref: '#/components/schemas/FileToDbJob'
+            - $ref: '#/components/schemas/LongStageJob'
             - $ref: '#/components/schemas/BulkDeleteJob'
 
     License:

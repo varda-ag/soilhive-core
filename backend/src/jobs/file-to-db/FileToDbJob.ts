@@ -28,7 +28,7 @@ export async function processFileToDb(job: Job<FileToDbJob>): Promise<void> {
  * is reading would change what it loads, and its row-count check can't tell, since the loader counts
  * what it wrote. A check rather than a lock: file-to-db stays out of the Dataset locks (docs/adr/0042).
  */
-const assertNoBulkLoad = async (entityManager: EntityManager, file: FileEntity): Promise<void> => {
+export const assertNoBulkLoad = async (entityManager: EntityManager, file: FileEntity): Promise<void> => {
   const datasets: { slug: string }[] = await entityManager.query(
     `SELECT DISTINCT d.slug FROM dataset_file_mappings dfm JOIN datasets d ON d.id = dfm.dataset_id WHERE dfm.file_id = $1`,
     [file.id],

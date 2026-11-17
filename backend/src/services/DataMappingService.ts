@@ -15,6 +15,10 @@ import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
 import { sanitizeField } from '../utils/utils';
 import { hasClasses } from '../utils/soilPropertyClasses';
+import { isLongMapping, longFormatProblem } from '../utils/longFormat';
+
+// The mapping keys that are not source columns
+const RESERVED_KEYS = ['drop_records', 'long_format'];
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMappingEntity> => {
@@ -22,6 +26,12 @@ export default class DataMappingService {
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
+    }
+    if (dataMapping.long_format !== undefined && typeof dataMapping.long_format !== 'string') {
+      const problem = longFormatProblem(dataMapping);
+      if (problem) {
+        throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
+      }
     }
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
 
@@ -52,10 +62,23 @@ export default class DataMappingService {
     };
     const dataMappingEntity = await this.getDataMapping(requestData, id);
     const data_mapping = dataMappingEntity.data_mapping;
+    // The Measurement Types of a long File stand where the property columns of a wide one do, each
+    // under the column the pivot gives it in the raw table (docs/adr/0081)
+    const long = isLongMapping(data_mapping) ? data_mapping.long_format : undefined;
+    const longProperties: Record<string, PropertyMapping> = {};
+    for (const { col, match: _match, ...props } of long?.measurement_types ?? []) {
+      longProperties[col] = { ...props, property_id: props.property_id ?? long!.fixed_property_id! };
+    }
+    const propertyMappings: (PropertyMapping | string)[] = [
+      ...Object.entries(data_mapping)
+        .filter(([field]) => !RESERVED_KEYS.includes(field))
+        .map(([, mapping]) => mapping as PropertyMapping | string),
+      ...Object.values(longProperties),
+    ];
 
     const conversionSlugs: string[] = [
       ...new Set(
-        Object.values(data_mapping)
+        propertyMappings
           .filter(
             mapping =>
               typeof mapping === 'object' &&
@@ -72,7 +95,7 @@ export default class DataMappingService {
     let ucInfoMap: Map<string, UnitConversionEntity>;
     const propertySlugs: string[] = [
       ...new Set(
-        Object.values(data_mapping)
+        propertyMappings
           .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
           .map(mapping => (mapping as PropertyMapping).property_id),
       ),
@@ -91,7 +114,7 @@ export default class DataMappingService {
 
     const procedureSlugs: string[] = [
       ...new Set(
-        Object.values(data_mapping)
+        propertyMappings
           .filter(
             mapping =>
               typeof mapping === 'object' &&
@@ -114,7 +137,8 @@ export default class DataMappingService {
     );
 
     // Process metadata (string types) and property columns (object types)
-    for (const [field, mapping] of Object.entries(data_mapping)) {
+    for (const [field, mapping] of [...Object.entries(data_mapping), ...Object.entries(longProperties)]) {
+      if (long && field === 'long_format') continue;
       if ([DetectableFields.GEOMETRY, DetectableFields.LATITUDE, DetectableFields.LONGITUDE].includes(mapping as DetectableFields)) {
         continue;
       }

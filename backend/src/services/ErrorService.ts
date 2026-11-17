@@ -18,7 +18,7 @@ export interface DatasetError {
 type StoredError = { code: string; params?: Record<string, unknown>; detail?: string };
 
 // The queues whose failures are a Dataset's errors
-const DATASET_ERROR_QUEUES = `('file-to-db', 'bulk-load', 'raster-load', 'bulk-delete', 'version-reset', 'version-discard', 'version-publish')`;
+const DATASET_ERROR_QUEUES = `('file-to-db', 'long-stage', 'bulk-load', 'raster-load', 'bulk-delete', 'version-reset', 'version-discard', 'version-publish')`;
 
 // The Dataset a failed job's errors belong to, by slug. A version-publish locks the Dataset it
 // publishes into by dataset_id, but its errors are the Version's, where it's published from.

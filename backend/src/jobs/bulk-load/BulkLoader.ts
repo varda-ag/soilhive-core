@@ -19,7 +19,7 @@ import { JobError } from '../../errors/JobError';
 import ErrorService from '../../services/ErrorService';
 import { ErrorResponse, getErrorMessage } from '../../utils/error';
 import { log } from '../../utils/logger';
-import { getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
+import { getLongTableName, getLoopbackUrl, getRawTableName, signToken } from '../../utils/utils';
 import { updateDatasetMetadata } from './UpdateDatasetMetadata';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../services/FileService';
@@ -94,6 +94,8 @@ export async function processBulkLoad(job: Job<BulkLoadJob>): Promise<void> {
     // Delete raw table
     const rawTableName = getRawTableName(file.id);
     await entityManager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${rawTableName}"`);
+    // And the table a long File was staged in before its pivot (docs/adr/0081)
+    await entityManager.query(`DROP TABLE IF EXISTS "${process.env.POSTGRES_SCHEMA}"."${getLongTableName(file.id)}"`);
     if (data.delete_source_files) {
       // Delete source files
       const storage: FileStorage = FileService.getStorageEngine();

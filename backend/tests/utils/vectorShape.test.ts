@@ -155,7 +155,10 @@ describe('suggestShape', () => {
       );
       const detected = { ...NO_FIELDS, latitude: 'lat', longitude: 'lon' };
 
-      expect(suggestShape(header, features, detected, NO_VOCABULARY).roles).toMatchObject({ property_col: 'parameter', value_col: 'result' });
+      expect(suggestShape(header, features, detected, NO_VOCABULARY).roles).toMatchObject({
+        property_col: 'parameter',
+        value_col: 'result',
+      });
     });
 
     it('finds the unit column by what it holds', () => {

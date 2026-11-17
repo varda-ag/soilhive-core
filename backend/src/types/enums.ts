@@ -25,6 +25,8 @@ export enum JobQueues {
   RASTER_LOAD = 'raster-load',
   EXPORT = 'export',
   FILE_TO_DB = 'file-to-db',
+  // Copies a long File into its long table, for file-to-db to pivot (docs/adr/0081)
+  LONG_STAGE = 'long-stage',
   BULK_DELETE = 'bulk-delete',
   CLEANUP_ORPHAN_FILES = 'cleanup-orphan-files',
   REFRESH_DAI_STATS = 'refresh-dai-stats',

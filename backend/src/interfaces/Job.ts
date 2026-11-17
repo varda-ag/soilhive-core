@@ -9,6 +9,7 @@ export type AnyJob =
   | RasterLoadJob
   | ExportJob
   | FileToDbJob
+  | LongStageJob
   | BulkDeleteJob
   | RefreshDaiStatsJob
   | DataRequestJob
@@ -88,6 +89,11 @@ export interface ExportOutputs {
 }
 
 export interface FileToDbJob extends CommonJobData {
+  file_id: string;
+  dataset_id?: string;
+}
+
+export interface LongStageJob extends CommonJobData {
   file_id: string;
   dataset_id?: string;
 }

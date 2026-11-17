@@ -75,6 +75,7 @@ export default class JobService {
       data.type === JobQueues.BULK_LOAD ||
       data.type === JobQueues.RASTER_LOAD ||
       data.type === JobQueues.FILE_TO_DB ||
+      data.type === JobQueues.LONG_STAGE ||
       data.type === JobQueues.BULK_DELETE ||
       data.type === JobQueues.RASTER_FILTER_INSTALL ||
       data.type === JobQueues.VERSION_RESET ||

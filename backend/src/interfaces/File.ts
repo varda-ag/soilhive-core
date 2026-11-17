@@ -1,4 +1,4 @@
-import type { IngestionStatus, VocabularyType } from '../types/data';
+import type { IngestionStatus, ProcedureField } from '../types/data';
 import { DataMappingObject, DetectableFields } from '../types/DataMapping';
 import type { Envelope } from '../utils/GdalCLI';
 
@@ -52,8 +52,6 @@ export interface RasterFileMetadata extends GeoreferenceMetadata {
 
 /** Wide: one column per property. Long: one row per measured value (docs/adr/0081). */
 export type VectorFormat = 'wide' | 'long';
-
-export type ProcedureField = 'technique' | `${VocabularyType}`;
 
 /** The columns of a long File, by the role each plays. */
 export interface LongRoles {

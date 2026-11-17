@@ -1,6 +1,6 @@
 import { EntityManager } from 'typeorm';
 import { StatusCodes } from 'http-status-codes';
-import { PG_BOSS_SCHEMA } from '../services/PgBoss';
+import { PG_BOSS_SCHEMA } from '../utils/pgBossSchema';
 import { JobQueues } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
 import { QueuedJob } from '../interfaces/Job';
@@ -100,6 +100,19 @@ export async function getActiveJob(entityManager: EntityManager, queues: string[
     [queues, slugs],
   );
   return job ?? null;
+}
+
+/** Whether a job on the queue is running for the File, which its data names by id or by slug. */
+export async function hasActiveFileJob(
+  entityManager: EntityManager,
+  queue: JobQueues,
+  file: { id: string; slug: string },
+): Promise<boolean> {
+  const [job] = await entityManager.query(
+    `SELECT 1 FROM ${PG_BOSS_SCHEMA}.job WHERE name = $1 AND state = 'active' AND data->>'file_id' = ANY($2) LIMIT 1`,
+    [queue, [file.id, file.slug]],
+  );
+  return !!job;
 }
 
 /**

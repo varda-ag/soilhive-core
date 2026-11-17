@@ -1,4 +1,5 @@
-import { LongRoles, ProcedureField, VectorFormat } from '../interfaces/File';
+import { LongRoles, VectorFormat } from '../interfaces/File';
+import { ProcedureField } from '../types/data';
 import { DetectableFields } from '../types/DataMapping';
 import { OgrSampleFeature } from './GdalCLI';
 

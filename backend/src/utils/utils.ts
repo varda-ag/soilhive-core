@@ -341,6 +341,11 @@ export const getRawTableName = (fileId: string): string => {
   return `file_${sanitizeField(fileId)}_raw`;
 };
 
+/** Where a long File is staged as it is, before file-to-db pivots it into the raw table (docs/adr/0081). */
+export const getLongTableName = (fileId: string): string => {
+  return `file_${sanitizeField(fileId)}_long`;
+};
+
 // Internal-request and download tokens; Password-grant tokens are signed in utils/password-grant-key.ts
 export const signToken = (payload: string | object | Buffer, expiresIn?: number) => {
   assert(process.env.SELF_SIGNING_SECRET, 'Self-signing secret is not defined');

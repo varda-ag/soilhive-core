@@ -4,6 +4,7 @@ import {
   BulkLoadJob,
   ExportJob,
   FileToDbJob,
+  LongStageJob,
   BulkDeleteJob,
   RefreshDaiStatsJob,
   RasterLoadJob,
@@ -16,6 +17,7 @@ import {
   VersionPublishJob,
 } from '../interfaces/Job';
 import { JobQueues } from '../types/enums';
+import { PG_BOSS_SCHEMA } from '../utils/pgBossSchema';
 import {
   getDataRequestsConcurrency,
   getJobGroupConcurrency,
@@ -26,6 +28,7 @@ import {
 } from '../utils/utils';
 import { processExportJob } from '../jobs/soil-export/soilExportJob';
 import { processFileToDb } from '../jobs/file-to-db/FileToDbJob';
+import { processLongStage } from '../jobs/long-stage/LongStageJob';
 import { processBulkLoad } from '../jobs/bulk-load/BulkLoader';
 import { processRasterLoad } from '../jobs/raster-load/RasterLoader';
 import { processBulkDeletion } from '../jobs/bulk-delete/BulkDeleter';
@@ -51,7 +54,7 @@ import { EntityType } from '../types/data';
 
 setupEnv();
 
-export const PG_BOSS_SCHEMA = `${process.env.POSTGRES_SCHEMA!}_pgboss`;
+export { PG_BOSS_SCHEMA };
 
 let globalBoss: PgBoss | null = null;
 let globalInitialized = false;
@@ -250,6 +253,7 @@ const setupWorkers = async () => {
   await work<RasterLoadJob>(JobQueues.RASTER_LOAD, { ...options, localConcurrency: 1 }, job => processRasterLoad(job));
   await work<ExportJob>(JobQueues.EXPORT, options, job => processExportJob(job));
   await work<FileToDbJob>(JobQueues.FILE_TO_DB, options, job => processFileToDb(job));
+  await work<LongStageJob>(JobQueues.LONG_STAGE, options, job => processLongStage(job));
   await work<BulkDeleteJob>(JobQueues.BULK_DELETE, options, job => processBulkDeletion(job));
   await work<object>(JobQueues.CLEANUP_ORPHAN_FILES, options, () => processOrphanCleanup());
   await work<RefreshDaiStatsJob>(JobQueues.REFRESH_DAI_STATS, options, job => processRefreshDaiStats(job));
