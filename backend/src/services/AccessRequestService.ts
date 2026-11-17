@@ -1,13 +1,10 @@
 import { StatusCodes } from 'http-status-codes';
 import { QueryFailedError } from 'typeorm';
-import { THEME_CONFIG_ID } from '../constants/constants';
 import AccessRequestEntity from '../entities/AccessRequest';
 import AccessRequestItemEntity from '../entities/AccessRequestItem';
-import { JsonStorage } from '../entities/JsonStorage';
 import { RequestData } from '../interfaces/RequestData';
 import {
   ACCESS_REQUEST_CAPABILITIES,
-  ACCESS_REQUESTS_ENABLED_KEY,
   type AccessRequestCreateBody,
   type AccessRequestDecision,
   type AccessRequestItemStatus,
@@ -60,16 +57,7 @@ const sortedUnique = (capabilities: Capability[]): Capability[] => [...new Set(c
 
 /** Access Requests: a Subject asks admins for access to private Datasets (docs/adr/0082). */
 export default class AccessRequestService {
-  /** Whether admins turned Access Requests on, in the theme config. Off unless set. */
-  isEnabled = async (requestData: RequestData): Promise<boolean> => {
-    const row = await requestData.entityManager.getRepository(JsonStorage).findOneBy({ id: THEME_CONFIG_ID });
-    return (row?.data as Record<string, unknown> | undefined)?.[ACCESS_REQUESTS_ENABLED_KEY] === true;
-  };
-
   createAccessRequest = async (requestData: RequestData, body: AccessRequestCreateBody): Promise<AccessRequestView> => {
-    if (!(await this.isEnabled(requestData))) {
-      throw new ErrorResponse('Access requests are turned off on this deployment', StatusCodes.FORBIDDEN);
-    }
     if (isPrivilegedCaller(requestData.token)) {
       throw invalid('An admin already has access to every Dataset');
     }

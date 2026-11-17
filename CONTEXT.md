@@ -417,7 +417,6 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - An **Access Request** names only private, published **Datasets** and asks for `preview`, `download` or both; it may be approved for less than it asks
 - An **Access Request** is decided one **Dataset** at a time and is finished when every Dataset in it is decided; its requester may withdraw it before then. A denial is final for that request only: the same Subject may ask again
 - A **Subject** has at most one pending **Access Request** per **Dataset**, and a pending Access Request never expires
-- **Access Requests** can be made only on a deployment whose admins have turned them on; **Invites** need no such switch
 - Withdrawing an **Invite** takes back nothing already redeemed: an **Entitlement** does not record how it was granted, so taking access back is always done on the Entitlements themselves
 - An **Invite** is redeemed whole or not at all. Its config item grants hold only while its creator still holds `write` on those items; its **Dataset** grants, made by a **Privileged caller**, do not depend on the creator afterwards
 - One **Invite** may hold grants on several config items and **Datasets** at once. A pending Invite, its recipient and who redeemed it are visible only to its creator and to those who could have created it, and only they may withdraw it

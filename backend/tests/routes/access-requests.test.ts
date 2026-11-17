@@ -2,9 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it } from '@jest/globals';
 import { StatusCodes } from 'http-status-codes';
 import request from 'supertest';
 import { app } from '../../src/app';
-import { THEME_CONFIG_ID } from '../../src/constants/constants';
 import DatasetEntity from '../../src/entities/Dataset';
-import { JsonStorage } from '../../src/entities/JsonStorage';
 import { RequestData } from '../../src/interfaces/RequestData';
 import AccessRequestService from '../../src/services/AccessRequestService';
 import { getEntityManager } from '../../src/utils/data-source';
@@ -19,10 +17,6 @@ const addPrivateDataset = async (name: string): Promise<DatasetEntity> => {
   const dataset = await addDataset(name, [0, 0, 1, 1]);
   await (await getEntityManager()).getRepository(DatasetEntity).update({ id: dataset.id }, { visibility: 'private' });
   return dataset;
-};
-
-const setAccessRequests = async (enabled: boolean) => {
-  await (await getEntityManager()).getRepository(JsonStorage).save({ id: THEME_CONFIG_ID, data: { accessRequestsEnabled: enabled } });
 };
 
 const datasetGrantsOf = async (subject: string) => {
@@ -44,7 +38,6 @@ describe('Access Requests', () => {
     janeToken = getUserToken('jane-sub', JANE);
     a = await addPrivateDataset('Alpha');
     b = await addPrivateDataset('Bravo');
-    await setAccessRequests(true);
   });
 
   const ask = (token: string, body: object) => request(app).post('/access-requests').set(auth(token)).send(body);
@@ -68,11 +61,6 @@ describe('Access Requests', () => {
         ],
       });
       expect(res.body.items[0].decided_by).toBeUndefined();
-    });
-
-    it('is refused while admins have not turned it on', async () => {
-      await setAccessRequests(false);
-      expect((await askForBoth()).statusCode).toBe(StatusCodes.FORBIDDEN);
     });
 
     it('refuses a public Dataset, an unknown one, and an admin', async () => {

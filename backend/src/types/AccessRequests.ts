@@ -5,9 +5,6 @@ export const ACCESS_REQUEST_MAX_DATASETS = 50;
 /** What an Access Request may ask for (docs/adr/0082). */
 export const ACCESS_REQUEST_CAPABILITIES: readonly Capability[] = [Capability.PREVIEW, Capability.DOWNLOAD];
 
-/** Where Access Requests are turned on, in the theme config. */
-export const ACCESS_REQUESTS_ENABLED_KEY = 'accessRequestsEnabled';
-
 export type AccessRequestItemStatus = 'pending' | 'approved' | 'denied' | 'withdrawn';
 
 /** `pending` while any Dataset in it waits for a decision; `withdrawn` when its requester withdrew all that was left. */
