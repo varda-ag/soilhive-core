@@ -20,4 +20,4 @@ Entitlements do not record where they came from. Redemptions and decisions are r
 
 - Withdrawing an Invite takes back nothing already redeemed.
 - An admin who loses their role keeps their Dataset Invites valid until they expire (30 days at most). Any other admin can withdraw them.
-- A **Purge** and the deletion of a plugin config item must also clean up pending Invites and Access Requests, so both paths gain a step.
+- A **Purge** and the deletion of a plugin config item must also clean up pending Invites and Access Requests, so both paths gain a step. That step runs before the Entitlements are stripped, and a redeem reads its grants again under a row lock. So a redeem or an approval under way either commits its grant before the strip or finds the Dataset or config item already gone, and no grant is left behind.

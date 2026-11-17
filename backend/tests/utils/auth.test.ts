@@ -108,6 +108,19 @@ describe('getSubject', () => {
     expect(getSubject(requestData)).toBe('auth|123');
   });
 
+  it.each(['', '  '])('should fall back to sub when the email is blank (%p)', email => {
+    // The regression this guards: a provider that sends an empty `email` used to collapse every
+    // person into the one shared Subject ''.
+    const requestData = buildRequestData({ sub: 'auth|123', email });
+    expect(getSubject(requestData)).toBe('auth|123');
+  });
+
+  it('should keep any other email exactly as sent', () => {
+    // Trimming it would move the Subject, and with it every grant already keyed by the email
+    const requestData = buildRequestData({ sub: 'auth|123', email: ' user@example.com' });
+    expect(getSubject(requestData)).toBe(' user@example.com');
+  });
+
   it('should throw a 401 ErrorResponse when the token sub is missing', () => {
     const requestData = buildRequestData({ sub: undefined, email: 'user@example.com' });
     expect(() => getSubject(requestData)).toThrow(ErrorResponse);

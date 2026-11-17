@@ -123,8 +123,9 @@ export default class ConfigService {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     await repo.softDelete({ id });
     if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
-      await entitlementService.deleteEntityEntitlements(requestData, EntitlementScope.CONFIGS, id);
+      // Invites first, so a redeem under way can't grant after the strip (see dropFromPendingInvites)
       await new InviteService().dropFromPendingInvites(requestData, EntitlementScope.CONFIGS, id);
+      await entitlementService.deleteEntityEntitlements(requestData, EntitlementScope.CONFIGS, id);
     }
   };
 

@@ -78,8 +78,9 @@ export async function processVersionPublish(job: Job<VersionPublishJob>): Promis
       // v2's grants go with it, as on a discard; v1's are replaced only when the settings carry them
       const managerRequestData = { ...requestData, entityManager: manager };
       const entitlementService = new EntitlementService();
-      await entitlementService.deleteEntityEntitlements(managerRequestData, EntitlementScope.DATASETS, version.slug);
+      // Invites first, so a redeem under way can't grant after the strip (see dropFromPendingInvites)
       await new InviteService().dropFromPendingInvites(managerRequestData, EntitlementScope.DATASETS, version.slug);
+      await entitlementService.deleteEntityEntitlements(managerRequestData, EntitlementScope.DATASETS, version.slug);
       if (data.entitlements) {
         await entitlementService.setEntityEntitlements(managerRequestData, EntitlementScope.DATASETS, dataset.slug, data.entitlements);
       }

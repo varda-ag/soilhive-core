@@ -210,6 +210,10 @@ export default class AccessRequestService {
   /**
    * Removes a purged Dataset from every pending request; a request left with nothing ends. Decided
    * ones stay as history: the Dataset's record survives a Purge (docs/adr/0082).
+   *
+   * Call it before the Entitlements are stripped, in the same transaction, as with
+   * InviteService.dropFromPendingInvites: its delete waits for an approval under way, whose grant
+   * is then there for the strip to remove, and an approval that comes after finds nothing pending.
    */
   dropDataset = async (requestData: RequestData, datasetId: string): Promise<void> => {
     const manager = requestData.entityManager;

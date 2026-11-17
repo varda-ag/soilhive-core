@@ -208,6 +208,31 @@ describe('Invites', () => {
         expect((await grantsOf('jane-sub')).configs).toEqual({ [CONFIG_ID]: ['read'] });
         expect(await grantsOf(JANE)).toBeUndefined();
       });
+
+      it('grants what the Invite holds when it is used up, not what it held when the redeem began', async () => {
+        const otherId = 'plugin:dashboards:dashboards:2';
+        await request(app).put(`/configs/${otherId}`).set(auth(ownerToken)).send({ title: 'Other' }).expect(StatusCodes.OK);
+        const { token } = (
+          await createInvite(ownerToken, { grants: { configs: { [CONFIG_ID]: ['read'], [otherId]: ['read'] } }, recipient: JANE })
+        ).body;
+        // A config item delete's cleanup commits while the redeem waits for the identity provider
+        fetchSpy.mockImplementation(async input => {
+          if (String(input) === `${authority}/.well-known/openid-configuration`) {
+            return { ok: true, json: async () => ({ userinfo_endpoint: `${authority}/userinfo` }) } as Response;
+          }
+          await new InviteService().dropFromPendingInvites(
+            { entityManager: await getEntityManager(), entitlements: {} } as RequestData,
+            EntitlementScope.CONFIGS,
+            otherId,
+          );
+          return { ok: true, json: async () => ({ sub: 'jane-sub', email: JANE }) } as Response;
+        });
+
+        const redeemed = await redeem(tokenWithoutEmail, token).expect(StatusCodes.OK);
+
+        expect(redeemed.body.grants).toEqual({ configs: { [CONFIG_ID]: ['read'] } });
+        expect((await grantsOf('jane-sub')).configs).toEqual({ [CONFIG_ID]: ['read'] });
+      });
     });
   });
 

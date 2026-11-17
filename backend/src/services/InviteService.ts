@@ -123,21 +123,37 @@ export default class InviteService {
     if (!invite.created_by_privileged) {
       await this.assertCreatorStillHolds(requestData, invite);
     }
-    if (!invite.reusable) {
-      const { raw } = await manager
-        .createQueryBuilder()
-        .update(InviteEntity)
-        .set({ used_at: () => 'now()' })
-        .where('id = :id AND used_at IS NULL AND deleted_at IS NULL AND expires_at > now()', { id: invite.id })
-        .returning('id')
-        .execute();
-      if (raw.length === 0) {
-        throw new ErrorResponse('This Invite has already been used', StatusCodes.GONE);
-      }
-    }
+    const grants = await this.lockGrants(requestData, invite);
     await manager.createQueryBuilder().insert().into(InviteRedemptionEntity).values({ invite_id: invite.id, subject }).orIgnore().execute();
-    await entitlementService.grantSelf(requestData, invite.grants);
-    return invite.grants;
+    await entitlementService.grantSelf(requestData, grants);
+    return grants;
+  };
+
+  /**
+   * The Invite's grants as they stand now, under a row lock held until the redeem's transaction
+   * ends; the same statement uses up a single-use Invite. Not the copy read before the checks: a
+   * Purge or a config item delete may have stripped the Invite since, and a grant made from that
+   * copy would outlive the cleanup. The cleanup waits for this lock (see dropFromPendingInvites).
+   */
+  private lockGrants = async (requestData: RequestData, invite: InviteEntity): Promise<Entitlements> => {
+    const manager = requestData.entityManager;
+    const live = `"id" = $1 AND "deleted_at" IS NULL AND "expires_at" > now()`;
+    let rows: { grants: Entitlements }[];
+    if (invite.reusable) {
+      rows = await manager.query(`SELECT "grants" FROM "invites" WHERE ${live} FOR SHARE`, [invite.id]);
+    } else {
+      // A raw UPDATE resolves to [rows, rowCount] (TypeORM's postgres driver)
+      [rows] = await manager.query(
+        `UPDATE "invites" SET "used_at" = now(), "updated_at" = now() WHERE ${live} AND "used_at" IS NULL RETURNING "grants"`,
+        [invite.id],
+      );
+    }
+    const locked = rows[0];
+    if (!locked) {
+      // Used up, withdrawn, stripped to nothing or expired since it was read
+      throw new ErrorResponse('This Invite is no longer available', StatusCodes.GONE);
+    }
+    return locked.grants;
   };
 
   /**
@@ -180,6 +196,11 @@ export default class InviteService {
   /**
    * Removes an entity from every Invite not yet used up, as a Purge or a plugin config item delete
    * destroys its Entitlements; one left granting nothing is withdrawn (docs/adr/0082).
+   *
+   * Call it before the Entitlements are stripped, in the same transaction. Its update waits for a
+   * redeem that holds an Invite's row (lockGrants), so that redeem's grant is committed by the time
+   * the strip runs, and a redeem that comes after reads the Invite without the entity. The other
+   * way round, a redeem between the two steps would leave a grant the strip never saw.
    */
   dropFromPendingInvites = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<void> => {
     const keys = await entitlementService.resolveSlugs(requestData, scope, slug);

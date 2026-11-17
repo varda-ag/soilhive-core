@@ -106,6 +106,8 @@ Notes:
 - A machine caller's `email`, if its service-account record has one, is deliberately ignored — its
   identity is the client, so that an edit to the service account in the identity provider cannot
   move the machine's entitlements.
+- A blank `email` counts as absent, so the Subject is the `sub`. Some providers send an empty
+  string, and every person would otherwise share one Subject.
 - `email_verified` is not consulted anywhere. The identity provider is trusted to issue truthful
   email claims; see `docs/adr/0022-identity-is-the-subject-not-the-token-sub.md`.
 - An Invite naming a recipient is the one exception to "access token only". When the access token

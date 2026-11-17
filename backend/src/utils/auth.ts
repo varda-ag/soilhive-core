@@ -75,7 +75,9 @@ export const isMachineCaller = (token?: Token): boolean => token?.gty === CLIENT
 /**
  * Resolves the caller's Subject: Entitlements and every `created_by` will take this value:
  * - A **Machine caller** (`gty` equals client-credentials grant) is its `client_id`.
- * - Everyone else is their `email`, else `sub`.
+ * - Everyone else is their `email`, else `sub`. A blank `email` counts as none: taken as it is,
+ *   every person whose token carries one would share the Subject `''`, and each other's grants.
+ *   Any other email is kept exactly as sent, so no existing Subject changes.
  * Note the ordering: `requireSub` runs first, so a token carrying `client_id` but no `sub` is
  * still a 401 rather than resolving to the client.
  */
@@ -84,7 +86,8 @@ export const getSubject = (requestData: RequestData): string => {
   if (isMachineCaller(requestData.token)) {
     return requestData.token!.client_id ?? sub;
   }
-  return requestData.token?.email ?? sub;
+  const email = requestData.token?.email;
+  return typeof email === 'string' && email.trim() ? email : sub;
 };
 
 /**
