@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthContextProvider } from './auth/AuthContextProvider';
+import { RefetchOnSignInChange } from './auth/RefetchOnSignInChange';
 import { ThemeProvider, NotificationProvider, DownloadsProvider, RemotesProvider } from './contexts';
 import { AvailabilityMapProvider } from './contexts/AvailabilityMapContext';
 import './utilities/i18n';
@@ -16,6 +17,7 @@ function App() {
       <NotificationProvider>
         <CookieConsentProvider>
           <AuthContextProvider>
+            <RefetchOnSignInChange />
             <ThemeProvider>
               <DownloadsProvider>
                 <RemotesProvider>
