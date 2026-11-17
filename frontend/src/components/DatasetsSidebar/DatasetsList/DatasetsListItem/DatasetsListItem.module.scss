@@ -29,6 +29,9 @@
     padding: 11px 12px 10px;
 
     > .Top {
+      // Keeps space above the Metadata button, also for long titles and the pills row
+      margin-bottom: 0.5rem;
+
       > .Title {
         font-weight: bold;
         padding-right: 1.125rem;
