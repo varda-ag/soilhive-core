@@ -292,18 +292,34 @@ export default class VectorDataLoad {
         value: r['value'],
       };
     });
+    // Two columns of one property and procedure that hold the same value make one Observation.
+    // Sent twice, the upsert below fails: one statement cannot touch a row a second time.
+    const dedupedObservationRows = Array.from(
+      new Map(finalObservationRows.map(r => [`${r.dataset_layer_id}_${r.procedure_id}_${numericKey(r.value)}`, r])).values(),
+    );
     // upsert observations
-    if (finalObservationRows.length > 0) {
+    if (dedupedObservationRows.length > 0) {
       await entityManager
         .createQueryBuilder()
         .insert()
         .into(ObservationEntity)
-        .values(finalObservationRows)
+        .values(dedupedObservationRows)
         .orUpdate(['dataset_layer_id', 'procedure_id', 'value'], ['dataset_layer_id', 'procedure_id', 'value'])
         .execute();
     }
   };
 }
+
+/** A value as the numeric column compares it: '6.80', '06.8' and 6.8 are one value. */
+export const numericKey = (value: unknown): string => {
+  const text = String(value).trim();
+  if (!/^-?\d+(\.\d+)?$/.test(text)) return String(Number(text));
+  const key = text
+    .replace(/^(-?)0+(?=\d)/, '$1')
+    .replace(/(\.\d*?)0+$/, '$1')
+    .replace(/\.$/, '');
+  return key === '-0' ? '0' : key;
+};
 
 const buildSortExpr = (sortKey: string, dataMappingConfig: DataCleaningConfig): string => {
   const propConfig = dataMappingConfig.property_cols[sortKey];

@@ -1,6 +1,6 @@
 import { EntityManager } from 'typeorm';
 import { StatusCodes } from 'http-status-codes';
-import { PG_BOSS_SCHEMA } from '../services/PgBoss';
+import { PG_BOSS_SCHEMA } from '../utils/pgBossSchema';
 import { JobQueues } from '../types/enums';
 import { ErrorResponse } from '../utils/error';
 import { queueReapCode, translateJobError } from '../errors/jobErrorMessages';

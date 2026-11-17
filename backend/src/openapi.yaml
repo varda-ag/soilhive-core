@@ -2702,11 +2702,147 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /files/{fileId}/measurement-types:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: File unique internal identifier
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: getMeasurementTypes
+      x-plugin-token-denied: true
+      summary: List the measurement types of a long file
+      description: >
+        Lists the measurement types found in a long file (one row per measured value) that the
+        long-stage job has staged: one per combination of the values of the role columns given
+        here, with suggested answers for the mapping. Ask again whenever a role column changes;
+        the file itself is not read again. Rows with no value are not counted, and with a property
+        column neither are rows with no property code.
+      tags:
+        - files
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - name: value_col
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Column holding the measured value
+        - name: property_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own property code. Give this or fixed_property_id.
+        - name: fixed_property_id
+          in: query
+          schema:
+            type: string
+          description: >
+            Slug of the soil property of the whole file, for a file with no property column. Units
+            are then matched against the unit conversions of this property.
+        - name: unit_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own unit
+        - name: method_code_col
+          in: query
+          schema:
+            type: string
+          description: Column holding a method code of the file's own
+        - name: technique_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own technique values
+        - name: sample_pretreatment_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own sample pretreatment values
+        - name: laboratory_method_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own laboratory method values
+        - name: extractant_concentration_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own extractant concentration values
+        - name: extraction_ratio_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own extraction ratio values
+        - name: extraction_base_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own extraction base values
+        - name: measurement_procedure_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own measurement procedure values
+        - name: limit_of_detection_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own limit of detection values
+      responses:
+        '200':
+          description: Measurement types retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - measurement_types
+                properties:
+                  measurement_types:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FoundMeasurementType'
+        '400':
+          description: A column given is not a column of the file; or both or neither of property_col and fixed_property_id were given; or the file is not a vector file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The file does not exist, or it has not been staged as a long file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A long-stage job of the file is queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: >
+            The file has more measurement types than a mapping can hold. The body carries the code
+            FTD_LONG_TOO_MANY_MEASUREMENT_TYPES and the actions to take.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /mappings:
     post:
       x-eov-operation-handler: controllers/mappings
       x-eov-operation-id: createDataMapping
       summary: Create a new data mapping. This operation is idempotent
+      description: >
+        Refused with 400 when two columns are mapped the same way: to the same soil property,
+        procedure and unit conversion. A band mapping of a raster file is not checked for this.
       tags:
         - mappings
       security:
@@ -4378,6 +4514,67 @@ components:
         procedure_id:
           type: string
           description: Optional slug for the procedure
+
+    FoundMeasurementType:
+      type: object
+      required:
+        - match
+        - row_count
+        - min_value
+        - max_value
+        - non_numeric_count
+      properties:
+        match:
+          type: object
+          description: >
+            The values of the file that define the measurement type, one per role column asked for:
+            property, unit, method_code and the procedure fields. Trimmed; null for an empty cell.
+            Goes as it is into the match of a MeasurementTypeMapping.
+          additionalProperties:
+            type: string
+            nullable: true
+        row_count:
+          type: integer
+          description: Number of rows with a value
+        min_value:
+          type: number
+          nullable: true
+          description: Lowest numeric value; null when no value is a number
+        max_value:
+          type: number
+          nullable: true
+          description: Highest numeric value; null when no value is a number
+        non_numeric_count:
+          type: integer
+          description: Number of values that are not a number
+        suggestion:
+          type: object
+          description: >
+            Suggested answers, left out when there are none. Taken from an earlier long mapping with
+            the same property code (and unit), else from a property code equal to a soil property's
+            slug, name or acronym, a unit equal to the original unit of one of its conversions, and
+            procedure values equal to entries of their lists. Case and spaces are ignored.
+          properties:
+            property_id:
+              type: string
+              description: Slug of the soil property
+            conversion_id:
+              type: string
+              description: Slug of the unit conversion
+            procedure_id:
+              type: string
+              description: Slug of the procedure an earlier mapping used
+            min_val:
+              type: number
+            max_val:
+              type: number
+            procedure:
+              type: object
+              description: >
+                List entries equal to the file's own procedure values, by procedure field, in the
+                shape POST /procedures takes. Left out when procedure_id is given.
+              additionalProperties:
+                type: string
 
     DatasetFileMappingRequest:
       type: object

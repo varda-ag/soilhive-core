@@ -9,7 +9,7 @@ import { getDataAdminToken } from '../helper';
 import { IngestionStatus } from '../../src/types/data';
 import { StatusCodes } from 'http-status-codes';
 import FileEntity from '../../src/entities/File';
-import { getDataSource } from '../../src/utils/data-source';
+import { getDataSource, getEntityManager } from '../../src/utils/data-source';
 import { addFile } from '../../src/utils/mock';
 import { FileStorage } from '@flystorage/file-storage';
 import FileService from '../../src/services/FileService';
@@ -174,6 +174,59 @@ describe('Testing /files routes (local storage)', () => {
 
     it('should return 401 Unauthorized when no token is provided', async () => {
       const res = await request(app).get(`/files/${fakeId}`);
+
+      expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
+    });
+  });
+
+  describe('GET /files/:fileId/measurement-types', () => {
+    const stageLongFile = async (name: string): Promise<string> => {
+      setLocalStorageRootFolder(vectorFilesPassPath);
+      const upload = await request(app)
+        .post('/files')
+        .set(dataAdminAuthHeader)
+        .attach('file', Buffer.from(fs.readFileSync(`${vectorFilesPassPath}/${name}`)), name);
+      expect(upload.statusCode).toBe(StatusCodes.CREATED);
+      await new FileService().longStage({ entityManager: await getEntityManager(), entitlements: {} }, upload.body.id);
+      return upload.body.id;
+    };
+
+    it('splits the measurement types by every role column given', async () => {
+      const fileId = await stageLongFile('long_local_codes.csv');
+
+      // Two laboratories measured each of the four properties
+      const res = await request(app)
+        .get(`/files/${fileId}/measurement-types`)
+        .query({ property_col: 'det', value_col: 'conc', unit_col: 'um', laboratory_method_col: 'lab' })
+        .set(dataAdminAuthHeader);
+
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      const types: { match: Record<string, string | null>; row_count: number }[] = res.body.measurement_types;
+      expect(types).toHaveLength(8);
+      expect(types.filter(t => t.match.property === 'pH_H2O').map(t => [t.match, t.row_count])).toEqual([
+        [{ property: 'pH_H2O', unit: '-', laboratory_method: 'LAB_A' }, 2],
+        [{ property: 'pH_H2O', unit: '-', laboratory_method: 'LAB_B' }, 1],
+      ]);
+    });
+
+    it('should return 400 when neither a property column nor a property for the file is given', async () => {
+      const file = await addFile('no_property_role.csv');
+
+      const res = await request(app).get(`/files/${file.slug}/measurement-types`).query({ value_col: 'conc' }).set(dataAdminAuthHeader);
+
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
+
+    it('should return 400 when the value column is not given', async () => {
+      const file = await addFile('no_value_role.csv');
+
+      const res = await request(app).get(`/files/${file.slug}/measurement-types`).query({ property_col: 'det' }).set(dataAdminAuthHeader);
+
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+    });
+
+    it('should return 401 Unauthorized when no token is provided', async () => {
+      const res = await request(app).get(`/files/${fakeId}/measurement-types`).query({ property_col: 'det', value_col: 'conc' });
 
       expect(res.statusCode).toBe(StatusCodes.UNAUTHORIZED);
     });

@@ -2,6 +2,7 @@ import {
   DataMappingObject,
   DetectableFields,
   LongFormatMapping,
+  LongRoleColumns,
   MAX_MEASUREMENT_TYPES,
   MeasurementTypeMapping,
   MeasurementTypeMatchKey,
@@ -28,7 +29,7 @@ export const isLongMapping = (mapping: DataMappingObject): boolean =>
  * The role columns that tell Measurement Types apart, as [match key, source column], always in
  * this order: a Measurement Type's key is its match values in the same order.
  */
-export const matchColumns = (long: LongFormatMapping): [MeasurementTypeMatchKey, string][] => {
+export const matchColumns = (long: LongRoleColumns): [MeasurementTypeMatchKey, string][] => {
   const columns: [MeasurementTypeMatchKey, string][] = [];
   if (long.property_col) columns.push(['property', long.property_col]);
   if (long.unit_col) columns.push(['unit', long.unit_col]);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
+import { describe, it, expect, jest, beforeAll, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs';
 import path from 'path';
 import { EntityManager } from 'typeorm';
@@ -11,6 +11,9 @@ import { getLongTableName, getRawTableName } from '../../src/utils/utils';
 import { RequestData } from '../../src/interfaces/RequestData';
 import { Token } from '../../src/interfaces/Token';
 import { IngestionStatus } from '../../src/types/data';
+import { JobQueues } from '../../src/types/enums';
+import { MAX_MEASUREMENT_TYPES } from '../../src/types/DataMapping';
+import * as DatasetJobs from '../../src/data-layer/DatasetJobs';
 import { getTableColumns } from '../helper';
 import { writableAssets } from '../assets';
 
@@ -38,6 +41,10 @@ describe('FileService - long files', () => {
   beforeAll(async () => {
     fileService = new FileService();
     entityManager = await getEntityManager();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   beforeEach(() => {
@@ -240,6 +247,100 @@ describe('FileService - long files', () => {
         code: 'FTD_LONG_COLUMN_NOT_FOUND',
         params: { column: 'result' },
       });
+    });
+  });
+
+  describe('getMeasurementTypes', () => {
+    it('lists one measurement type per property code, with its rows and value range', async () => {
+      const file = await createFile('long_local_codes.csv');
+      await fileService.longStage(requestData, file.slug);
+
+      const types = await fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' });
+
+      expect(types.map(t => t.match).sort((a, b) => a.property! < b.property! ? -1 : 1)).toEqual([
+        { property: 'OC_WB' },
+        { property: 'P_OLSEN_2' },
+        { property: 'XK_17' },
+        { property: 'pH_H2O' },
+      ].sort((a, b) => a.property! < b.property! ? -1 : 1));
+      expect(types.find(t => t.match.property === 'P_OLSEN_2')).toMatchObject({
+        row_count: 3,
+        min_value: 8.1,
+        max_value: 22.5,
+        non_numeric_count: 0,
+      });
+    });
+
+    it('counts the values that are no number', async () => {
+      const file = await createFile('long_local_codes.csv');
+      await fileService.longStage(requestData, file.slug);
+
+      const [type] = await fileService.getMeasurementTypes(requestData, file.slug, { value_col: 'lab' }, 'any-property');
+
+      expect(type).toMatchObject({ match: {}, row_count: 12, min_value: null, max_value: null, non_numeric_count: 12 });
+    });
+
+    it('suggests the answers of an earlier mapping, and the property a code is named after', async () => {
+      const category = await addCategory();
+      const mapped = await addSoilProperty('Olsen phosphorus', category.id);
+      const named = await addSoilProperty('XK_17', category.id);
+      await addDataMapping({
+        long_format: {
+          property_col: 'analyte',
+          value_col: 'result',
+          measurement_types: [{ col: 's1', match: { property: 'p_olsen_2' }, property_id: mapped.slug, max_val: 500 }],
+        },
+      });
+      const file = await createFile('long_local_codes.csv');
+      await fileService.longStage(requestData, file.slug);
+
+      const types = await fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' });
+
+      const suggestion = (code: string) => types.find(t => t.match.property === code)?.suggestion;
+      expect(suggestion('P_OLSEN_2')).toEqual({ property_id: mapped.slug, max_val: 500 });
+      expect(suggestion('XK_17')).toEqual({ property_id: named.slug });
+      expect(suggestion('OC_WB')).toBeUndefined();
+    });
+
+    it('answers 400 for a column that is not in the file', async () => {
+      const file = await createFile('long_local_codes.csv');
+      await fileService.longStage(requestData, file.slug);
+
+      await expect(
+        fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det"; DROP TABLE files; --', value_col: 'conc' }),
+      ).rejects.toMatchObject({ status: 400 });
+    });
+
+    it('answers 404 for a file that was not staged as long', async () => {
+      const file = await createFile('long_local_codes.csv');
+
+      await expect(
+        fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' }),
+      ).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('answers 422 for more measurement types than a mapping can hold', async () => {
+      const name = 'long_many_types.csv';
+      const rows = Array.from({ length: MAX_MEASUREMENT_TYPES + 1 }, (_, i) => `POINT (12.8 42.4),CODE_${i},${i}`);
+      fs.writeFileSync(path.join(vectorFilesPassPath, name), ['WKT,det,conc', ...rows].join('\n'));
+      const file = await createFile(name);
+      await fileService.longStage(requestData, file.slug);
+
+      await expect(
+        fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' }),
+      ).rejects.toMatchObject({ status: 422, extensions: { code: 'FTD_LONG_TOO_MANY_MEASUREMENT_TYPES' } });
+    });
+
+    it('answers 409 while long-stage is queued or running for the file', async () => {
+      const file = await createFile('long_local_codes.csv');
+      await fileService.longStage(requestData, file.slug);
+      const staging = jest.spyOn(DatasetJobs, 'hasActiveFileJob').mockResolvedValue(true);
+
+      await expect(
+        fileService.getMeasurementTypes(requestData, file.slug, { property_col: 'det', value_col: 'conc' }),
+      ).rejects.toMatchObject({ status: 409 });
+      // A queued job counts too
+      expect(staging).toHaveBeenCalledWith(entityManager, JobQueues.LONG_STAGE, expect.objectContaining({ id: file.id }), true);
     });
   });
 });

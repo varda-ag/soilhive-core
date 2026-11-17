@@ -20,6 +20,29 @@ import { isLongMapping, longFormatProblem } from '../utils/longFormat';
 // The mapping keys that are not source columns
 const RESERVED_KEYS = ['drop_records', 'long_format'];
 
+/**
+ * The first two columns of a column mapping that are mapped the same way: to the same Soil
+ * Property, procedure and unit conversion. Most likely a slip, and on a record where both hold
+ * the same value the Bulk Load fails, since the two make one Observation. null when there is none.
+ *
+ * A Band Mapping is left alone: two bands of one property are two depths or periods. Its entries
+ * are told apart by their depth keys, which a column's entry never has.
+ */
+export const sameWayMappedColumns = (mapping: DataMappingObject): [string, string] | null => {
+  const seen = new Map<string, string>();
+  for (const [column, entry] of Object.entries(mapping)) {
+    if (RESERVED_KEYS.includes(column) || entry === null || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    if ('min_depth' in entry || 'max_depth' in entry) continue;
+    const { property_id, procedure_id, conversion_id } = entry as PropertyMapping;
+    if (!property_id) continue;
+    const key = JSON.stringify([property_id, procedure_id ?? null, conversion_id ?? null]);
+    const first = seen.get(key);
+    if (first !== undefined) return [first, column];
+    seen.set(key, column);
+  }
+  return null;
+};
+
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMappingEntity> => {
     const subject = getSubject(requestData);
@@ -32,6 +55,13 @@ export default class DataMappingService {
       if (problem) {
         throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
       }
+    }
+    const sameWay = sameWayMappedColumns(dataMapping);
+    if (sameWay) {
+      throw new ErrorResponse(
+        `Columns '${sameWay[0]}' and '${sameWay[1]}' are mapped to the same soil property, procedure and unit. Map only one of them, or give them different procedures.`,
+        StatusCodes.BAD_REQUEST,
+      );
     }
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
 

@@ -12,9 +12,9 @@ interface LongPivot {
   sourceColumns: string[];
 }
 
-const NUMERIC_RE = `'^-?[0-9]+(\\.[0-9]+)?$'`;
+export const NUMERIC_RE = `'^-?[0-9]+(\\.[0-9]+)?$'`;
 
-const quote = (identifier: string): string => `"${identifier.replace(/"/g, '""')}"`;
+export const quote = (identifier: string): string => `"${identifier.replace(/"/g, '""')}"`;
 
 /**
  * The statements that pivot a staged long File into the raw table a wide File gets: one row per

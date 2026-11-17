@@ -102,15 +102,19 @@ export async function getActiveJob(entityManager: EntityManager, queues: string[
   return job ?? null;
 }
 
-/** Whether a job on the queue is running for the File, which its data names by id or by slug. */
+/**
+ * Whether a job on the queue is running for the File, which its data names by id or by slug.
+ * With `orQueued`, a job waiting to run counts too.
+ */
 export async function hasActiveFileJob(
   entityManager: EntityManager,
   queue: JobQueues,
   file: { id: string; slug: string },
+  orQueued = false,
 ): Promise<boolean> {
   const [job] = await entityManager.query(
-    `SELECT 1 FROM ${PG_BOSS_SCHEMA}.job WHERE name = $1 AND state = 'active' AND data->>'file_id' = ANY($2) LIMIT 1`,
-    [queue, [file.id, file.slug]],
+    `SELECT 1 FROM ${PG_BOSS_SCHEMA}.job WHERE name = $1 AND state = ANY($3) AND data->>'file_id' = ANY($2) LIMIT 1`,
+    [queue, [file.id, file.slug], orQueued ? ['created', 'retry', 'active'] : ['active']],
   );
   return !!job;
 }

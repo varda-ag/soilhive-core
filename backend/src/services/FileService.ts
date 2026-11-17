@@ -22,15 +22,18 @@ import { getEntity } from '../utils/slugs';
 import { sanitizeField, buildDatedFileKey, getRawTableName, getLongTableName } from '../utils/utils';
 import { JobQueues, StorageModes } from '../types/enums';
 import { EntityType, IngestionStatus, ProcedureField, ProcedureTechnique } from '../types/data';
-import { DataMappingObject, DetectableFields, MAX_MEASUREMENT_TYPES } from '../types/DataMapping';
+import { DataMappingObject, DetectableFields, LongRoleColumns, MAX_MEASUREMENT_TYPES } from '../types/DataMapping';
 import { buildLongPivot } from '../data-layer/LongPivot';
+import { buildMeasurementTypesQuery } from '../data-layer/LongMeasurementTypes';
 import { hasActiveFileJob } from '../data-layer/DatasetJobs';
 import { isLongMapping, longFormatProblem } from '../utils/longFormat';
+import { FoundMeasurementType, SuggestionSources, suggestMeasurementType } from '../utils/measurementTypes';
 import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
 import { JsonStorage } from '../entities/JsonStorage';
 import assert from 'assert';
 import { JobError } from '../errors/JobError';
+import { translateJobError } from '../errors/jobErrorMessages';
 import { getDBPassword } from '../utils/db-credentials';
 import { log } from '../utils/logger';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
@@ -40,6 +43,7 @@ import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
 import SoilPropertyEntity from '../entities/SoilProperty';
 import UnitConversionEntity from '../entities/UnitConversion';
 import VocabularyEntity from '../entities/Vocabulary';
+import ProcedureEntity from '../entities/Procedure';
 import RasterFilterEntity from '../entities/RasterFilter';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
@@ -664,15 +668,11 @@ export default class FileService {
       const features = await GdalCLI.sampleFeatures(mainFilePath, layer.name, SHAPE_SAMPLE_ROWS, openOptions);
 
       const em = requestData.entityManager;
-      const [vocabulary, conversions, properties] = await Promise.all([
-        em.getRepository(VocabularyEntity).find({ select: { category: true, name: true }, cache: CACHE_TTL_REFERENCE_MS }),
+      const [procedure, conversions, properties] = await Promise.all([
+        FileService.procedureLists(em),
         em.getRepository(UnitConversionEntity).find({ select: { original_unit_of_measurement: true }, cache: CACHE_TTL_REFERENCE_MS }),
         em.getRepository(SoilPropertyEntity).find({ select: { standard_unit: true }, cache: CACHE_TTL_REFERENCE_MS }),
       ]);
-      const procedure: Partial<Record<ProcedureField, string[]>> = { technique: Object.values(ProcedureTechnique) };
-      for (const { category, name } of vocabulary) {
-        (procedure[category] ??= []).push(name);
-      }
       const units = [...conversions.map(c => c.original_unit_of_measurement), ...properties.map(p => p.standard_unit)].filter(
         (u): u is string => !!u,
       );
@@ -948,6 +948,95 @@ export default class FileService {
         FileService.removeTempFolder(tempVrtPath);
       }
     }
+  };
+
+  /** The fixed list of each procedure field: the techniques, and the vocabulary of the others. */
+  private static async procedureLists(em: EntityManager): Promise<Partial<Record<ProcedureField, string[]>>> {
+    const vocabulary = await em
+      .getRepository(VocabularyEntity)
+      .find({ select: { category: true, name: true }, cache: CACHE_TTL_REFERENCE_MS });
+    const lists: Partial<Record<ProcedureField, string[]>> = { technique: Object.values(ProcedureTechnique) };
+    for (const { category, name } of vocabulary) {
+      (lists[category] ??= []).push(name);
+    }
+    return lists;
+  }
+
+  /**
+   * The Measurement Types of a staged long File for the given role columns, each with suggested
+   * answers (docs/adr/0081). Reads the long table only, so it is asked again whenever a role changes.
+   *
+   * `fixedProperty` is the slug of the Soil Property of the whole File, for one with no property
+   * column: units are then matched against that property's conversions.
+   */
+  getMeasurementTypes = async (
+    requestData: RequestData,
+    fileId: string,
+    roles: LongRoleColumns,
+    fixedProperty?: string,
+  ): Promise<FoundMeasurementType[]> => {
+    const em = requestData.entityManager;
+    const file = await this.getFile(requestData, fileId);
+    if (!file.metadata || file.metadata.is_raster) {
+      throw new ErrorResponse(`File '${file.name}' is not a vector file`, StatusCodes.BAD_REQUEST);
+    }
+    // The long table is dropped and written again while long-stage runs
+    if (await hasActiveFileJob(em, JobQueues.LONG_STAGE, file, true)) {
+      throw new ErrorResponse(`File '${file.name}' is still being staged`, StatusCodes.CONFLICT);
+    }
+    const columns: { column_name: string }[] = await em.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
+      [process.env.POSTGRES_SCHEMA, getLongTableName(file.id)],
+    );
+    if (columns.length === 0) {
+      throw new ErrorResponse(`File '${file.name}' has not been staged as a long file`, StatusCodes.NOT_FOUND);
+    }
+    // One more than the limit, to tell a File at the limit from one over it
+    const query = buildMeasurementTypesQuery(roles, file.id, MAX_MEASUREMENT_TYPES + 1);
+    const missing = query.sourceColumns.find(column => !columns.some(c => c.column_name === column));
+    if (missing) {
+      throw new ErrorResponse(`Column '${missing}' is not a column of file '${file.name}'`, StatusCodes.BAD_REQUEST);
+    }
+
+    const rows: Record<string, string | number | null>[] = await em.query(query.sql, query.values);
+    if (rows.length > MAX_MEASUREMENT_TYPES) {
+      const code = 'FTD_LONG_TOO_MANY_MEASUREMENT_TYPES';
+      const { message, actions } = translateJobError(code, { file_name: file.name, max: MAX_MEASUREMENT_TYPES });
+      throw new ErrorResponse(message, StatusCodes.UNPROCESSABLE_ENTITY, { code, actions });
+    }
+
+    const [mappings, properties, conversions, procedures, vocabulary] = await Promise.all([
+      dataMappingService.getDataMappings(requestData),
+      em.getRepository(SoilPropertyEntity).find({ select: { id: true, slug: true, property_name: true, property_acronym: true } }),
+      em.getRepository(UnitConversionEntity).find({ select: { slug: true, property_id: true, original_unit_of_measurement: true } }),
+      em.getRepository(ProcedureEntity).find({ select: { slug: true } }),
+      FileService.procedureLists(em),
+    ]);
+    const sources: SuggestionSources = {
+      mappings: mappings.sort((a, b) => b.created_at.getTime() - a.created_at.getTime()).map(m => m.data_mapping),
+      properties,
+      conversions,
+      procedures: procedures.map(p => p.slug),
+      vocabulary,
+      ...(fixedProperty && { fixedProperty }),
+    };
+
+    return rows.map(row => {
+      const match: FoundMeasurementType['match'] = {};
+      query.keys.forEach((key, i) => {
+        match[key] = row[`k${i}`] as string | null;
+      });
+      const suggestion = suggestMeasurementType(match, roles, sources);
+      return {
+        match,
+        row_count: Number(row['row_count']),
+        // numeric comes back as text
+        min_value: row['min_value'] === null ? null : Number(row['min_value']),
+        max_value: row['max_value'] === null ? null : Number(row['max_value']),
+        non_numeric_count: Number(row['non_numeric_count']),
+        ...(suggestion && { suggestion }),
+      };
+    });
   };
 
   /**

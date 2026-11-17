@@ -395,6 +395,7 @@ describe('Plugin tokens', () => {
       '/data-filters',
       '/datasets/{datasetId}/entitlements',
       '/files/{fileId}/download',
+      '/files/{fileId}/measurement-types',
       '/model-runner-registrations',
       '/model-runners/{runnerId}/claims/{claimId}/inputs',
       '/model-runners/{runnerId}/claims/{claimId}/units',

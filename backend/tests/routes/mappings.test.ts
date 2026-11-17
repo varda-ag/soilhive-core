@@ -81,6 +81,45 @@ describe('Testing /mappings routes', () => {
       expect(res.body).toHaveProperty('errors');
     });
 
+    it('should return 400 Bad Request when two columns are mapped to the same property, procedure and unit', async () => {
+      const token = await getDataAdminToken();
+      const payload = {
+        fe_lab: { property_id: 'iron', conversion_id: 'mg/kg' },
+        fe_field: { property_id: 'iron', conversion_id: 'mg/kg' },
+        upper_depth: 'min_depth',
+      };
+
+      const res = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
+
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(res.body.detail).toContain("'fe_lab' and 'fe_field'");
+    });
+
+    it('should accept two columns of one property that differ in unit or procedure', async () => {
+      const token = await getDataAdminToken();
+      const payload = {
+        fe_ppm: { property_id: 'iron', conversion_id: 'ppm' },
+        fe_mg_kg: { property_id: 'iron', conversion_id: 'mg/kg' },
+        fe_olsen: { property_id: 'iron', conversion_id: 'mg/kg', procedure_id: 'olsen' },
+      };
+
+      const res = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
+
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+    });
+
+    it('should accept two bands of one property in a band mapping', async () => {
+      const token = await getDataAdminToken();
+      const payload = {
+        '1': { property_id: 'iron', conversion_id: null, min_depth: 0, max_depth: 30 },
+        '2': { property_id: 'iron', conversion_id: null, min_depth: 30, max_depth: 60 },
+      };
+
+      const res = await request(app).post('/mappings').set('Authorization', `Bearer ${token}`).send(payload);
+
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+    });
+
     it('should return 401 Unauthorized when no token is provided', async () => {
       const payload = {
         total_nitrogen: {

@@ -12,6 +12,8 @@ import mime from 'mime-types';
 import ConfigService from '../services/ConfigService';
 import { JsonStorage } from '../entities/JsonStorage';
 import { PatchFileInput } from '../interfaces/File';
+import { LongRoleColumns } from '../types/DataMapping';
+import { PROCEDURE_FIELDS } from '../utils/longFormat';
 
 const fileService = new FileService();
 const configService = new ConfigService();
@@ -121,6 +123,34 @@ export const getFile = async (req: Request, res: Response) => {
   const result = await fileService.getFile(req.customData, fileId! as string);
 
   res.json(idToSlug(result));
+};
+
+export const getMeasurementTypes = async (req: Request, res: Response) => {
+  const { fileId } = req.params;
+  const param = (name: string) => req.query[name] as string | undefined;
+
+  const procedure_cols: NonNullable<LongRoleColumns['procedure_cols']> = {};
+  for (const field of PROCEDURE_FIELDS) {
+    const column = param(`${field}_col`);
+    if (column) procedure_cols[field] = column;
+  }
+  const property_col = param('property_col');
+  const unit_col = param('unit_col');
+  const method_code_col = param('method_code_col');
+  const roles: LongRoleColumns = {
+    value_col: param('value_col')!,
+    ...(property_col && { property_col }),
+    ...(unit_col && { unit_col }),
+    ...(method_code_col && { method_code_col }),
+    procedure_cols,
+  };
+  const fixedProperty = param('fixed_property_id');
+  if (!property_col === !fixedProperty) {
+    throw new ErrorResponse('Give either property_col or fixed_property_id, and not both', StatusCodes.BAD_REQUEST);
+  }
+
+  const measurement_types = await fileService.getMeasurementTypes(req.customData, fileId! as string, roles, fixedProperty);
+  res.json({ measurement_types });
 };
 
 export const deleteFile = async (req: Request, res: Response) => {

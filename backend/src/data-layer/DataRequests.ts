@@ -5,7 +5,7 @@ import { buildObservationCriteria, buildRasterSql, getEnabledRasterFilterTables,
 import { DataRequestOutput } from '../jobs/data-requests/types';
 import DataRequestEntity from '../entities/DataRequest';
 import { DataRequestStatus, JobQueues } from '../types/enums';
-import { PG_BOSS_SCHEMA } from '../services/PgBoss';
+import { PG_BOSS_SCHEMA } from '../utils/pgBossSchema';
 import { DataRequestParameters } from '../interfaces/DataRequest';
 import { DataRequestJob } from '../interfaces/Job';
 import { SamplingRange, samplingRangeOf, yearInSamplingRangeSql } from '../jobs/soil-indexes/samplingRange';

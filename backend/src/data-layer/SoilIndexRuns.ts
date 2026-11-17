@@ -1,6 +1,6 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { validate } from 'uuid';
-import { PG_BOSS_SCHEMA } from '../services/PgBoss';
+import { PG_BOSS_SCHEMA } from '../utils/pgBossSchema';
 import { DataRequestStatus, JobQueues } from '../types/enums';
 import { SoilIndexJob } from '../interfaces/Job';
 import { SoilIndexRunOutput, SoilIndexRunParameters } from '../interfaces/SoilIndexRun';

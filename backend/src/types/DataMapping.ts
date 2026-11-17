@@ -32,6 +32,9 @@ export interface LongFormatMapping {
   measurement_types: MeasurementTypeMapping[];
 }
 
+/** The role columns alone: what tells the Measurement Types of a long File apart, and where their values are. */
+export type LongRoleColumns = Pick<LongFormatMapping, 'property_col' | 'value_col' | 'unit_col' | 'method_code_col' | 'procedure_cols'>;
+
 /** Each Measurement Type is a column of the raw table, and PostgreSQL allows 1,600 columns per table. */
 export const MAX_MEASUREMENT_TYPES = 100;
 

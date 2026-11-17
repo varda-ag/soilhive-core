@@ -4,7 +4,7 @@ import { getEntityManager } from '../../src/utils/data-source';
 import { getRawTableName } from '../../src/utils/utils';
 import { DATA_PREVIEW_SIZE, OUTSIDE_LOD_VALUE } from '../../src/constants/constants';
 import { addSyntheticIngestionData, addSyntheticIngestionDataManyCols, syntheticIngestionDataOptions } from '../../src/utils/mock';
-import VectorDataLoad from '../../src/data-layer/VectorDataLoad';
+import VectorDataLoad, { numericKey } from '../../src/data-layer/VectorDataLoad';
 import { buildCleaningCte } from '../../src/data-layer/CleaningCte';
 import DataMappingService from '../../src/services/DataMappingService';
 import { RequestData } from '../../src/interfaces/RequestData';
@@ -534,6 +534,46 @@ describe('VectorDataLoad class', () => {
     expect(datasetLayers.length).toBeGreaterThan(0);
     const observations = await entityManager.find(ObservationEntity);
     expect(observations.length).toBeGreaterThan(0);
+  });
+  it('rawRecordToDataModel stores one observation for two columns of one property that hold the same value', async () => {
+    const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
+    const vdl = new VectorDataLoad();
+    const entityManager = await getEntityManager();
+    const requestData: RequestData = {
+      entityManager,
+      token: {
+        sub: 'mock-sub',
+        scope: 'mock-scope',
+        raw: 'raw-auth-token',
+        email: 'mock-email',
+        isDataAdmin: true,
+        isSuperAdmin: false,
+        isInternalRequest: false,
+      },
+      entitlements: {},
+    };
+    const config = await new DataMappingService().parseDataMapping(requestData, dataMapping.id);
+    const preview = (await vdl.getDataPreview(entityManager, config, file.id, 1, false))[0] as SoilRecord;
+    // Three columns mapped the same way: two with the same value written differently, one with another
+    const [column, property] = Object.entries(config.property_cols)[0]!;
+    const twiceConfig = { ...config, property_cols: { [column]: property, twin: property, other: property } };
+    const record = {
+      geometry: preview.geometry,
+      min_depth: preview.min_depth,
+      max_depth: preview.max_depth,
+      [column]: '6.8',
+      twin: '6.80',
+      other: '7.1',
+    } as unknown as SoilRecord;
+    const observationsBefore = await entityManager.count(ObservationEntity);
+
+    await vdl.rawRecordToDataModel(entityManager, twiceConfig, record, dataset.id);
+
+    expect(await entityManager.count(ObservationEntity)).toBe(observationsBefore + 2);
+  });
+  it('numericKey gives one key to a number however it is written', () => {
+    expect(['6.80', '06.8', 6.8, ' 6.8 ', '6.8e0'].map(numericKey)).toEqual(['6.8', '6.8', '6.8', '6.8', '6.8']);
+    expect(['10', '10.0', '-0.50', '-0', '0.0'].map(numericKey)).toEqual(['10', '10', '-0.5', '0', '0']);
   });
   it('rawRecordToDataModel with metadataOnly should create dataset_layers but no observations', async () => {
     const { dataset, file, dataMapping } = await addSyntheticIngestionData({ ...syntheticIngestionDataOptions });
