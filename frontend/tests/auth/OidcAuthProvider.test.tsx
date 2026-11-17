@@ -513,13 +513,14 @@ describe('OidcAuthProvider token lifecycle', () => {
     });
 
     // A proactive renew (pluginTokens) also calls the refresher, so even a rejection must not end the session here.
-    it('reports a rejection and clears the token when the IdP rejects the renew', async () => {
+    // The token may still be valid (an early renew from pluginTokens). Whoever ends the session clears it.
+    it('reports a rejection and keeps the token when the IdP rejects the renew', async () => {
       renderWithUser({ access_token: 'valid-token', expired: false });
       signinSilent.mockRejectedValue(rejected());
       (clearToken as jest.Mock).mockClear();
 
       expect(await runRefresher()).toEqual({ outcome: 'rejected' });
-      expect(clearToken).toHaveBeenCalledTimes(1);
+      expect(clearToken).not.toHaveBeenCalled();
       expect(removeUser).not.toHaveBeenCalled();
     });
 

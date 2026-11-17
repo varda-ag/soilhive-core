@@ -186,10 +186,7 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
       const before = await userManager.getUser();
       // No user, nothing to renew. signinSilent() would sign in through the hidden iframe instead, which
       // brings the user back while another tab's sign-out is still on its way to the IdP.
-      if (!before) {
-        clearToken();
-        return { outcome: 'rejected' };
-      }
+      if (!before) return { outcome: 'rejected' };
       try {
         const renewed = await userManager.signinSilent();
         if (renewed && !renewed.expired) {
@@ -212,7 +209,7 @@ function OidcAuthProvider({ children, userManager }: { children: React.ReactNode
         saveToken(stored.access_token);
         return { outcome: 'renewed', token: stored.access_token };
       }
-      clearToken();
+      // The token stays: it may still be valid (an early renew). Whoever ends the session clears it.
       return { outcome: 'rejected' };
     });
     return () => setTokenRefresher(undefined);
