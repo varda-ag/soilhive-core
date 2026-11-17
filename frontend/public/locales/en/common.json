@@ -80,7 +80,7 @@
         },
         "unauthorized": {
             "title": "Login required",
-            "message": "Please log in again."
+            "message": "Please log in."
         }
     },
     "map": {
