@@ -67,6 +67,30 @@ function gtag(..._command: ['consent', 'default' | 'update', ConsentState]): voi
 const updateAnalyticsConsent = (granted: boolean): void =>
   gtag('consent', 'update', { [CONSENT_PARAMS.ANALYTICS_STORAGE]: granted ? 'granted' : 'denied' });
 
+// GA4's cookies: `_ga` and `_ga_<stream>`
+const GA_COOKIE_NAME = /^_ga/;
+
+/**
+ * Deletes GA4's cookies, for a visitor who withdrew the consent. GA4 sets them on the widest domain
+ * it can (its `cookie_domain` is `auto`), usually a parent of the app's host, so they are deleted
+ * as host-only cookies and on the host and each of its parent domains.
+ */
+const clearAnalyticsCookies = (): void => {
+  const labels = window.location.hostname.split('.');
+  // core.dev.example.org → core.dev.example.org, dev.example.org, example.org: a top-level domain holds no cookie
+  const domains = [undefined, ...labels.slice(0, -1).map((_, index) => labels.slice(index).join('.'))];
+
+  document.cookie
+    .split(';')
+    .map(cookie => cookie.split('=')[0].trim())
+    .filter(name => GA_COOKIE_NAME.test(name))
+    .forEach(name =>
+      domains.forEach(domain => {
+        document.cookie = `${name}=; path=/; max-age=0${domain ? `; domain=${domain}` : ''}`;
+      }),
+    );
+};
+
 /**
  * Puts GTM on the page for a visitor who accepted analytics cookies. The Consent Mode default (all
  * denied) and the update granting analytics go on the dataLayer before `gtm.js`, so the first tags
@@ -124,6 +148,7 @@ export {
   loadGoogleTagManager,
   isGoogleTagManagerLoaded,
   updateAnalyticsConsent,
+  clearAnalyticsCookies,
   startGoogleTagManager,
   trackEvent,
   diffFilterValues,

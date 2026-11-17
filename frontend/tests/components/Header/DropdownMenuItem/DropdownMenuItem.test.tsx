@@ -97,7 +97,7 @@ describe('DropdownMenuItem component', () => {
     const showPreferences = jest.fn();
     const { container } = renderComponent({
       ...mockMenuEntry,
-      children: [{ name: 'consent:cookieSettingsLink', type: 'action', onClick: showPreferences }],
+      children: [{ name: 'cookie_settings', type: 'action', label: 'Cookie settings', onClick: showPreferences }],
     });
     fireEvent.click(screen.getByRole('button'));
 

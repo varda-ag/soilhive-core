@@ -98,7 +98,10 @@ describe('MobileDropdownMenuItem component', () => {
     const showPreferences = jest.fn();
     const onLinkClick = jest.fn();
     renderComponent({
-      menuEntry: { ...mockMenuEntry, children: [{ name: 'consent:cookieSettingsLink', type: 'action', onClick: showPreferences }] },
+      menuEntry: {
+        ...mockMenuEntry,
+        children: [{ name: 'cookie_settings', type: 'action', label: 'Cookie settings', onClick: showPreferences }],
+      },
       onLinkClick,
     });
 

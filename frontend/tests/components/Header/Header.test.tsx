@@ -113,7 +113,11 @@ describe('Header component', () => {
       isAuthenticated: false,
     });
 
-    (useCookieConsent as jest.Mock).mockReturnValue({ hasOptionalCookies: false, showPreferences: jest.fn() });
+    (useCookieConsent as jest.Mock).mockReturnValue({
+      hasOptionalCookies: false,
+      cookieSettingsLabel: 'Cookie settings',
+      showPreferences: jest.fn(),
+    });
   });
 
   afterEach(() => {
@@ -339,7 +343,11 @@ describe('Header component', () => {
     const showPreferences = jest.fn();
 
     beforeEach(() => {
-      (useCookieConsent as jest.Mock).mockReturnValue({ hasOptionalCookies: true, showPreferences });
+      (useCookieConsent as jest.Mock).mockReturnValue({
+        hasOptionalCookies: true,
+        cookieSettingsLabel: 'Cookie settings',
+        showPreferences,
+      });
     });
 
     it('reopens the cookie preferences from the Legal menu', () => {
@@ -372,7 +380,11 @@ describe('Header component', () => {
     });
 
     it('is left out when the banner offers only the necessary cookies', () => {
-      (useCookieConsent as jest.Mock).mockReturnValue({ hasOptionalCookies: false, showPreferences });
+      (useCookieConsent as jest.Mock).mockReturnValue({
+        hasOptionalCookies: false,
+        cookieSettingsLabel: 'Cookie settings',
+        showPreferences,
+      });
 
       render(
         <MemoryRouter initialEntries={['/']}>

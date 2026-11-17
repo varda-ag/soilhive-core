@@ -8,12 +8,24 @@ import enTranslations from '../../public/locales/en/consent.json';
 import itTranslations from '../../public/locales/it/consent.json';
 import deTranslations from '../../public/locales/de/consent.json';
 import esTranslations from '../../public/locales/es/consent.json';
-import { isGoogleTagManagerLoaded, startGoogleTagManager, updateAnalyticsConsent } from 'utilities/analytics';
+import { clearAnalyticsCookies, isGoogleTagManagerLoaded, startGoogleTagManager, updateAnalyticsConsent } from 'utilities/analytics';
+
+const TRANSLATIONS = { en: enTranslations, it: itTranslations, es: esTranslations, de: deTranslations };
+
+type ConsentLanguage = keyof typeof TRANSLATIONS;
+
+/** The banner's language: the browser's, or its first two letters, when the banner has texts for it; English otherwise */
+const getConsentLanguage = (browserLanguage: string): ConsentLanguage => {
+  const candidates = [browserLanguage, browserLanguage.slice(0, 2).toLowerCase()];
+  return candidates.find((code): code is ConsentLanguage => code in TRANSLATIONS) ?? 'en';
+};
 
 interface CookieConsentContextType {
   analyticsAccepted: boolean;
   // Whether the banner offers cookies beyond the necessary ones, so the visitor has a choice to change later
   hasOptionalCookies: boolean;
+  // The label of the link that reopens the preferences, in the banner's language
+  cookieSettingsLabel: string;
   showPreferences: () => void;
 }
 
@@ -27,6 +39,8 @@ export const useCookieConsent = (): CookieConsentContextType => {
 
 export const CookieConsentProvider = ({ children }: { children: ReactNode }) => {
   const [analyticsAccepted, setAnalyticsAccepted] = useState(false);
+  // Picked here, not by the library's autoDetect, so the header's link uses the same language as the banner
+  const [language] = useState(() => getConsentLanguage(navigator.language));
 
   useEffect(() => {
     const categories = {
@@ -52,9 +66,10 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
       if (isAnalyticsAccepted && GTM_CONTAINER_ID) {
         startGoogleTagManager(GTM_CONTAINER_ID);
       } else if (!isAnalyticsAccepted && isGoogleTagManagerLoaded()) {
-        // GTM cannot be taken off the page: its Google tags stop storing at once, and reloading
-        // without GTM stops the tracking
+        // GTM cannot be taken off the page: its Google tags stop storing at once, GA4's cookies are
+        // deleted, and reloading without GTM stops the tracking
         updateAnalyticsConsent(false);
+        clearAnalyticsCookies();
         window.location.reload();
       }
     };
@@ -80,14 +95,8 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
       },
       categories,
       language: {
-        default: 'en',
-        autoDetect: 'browser',
-        translations: {
-          en: enTranslations,
-          it: itTranslations,
-          es: esTranslations,
-          de: deTranslations,
-        },
+        default: language,
+        translations: TRANSLATIONS,
       },
       onConsent: handleConsentUpdate,
       onChange: handleConsentUpdate,
@@ -95,11 +104,16 @@ export const CookieConsentProvider = ({ children }: { children: ReactNode }) => 
 
     // Re-apply stored consent on page reload
     handleConsentUpdate();
-  }, []);
+  }, [language]);
 
   return (
     <CookieConsentContext.Provider
-      value={{ analyticsAccepted, hasOptionalCookies: !!GTM_CONTAINER_ID, showPreferences: CookieConsent.showPreferences }}
+      value={{
+        analyticsAccepted,
+        hasOptionalCookies: !!GTM_CONTAINER_ID,
+        cookieSettingsLabel: TRANSLATIONS[language].cookieSettingsLink,
+        showPreferences: CookieConsent.showPreferences,
+      }}
     >
       {children}
     </CookieConsentContext.Provider>

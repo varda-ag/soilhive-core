@@ -34,6 +34,7 @@ describe('CookieConsentProvider', () => {
     document.head.querySelectorAll('script').forEach(s => s.remove());
     document.head.appendChild(document.createElement('script'));
     delete (window as any).dataLayer;
+    document.cookie = '_ga=; path=/; max-age=0';
     consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
@@ -88,32 +89,57 @@ describe('CookieConsentProvider', () => {
     ]);
   });
 
-  it('denies analytics before reloading when a visitor withdraws the consent', () => {
+  it('denies analytics and deletes GA4 cookies before reloading when a visitor withdraws the consent', () => {
     acceptedServiceMock.mockReturnValue(true);
     render(<CookieConsentProvider>content</CookieConsentProvider>);
+    document.cookie = '_ga=GA1.1.123.456; path=/';
 
     acceptedServiceMock.mockReturnValue(false);
     act(() => runMock.mock.lastCall[0].onChange());
 
     expect(consentCommands().slice(-1)[0]).toEqual(['consent', 'update', { analytics_storage: 'denied' }]);
+    expect(document.cookie).not.toContain('_ga=');
     expect(reloadAttempts(consoleError)).toBe(1);
   });
 
-  it('lets the page reopen the cookie preferences', () => {
+  describe('Cookie settings link', () => {
     const Consumer = () => {
-      const { hasOptionalCookies, showPreferences } = useCookieConsent();
-      return hasOptionalCookies ? <button onClick={showPreferences}>Cookie settings</button> : null;
+      const { hasOptionalCookies, cookieSettingsLabel, showPreferences } = useCookieConsent();
+      return hasOptionalCookies ? <button onClick={showPreferences}>{cookieSettingsLabel}</button> : null;
     };
-    acceptedServiceMock.mockReturnValue(false);
+    let browserLanguage: jest.SpyInstance;
+    const renderWithBrowserLanguage = (language: string) => {
+      browserLanguage = jest.spyOn(navigator, 'language', 'get').mockReturnValue(language);
+      acceptedServiceMock.mockReturnValue(false);
+      render(
+        <CookieConsentProvider>
+          <Consumer />
+        </CookieConsentProvider>,
+      );
+    };
 
-    render(
-      <CookieConsentProvider>
-        <Consumer />
-      </CookieConsentProvider>,
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Cookie settings' }));
+    afterEach(() => browserLanguage.mockRestore());
 
-    expect(CookieConsent.showPreferences).toHaveBeenCalledTimes(1);
+    it('lets the page reopen the cookie preferences', () => {
+      renderWithBrowserLanguage('en-US');
+      fireEvent.click(screen.getByRole('button', { name: 'Cookie settings' }));
+
+      expect(CookieConsent.showPreferences).toHaveBeenCalledTimes(1);
+    });
+
+    it("labels it in the banner's language", () => {
+      renderWithBrowserLanguage('it-IT');
+
+      expect(runMock.mock.lastCall[0].language.default).toBe('it');
+      expect(screen.getByRole('button')).toHaveTextContent('Impostazioni cookie');
+    });
+
+    it('labels it in English, as the banner, for a language the banner has no texts in', () => {
+      renderWithBrowserLanguage('fr-FR');
+
+      expect(runMock.mock.lastCall[0].language.default).toBe('en');
+      expect(screen.getByRole('button')).toHaveTextContent('Cookie settings');
+    });
   });
 
   it('does not reload for a visitor who never accepted analytics', () => {
@@ -124,5 +150,14 @@ describe('CookieConsentProvider', () => {
     expect(gtmScripts()).toHaveLength(0);
     expect(reloadAttempts(consoleError)).toBe(0);
     expect(window.dataLayer).toBeUndefined();
+  });
+
+  it('leaves the GA4 cookies of a visitor who never accepted analytics here, which another site on the domain may have set', () => {
+    document.cookie = '_ga=GA1.1.123.456; path=/';
+    acceptedServiceMock.mockReturnValue(false);
+    render(<CookieConsentProvider>content</CookieConsentProvider>);
+    act(() => runMock.mock.lastCall[0].onConsent());
+
+    expect(document.cookie).toContain('_ga=');
   });
 });

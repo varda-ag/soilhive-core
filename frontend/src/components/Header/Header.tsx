@@ -35,7 +35,7 @@ export default function Header() {
   const { isAuthenticated } = useAuthContext();
   const { isLoadingThemeConfig, themeConfig } = useTheme();
   const { plugins } = useRemotes();
-  const { hasOptionalCookies, showPreferences } = useCookieConsent();
+  const { hasOptionalCookies, cookieSettingsLabel, showPreferences } = useCookieConsent();
   const singlePages = useMemo(() => plugins.filter(isSinglePageModule), [plugins]);
   const newTabs = useMemo(() => plugins.filter(isNewTabModule), [plugins]);
 
@@ -75,8 +75,14 @@ export default function Header() {
 
     // Reopens the cookie preferences, the only way to withdraw a consent without clearing the cookie
     if (hasOptionalCookies) {
-      // The label lives with the cookie banner's texts, which come in more languages than the rest of the app
-      children.push({ name: 'consent:cookieSettingsLink', type: 'action', onClick: showPreferences, Icon: SettingsIcon });
+      // The label comes with the cookie banner's texts, which come in more languages than the rest of the app
+      children.push({
+        name: 'cookie_settings',
+        type: 'action',
+        label: cookieSettingsLabel,
+        onClick: showPreferences,
+        Icon: SettingsIcon,
+      });
     }
 
     if (children.length) {
@@ -95,6 +101,7 @@ export default function Header() {
     themeConfig.termsAndConditionsHtml,
     themeConfig.privacyPolicyHtml,
     hasOptionalCookies,
+    cookieSettingsLabel,
     showPreferences,
   ]);
 

@@ -1,4 +1,9 @@
+/**
+ * @jest-environment-options {"url": "https://core.dev.example.org/"}
+ */
+// A host with parent domains, for the cookies GA4 sets on a parent of the app's host
 import {
+  clearAnalyticsCookies,
   diffFilterValues,
   isGoogleTagManagerLoaded,
   loadGoogleTagManager,
@@ -142,6 +147,44 @@ describe('Consent Mode', () => {
     updateAnalyticsConsent(false);
 
     expect(gtagCommands().slice(-1)[0]).toEqual(['consent', 'update', { analytics_storage: 'denied' }]);
+  });
+});
+
+describe('clearAnalyticsCookies', () => {
+  const cookieNames = () =>
+    document.cookie
+      .split(';')
+      .map(cookie => cookie.split('=')[0].trim())
+      .filter(Boolean);
+  const deleteAll = () =>
+    cookieNames().forEach(name =>
+      ['', '; domain=dev.example.org', '; domain=example.org'].forEach(domain => {
+        document.cookie = `${name}=; path=/; max-age=0${domain}`;
+      }),
+    );
+
+  beforeEach(deleteAll);
+  afterEach(deleteAll);
+
+  it('deletes GA4 cookies set on the host, on a parent domain and on the widest one', () => {
+    document.cookie = '_ga=GA1.1.123.456; path=/';
+    document.cookie = '_ga_ABC123=GS1.1.789; path=/; domain=example.org';
+    document.cookie = '_ga_DEF456=GS1.1.789; path=/; domain=dev.example.org';
+    expect(cookieNames().sort()).toEqual(['_ga', '_ga_ABC123', '_ga_DEF456']);
+
+    clearAnalyticsCookies();
+
+    expect(cookieNames()).toEqual([]);
+  });
+
+  it('keeps the other cookies', () => {
+    document.cookie = 'cc_cookie=consent; path=/';
+    document.cookie = 'session=abc; path=/; domain=example.org';
+    document.cookie = '_ga=GA1.1.123.456; path=/; domain=example.org';
+
+    clearAnalyticsCookies();
+
+    expect(cookieNames().sort()).toEqual(['cc_cookie', 'session']);
   });
 });
 
