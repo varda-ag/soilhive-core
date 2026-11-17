@@ -28,7 +28,7 @@ const setup = (initial: object) => {
     (useAuthContext as jest.Mock).mockReturnValue(next);
     rerender();
   };
-  return { invalidate, change };
+  return { invalidate, change, queryClient };
 };
 
 describe('useRefetchOnSignInChange', () => {
@@ -61,6 +61,25 @@ describe('useRefetchOnSignInChange', () => {
     change(signedIn('bob'));
 
     expect(invalidate).toHaveBeenCalledTimes(1);
+  });
+
+  // A page not on screen would otherwise show the old user's data, stale, until its refetch returns.
+  it('drops the cached data of queries not on screen', () => {
+    const { change, queryClient } = setup(signedIn('alice'));
+    queryClient.setQueryData(['datasets'], [{ id: 'private-dataset' }]);
+
+    change(signedOut);
+
+    expect(queryClient.getQueryData(['datasets'])).toBeUndefined();
+  });
+
+  it('keeps cached data when the same user only gets a renewed token', () => {
+    const { change, queryClient } = setup(signedIn('alice', 'old'));
+    queryClient.setQueryData(['datasets'], [{ id: 'private-dataset' }]);
+
+    change(signedIn('alice', 'new'));
+
+    expect(queryClient.getQueryData(['datasets'])).toEqual([{ id: 'private-dataset' }]);
   });
 
   it('does not refetch when the same user only gets a renewed token', () => {
