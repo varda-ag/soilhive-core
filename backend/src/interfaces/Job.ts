@@ -96,7 +96,13 @@ export interface FileToDbJob extends CommonJobData {
 export interface LongStageJob extends CommonJobData {
   file_id: string;
   dataset_id?: string;
+  // The geometry the user set before a mapping is saved. Read ahead of the saved mapping, as it is newer
+  geom_col?: string;
+  lat_col?: string;
+  lon_col?: string;
 }
+
+export type LongStageGeometry = Pick<LongStageJob, 'geom_col' | 'lat_col' | 'lon_col'>;
 
 export interface BulkDeleteJob extends CommonJobData {
   dataset_id: string;

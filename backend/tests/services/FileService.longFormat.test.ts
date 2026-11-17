@@ -110,6 +110,61 @@ describe('FileService - long files', () => {
         code: 'LS_FILE_ALREADY_LOADED',
       });
     });
+
+    // long_xy_columns.csv names its coordinates east and north, which are not detected
+    const stagedPoints = async (file: FileEntity): Promise<string[]> =>
+      (
+        await (
+          await getDataSource()
+        ).query(`SELECT ST_AsText(geometry) AS wkt FROM "${process.env.POSTGRES_SCHEMA}"."${getLongTableName(file.id)}" ORDER BY source_id`)
+      ).map((r: { wkt: string }) => r.wkt);
+
+    it('reads the latitude and longitude columns the job names, before any mapping is saved', async () => {
+      const file = await createFile('long_xy_columns.csv');
+      const metadata = file.metadata as VectorFileMetadata;
+      expect(metadata.geometry_detected).toBe(false);
+      expect(metadata.detected_fields.latitude).toBeNull();
+
+      await fileService.longStage(requestData, file.slug, { lat_col: 'north', lon_col: 'east' });
+
+      expect(await stagedPoints(file)).toEqual([
+        'POINT(12.8 42.4)',
+        'POINT(12.8 42.4)',
+        'POINT(139.6917 35.6895)',
+        'POINT(139.6917 35.6895)',
+      ]);
+    });
+
+    it('reads the columns the job names ahead of the saved mapping', async () => {
+      const file = await createFile('long_xy_columns.csv');
+      // Saved with latitude and longitude the wrong way round
+      await linkMapping(file, { east: 'latitude', north: 'longitude' });
+
+      await fileService.longStage(requestData, file.slug);
+      expect((await stagedPoints(file))[0]).toBe('POINT(42.4 12.8)');
+
+      await fileService.longStage(requestData, file.slug, { lat_col: 'north', lon_col: 'east' });
+      expect((await stagedPoints(file))[0]).toBe('POINT(12.8 42.4)');
+    });
+
+    it('fails with LS_GEOMETRY_NOT_FOUND when no geometry is given, saved or detected', async () => {
+      const file = await createFile('long_xy_columns.csv');
+
+      await expect(fileService.longStage(requestData, file.slug)).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'LS_GEOMETRY_NOT_FOUND',
+      });
+    });
+
+    it('fails with LS_COLUMN_NOT_FOUND for a geometry column the file does not have', async () => {
+      const file = await createFile('long_xy_columns.csv');
+
+      await expect(fileService.longStage(requestData, file.slug, { lat_col: 'lat', lon_col: 'east' })).rejects.toMatchObject({
+        name: 'JobError',
+        code: 'LS_COLUMN_NOT_FOUND',
+        params: { column: 'lat' },
+      });
+    });
   });
 
   describe('fileToDB with a long mapping', () => {

@@ -1,4 +1,4 @@
-import { PgBoss, Job, JobResult, JobWithMetadata, StopOptions } from 'pg-boss';
+import { PgBoss, Job, JobResult, JobWithMetadata, QueuePolicy, StopOptions } from 'pg-boss';
 import { getDBPassword, getSSL } from '../utils/db-credentials';
 import {
   BulkLoadJob,
@@ -96,7 +96,15 @@ const setupQueues = async () => {
     heartbeatSeconds: 300,
   };
   const boss = getPgBoss();
-  await Promise.all(Object.values(JobQueues).map(queue => boss.createQueue(queue, options)));
+  // A policy is set only when its queue is created: updateQueue cannot change it
+  const policies: Partial<Record<JobQueues, QueuePolicy>> = {
+    // One stage of a File at a time, in the order sent, so the last one sent decides the long table.
+    // Keyed by File in JobService
+    [JobQueues.LONG_STAGE]: 'singleton',
+  };
+  await Promise.all(
+    Object.values(JobQueues).map(queue => boss.createQueue(queue, { ...options, ...(policies[queue] && { policy: policies[queue] }) })),
+  );
   await Promise.all(Object.values(JobQueues).map(queue => boss.updateQueue(queue, options)));
   log.info('PgBoss queues created', { queues: Object.values(JobQueues) });
 };

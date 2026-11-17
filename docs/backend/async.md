@@ -80,7 +80,11 @@ POST /jobs
 }
 ```
 
-It is run again when the geometry, latitude, longitude or CRS of the file changes, since those are read as `file-to-db` reads them. Other columns are copied as text, so a code such as `007` is kept. Only the first layer of the file is read. The file stays PENDING, and a LOADED file is refused.
+The upload does not queue it. The client queues it once the file is long and its geometry and CRS are known: right after the upload when `detected_format` is `long` and nothing is missing, or when the user switches the file to long or sets the geometry or CRS. It must be queued again when the geometry, latitude, longitude or CRS changes, since those are read as `file-to-db` reads them; nothing checks that the staged table is current.
+
+The mapping is not saved while the user sets the geometry, so the job can name the columns itself: `"geom_col"`, or `"lat_col"` and `"lon_col"` together (anything else is a 400). They are read ahead of the saved mapping, which is read ahead of the detected columns; as in `file-to-db`, none of them applies when the file has a geometry of its own. The job fails with `LS_COLUMN_NOT_FOUND` for a column the file does not have, and with `LS_GEOMETRY_NOT_FOUND` when no geometry is given, saved or detected.
+
+The stages of one file run one at a time, in the order they were sent, so the last one sent decides the table: the queue's pg-boss policy is `singleton`, and each job is keyed by the file's id. A policy is set only when its queue is created, so a database where `long-stage` was created before this needs the queue deleted while it is empty, then created again by a restart. Other columns are copied as text, so a code such as `007` is kept. Only the first layer of the file is read. The file stays PENDING, and a LOADED file is refused.
 
 `file_<file_id>_long` is dropped by `bulk-load` with the raw table, by a `file-to-db` run that stages the file as wide, and, for a file that is deleted or loaded, by the daily orphan cleanup.
 

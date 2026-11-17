@@ -333,6 +333,48 @@ describe('Testing /jobs routes', () => {
     expect(res2.statusCode).toBe(404);
   });
 
+  it.each([[{ lat_col: 'north' }], [{ lon_col: 'east' }], [{ geom_col: 'wkt', lat_col: 'north', lon_col: 'east' }]])(
+    'POST /jobs refuses a long-stage job with a geometry of %j',
+    async geometry => {
+      const token = await getDataAdminToken();
+      const res = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ type: JobQueues.LONG_STAGE, file_id: 'any-file', ...geometry });
+
+      expect(res.statusCode).toBe(400);
+      expect(res.body.detail).toContain('Give geom_col, or both lat_col and lon_col');
+    },
+  );
+
+  it('POST /jobs runs the long-stage jobs of one file one at a time, keyed by its id', async () => {
+    process.env.LOCAL_STORAGE_ROOT_FOLDER = writableAssets('vector_files/pass');
+    const token = await getDataAdminToken();
+    const requestData: RequestData = { entityManager: await getEntityManager(), token: mockToken, entitlements: {} };
+    const file = await new FileService().createFile(requestData, { name: 'long_local_codes.csv', file_path: 'long_local_codes.csv' });
+    expect((await getPgBoss().getQueue(JobQueues.LONG_STAGE))?.policy).toBe('singleton');
+
+    // Acquired before the jobs are enqueued - see the bulk-load test above
+    const spy = getPgBoss().getSpy(JobQueues.LONG_STAGE);
+    const ids: string[] = [];
+    for (let i = 0; i < 2; i++) {
+      const res = await request(app)
+        .post('/jobs')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ type: JobQueues.LONG_STAGE, file_id: file.slug });
+      expect(res.statusCode).toBe(201);
+      ids.push(res.body.id);
+    }
+    await Promise.all(ids.map(id => spy.waitForJobWithId(id, 'completed')));
+
+    const jobs: { singleton_key: string; started_on: Date; completed_on: Date }[] = await (
+      await getDataSource()
+    ).query(`SELECT singleton_key, started_on, completed_on FROM ${PG_BOSS_SCHEMA}.job WHERE id = ANY($1) ORDER BY started_on`, [ids]);
+    expect(jobs.map(j => j.singleton_key)).toEqual([file.id, file.id]);
+    // The second started only once the first was done
+    expect(jobs[1]!.started_on.getTime()).toBeGreaterThanOrEqual(jobs[0]!.completed_on.getTime());
+  });
+
   it('POST /jobs for file-to-db job', async () => {
     const vectorFilesPassPath = writableAssets('vector_files/pass');
     process.env.LOCAL_STORAGE_ROOT_FOLDER = vectorFilesPassPath;

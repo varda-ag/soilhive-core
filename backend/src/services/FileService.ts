@@ -15,6 +15,7 @@ import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interface
 import { RequestData } from '../interfaces/RequestData';
 import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath, VectorFileMetadata } from '../interfaces/File';
 import { LongFormatStats } from '../interfaces/CleaningReport';
+import type { LongStageGeometry } from '../interfaces/Job';
 import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
 import { categoryLabels } from '../utils/raster';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
@@ -892,7 +893,7 @@ export default class FileService {
    * column of the first layer, and the geometry as file-to-db reads it. Run again whenever the
    * geometry, latitude, longitude or CRS of the File changes. The File stays PENDING.
    */
-  longStage = async (requestData: RequestData, fileId: string) => {
+  longStage = async (requestData: RequestData, fileId: string, geometry: LongStageGeometry = {}) => {
     const fileEntity = await this.getFile(requestData, fileId);
     assert(fileEntity.file_path, `File path not found for file ${fileId}`);
     assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
@@ -909,12 +910,33 @@ export default class FileService {
     }
     const layerName = fileMetadata.layer_name;
 
-    // A File staged by its upload has no mapping yet: the geometry is then read as it was detected
-    const datasetFileMapping = await requestData.entityManager.getRepository(DatasetFileMappingEntity).findOne({
-      where: { file_id: fileEntity.id },
-      relations: ['data_mapping'],
-    });
-    const mappingGeomFields = await this.extractGeomFieldsFromMapping(datasetFileMapping?.data_mapping?.data_mapping);
+    for (const column of [geometry.geom_col, geometry.lat_col, geometry.lon_col]) {
+      if (column && !fileMetadata.field_names.includes(column)) {
+        throw new JobError('LS_COLUMN_NOT_FOUND', { column, file_name: fileEntity.name });
+      }
+    }
+    // The columns the job names come first: the user set them on a mapping not saved yet. Then the
+    // saved mapping, and with neither, the geometry is read as it was detected
+    let mappingGeomFields: { geomField: string | null; latField: string | null; lonField: string | null };
+    if (geometry.geom_col || geometry.lat_col) {
+      mappingGeomFields = { geomField: geometry.geom_col ?? null, latField: geometry.lat_col ?? null, lonField: geometry.lon_col ?? null };
+    } else {
+      const datasetFileMapping = await requestData.entityManager.getRepository(DatasetFileMappingEntity).findOne({
+        where: { file_id: fileEntity.id },
+        relations: ['data_mapping'],
+      });
+      mappingGeomFields = await this.extractGeomFieldsFromMapping(datasetFileMapping?.data_mapping?.data_mapping);
+    }
+    const detected = fileMetadata.detected_fields;
+    const geometryFound =
+      fileMetadata.geometry_detected ||
+      mappingGeomFields.geomField ||
+      (mappingGeomFields.latField && mappingGeomFields.lonField) ||
+      detected[DetectableFields.GEOMETRY] ||
+      (detected[DetectableFields.LATITUDE] && detected[DetectableFields.LONGITUDE]);
+    if (!geometryFound) {
+      throw new JobError('LS_GEOMETRY_NOT_FOUND', { file_name: fileEntity.name });
+    }
 
     let tempZipExtractPath: string | null = null;
     let tempVrtPath: string | null = null;

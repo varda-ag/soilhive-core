@@ -831,8 +831,8 @@ paths:
         dataset's current id. A bulk-load or raster-load into a version is refused with 400 when it sets
         delete_source_files: resetting the version loads its files again from their uploads.
         A long-stage job copies a long file into a staging table of its own, which the file-to-db job of
-        a mapping with long_format then pivots. Start it again after the geometry, latitude, longitude or
-        CRS of the file changes. It fails for a loaded file, and while the file is staged or its dataset loads.
+        a mapping with long_format then pivots. The upload does not start it: start it once the file is
+        long and its geometry and CRS are known, and again after any of them changes. It fails for a loaded file, and while the file is staged or its dataset loads.
         An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
         within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
         While administrators require a signed-in user to export (exportRequiresSignIn in the theme config's exportLimits),
@@ -3454,7 +3454,8 @@ components:
           enum: [wide, long]
           description: >
             Suggested from the first rows of the file. wide: one column per property. long: one row per
-            measured value. Absent on older files, which read as wide.
+            measured value. Absent on older files, which read as wide. A long file must be staged by a
+            long-stage job (POST /jobs) before its measurement types can be listed.
         detected_long_roles:
           type: object
           description: The suggested role columns of a long file. Only when detected_format is long.
@@ -4765,6 +4766,17 @@ components:
         file_id:
           type: string
           description: Long file to copy into its staging table, as it is
+        geom_col:
+          type: string
+          description: >
+            Optional. Column holding the geometry, as the user set it on a mapping not saved yet. Read
+            ahead of the saved mapping and of the detected columns. Not with lat_col and lon_col.
+        lat_col:
+          type: string
+          description: Optional. Latitude column, as for geom_col. Given together with lon_col.
+        lon_col:
+          type: string
+          description: Optional. Longitude column, as for geom_col. Given together with lat_col.
         dataset_id:
           type: string
           nullable: true

@@ -11,6 +11,7 @@ import {
   RunJobData,
   BulkLoadJob,
   ClassDistributionVariable,
+  LongStageJob,
 } from '../interfaces/Job';
 import { Capability, JobQueues, SoilIndexType, StatisticsType, VariableType } from '../types/enums';
 import { getPgBoss } from './PgBoss';
@@ -33,6 +34,7 @@ import { JobError } from '../errors/JobError';
 import { checkExportLimitsAtSubmission } from '../jobs/soil-export/submissionCheck';
 import { getExportLimits } from '../jobs/soil-export/exportLimits';
 import DatasetEntity from '../entities/Dataset';
+import FileEntity from '../entities/File';
 import { EntityType, IngestionStatus } from '../types/data';
 
 const entitlementService = new EntitlementService();
@@ -109,6 +111,16 @@ export default class JobService {
         Capability.DOWNLOAD,
         { requireAll: true },
       );
+    }
+
+    if (data.type === JobQueues.LONG_STAGE) {
+      const { geom_col, lat_col, lon_col } = data as LongStageJob;
+      if (!lat_col !== !lon_col || (geom_col && lat_col)) {
+        throw new ErrorResponse('Give geom_col, or both lat_col and lon_col, or none of them', StatusCodes.BAD_REQUEST);
+      }
+      // The queue runs one job per key at a time (see setupQueues). Keyed by the File's id
+      const file = await getEntity(requestData, FileEntity, EntityType.FILE, (data as LongStageJob).file_id);
+      options = { ...options, singletonKey: String(file.id) };
     }
 
     if (data.type === JobQueues.DATA_REQUESTS) {

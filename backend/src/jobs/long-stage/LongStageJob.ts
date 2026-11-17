@@ -27,5 +27,5 @@ export async function processLongStage(job: Job<LongStageJob>): Promise<void> {
     throw new JobError('LS_FILE_STAGING', { file_name: file.name });
   }
   await assertNoBulkLoad(entityManager, file);
-  await new FileService().longStage(requestData, data.file_id);
+  await new FileService().longStage(requestData, data.file_id, data);
 }

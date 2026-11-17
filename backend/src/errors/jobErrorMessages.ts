@@ -107,6 +107,14 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: "'{file_name}' is already loaded, so its rows can't be read again.",
     actions: ['Only files that are not loaded yet are read. To add more data, upload a new file.'],
   },
+  LS_COLUMN_NOT_FOUND: {
+    message: "Column '{column}' was given as the geometry of '{file_name}', but the file has no such column.",
+    actions: ["Open the mapping step of '{file_name}', set the geometry or the latitude and longitude columns again, then retry."],
+  },
+  LS_GEOMETRY_NOT_FOUND: {
+    message: "No geometry was found in '{file_name}', so its rows can't be read.",
+    actions: ["Open the mapping step of '{file_name}', set the geometry column or the latitude and longitude columns, then retry."],
+  },
   LS_FILE_STAGING: {
     message: "The rows of '{file_name}' can't be read again while the file is being staged.",
     actions: ['Wait for file staging to finish, then try again.'],
