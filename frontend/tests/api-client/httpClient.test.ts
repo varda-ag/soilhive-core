@@ -6,15 +6,15 @@
 // the fresh token before surfacing the error.
 import { httpClient } from '../../src/api-client/httpClient';
 import { getToken } from '../../src/auth/tokenStore';
-import { refreshAccessToken } from '../../src/auth/tokenRefresher';
+import { endSession, refreshAccessToken } from '../../src/auth/tokenRefresher';
 
 jest.mock('../../src/auth/tokenStore', () => ({
   getToken: jest.fn(),
-  clearToken: jest.fn(), // used by handleError on 401
 }));
 
 jest.mock('../../src/auth/tokenRefresher', () => ({
   refreshAccessToken: jest.fn(),
+  endSession: jest.fn(),
 }));
 
 const getTokenMock = getToken as jest.Mock;
@@ -67,7 +67,7 @@ describe('httpClient', () => {
 
   it('refreshes and retries once with the fresh token when the first request 401s', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue('fresh');
+    refreshMock.mockResolvedValue({ outcome: 'renewed', token: 'fresh' });
     fetchMock
       .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }))
       .mockResolvedValueOnce(mockResponse({ ok: true, status: 200, body: { id: 2 } }));
@@ -81,9 +81,9 @@ describe('httpClient', () => {
     expect(data).toEqual({ id: 2 });
   });
 
-  it('does not retry and throws the 401 when the refresh yields no token', async () => {
+  it('ends the session and throws the 401 when the IdP rejects the renew', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue(undefined);
+    refreshMock.mockResolvedValue({ outcome: 'rejected' });
     fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 401, statusText: 'Unauthorized', body: { detail: 'expired' } }));
 
     await expect(httpClient({ url: '/datasets', method: 'GET' })).rejects.toMatchObject({
@@ -92,11 +92,25 @@ describe('httpClient', () => {
     });
     expect(refreshMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(endSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the session and marks the 401 when the login server cannot be reached', async () => {
+    getTokenMock.mockReturnValue('stale');
+    refreshMock.mockResolvedValue({ outcome: 'unavailable', noResponse: true });
+    fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }));
+
+    await expect(httpClient({ url: '/datasets', method: 'GET' })).rejects.toMatchObject({
+      status: 401,
+      loginServerUnavailable: true,
+    });
+    expect(endSession).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('retries only once: a 401 on the retry is surfaced without a second refresh', async () => {
     getTokenMock.mockReturnValue('stale');
-    refreshMock.mockResolvedValue('fresh');
+    refreshMock.mockResolvedValue({ outcome: 'renewed', token: 'fresh' });
     fetchMock
       .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }))
       .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, statusText: 'Unauthorized', body: { detail: 'still expired' } }));
@@ -119,6 +133,26 @@ describe('httpClient', () => {
     expect(getTokenMock).not.toHaveBeenCalled();
     expect(refreshMock).not.toHaveBeenCalled();
     expect(authHeader(0)).toBeUndefined();
+  });
+
+  it('keeps the session when the refresh fixes the 401', async () => {
+    getTokenMock.mockReturnValue('stale');
+    refreshMock.mockResolvedValue({ outcome: 'renewed', token: 'fresh' });
+    fetchMock
+      .mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'expired' } }))
+      .mockResolvedValueOnce(mockResponse({ ok: true, status: 200, body: { id: 1 } }));
+
+    await httpClient({ url: '/datasets', method: 'GET' });
+
+    expect(endSession).not.toHaveBeenCalled();
+  });
+
+  it('does not end the session for a 401 on an unauthenticated request', async () => {
+    fetchMock.mockResolvedValueOnce(mockResponse({ ok: false, status: 401, body: { detail: 'no' } }));
+
+    await expect(httpClient({ url: '/x', method: 'GET', authenticate: false })).rejects.toMatchObject({ status: 401 });
+
+    expect(endSession).not.toHaveBeenCalled();
   });
 
   it('does not refresh on non-401 errors', async () => {

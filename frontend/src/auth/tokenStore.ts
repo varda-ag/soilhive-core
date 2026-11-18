@@ -11,6 +11,7 @@ import { COOKIE_DOMAIN } from '../utilities/environmentVariables';
 // Note: this cookie is not HttpOnly — it must be set/cleared from JS — so it
 // carries the same XSS exposure as the existing localStorage token, no worse.
 export const TOKEN_COOKIE_NAME = 'token';
+export const TOKEN_STORAGE_KEY = 'token';
 
 function setTokenCookie(token: string) {
   if (typeof document === 'undefined') return;
@@ -30,7 +31,7 @@ function clearTokenCookie() {
 
 export function saveToken(token: string | undefined) {
   if (token) {
-    localStorage.setItem('token', token);
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
     setTokenCookie(token);
   }
 }
@@ -38,10 +39,10 @@ export function saveToken(token: string | undefined) {
 export function getToken() {
   // On the server (SSR), read from the request-scoped store set by server/index.ts.
   // On the client, read from localStorage.
-  return typeof window === 'undefined' ? ssrAuthStore.get() : localStorage.getItem('token');
+  return typeof window === 'undefined' ? ssrAuthStore.get() : localStorage.getItem(TOKEN_STORAGE_KEY);
 }
 
 export function clearToken() {
-  localStorage.removeItem('token');
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
   clearTokenCookie();
 }

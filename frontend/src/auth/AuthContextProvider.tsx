@@ -1,17 +1,17 @@
-import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { createContext, useContext, useLayoutEffect, useState } from 'react';
 import type { AuthConfig } from './AuthConfig';
-import { AuthProvider as ReactOidcProvider, useAuth as useReactOidcAuth } from 'react-oidc-context';
+import { AuthProvider as ReactOidcProvider } from 'react-oidc-context';
 import { type AuthContext } from './AuthContext';
 import { usePasswordAuth } from './usePasswordAuth';
 import { LoginModal } from './LoginModal';
 import { AuthModes, type AuthModesType } from './types';
-import { clearToken, saveToken, getToken } from './tokenStore';
-import { refreshAccessToken, setTokenRefresher } from './tokenRefresher';
-import { getEmailFromAccessToken, isTokenExpired } from './tokenClaims';
-import { getCurrentPath, getReturnTo, hasCallbackParams, type SigninState } from './signinReturnTo';
-import { getPageState, setRestoredPageState } from './signinPageState';
-import { WebStorageStateStore } from 'oidc-client-ts';
+import { clearToken, getToken } from './tokenStore';
+import { isTokenExpired } from './tokenClaims';
+import { getCurrentPath, hasCallbackParams } from './signinReturnTo';
+import { type UserManager } from 'oidc-client-ts';
 import { useApiQuery } from 'hooks/useApiQuery';
+import { useOidcAuth } from './useOidcAuth';
+import { useOidcUserManager } from './useOidcUserManager';
 
 const authContext = createContext<AuthContext | undefined>(undefined);
 
@@ -30,29 +30,14 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
     authenticate: false,
   });
 
+  const { userManager, key, onSigninCallback } = useOidcUserManager(authConfig);
+
   if (isAuthConfigLoading) return;
 
-  if (authConfig && authConfig.authMode === AuthModes.OIDC && authConfig.oidcConfig) {
+  if (userManager) {
     return (
-      <ReactOidcProvider
-        authority={authConfig.oidcConfig.authority}
-        client_id={authConfig.oidcConfig.clientId}
-        redirect_uri={authConfig.oidcConfig.redirectUri}
-        post_logout_redirect_uri={authConfig.oidcConfig.postLogoutRedirectUri}
-        scope={authConfig.oidcConfig.scope}
-        automaticSilentRenew
-        silent_redirect_uri={authConfig.oidcConfig.silentRedirectUri}
-        loadUserInfo
-        revokeTokensOnSignout
-        userStore={new WebStorageStateStore({ store: window.localStorage })}
-        onSigninCallback={user => {
-          // Runs before the provider stops loading, so the router is created on this URL and the pages
-          // that put their state back find it when they mount.
-          setRestoredPageState(getPageState(user?.state));
-          window.history.replaceState({}, document.title, getReturnTo(user?.state) ?? window.location.pathname);
-        }}
-      >
-        <InnerProvider authMode={authConfig.authMode}>{children}</InnerProvider>
+      <ReactOidcProvider key={key} userManager={userManager} onSigninCallback={onSigninCallback}>
+        <OidcAuthProvider userManager={userManager}>{children}</OidcAuthProvider>
       </ReactOidcProvider>
     );
   } else {
@@ -63,8 +48,6 @@ export function AuthContextProvider({ children }: { children: React.ReactNode })
 // this is to prevent conditionally rendering hooks
 function InnerProvider({ children, authMode }: { children: React.ReactNode; authMode: AuthModesType }) {
   switch (authMode) {
-    case AuthModes.OIDC:
-      return <OidcAuthProvider>{children}</OidcAuthProvider>;
     case AuthModes.PASSWORD:
       return <PasswordAuthProvider>{children}</PasswordAuthProvider>;
     default:
@@ -72,92 +55,14 @@ function InnerProvider({ children, authMode }: { children: React.ReactNode; auth
   }
 }
 
-function OidcAuthProvider({ children }: { children: React.ReactNode }) {
-  const reactOidcAuth = useReactOidcAuth();
-
-  // Persist a token only if valid. Avoid saving an expired access_token
-  // (e.g. a stale user restored from storage at load which would then be sent on every request and 401)
-  const validToken = reactOidcAuth.user && !reactOidcAuth.user.expired ? reactOidcAuth.user.access_token : undefined;
-
-  useEffect(() => {
-    if (validToken) {
-      saveToken(validToken);
-    } else {
-      clearToken();
-    }
-  }, [validToken]);
-
-  // react-oidc-context does not subscribe to accessTokenExpired, so on expiry
-  // it never clears the user and the stale token keeps being used. Handle it
-  // explicitly: first try a silent renew, since the scheduled one may only have
-  // missed its window (throttled tab, machine sleep), and signing out would
-  // replace any page that needs a signed-in user, losing its state. Only if
-  // that fails, drop the token and remove the user so isAuthenticated flips to
-  // false (login UI reappears). This is a quiet logout, not a forced re-login.
-  const { events, removeUser } = reactOidcAuth;
-  useEffect(() => {
-    const handleExpired = async () => {
-      // Shared with the httpClient, so a request that 401'd meanwhile joins this renew.
-      if (await refreshAccessToken()) return;
-      clearToken();
-      removeUser();
-    };
-    events.addAccessTokenExpired(handleExpired);
-    return () => events.removeAccessTokenExpired(handleExpired);
-  }, [events, removeUser]);
-
-  // Expose a one-shot silent renew to the standalone httpClient so it can
-  // recover from a 401 caused by an expired token (e.g. the scheduled
-  // automaticSilentRenew missed its window while the tab was throttled/asleep).
-  const { signinSilent } = reactOidcAuth;
-  useEffect(() => {
-    setTokenRefresher(async () => {
-      const renewed = await signinSilent();
-      const token = renewed && !renewed.expired ? renewed.access_token : undefined;
-      if (token) {
-        saveToken(token);
-      } else {
-        clearToken();
-      }
-      return token;
-    });
-    return () => setTokenRefresher(undefined);
-  }, [signinSilent]);
-
-  // Entitlements are keyed by the Subject, which the backend resolves email-first from the access
-  // token. If this IdP does not put `email` there, no Subject is ever an email address and every
-  // grant a data admin types is unreachable — silently, since the grant still stores fine. Probe
-  // the current token to find out, and let the Admin Portal say so. Token validity is irrelevant
-  // here: an expired token still reports this IdP's claim mapping accurately.
-  const accessToken = reactOidcAuth.user?.access_token;
-  const isEmailBasedAuth = useMemo(() => !!getEmailFromAccessToken(accessToken), [accessToken]);
-
-  // react-oidc-context also sets isLoading during every sign-in/out call (activeNavigator is set
-  // then), including the silent renew above. Only the initial session restore leaves sign-in state
-  // unknown; hiding the app for the others would remount it and lose page state.
-  const isRestoringSession = reactOidcAuth.isLoading && !reactOidcAuth.activeNavigator;
-
-  const value: AuthContext = {
-    isAuthenticated: !!reactOidcAuth.isAuthenticated,
-    isLoading: isRestoringSession,
-    error: reactOidcAuth.error,
-    // react-oidc-context keeps an expired user restored from storage. Expose it only while
-    // authenticated, like the other providers, or callers gating on `user` send token-less
-    // requests to auth-only routes (e.g. GET /entitlements → 401 toast).
-    user: reactOidcAuth.isAuthenticated ? reactOidcAuth.user : null,
-    login: pageState =>
-      reactOidcAuth.signinRedirect({ state: { returnTo: getCurrentPath(), ...(pageState && { pageState }) } satisfies SigninState }),
-    logout: () => {
-      clearToken();
-      reactOidcAuth.signoutRedirect();
-    },
-    authMode: AuthModes.OIDC,
-    isEmailBasedAuth,
-  };
+// oidc-client-ts stores the user under `oidc.user:<authority>:<client_id>` and removes it on sign-out.
+// The `token` key is not a sign-out signal: a throttled tab clears it when its own copy expires.
+function OidcAuthProvider({ children, userManager }: { children: React.ReactNode; userManager: UserManager }) {
+  const value = useOidcAuth(userManager);
 
   return (
     <authContext.Provider value={value}>
-      {isRestoringSession ? null : <WithoutCallbackParams>{children}</WithoutCallbackParams>}
+      {value.isLoading ? null : <WithoutCallbackParams>{children}</WithoutCallbackParams>}
     </authContext.Provider>
   );
 }

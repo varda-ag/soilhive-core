@@ -22,7 +22,11 @@
             "admin_portal": "the Admin Portal",
             "message": "You need to be logged in to view this page."
         },
-        "sign_in_to_download": "Please log in to download."
+        "sign_in_to_download": "Please log in to download.",
+        "signed_out_on_this_device": {
+            "title": "Signed out on this device",
+            "message": "The login server could not be reached. You will be asked for your password next time you log in."
+        }
     },
     "logo": "Logo",
     "nav_menu": {
@@ -71,11 +75,16 @@
     "errors": {
         "network_error": {
             "title": "Network error",
-            "message": "No connection to the server."
+            "message": "No connection to the server.",
+            "login_server_message": "Could not reach the login server."
         },
         "timeout_error": {
             "title": "Timeout",
             "message": "Operation timed out."
+        },
+        "unauthorized": {
+            "title": "Login required",
+            "message": "Please log in."
         }
     },
     "map": {
