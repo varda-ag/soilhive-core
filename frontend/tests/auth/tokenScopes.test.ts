@@ -30,4 +30,25 @@ describe('decodeTokenFromString', () => {
   it('returns empty array when token is malformed', () => {
     expect(decodeTokenFromString('not-a-valid-jwt')).toEqual([]);
   });
+
+  // As identity providers send it: base64url, no padding. "~~~???" puts a ~ and a ? at every
+  // position of a base64 group, so the payload is sure to hold both - and _.
+  const makeBase64UrlToken = (claims: object) => {
+    const payload = btoa(JSON.stringify(claims)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    return `header.${payload}.signature`;
+  };
+
+  it('reads a base64url payload holding - and _', () => {
+    const token = makeBase64UrlToken({ note: '~~~???', scope: 'openid super-admin' });
+    expect(token.split('.')[1]).toMatch(/-.*_|_.*-/);
+    expect(decodeTokenFromString(token)).toEqual(['super-admin']);
+  });
+
+  it('reads a scope sent as an array', () => {
+    expect(decodeTokenFromString(makeBase64UrlToken({ scope: ['openid', 'data-admin'] }))).toEqual(['data-admin']);
+  });
+
+  it('ignores a scope that is neither a string nor an array', () => {
+    expect(decodeTokenFromString(makeBase64UrlToken({ scope: 42 }))).toEqual([]);
+  });
 });
