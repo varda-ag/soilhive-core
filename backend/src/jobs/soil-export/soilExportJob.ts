@@ -292,7 +292,15 @@ async function exportRasterData(
     if (await isJobCancelled(jobId)) break;
 
     const layerName = layerNames.get(layer.id)!;
-    const wrote = await writer.writeLayer(layer, aoi, targetCrs, layerName);
+    let wrote: boolean;
+    try {
+      wrote = await writer.writeLayer(layer, aoi, targetCrs, layerName);
+    } catch (error) {
+      // A layer whose File can't be opened is skipped; the Export fails with EX_NO_DATA only when no layer or record is written
+      if (!(JobError.isJobError(error) && error.code === 'EX_NO_DATA')) throw error;
+      log.warn('Raster layer skipped: its file could not be opened', { jobId, layerId: layer.id, error: error.detail });
+      continue;
+    }
     if (!wrote) {
       log.warn('Raster layer produced no output: no valid pixel within the area of interest', {
         jobId,

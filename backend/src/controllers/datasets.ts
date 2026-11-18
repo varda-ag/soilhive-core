@@ -110,9 +110,8 @@ export const postSoilData = async (req: Request, res: Response) => {
   const datasetFileMapping = await datasetFileMappingService.getDatasetFileMapping(req.customData, datasetFileMappingId);
   const dataMappingConfig = await dataMappingService.parseDataMapping(req.customData, datasetFileMapping.data_mapping_id as string);
   const dataset = await datasetService.getDataset(req.customData, req.params['datasetId'] as string);
-  const metadataOnly = (req.query['metadata_only'] as boolean | undefined) ?? false;
   for (const record of req.body) {
-    await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, record, dataset.id, metadataOnly);
+    await vectorDataLoad.rawRecordToDataModel(req.customData.entityManager, dataMappingConfig, record, dataset.id);
   }
   if (!req.customData.token?.isInternalRequest) {
     await refreshDaiStats(req.customData.entityManager, [dataset.id]);

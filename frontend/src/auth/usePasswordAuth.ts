@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { setSessionEnder } from './tokenRefresher';
 import type { User } from './Token';
 import { useRequest } from '../api-client';
 import { jwtDecode, type JwtPayload } from 'jwt-decode';
-import { clearToken, getToken, saveToken } from './tokenStore';
+import { clearToken, getToken, saveToken, TOKEN_STORAGE_KEY } from './tokenStore';
+import { useSignOutInOtherTab } from './useSignOutInOtherTab';
+import { useSignInInOtherTab } from './useSignInInOtherTab';
 import { BACKEND_BASE_URL } from '../configuration/api';
 
 interface PasswordAuthState {
@@ -39,6 +42,10 @@ function extractUser(access_token: string): User {
   return user;
 }
 
+const isTokenKey = (key: string) => key === TOKEN_STORAGE_KEY;
+
+const SIGNED_OUT: PasswordAuthState = { isAuthenticated: false, isLoading: false, error: undefined, user: null };
+
 function isTokenExpired(user: User): boolean {
   const EXPIRY_BUFFER_SECONDS = 30;
   return user.expires_at ? user.expires_at * 1000 < Date.now() + EXPIRY_BUFFER_SECONDS * 1000 : true;
@@ -66,6 +73,28 @@ export function usePasswordAuth() {
     };
   });
 
+  // Another tab signed out and removed the shared token.
+  const signOutHere = useCallback(() => setState(SIGNED_OUT), []);
+  useSignOutInOtherTab(isTokenKey, signOutHere);
+
+  // Another tab signed in: take its token, so this tab shows the sign-in state its requests carry.
+  const signInFromOtherTab = useCallback(() => {
+    const token = getToken();
+    const user = token ? extractUser(token) : undefined;
+    if (!user || isTokenExpired(user)) return;
+    setState({ isAuthenticated: true, isLoading: false, error: undefined, user });
+  }, []);
+  useSignInInOtherTab(isTokenKey, signInFromOtherTab);
+
+  // Password tokens cannot be renewed, so a 401 ends the session in this tab too.
+  useEffect(() => {
+    setSessionEnder(() => {
+      clearToken();
+      signOutHere();
+    });
+    return () => setSessionEnder(undefined);
+  }, [signOutHere]);
+
   const login = async (password?: string) => {
     setState(prev => ({ ...prev, isLoading: true, error: undefined }));
 
@@ -83,6 +112,10 @@ export function usePasswordAuth() {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: urlEncodedBody,
+        // A 401 here means a wrong password, not an ended session: send no token, try no renew.
+        authenticate: false,
+        // The LoginModal shows the error inline; a "Login required" toast would contradict it.
+        showErrorNotification: false,
       });
 
       saveToken(tokenResponse.access_token);
@@ -106,13 +139,7 @@ export function usePasswordAuth() {
 
   const logout = () => {
     clearToken();
-
-    setState({
-      isAuthenticated: false,
-      isLoading: false,
-      error: undefined,
-      user: null,
-    });
+    setState(SIGNED_OUT);
   };
 
   return {

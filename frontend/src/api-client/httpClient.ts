@@ -1,5 +1,5 @@
 import { getToken } from '../auth/tokenStore';
-import { refreshAccessToken } from '../auth/tokenRefresher';
+import { endSession, refreshAccessToken } from '../auth/tokenRefresher';
 import { handleError } from './error';
 import { type APIRequestConfig } from './types/api';
 
@@ -29,19 +29,27 @@ export async function httpClient<T = any>(config: APIRequestConfig): Promise<T> 
   };
 
   let response = await doFetch(useAuth ? getToken() : null);
+  let isLoginServerUnavailable = false;
 
   // Access token can expire before silent renew.
   // Force renew and retry once before surfacing 401 error.
   if (response.status === 401 && useAuth) {
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
-      response = await doFetch(refreshed);
+    const renew = await refreshAccessToken();
+    if (renew.outcome === 'renewed') {
+      response = await doFetch(renew.token);
+    } else if (renew.outcome === 'rejected') {
+      // The session is over: sign this tab out so the login UI shows.
+      endSession();
+    } else {
+      // The session may still be alive: keep it, and say the login server was unreachable.
+      isLoginServerUnavailable = true;
     }
   }
 
   if (!response.ok) {
     // delegate standardized error handling
-    throw await handleError(response);
+    const error = await handleError(response);
+    throw isLoginServerUnavailable ? { ...error, loginServerUnavailable: true } : error;
   }
 
   if (response.status === 204 || response.headers.get('Content-Length') === '0') {

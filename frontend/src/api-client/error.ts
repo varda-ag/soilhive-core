@@ -1,5 +1,3 @@
-import { clearToken } from '../auth/tokenStore';
-
 export async function handleError(response: Response) {
   let details: any = null;
 
@@ -20,10 +18,8 @@ export async function handleError(response: Response) {
     retryAfter: response.headers.get('Retry-After'),
   };
 
-  if (response.status === 401) {
-    console.warn('Unauthorized: removing local token');
-    clearToken();
-  }
+  // No clearToken() on a 401: the httpClient renews, ends the session, or keeps it when the login
+  // server cannot be reached. The token belongs to the auth providers.
 
   if (response.status === 403) {
     console.warn('Forbidden:', error.message);

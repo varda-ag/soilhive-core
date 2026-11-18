@@ -21,7 +21,7 @@
   }
 
   .Main {
-    height: 95px;
+    min-height: 95px;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -29,6 +29,9 @@
     padding: 11px 12px 10px;
 
     > .Top {
+      // Keeps space above the Metadata button, also for long titles and the pills row
+      margin-bottom: 0.5rem;
+
       > .Title {
         font-weight: bold;
         padding-right: 1.125rem;
@@ -51,22 +54,15 @@
         gap: 0.5rem;
         padding-left: 31px;
       }
-    }
-
-    > .Bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-
-      > .MetadataButton {
-        font-weight: normal;
-        color: var(--color-neutral-black);
-        background-color: var(--color-neutral-dark-300);
-      }
-
       > .StatusTags {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.25rem;
+        margin-top: 0.25rem;
+
+        > * {
+          white-space: nowrap;
+        }
 
         > .VisibilityTag {
           color: var(--color-neutral-white);
@@ -79,6 +75,16 @@
           background-color: var(--color-dataset-unpublished-tag);
           border-color: var(--color-dataset-unpublished-tag);
         }
+      }
+    }
+
+    > .Bottom {
+      display: flex;
+
+      > .MetadataButton {
+        font-weight: normal;
+        color: var(--color-neutral-black);
+        background-color: var(--color-neutral-dark-300);
       }
     }
   }

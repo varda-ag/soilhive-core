@@ -9,6 +9,7 @@ import { JobError } from '../../errors/JobError';
 import { discardVersionRows, resetVersionRows, restoreDiscardedVersion } from '../../data-layer/DatasetVersions';
 import ErrorService from '../../services/ErrorService';
 import EntitlementService from '../../services/EntitlementService';
+import InviteService from '../../services/InviteService';
 import { EntitlementScope } from '../../types/Entitlements';
 import { queueOrphanSweep } from '../orphan-cleanup/SweepOrphanRowsJob';
 import { jobRequestData } from '../jobRequestData';
@@ -84,6 +85,8 @@ export async function processVersionDiscard(job: Job<VersionDiscardJob>): Promis
       // A Version is private and unpublished, so it is unlikely to have grants, but a grant left on
       // its slug would pass to the next Dataset given that slug
       const requestData = { ...(await jobRequestData(manager, job.data)), entityManager: manager };
+      // Invites first, so a redeem under way can't grant after the strip (see dropFromPendingInvites)
+      await new InviteService().dropFromPendingInvites(requestData, EntitlementScope.DATASETS, version.slug);
       await new EntitlementService().deleteEntityEntitlements(requestData, EntitlementScope.DATASETS, version.slug);
       await discardVersionRows(manager, version);
     });

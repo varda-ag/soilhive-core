@@ -98,6 +98,21 @@ describe('DatasetsListItem', () => {
     expect(screen.getByTestId('tag-Private')).toBeInTheDocument();
   });
 
+  it('puts the status tags on their own row between the title and the metadata button, Private first', () => {
+    const { container } = render(<DatasetsListItem dataset={{ ...mockDataset, status: 'LOADED', visibility: 'private' }} />);
+
+    const statusTags = container.querySelector('.StatusTags') as Element;
+    const title = container.querySelector('.Title') as Element;
+    const metadataButton = screen.getByTestId('mock-button');
+    const privateTag = screen.getByTestId('tag-Private');
+    const unpublishedTag = screen.getByTestId('tag-Unpublished');
+
+    expect(container.querySelector('.Bottom')).not.toContainElement(statusTags as HTMLElement);
+    expect(title.compareDocumentPosition(statusTags) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(statusTags.compareDocumentPosition(metadataButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(privateTag.compareDocumentPosition(unpublishedTag) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('does not mark a PUBLISHED dataset', () => {
     render(<DatasetsListItem dataset={{ ...mockDataset, status: 'PUBLISHED' }} />);
 

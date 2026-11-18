@@ -142,7 +142,7 @@ export default class EntitlementService {
    * deletes must resolve it alike (see ADR 0027). A config id is its own only key: resolving it
    * through slug history would alias it to every slug an unrelated entity has held.
    */
-  private resolveSlugs = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<string[]> => {
+  resolveSlugs = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<string[]> => {
     if (scope !== EntitlementScope.DATASETS) {
       return [slug];
     }
@@ -437,11 +437,19 @@ export default class EntitlementService {
    * the caller's and EVERYONE's local grants for that key: config items are never granted by the
    * external endpoint, so neither that call nor slug expansion can change the answer.
    */
-  canAccessConfig = async (requestData: RequestData, key: string, capability: Capability.READ | Capability.WRITE): Promise<boolean> => {
-    if (isPrivilegedCaller(requestData.token)) {
-      return true;
-    }
-    const subject = subjectOf(requestData);
+  canAccessConfig = async (requestData: RequestData, key: string, capability: Capability.READ | Capability.WRITE): Promise<boolean> =>
+    isPrivilegedCaller(requestData.token) || this.holdsConfig(requestData, subjectOf(requestData), key, capability);
+
+  /**
+   * Whether `subject`, or EVERYONE, holds `capability` on config `key` in the local grants. Any
+   * Subject, not only the caller's: an Invite checks its creator's at redemption (docs/adr/0082).
+   */
+  holdsConfig = async (
+    requestData: RequestData,
+    subject: string | undefined,
+    key: string,
+    capability: Capability.READ | Capability.WRITE,
+  ): Promise<boolean> => {
     const rows: { capabilities: unknown }[] = await requestData.entityManager.query(
       `SELECT "data"->'configs'->$1::text AS capabilities FROM "entitlements" WHERE "id" = ANY($2::text[]) AND "deleted_at" IS NULL`,
       [key, subject ? [EVERYONE, subject] : [EVERYONE]],
@@ -453,35 +461,46 @@ export default class EntitlementService {
 
   /**
    * Self-grants `WRITE` on `key` after `ConfigService.putConfig` wins a first-access race (ADR
-   * 0054). An atomic `INSERT ... ON CONFLICT DO UPDATE`, not `findOneBy` + `save`: the same
-   * subject can win several distinct ids concurrently, each its own transaction, all targeting
-   * this one row — a read-modify-write would lose all but the last writer's key.
-   *
-   * Assumes `requestData.token` is set; unguarded because its one caller sits behind mandatory
-   * `bearerAuth`.
+   * 0054). Assumes `requestData.token` is set; its one caller sits behind mandatory `bearerAuth`.
    */
-  grantSelfConfigWrite = async (requestData: RequestData, key: string): Promise<void> => {
-    const subject = getSubject(requestData);
-    await requestData.entityManager.query(
-      `
-      INSERT INTO "entitlements" ("id", "data")
-      VALUES ($1, jsonb_build_object('configs', jsonb_build_object($2::text, '["write"]'::jsonb)))
-      ON CONFLICT ("id") DO UPDATE SET "data" = jsonb_set(
-        "entitlements"."data",
-        '{configs}',
-        COALESCE("entitlements"."data"->'configs', '{}'::jsonb) || jsonb_build_object(
-          $2::text,
-          (
-            SELECT jsonb_agg(DISTINCT capability ORDER BY capability)
-            FROM jsonb_array_elements_text(
-              COALESCE("entitlements"."data"->'configs'->$2::text, '[]'::jsonb) || '["write"]'::jsonb
-            ) AS capability
+  grantSelfConfigWrite = async (requestData: RequestData, key: string): Promise<void> =>
+    this.grantSelf(requestData, { [EntitlementScope.CONFIGS]: { [key]: [Capability.WRITE] } });
+
+  /** Adds `grants` to the caller's own row, keeping what it already holds. */
+  grantSelf = async (requestData: RequestData, grants: Entitlements): Promise<void> =>
+    this.grantTo(requestData, getSubject(requestData), grants);
+
+  /**
+   * Adds `grants` to `subject`'s row, keeping what it already holds. One atomic
+   * `INSERT ... ON CONFLICT DO UPDATE` per key, not `findOneBy` + `save`: the same Subject can be
+   * granted several keys concurrently, each in its own transaction, and a read-modify-write would
+   * lose all but the last writer's key.
+   */
+  grantTo = async (requestData: RequestData, subject: string, grants: Entitlements): Promise<void> => {
+    for (const scope of Object.values(EntitlementScope)) {
+      for (const [key, capabilities] of Object.entries(grants[scope] ?? {})) {
+        await requestData.entityManager.query(
+          `
+          INSERT INTO "entitlements" ("id", "data")
+          VALUES ($1, jsonb_build_object($2::text, jsonb_build_object($3::text, $4::jsonb)))
+          ON CONFLICT ("id") DO UPDATE SET "data" = jsonb_set(
+            "entitlements"."data",
+            array[$2::text],
+            COALESCE("entitlements"."data"->$2::text, '{}'::jsonb) || jsonb_build_object(
+              $3::text,
+              (
+                SELECT jsonb_agg(DISTINCT capability ORDER BY capability)
+                FROM jsonb_array_elements_text(
+                  COALESCE("entitlements"."data"->$2::text->$3::text, '[]'::jsonb) || $4::jsonb
+                ) AS capability
+              )
+            )
           )
-        )
-      )
-      `,
-      [subject, key],
-    );
+          `,
+          [subject, scope, key, JSON.stringify(capabilities)],
+        );
+      }
+    }
   };
 
   /**

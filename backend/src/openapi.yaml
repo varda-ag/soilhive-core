@@ -1679,6 +1679,359 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /access-requests:
+    get:
+      x-eov-operation-handler: controllers/access-requests
+      x-eov-operation-id: getAccessRequests
+      x-plugin-token-denied: true
+      summary: List Access Requests, for admins
+      description: >-
+        `pending` (the default) lists the requests with a Dataset still waiting for a decision,
+        oldest first. `all` lists the latest 200 of every state, newest first.
+      tags:
+        - access-requests
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - pending
+              - all
+            default: pending
+      responses:
+        '200':
+          description: Access Requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccessRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      x-eov-operation-handler: controllers/access-requests
+      x-eov-operation-id: createAccessRequest
+      x-entitlements-required: true
+      summary: Ask for access to private Datasets
+      description: >-
+        Only for a person whose access token carries `email`, so that an approval is keyed by
+        their email: anyone else gets a 403 with `email_required` (docs/adr/0081). Names
+        private, published Datasets; asking for what the caller already holds on one is a 400, and
+        a Dataset already in one of the caller's pending requests is a 409 carrying
+        `pending_request_id` (docs/adr/0082).
+      tags:
+        - access-requests
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AccessRequestCreate'
+      responses:
+        '201':
+          description: The Access Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: A Dataset is already in one of the caller's pending requests
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      pending_request_id:
+                        type: string
+                        format: uuid
+
+  /access-requests/mine:
+    get:
+      x-eov-operation-handler: controllers/access-requests
+      x-eov-operation-id: getMyAccessRequests
+      x-plugin-token-denied: true
+      summary: The caller's own Access Requests, newest first
+      tags:
+        - access-requests
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Access Requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AccessRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /access-requests/{requestId}:
+    delete:
+      x-eov-operation-handler: controllers/access-requests
+      x-eov-operation-id: withdrawAccessRequest
+      summary: Withdraw an Access Request
+      description: The requester withdraws whatever in it is still pending. Decisions already made stay.
+      tags:
+        - access-requests
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccessRequestId'
+      responses:
+        '204':
+          description: Withdrawn
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /access-requests/{requestId}/decisions:
+    post:
+      x-eov-operation-handler: controllers/access-requests
+      x-eov-operation-id: decideAccessRequest
+      summary: Decide Datasets of an Access Request
+      description: >-
+        Approves or denies some of the request's Datasets. An approval grants straight to the
+        requester's Subject, the capabilities asked for or fewer, and only on a Dataset still
+        published, private and not archived: otherwise it is a 409, and the Dataset can still be
+        denied. A denial's reason is shown to the requester. A Dataset already decided is a 409.
+      tags:
+        - access-requests
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - $ref: '#/components/parameters/AccessRequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - decisions
+              properties:
+                decisions:
+                  type: array
+                  minItems: 1
+                  maxItems: 50
+                  items:
+                    $ref: '#/components/schemas/AccessRequestDecision'
+      responses:
+        '200':
+          description: The Access Request after the decisions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /invites:
+    get:
+      x-eov-operation-handler: controllers/invites
+      x-eov-operation-id: getInvites
+      x-plugin-token-denied: true
+      x-entitlements-required: true
+      summary: List Invites
+      description: >-
+        Invites naming a config item or a Dataset, newest first, withdrawn ones left out. A caller
+        sees an Invite they created, or one they could have created: `write` on every config item
+        in it, and admin rights if it holds a Dataset. Only an admin may list without `config_id`;
+        anyone else must hold `write` on that config item (docs/adr/0082).
+      tags:
+        - invites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: config_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: dataset_id
+          in: query
+          required: false
+          description: A Dataset slug; any slug it has held matches.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Invites the caller can see
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invite'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      x-eov-operation-handler: controllers/invites
+      x-eov-operation-id: createInvite
+      x-entitlements-required: true
+      summary: Create an Invite
+      description: >-
+        Holds back grants until someone redeems the returned token. The creator may include only
+        what they could grant directly: `write` on each config item, and admin rights for any
+        Dataset. The token is returned once and never stored (docs/adr/0082). With a `recipient`,
+        only the person with that email can redeem it (docs/adr/0081).
+      tags:
+        - invites
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InviteCreate'
+      responses:
+        '201':
+          description: The Invite, with its token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InviteCreated'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invites/redeem:
+    post:
+      x-eov-operation-handler: controllers/invites
+      x-eov-operation-id: redeemInvite
+      summary: Redeem an Invite
+      description: >-
+        Grants what the Invite holds to the caller's own Subject, whole or not at all. Only a
+        person whose access token carries `email` may redeem, so that the grant is keyed by their
+        email (docs/adr/0081). Redeeming again what the caller already redeemed succeeds and
+        changes nothing. A 403 with `email_required` means the caller's token has no `email` or is
+        a Machine caller's; with `recipient_hint`, the Invite is for another person; with
+        neither, its creator can no longer share what it grants. Either way the Invite stays
+        pending.
+      tags:
+        - invites
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+      responses:
+        '200':
+          description: What was granted
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - grants
+                properties:
+                  grants:
+                    $ref: '#/components/schemas/InviteGrants'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: >-
+            The caller's token has no `email` or is a Machine caller's, the Invite is for another
+            person, or its creator can no longer share what it grants
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      email_required:
+                        type: boolean
+                        description: Set when the caller's token has no `email` or is a Machine caller's
+                      recipient_hint:
+                        type: string
+                        description: The recipient's email with most of it hidden, e.g. `j•••@example.com`
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+
+  /invites/{inviteId}:
+    delete:
+      x-eov-operation-handler: controllers/invites
+      x-eov-operation-id: deleteInvite
+      x-entitlements-required: true
+      summary: Withdraw an Invite
+      description: >-
+        Stops new redemptions. Takes back nothing already redeemed: remove that access from the
+        Entitlements themselves (docs/adr/0082). A 404 for an Invite the caller can't see.
+      tags:
+        - invites
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Withdrawn
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /soil-properties:
     get:
       x-eov-operation-handler: controllers/soil-properties
@@ -2456,17 +2809,6 @@ paths:
         - datasets
       security:
         - bearerAuth: [super-admin, data-admin]
-      parameters:
-        - in: query
-          name: metadata_only
-          required: false
-          description: >-
-            When true, loads each record's feature, licence and layer, and a dataset layer for every
-            soil property in the data mapping, but creates no Observations. Property values in the
-            records are ignored, so records need only `geometry` and their metadata fields.
-          schema:
-            type: boolean
-            default: false
       requestBody:
         required: true
         content:
@@ -2996,6 +3338,13 @@ components:
         type: string
         format: uuid
       description: ID of a soil index run, which is the id of the job that ran it
+    AccessRequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   responses:
     NotFound:
       description: The specified resource was not found
@@ -4596,6 +4945,262 @@ components:
             - obfuscate_as_polygons
             - read
             - write
+
+    AccessRequestCapabilities:
+      type: array
+      minItems: 1
+      uniqueItems: true
+      items:
+        type: string
+        enum:
+          - preview
+          - download
+
+    AccessRequestCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - datasets
+        - capabilities
+      properties:
+        datasets:
+          type: array
+          description: Dataset slugs; any slug a Dataset has held works
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items:
+            type: string
+        capabilities:
+          $ref: '#/components/schemas/AccessRequestCapabilities'
+        message:
+          type: string
+          maxLength: 1000
+          description: Why the access is needed, shown to admins
+
+    AccessRequestDecision:
+      type: object
+      additionalProperties: false
+      required:
+        - dataset
+        - approve
+      properties:
+        dataset:
+          type: string
+          description: The Dataset's slug, as the request lists it
+        approve:
+          type: boolean
+        capabilities:
+          allOf:
+            - $ref: '#/components/schemas/AccessRequestCapabilities'
+          description: What an approval grants; what was asked for when left out
+        reason:
+          type: string
+          maxLength: 1000
+          description: Why it was denied, shown to the requester
+
+    AccessRequest:
+      type: object
+      required:
+        - id
+        - requested_by
+        - capabilities
+        - message
+        - status
+        - created_at
+        - items
+      properties:
+        id:
+          type: string
+          format: uuid
+        requested_by:
+          type: string
+        capabilities:
+          $ref: '#/components/schemas/AccessRequestCapabilities'
+        message:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum:
+            - pending
+            - finished
+            - withdrawn
+        created_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - dataset
+              - status
+              - granted
+              - reason
+              - decided_at
+            properties:
+              dataset:
+                type: object
+                required:
+                  - slug
+                  - name
+                properties:
+                  slug:
+                    type: string
+                  name:
+                    type: string
+                  visibility:
+                    type: string
+                    enum:
+                      - public
+                      - private
+                    description: Admins only, as `published` and `archived`. An approval needs a private, published Dataset that is not archived.
+                  published:
+                    type: boolean
+                  archived:
+                    type: boolean
+              status:
+                type: string
+                enum:
+                  - pending
+                  - approved
+                  - denied
+                  - withdrawn
+              granted:
+                type: array
+                nullable: true
+                items:
+                  type: string
+              reason:
+                type: string
+                nullable: true
+              decided_at:
+                type: string
+                format: date-time
+                nullable: true
+              decided_by:
+                type: string
+                nullable: true
+                description: Admins only
+
+    InviteGrants:
+      type: object
+      description: >-
+        What an Invite grants, in the shape of a Subject's Entitlements: Dataset slugs under
+        `datasets`, config item ids under `configs`.
+      additionalProperties: false
+      properties:
+        datasets:
+          type: object
+          additionalProperties:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              type: string
+              enum:
+                - preview
+                - download
+        configs:
+          type: object
+          additionalProperties:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              type: string
+              enum:
+                - read
+                - write
+
+    InviteCreate:
+      type: object
+      additionalProperties: false
+      required:
+        - grants
+      properties:
+        grants:
+          $ref: '#/components/schemas/InviteGrants'
+        recipient:
+          type: string
+          format: email
+          maxLength: 320
+          description: Only the person with this email can redeem it. Never with `reusable`.
+        reusable:
+          type: boolean
+          default: false
+          description: Redeemable by anyone with the link until it expires, instead of once.
+        expires_in_days:
+          type: integer
+          minimum: 1
+          maximum: 30
+          default: 7
+
+    Invite:
+      type: object
+      required:
+        - id
+        - grants
+        - recipient
+        - reusable
+        - status
+        - expires_at
+        - created_by
+        - created_at
+        - redemptions
+      properties:
+        id:
+          type: string
+          format: uuid
+        grants:
+          $ref: '#/components/schemas/InviteGrants'
+        recipient:
+          type: string
+          nullable: true
+        reusable:
+          type: boolean
+        status:
+          type: string
+          enum:
+            - pending
+            - used
+            - expired
+        expires_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        redemptions:
+          type: array
+          description: Who redeemed it, oldest first
+          items:
+            type: object
+            required:
+              - subject
+              - redeemed_at
+            properties:
+              subject:
+                type: string
+              redeemed_at:
+                type: string
+                format: date-time
+
+    InviteCreated:
+      allOf:
+        - $ref: '#/components/schemas/Invite'
+        - type: object
+          required:
+            - token
+          properties:
+            token:
+              type: string
+              description: >-
+                Returned only here. The link carries it in its fragment (`/invite#<token>`), so no
+                server logs it.
 
     DataAvailabilityIndex:
       type: object
