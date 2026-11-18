@@ -3,15 +3,32 @@
 // Covers the module-level bridge that lets the standalone httpClient trigger an
 // OIDC silent renew: delegation to the registered refresher and the dedupe of
 // concurrent calls into a single renew.
-import { setTokenRefresher, refreshAccessToken } from '../../src/auth/tokenRefresher';
+import { endSession, setSessionEnder, setTokenRefresher, refreshAccessToken } from '../../src/auth/tokenRefresher';
 
 afterEach(() => {
   setTokenRefresher(undefined);
+  setSessionEnder(undefined);
+});
+
+describe('endSession', () => {
+  it('does nothing when no session ender is registered', () => {
+    expect(() => endSession()).not.toThrow();
+  });
+
+  it('calls the registered session ender', () => {
+    const fn = jest.fn();
+    setSessionEnder(fn);
+
+    endSession();
+
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('tokenRefresher', () => {
-  it('resolves to undefined when no refresher is registered', async () => {
-    await expect(refreshAccessToken()).resolves.toBeUndefined();
+  // Password mode cannot renew, so a 401 there means the session is over.
+  it('reports a rejection when no refresher is registered', async () => {
+    await expect(refreshAccessToken()).resolves.toEqual({ outcome: 'rejected' });
   });
 
   it('delegates to the registered refresher and returns its token', async () => {
@@ -59,7 +76,7 @@ describe('tokenRefresher', () => {
     setTokenRefresher(fn);
     setTokenRefresher(undefined);
 
-    await expect(refreshAccessToken()).resolves.toBeUndefined();
+    await expect(refreshAccessToken()).resolves.toEqual({ outcome: 'rejected' });
     expect(fn).not.toHaveBeenCalled();
   });
 });

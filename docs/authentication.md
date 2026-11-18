@@ -91,7 +91,7 @@ these claims will authenticate callers correctly and still fail to authorise the
 
 | Claim | Read for | If absent |
 | --- | --- | --- |
-| `email` | The Subject of a person | Entitlements granted to an email address never match anyone. Logins still work; access grants silently do nothing. The admin console warns on the dataset settings page when it detects this. |
+| `email` | The Subject of a person | Entitlements granted to an email address never match anyone. Logins still work; access grants silently do nothing. The admin console warns on the dataset settings page when it detects this. Invites can't be redeemed and Access Requests can't be made: both answer 403 with `email_required`. |
 | `gty` | Recognising a machine caller — a token obtained through the `client_credentials` grant | The caller is treated as a person, so a machine keys on `sub` instead of `client_id`. Entitlements must then be granted to that `sub`. |
 | `client_id` | The Subject of a machine caller | The machine keys on its `sub`. |
 
@@ -106,5 +106,14 @@ Notes:
 - A machine caller's `email`, if its service-account record has one, is deliberately ignored — its
   identity is the client, so that an edit to the service account in the identity provider cannot
   move the machine's entitlements.
+- A blank `email` counts as absent, so the Subject is the `sub`. Some providers send an empty
+  string, and every person would otherwise share one Subject.
 - `email_verified` is not consulted anywhere. The identity provider is trusted to issue truthful
   email claims; see `docs/adr/0022-identity-is-the-subject-not-the-token-sub.md`.
+- Redeeming an Invite and making an Access Request need a person whose access token carries
+  `email`, so that what they grant is keyed by that email. The id_token and the userinfo endpoint
+  are never asked. A machine caller can't use either flow. See
+  `docs/adr/0081-invites-and-access-requests-need-a-subject-that-is-an-email.md`.
+- Adding the `email` mapper to a deployment that ran without it changes every person's Subject
+  from their `sub` to their email. Entitlements granted to a `sub` stop matching, and the
+  `created_by` rows keyed by it no longer count as that person's. Grant again under the email.

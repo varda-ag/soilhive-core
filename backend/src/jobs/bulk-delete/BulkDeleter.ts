@@ -16,6 +16,8 @@ import { refreshDaiStats } from '../../data-layer/DaiStats';
 import { bumpCacheEpoch } from '../../utils/cache-epoch';
 import ErrorService from '../../services/ErrorService';
 import EntitlementService from '../../services/EntitlementService';
+import InviteService from '../../services/InviteService';
+import AccessRequestService from '../../services/AccessRequestService';
 import { EntitlementScope } from '../../types/Entitlements';
 import { updateJobState } from '../../services/PgBoss';
 
@@ -78,6 +80,11 @@ export async function processBulkDeletion(job: Job<BulkDeleteJob>): Promise<void
     await entityManager.transaction(async manager => {
       await manager.query(`SET LOCAL statement_timeout = '5min'`);
 
+      // Pending Invites and Access Requests go with the Entitlements: nothing pending outlives what a
+      // grant would (docs/adr/0082). They go first, so a redeem or an approval under way has
+      // committed its grant before the strip below runs (see dropFromPendingInvites)
+      await new InviteService().dropFromPendingInvites({ ...requestData, entityManager: manager }, EntitlementScope.DATASETS, dataset.slug);
+      await new AccessRequestService().dropDataset({ ...requestData, entityManager: manager }, datasetId);
       // Entitlements to the dataset die with its data, not with the soft-deletion above: a
       // stripped jsonb key has no `deleted_at`, so it can only be undone by rolling back this
       // transaction. Above the data-type fork because it applies to both, and because the

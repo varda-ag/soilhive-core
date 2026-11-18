@@ -4,6 +4,7 @@ import { usePasswordAuth } from '../../src/auth/usePasswordAuth';
 import { useRequest } from '../../src/api-client';
 import { clearToken, getToken, saveToken } from '../../src/auth/tokenStore';
 import { BACKEND_BASE_URL } from '../../src/configuration/api';
+import { endSession, refreshAccessToken } from '../../src/auth/tokenRefresher';
 import { act, renderHook } from '@testing-library/react';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -17,6 +18,7 @@ jest.mock('../../src/api-client', () => ({
 }));
 
 jest.mock('../../src/auth/tokenStore', () => ({
+  TOKEN_STORAGE_KEY: 'token',
   getToken: jest.fn(),
   saveToken: jest.fn(),
   clearToken: jest.fn(),
@@ -181,6 +183,8 @@ describe('usePasswordAuth', () => {
           username: '_',
           password: 'mypassword',
         }).toString(),
+        authenticate: false,
+        showErrorNotification: false,
       });
 
       expect(saveToken).toHaveBeenCalledWith(MOCK_ACCESS_TOKEN);
@@ -235,6 +239,33 @@ describe('usePasswordAuth', () => {
       expect(result.current.isLoading).toBe(false);
       expect(result.current.user).toBeNull();
       expect(saveToken).not.toHaveBeenCalled();
+    });
+
+    it('shows no toast for a wrong password, only the inline error', async () => {
+      const invalidPassword = Object.assign(new Error('Invalid password'), { status: 401 });
+      mockRequest.mockRejectedValue(invalidPassword);
+
+      const { result } = renderHook(() => usePasswordAuth());
+
+      await act(async () => {
+        await result.current.login('wrong').catch(() => undefined);
+      });
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({ showErrorNotification: false }));
+      expect(result.current.error?.message).toBe('Invalid password');
+    });
+
+    // Its 401 means a wrong password, not an ended session: no token to send, no renew to try.
+    it('sends the login request without the stored token', async () => {
+      mockRequest.mockResolvedValue({ access_token: MOCK_ACCESS_TOKEN, expires_in: 3600, token_type: 'Bearer' });
+
+      const { result } = renderHook(() => usePasswordAuth());
+
+      await act(async () => {
+        await result.current.login('secret');
+      });
+
+      expect(mockRequest).toHaveBeenCalledWith(expect.objectContaining({ authenticate: false }));
     });
 
     it('clears previous error on a new login attempt', async () => {
@@ -308,6 +339,98 @@ describe('usePasswordAuth', () => {
   });
 
   // ── extractUser / user shape ─────────────────────────────────────────────────
+
+  describe('sign-in in another tab', () => {
+    const fireSignIn = () =>
+      window.dispatchEvent(new StorageEvent('storage', { key: 'token', newValue: MOCK_ACCESS_TOKEN, storageArea: localStorage }));
+
+    it('signs in with the token another tab stored', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      expect(result.current.isAuthenticated).toBe(false);
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+
+      act(() => fireSignIn());
+
+      expect(result.current.isAuthenticated).toBe(true);
+      expect(result.current.user?.access_token).toBe(MOCK_ACCESS_TOKEN);
+    });
+
+    it('ignores an expired token', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+      (jwtDecode as jest.Mock).mockReturnValue(mockDecodedToken({ exp: PAST_EXP }));
+
+      act(() => fireSignIn());
+
+      expect(result.current.isAuthenticated).toBe(false);
+    });
+  });
+
+  describe('sign-out in another tab', () => {
+    const fireStorage = (key: string) => {
+      window.dispatchEvent(new StorageEvent('storage', { key, newValue: null, storageArea: localStorage }));
+    };
+
+    beforeEach(() => {
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+    });
+
+    it('signs out when another tab removes the token', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      expect(result.current.isAuthenticated).toBe(true);
+
+      act(() => fireStorage('token'));
+
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
+    });
+
+    it('stays signed in when another tab removes an unrelated key', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+
+      act(() => fireStorage('something-else'));
+
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+  });
+
+  describe('401 in this tab', () => {
+    beforeEach(() => {
+      (getToken as jest.Mock).mockReturnValue(MOCK_ACCESS_TOKEN);
+    });
+
+    it('signs out this tab when the httpClient ends the session after a 401', () => {
+      const { result } = renderHook(() => usePasswordAuth());
+      expect(result.current.isAuthenticated).toBe(true);
+
+      act(() => endSession());
+
+      expect(clearToken).toHaveBeenCalled();
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
+    });
+
+    // pluginTokens renews a token that is still valid but close to expiry.
+    it('stays signed in when something asks for a renew', async () => {
+      const { result } = renderHook(() => usePasswordAuth());
+
+      await act(async () => {
+        await expect(refreshAccessToken()).resolves.toEqual({ outcome: 'rejected' });
+      });
+
+      expect(clearToken).not.toHaveBeenCalled();
+      expect(result.current.isAuthenticated).toBe(true);
+    });
+
+    it('stops ending the session after unmount', () => {
+      const { unmount } = renderHook(() => usePasswordAuth());
+      unmount();
+
+      act(() => endSession());
+
+      expect(clearToken).not.toHaveBeenCalled();
+    });
+  });
 
   describe('user profile shape', () => {
     it('correctly maps all JWT claims to the User object', async () => {

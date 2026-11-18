@@ -390,11 +390,16 @@ describe('Plugin tokens', () => {
   describe('which reads a Plugin token may make', () => {
     // Every GET must be decided here, so a new read is never opened to Plugin Backends by default
     const DENIED = [
+      // Other Subjects' requests; the user's own, which no Plugin Backend needs (docs/adr/0082)
+      '/access-requests',
+      '/access-requests/mine',
       '/configs/{configId}/entitlements',
       '/data-filters',
       '/datasets/{datasetId}/entitlements',
       '/files/{fileId}/download',
       '/files/{fileId}/measurement-types',
+      // Recipients' emails and who redeemed, as the entitlements reads list other Subjects
+      '/invites',
       '/model-runner-registrations',
       '/model-runners/{runnerId}/claims/{claimId}/inputs',
       '/model-runners/{runnerId}/claims/{claimId}/units',

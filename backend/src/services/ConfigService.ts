@@ -9,6 +9,7 @@ import assert from 'assert';
 import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
 import EntitlementService, { configForbidden, hasConfigKind } from './EntitlementService';
+import InviteService from './InviteService';
 import { ConfigKind, EntitlementScope } from '../types/Entitlements';
 
 // Global Raster Filter sources run to several GB (docs/adr/0067)
@@ -122,6 +123,8 @@ export default class ConfigService {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     await repo.softDelete({ id });
     if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
+      // Invites first, so a redeem under way can't grant after the strip (see dropFromPendingInvites)
+      await new InviteService().dropFromPendingInvites(requestData, EntitlementScope.CONFIGS, id);
       await entitlementService.deleteEntityEntitlements(requestData, EntitlementScope.CONFIGS, id);
     }
   };

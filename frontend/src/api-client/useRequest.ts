@@ -25,16 +25,33 @@ export function useRequest<T = any>() {
         setError(err);
 
         if (config.showErrorNotification !== false) {
-          // Default: show notification
-          const message = err instanceof TypeError ? t('errors.network_error.message') : String(err.message ?? '');
-          const isTimeout = message.toLowerCase().includes('timeout');
-          const type = isTimeout ? 'warning' : 'error';
-          showNotification({
-            id: 'network_error',
-            type,
-            title: isTimeout ? t('errors.timeout_error.title') : t('errors.network_error.title'),
-            message: isTimeout ? t('errors.timeout_error.message') : message,
-          });
+          if (err?.loginServerUnavailable) {
+            // The renew could not reach the login server; "log in again" would be the wrong advice.
+            showNotification({
+              id: 'network_error',
+              type: 'error',
+              title: t('errors.network_error.title'),
+              message: t('errors.network_error.login_server_message'),
+            });
+          } else if (err?.status === 401) {
+            // The backend text (e.g. "Authorization header required") means nothing to the user.
+            showNotification({
+              id: 'unauthorized',
+              type: 'error',
+              title: t('errors.unauthorized.title'),
+              message: t('errors.unauthorized.message'),
+            });
+          } else {
+            const message = err instanceof TypeError ? t('errors.network_error.message') : String(err.message ?? '');
+            const isTimeout = message.toLowerCase().includes('timeout');
+            const type = isTimeout ? 'warning' : 'error';
+            showNotification({
+              id: 'network_error',
+              type,
+              title: isTimeout ? t('errors.timeout_error.title') : t('errors.network_error.title'),
+              message: isTimeout ? t('errors.timeout_error.message') : message,
+            });
+          }
         }
 
         if (config.notFoundAsNull && err.status === 404) {
