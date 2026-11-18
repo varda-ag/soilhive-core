@@ -342,6 +342,11 @@ export const getRawTableName = (fileId: string): string => {
   return `file_${sanitizeField(fileId)}_raw`;
 };
 
+/** Where a long File is staged as it is, before file-to-db pivots it into the raw table (docs/adr/0081). */
+export const getLongTableName = (fileId: string): string => {
+  return `file_${sanitizeField(fileId)}_long`;
+};
+
 const INTERNAL_REQUEST_TOKEN_EXPIRATION_SECONDS = 5 * 60;
 
 // The only token signed with SELF_SIGNING_SECRET itself, so it takes no payload: any other kind

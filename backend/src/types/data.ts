@@ -35,6 +35,9 @@ export enum VocabularyType {
   LIMIT_OF_DETECTION = 'limit_of_detection',
 }
 
+/** The fields that make up a Procedure: its technique, and one per vocabulary category. */
+export type ProcedureField = 'technique' | `${VocabularyType}`;
+
 export enum ProcedureTechnique {
   LAB_PROCEDURE = 'lab procedure',
   SPECTRAL = 'spectral',

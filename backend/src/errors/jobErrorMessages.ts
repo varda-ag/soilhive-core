@@ -70,6 +70,55 @@ export const JOB_ERROR_MESSAGES: Record<string, JobErrorMessage> = {
     message: 'A previous import attempt left behind incomplete staging data.',
     actions: ['Wait a few minutes for automatic cleanup, then try again. If it persists, contact support.'],
   },
+  FTD_LONG_TABLE_NOT_FOUND: {
+    message: "The rows of '{file_name}' have not been read yet, or were removed.",
+    actions: ["Open the mapping step of '{file_name}' and wait for its rows to be read again, then retry file staging."],
+  },
+  FTD_LONG_STAGING_RUNNING: {
+    message: "The rows of '{file_name}' are still being read.",
+    actions: ['Wait for it to finish, then retry file staging.'],
+  },
+  FTD_LONG_COLUMN_NOT_FOUND: {
+    message: "Column '{column}' of the mapping was not found in '{file_name}'.",
+    actions: ["Open the mapping step of '{file_name}', check the role of each column, save, then retry file staging."],
+  },
+  FTD_LONG_NO_VALUE_COLUMN: {
+    message: "The mapping of '{file_name}' does not say which column holds the measured values.",
+    actions: ["Open the mapping step of '{file_name}', set the value column, save, then retry file staging."],
+  },
+  FTD_LONG_NO_MEASUREMENT_TYPES: {
+    message: "No measurement type of '{file_name}' is mapped to a soil property.",
+    actions: ["Open the mapping step of '{file_name}', map at least one measurement type, save, then retry file staging."],
+  },
+  FTD_LONG_TOO_MANY_MEASUREMENT_TYPES: {
+    message: "'{file_name}' has more than {max} measurement types.",
+    actions: [
+      'Check that the property, unit and procedure columns are the right ones: a column with a different value on every row makes one measurement type per row.',
+      'If they are right, split the file into smaller files and upload each one.',
+    ],
+  },
+  LS_GDAL_PARSE_ERROR: {
+    message: "The file format isn't recognised or the file is corrupted.",
+    actions: [
+      'Verify the file is a valid CSV, GeoJSON, GeoPackage, or Shapefile (with all .dbf / .shx / .prj components), then re-upload.',
+    ],
+  },
+  LS_FILE_ALREADY_LOADED: {
+    message: "'{file_name}' is already loaded, so its rows can't be read again.",
+    actions: ['Only files that are not loaded yet are read. To add more data, upload a new file.'],
+  },
+  LS_COLUMN_NOT_FOUND: {
+    message: "Column '{column}' was given as the geometry of '{file_name}', but the file has no such column.",
+    actions: ["Open the mapping step of '{file_name}', set the geometry or the latitude and longitude columns again, then retry."],
+  },
+  LS_GEOMETRY_NOT_FOUND: {
+    message: "No geometry was found in '{file_name}', so its rows can't be read.",
+    actions: ["Open the mapping step of '{file_name}', set the geometry column or the latitude and longitude columns, then retry."],
+  },
+  LS_FILE_STAGING: {
+    message: "The rows of '{file_name}' can't be read again while the file is being staged.",
+    actions: ['Wait for file staging to finish, then try again.'],
+  },
   BL_DATASET_PUBLISHED: {
     message: "Dataset '{dataset_name}' is published, so data can't be loaded into it.",
     actions: ['Open a new version of the dataset and add the data to it.'],

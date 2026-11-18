@@ -188,6 +188,14 @@ _Avoid_: Raster load (the Dataset-scoped orchestration above it), conversion or 
 The catalog record for one Band of one raster File within a Dataset, carrying that Band's soil property, depth range, reference period, resolution, nodata marker, **Spatial extent** and footprints. The raster counterpart of a DatasetLayer, and identified by the pair (File, Band) — a File and Band together have at most one Raster Layer. Unlike a Layer, a Raster Layer holds no Observations: its measurements stay in the File's pixels, which is why the File must survive the Raster Load.
 _Avoid_: Layer (the soil data depth/date slice), Band (the pixel plane a Raster Layer points at), raster dataset (a Dataset, not a Raster Layer)
 
+**Long File**:
+A vector **File** with one row per measured value, where a wide File has one column per **Soil Property**. Which columns hold the property code, the value, the unit and the procedure fields is set in its column mapping; a Long File that names no property gets one **Soil Property** for the whole File. It is staged as it is and pivoted into the same staging table a wide File gets, so cleaning, the Preview table and the **Bulk Load** treat both alike (ADR 0081). For a categorical Soil Property its value column holds the class code, as the loader stores it; a column of class labels next to it is not loaded.
+_Avoid_: Tall file, narrow file, export format (an Export Bundle is one kind of Long File, not the definition)
+
+**Measurement Type**:
+One combination of local property code, unit, method code and procedure values found in a **Long File**: what one column of a wide File holds. The user maps each to a **Soil Property**, a unit conversion and a Procedure; one left unmapped is not loaded.
+_Avoid_: Series (reads as a time series), parameter, variable, property code (only one part of it)
+
 **Dataset File Mapping**:
 The link that puts one File's declaration — a **Band Mapping** for a raster File, a column mapping for a point or polygonal one — into force for one Dataset. The declaration itself is shared and deduplicated, so the same declaration may be linked by several Files and several Datasets; the link is what is specific to the pair. A File may carry more than one Dataset File Mapping within a Dataset, of which exactly one is **Current**.
 _Avoid_: Data mapping (the shared declaration the link points at — see Flagged ambiguities), "the file's mapping" bare (ambiguous between Current and Superseded), join, association

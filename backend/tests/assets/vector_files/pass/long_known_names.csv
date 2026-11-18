@@ -1,0 +1,13 @@
+latitude,longitude,min_depth,max_depth,soil_property,value,unit
+42.40,12.80,0,20,pH,6.8,
+42.40,12.80,0,20,organic carbon,18.4,g/kg
+42.40,12.80,0,20,clay,28,%
+42.40,12.80,20,40,pH,7.1,
+42.40,12.80,20,40,organic carbon,9.2,g/kg
+42.40,12.80,20,40,clay,31,%
+35.69,139.69,0,20,pH,5.9,
+35.69,139.69,0,20,organic carbon,22.1,g/kg
+35.69,139.69,0,20,clay,35,%
+-1.29,36.82,0,20,pH,6.2,
+-1.29,36.82,0,20,organic carbon,15.3,g/kg
+-1.29,36.82,0,20,clay,42,%

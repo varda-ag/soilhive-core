@@ -10,28 +10,50 @@ import { AwsS3StorageAdapter } from '@flystorage/aws-s3';
 import { LocalStorageAdapter } from '@flystorage/local-fs';
 import { FlystorageMulterStorageEngine } from '@flystorage/multer-storage';
 import { GdalCLI, OgrInfoLayer, GdalInfoOutput, GdalInfoBand } from '../utils/GdalCLI';
+import { SHAPE_SAMPLE_ROWS, ShapeSuggestion, suggestShape } from '../utils/vectorShape';
 import { LocalStorageConfig, S3StorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import { RequestData } from '../interfaces/RequestData';
-import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath } from '../interfaces/File';
+import { File, FileMetadata, RasterBandMetadata, ExtractedFilePath, VectorFileMetadata } from '../interfaces/File';
+import { LongFormatStats } from '../interfaces/CleaningReport';
+import type { LongStageGeometry } from '../interfaces/Job';
 import { georeferenceToWgs84, rasterGeoreference, vectorGeoreference } from '../utils/georeference';
 import { categoryLabels } from '../utils/raster';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { getSubject } from '../utils/auth';
 import { getEntity } from '../utils/slugs';
-import { sanitizeField, buildDatedFileKey, getRawTableName } from '../utils/utils';
-import { StorageModes } from '../types/enums';
-import { EntityType, IngestionStatus } from '../types/data';
-import { DataMappingObject, DetectableFields } from '../types/DataMapping';
+import { sanitizeField, buildDatedFileKey, getRawTableName, getLongTableName } from '../utils/utils';
+import { JobQueues, StorageModes } from '../types/enums';
+import { EntityType, IngestionStatus, ProcedureField, ProcedureTechnique } from '../types/data';
+import {
+  DataMappingObject,
+  DetectableFields,
+  LongFormatMapping,
+  LongRoleColumns,
+  MAX_MEASUREMENT_TYPES,
+  MeasurementTypeMapping,
+} from '../types/DataMapping';
+import { PropertyMapping } from '../interfaces/PropertyMapping';
+import { buildLongPivot, withLongWorkMem } from '../data-layer/LongPivot';
+import { buildMeasurementTypesQuery } from '../data-layer/LongMeasurementTypes';
+import { hasActiveFileJob } from '../data-layer/DatasetJobs';
+import { isLongMapping, longFormatProblem } from '../utils/longFormat';
+import { FoundMeasurementType, SuggestionSources, suggestMeasurementType } from '../utils/measurementTypes';
+import { MappingSlugs, loadMappingSlugs, withCurrentSlugs } from '../data-layer/MappingSlugs';
 import ConfigService from './ConfigService';
 import FileEntity from '../entities/File';
 import { JsonStorage } from '../entities/JsonStorage';
 import assert from 'assert';
 import { JobError } from '../errors/JobError';
+import { translateJobError } from '../errors/jobErrorMessages';
 import { getDBPassword } from '../utils/db-credentials';
 import { log } from '../utils/logger';
 import { bumpCacheEpoch } from '../utils/cache-epoch';
+import { CACHE_TTL_REFERENCE_MS } from '../utils/query-cache';
 import DataMappingService from './DataMappingService';
 import DatasetFileMappingEntity from '../entities/DatasetFileMapping';
+import SoilPropertyEntity from '../entities/SoilProperty';
+import UnitConversionEntity from '../entities/UnitConversion';
+import VocabularyEntity from '../entities/Vocabulary';
 import RasterFilterEntity from '../entities/RasterFilter';
 import { EntityManager, Repository } from 'node_modules/typeorm';
 import { Readable } from 'stream';
@@ -65,6 +87,9 @@ const ALLOWED_GEOMETRY_TYPES = new Set([
 ]);
 
 const unknownGeomDrivers = ['CSV', 'XLSX'];
+
+/** An entry of a column mapping that names a property, as opposed to a metadata role such as 'min_depth'. */
+const isMappingEntry = (entry: unknown): entry is PropertyMapping => entry !== null && typeof entry === 'object' && !Array.isArray(entry);
 
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {
@@ -478,14 +503,24 @@ export default class FileService {
     return { layer, geometryDetected };
   };
 
-  getDetectedMapping(fieldNames: string[], mappings: DataMappingObject[]): DataMappingObject {
+  /**
+   * For each column, the entry earlier mappings gave a column of that name, the one with the most
+   * keys winning. With `slugs`, each entry names what it names by its current slug, and one whose
+   * property is gone is passed over.
+   */
+  getDetectedMapping(fieldNames: string[], mappings: DataMappingObject[], slugs?: MappingSlugs): DataMappingObject {
     const output: DataMappingObject = {};
 
     for (const fieldName of fieldNames) {
       for (const mapping of mappings) {
-        const current = mapping[fieldName];
+        let current = mapping[fieldName];
         if (!current) {
           continue;
+        }
+        if (slugs && isMappingEntry(current)) {
+          const resolved = withCurrentSlugs(current, slugs);
+          if (!resolved) continue;
+          current = resolved;
         }
         if (!output[fieldName]) {
           // First match
@@ -589,26 +624,34 @@ export default class FileService {
       horizonFieldName = FileService.detectField(fieldNames, ['horizon', 'layername'], true);
 
       const mappings: DataMappingObject[] = (await dataMappingService.getDataMappings(requestData)).map(dm => dm.data_mapping);
-      const detected_mapping: DataMappingObject = this.getDetectedMapping(fieldNames, mappings);
+      // The entries this file's columns could take, for the current slugs of what they name
+      const candidates = mappings.flatMap(mapping => fieldNames.map(field => mapping[field]).filter(isMappingEntry));
+      const slugs = await loadMappingSlugs(requestData.entityManager, candidates);
+      const detected_mapping: DataMappingObject = this.getDetectedMapping(fieldNames, mappings, slugs);
 
       const georeference = vectorGeoreference(layer);
       const georeference_wgs84 = georeference && layer.epsg ? await georeferenceToWgs84(georeference, `EPSG:${layer.epsg}`) : undefined;
+
+      const detected_fields: Record<DetectableFields, string | null> = {
+        [DetectableFields.GEOMETRY]: geometryFieldName,
+        [DetectableFields.LICENSE]: licenseFieldName,
+        [DetectableFields.SAMPLING_DATE]: samplingDateFieldName,
+        [DetectableFields.DEPTH]: depthFieldName,
+        [DetectableFields.MIN_DEPTH]: minDepthFieldName,
+        [DetectableFields.MAX_DEPTH]: maxDepthFieldName,
+        [DetectableFields.HORIZON]: horizonFieldName,
+        [DetectableFields.LATITUDE]: latitudeFieldName,
+        [DetectableFields.LONGITUDE]: longitudeFieldName,
+      };
+      const shape = await this.suggestShape(requestData, mainFilePath, layer, detected_fields, isExcel ? ['HEADERS=FORCE'] : []);
 
       const metadata: FileMetadata = {
         is_raster: false,
         field_names: fieldNames,
         detected_mapping,
-        detected_fields: {
-          [DetectableFields.GEOMETRY]: geometryFieldName,
-          [DetectableFields.LICENSE]: licenseFieldName,
-          [DetectableFields.SAMPLING_DATE]: samplingDateFieldName,
-          [DetectableFields.DEPTH]: depthFieldName,
-          [DetectableFields.MIN_DEPTH]: minDepthFieldName,
-          [DetectableFields.MAX_DEPTH]: maxDepthFieldName,
-          [DetectableFields.HORIZON]: horizonFieldName,
-          [DetectableFields.LATITUDE]: latitudeFieldName,
-          [DetectableFields.LONGITUDE]: longitudeFieldName,
-        },
+        detected_fields,
+        detected_format: shape.format,
+        ...(shape.roles && { detected_long_roles: shape.roles }),
         geometry_detected: geometryDetected,
         driver,
         layer_name: layer.name,
@@ -632,6 +675,43 @@ export default class FileService {
       if (tempZipExtractPath) {
         FileService.removeTempFolder(tempZipExtractPath);
       }
+    }
+  }
+
+  /**
+   * The suggested shape of a vector File, from its first rows (docs/adr/0081). It is a suggestion
+   * the user can overrule, so a sample that cannot be read leaves the File wide instead of
+   * failing the upload.
+   */
+  private async suggestShape(
+    requestData: RequestData,
+    mainFilePath: string,
+    layer: OgrInfoLayer,
+    detectedFields: Record<DetectableFields, string | null>,
+    openOptions: string[],
+  ): Promise<ShapeSuggestion> {
+    try {
+      const features = await GdalCLI.sampleFeatures(mainFilePath, layer.name, SHAPE_SAMPLE_ROWS, openOptions);
+
+      const em = requestData.entityManager;
+      const [procedure, conversions, properties] = await Promise.all([
+        FileService.procedureLists(em),
+        em.getRepository(UnitConversionEntity).find({ select: { original_unit_of_measurement: true }, cache: CACHE_TTL_REFERENCE_MS }),
+        em.getRepository(SoilPropertyEntity).find({ select: { standard_unit: true }, cache: CACHE_TTL_REFERENCE_MS }),
+      ]);
+      const units = [...conversions.map(c => c.original_unit_of_measurement), ...properties.map(p => p.standard_unit)].filter(
+        (u): u is string => !!u,
+      );
+
+      return suggestShape(
+        layer.fields.map(f => f.name),
+        features,
+        detectedFields,
+        { units, procedure },
+      );
+    } catch (error) {
+      log.warn('Failed to suggest the shape of a vector file', { source: mainFilePath, error: getErrorMessage(error) });
+      return { format: 'wide' };
     }
   }
 
@@ -745,6 +825,12 @@ export default class FileService {
     let selectClause = mappingNonGeomFields.map(field => `"${field}" AS ${sanitizeField(field)}`).join(', ');
 
     try {
+      if (isLongMapping(mapping)) {
+        const long_format_stats = await this.pivotLongFile(requestData, fileEntity, mapping);
+        // Read by the preview stats; the long table may be gone by then
+        await repo.update(fileEntity.id, { status: IngestionStatus.STAGED, metadata: { ...fileMetadata, long_format_stats } });
+        return;
+      }
       if (mappingNonGeomFields.length === 0) {
         throw new JobError('FTD_NO_DATA_COLUMNS');
       }
@@ -757,122 +843,17 @@ export default class FileService {
         throw err;
       }
 
-      let keepGeomColumn = 'YES';
-
-      if (!fileMetadata.geometry_detected) {
-        if (mappingGeomFields.geomField) {
-          // GEOM_POSSIBLE_NAMES is a no-op for some drivers (e.g. XLSX warns "does not support
-          // open option" and ignores it), so the column still arrives as a plain string. CAST ...
-          // AS GEOMETRY parses it from WKT/WKB/GeoJSON regardless of whether the driver-level
-          // option took effect — without it, the column round-trips as text.
-          ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
-          selectClause = `${selectClause}, CAST("${mappingGeomFields.geomField}" AS GEOMETRY) AS geometry`;
-          keepGeomColumn = 'NO';
-        } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
-          if (fileMetadata.driver === 'XLSX') {
-            tempVrtPath = FileService.createPointVrt(mainFilePath, layerName, mappingGeomFields.lonField, mappingGeomFields.latField);
-          } else {
-            ogr2ogrOpts.push(
-              '-oo',
-              `X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`,
-              '-oo',
-              `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`,
-            );
-            selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
-          }
-        } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
-          ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
-          selectClause = `${selectClause}, CAST("${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS GEOMETRY) AS geometry`;
-          keepGeomColumn = 'NO';
-        } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
-          if (fileMetadata.driver === 'XLSX') {
-            tempVrtPath = FileService.createPointVrt(
-              mainFilePath,
-              layerName,
-              fileMetadata.detected_fields[DetectableFields.LONGITUDE],
-              fileMetadata.detected_fields[DetectableFields.LATITUDE],
-            );
-          } else {
-            ogr2ogrOpts.push(
-              '-oo',
-              `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
-              '-oo',
-              `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
-            );
-            selectClause = `${selectClause}, "_ogr_geometry_" AS geometry`;
-          }
-        } else {
-          throw new ErrorResponse(
-            'Geometry not found: no geometry column in user mapping or auto-detected fields',
-            StatusCodes.BAD_REQUEST,
-          );
-        }
-      }
-
-      if (fileMetadata.driver === 'XLSX') {
-        ogr2ogrOpts.push('-oo', 'HEADERS=FORCE');
-      }
-
-      if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
-        // Reproject from the declared non-WGS84 source CRS to WGS84.
-        ogr2ogrOpts.push('-s_srs', `EPSG:${fileMetadata.epsg}`);
-        ogr2ogrOpts.push('-t_srs', 'EPSG:4326');
-      } else {
-        // Source is WGS84 or CRS unknown (assumed WGS84): assign SRID without reprojecting.
-        // -a_srs avoids GDAL 3.10.x's PostgreSQL driver spurious coordinate shift that occurs
-        // when -s_srs EPSG:4326 is combined with -t_srs EPSG:4326 on a null-SRS CSV layer.
-        ogr2ogrOpts.push('-a_srs', 'EPSG:4326');
-      }
-
-      if (fileMetadata.geometry_detected && fileMetadata.geom_column) {
-        if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
-          // CSV/XLSX: re-open with the sniffed column as geometry. A column literally
-          // named "WKT" becomes an unnamed OGR geometry field that cannot be referenced
-          // in SQL; OGR SQL passes the geometry through implicitly instead.
-          ogr2ogrOpts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.geom_column}`);
-          keepGeomColumn = 'NO';
-        } else {
-          // e.g. GPKG executes -sql natively (SQLite), where geometry must be selected explicitly.
-          selectClause = `${selectClause}, "${fileMetadata.geom_column}" as geometry`;
-        }
-      }
-
-      if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
-        ogr2ogrOpts.push('-oo', 'AUTODETECT_TYPE=YES', '-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
+      const source = FileService.geometrySource(fileMetadata, mappingGeomFields, mainFilePath, layerName, true);
+      tempVrtPath = source.tempVrtPath;
+      ogr2ogrOpts.push(...source.opts);
+      if (source.geometrySelect) {
+        selectClause = `${selectClause}, ${source.geometrySelect}`;
       }
 
       ogr2ogrOpts.push('-sql', `SELECT ${selectClause} FROM "${layerName}"`);
 
-      const bundleFile = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
-      const sslOpts = `sslmode=verify-full sslrootcert=${bundleFile}`;
-      const pgDataset =
-        `PG:host=${process.env.POSTGRES_HOST} port=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${await getDBPassword()} ${process.env.POSTGRES_PASSWORD ? '' : sslOpts} schemas=${process.env.POSTGRES_SCHEMA}`.replace(
-          /\n/g,
-          ' ',
-        );
-
-      log.info('Starting ogr2ogr', {
-        source: mainFilePath,
-        opts: JSON.stringify(ogr2ogrOpts),
-      });
-
       await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
-
-      try {
-        await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, tempVrtPath ?? mainFilePath]);
-      } catch (translateError) {
-        const errMsg = getErrorMessage(translateError);
-        log.error('ogr2ogr failed', {
-          source: mainFilePath,
-          target: pgDataset.replace(/password=\S+/, 'password=***'),
-          opts: JSON.stringify(ogr2ogrOpts),
-          error: errMsg,
-        });
-        if (/ogr2ogr failed \(exit \d+\)/.test(errMsg)) {
-          throw new JobError('FTD_GDAL_PARSE_ERROR', {}, errMsg);
-        }
-        throw translateError;
-      }
+      await FileService.runOgr2ogr(ogr2ogrOpts, tempVrtPath ?? mainFilePath, 'FTD_GDAL_PARSE_ERROR');
 
       const depthRangeField: string | null = mapping
         ? (Object.keys(mapping).find(key => mapping[key] === DetectableFields.DEPTH) ?? null)
@@ -884,7 +865,10 @@ export default class FileService {
         }
       }
 
-      await repo.update(fileEntity.id, { status: IngestionStatus.STAGED });
+      // A File switched from long to wide keeps neither its long table nor the counts of its pivot
+      await requestData.entityManager.query(`DROP TABLE IF EXISTS "${getLongTableName(fileEntity.id)}"`);
+      const { long_format_stats, ...wideMetadata } = fileMetadata;
+      await repo.update(fileEntity.id, { status: IngestionStatus.STAGED, ...(long_format_stats && { metadata: wideMetadata }) });
     } catch (error) {
       await repo.update(fileEntity.id, { status: IngestionStatus.PENDING });
       if (JobError.isJobError(error)) {
@@ -903,6 +887,420 @@ export default class FileService {
       }
     }
   };
+
+  /**
+   * Copies a long File into its long table as it is, for file-to-db to pivot (docs/adr/0081): every
+   * column of the first layer, and the geometry as file-to-db reads it. Run again whenever the
+   * geometry, latitude, longitude or CRS of the File changes. The File stays PENDING.
+   */
+  longStage = async (requestData: RequestData, fileId: string, geometry: LongStageGeometry = {}) => {
+    const fileEntity = await this.getFile(requestData, fileId);
+    assert(fileEntity.file_path, `File path not found for file ${fileId}`);
+    assert(fileEntity.metadata, `Metadata not found for file ${fileId}`);
+    const fileMetadata = fileEntity.metadata;
+    if (fileMetadata.is_raster) {
+      throw new JobError('FTD_RASTER_NOT_SUPPORTED');
+    }
+    if (!fileMetadata.layer_name) {
+      throw new JobError('FTD_MISSING_LAYER_NAME');
+    }
+    // Its long table went with the Bulk Load, and so did the need for one
+    if (fileEntity.status === IngestionStatus.LOADED) {
+      throw new JobError('LS_FILE_ALREADY_LOADED', { file_name: fileEntity.name });
+    }
+    const layerName = fileMetadata.layer_name;
+
+    for (const column of [geometry.geom_col, geometry.lat_col, geometry.lon_col]) {
+      if (column && !fileMetadata.field_names.includes(column)) {
+        throw new JobError('LS_COLUMN_NOT_FOUND', { column, file_name: fileEntity.name });
+      }
+    }
+    // The columns the job names come first: the user set them on a mapping not saved yet. Then the
+    // saved mapping, and with neither, the geometry is read as it was detected
+    let mappingGeomFields: { geomField: string | null; latField: string | null; lonField: string | null };
+    if (geometry.geom_col || geometry.lat_col) {
+      mappingGeomFields = { geomField: geometry.geom_col ?? null, latField: geometry.lat_col ?? null, lonField: geometry.lon_col ?? null };
+    } else {
+      const datasetFileMapping = await requestData.entityManager.getRepository(DatasetFileMappingEntity).findOne({
+        where: { file_id: fileEntity.id },
+        relations: ['data_mapping'],
+      });
+      mappingGeomFields = await this.extractGeomFieldsFromMapping(datasetFileMapping?.data_mapping?.data_mapping);
+    }
+    const detected = fileMetadata.detected_fields;
+    const geometryFound =
+      fileMetadata.geometry_detected ||
+      mappingGeomFields.geomField ||
+      (mappingGeomFields.latField && mappingGeomFields.lonField) ||
+      detected[DetectableFields.GEOMETRY] ||
+      (detected[DetectableFields.LATITUDE] && detected[DetectableFields.LONGITUDE]);
+    if (!geometryFound) {
+      throw new JobError('LS_GEOMETRY_NOT_FOUND', { file_name: fileEntity.name });
+    }
+
+    let tempZipExtractPath: string | null = null;
+    let tempVrtPath: string | null = null;
+    const tableName = getLongTableName(fileEntity.id);
+    const ogr2ogrOpts: string[] = [
+      '-f',
+      'PostgreSQL',
+      '-explodecollections',
+      '-lco',
+      'FID=source_id',
+      '-lco',
+      'SPATIAL_INDEX=NONE',
+      '-lco',
+      'LAUNDER=NO',
+      '-lco',
+      'GEOM_TYPE=geometry',
+      '-lco',
+      'GEOMETRY_NAME=geometry',
+      '-nln',
+      tableName,
+    ];
+
+    try {
+      let mainFilePath: string;
+      try {
+        ({ mainFilePath, tempZipExtractPath } = await FileService.getMainFilePath(fileEntity.file_path));
+      } catch (err) {
+        if (err instanceof ErrorResponse && err.status === StatusCodes.NOT_FOUND) {
+          throw new JobError('FTD_FILE_NOT_FOUND');
+        }
+        throw err;
+      }
+
+      // Column types are not detected: a CSV column stays text, so a local code such as 007 is kept
+      const source = FileService.geometrySource(fileMetadata, mappingGeomFields, mainFilePath, layerName, false);
+      tempVrtPath = source.tempVrtPath;
+      ogr2ogrOpts.push(...source.opts);
+
+      // The columns the table names itself, and the one read as geometry
+      const taken = ['geometry', 'source_id', source.geometryColumn?.toLowerCase()];
+      const fields = fileMetadata.field_names.filter(field => !taken.includes(field.toLowerCase()));
+      if (fields.length === 0) {
+        throw new JobError('FTD_NO_DATA_COLUMNS');
+      }
+      const selectClause = [...fields.map(field => `"${field}"`), ...(source.geometrySelect ? [source.geometrySelect] : [])].join(', ');
+      ogr2ogrOpts.push('-sql', `SELECT ${selectClause} FROM "${layerName}"`);
+
+      await requestData.entityManager.query(`DROP TABLE IF EXISTS "${tableName}"`);
+      await FileService.runOgr2ogr(ogr2ogrOpts, tempVrtPath ?? mainFilePath, 'LS_GDAL_PARSE_ERROR');
+    } catch (error) {
+      if (JobError.isJobError(error) || error instanceof ErrorResponse) {
+        throw error;
+      }
+      throw new ErrorResponse(`Failed to stage long file: ${getErrorMessage(error)}`, StatusCodes.BAD_REQUEST);
+    } finally {
+      if (tempZipExtractPath) {
+        FileService.removeTempFolder(tempZipExtractPath);
+      }
+      if (tempVrtPath) {
+        FileService.removeTempFolder(tempVrtPath);
+      }
+    }
+  };
+
+  /** The fixed list of each procedure field: the techniques, and the vocabulary of the others. */
+  private static async procedureLists(em: EntityManager): Promise<Partial<Record<ProcedureField, string[]>>> {
+    const vocabulary = await em
+      .getRepository(VocabularyEntity)
+      .find({ select: { category: true, name: true }, cache: CACHE_TTL_REFERENCE_MS });
+    const lists: Partial<Record<ProcedureField, string[]>> = { technique: Object.values(ProcedureTechnique) };
+    for (const { category, name } of vocabulary) {
+      (lists[category] ??= []).push(name);
+    }
+    return lists;
+  }
+
+  /**
+   * The Measurement Types of a staged long File for the given role columns, each with suggested
+   * answers (docs/adr/0081). Reads the long table only, so it is asked again whenever a role changes.
+   *
+   * `fixedProperty` is the slug of the Soil Property of the whole File, for one with no property
+   * column: units are then matched against that property's conversions.
+   */
+  getMeasurementTypes = async (
+    requestData: RequestData,
+    fileId: string,
+    roles: LongRoleColumns,
+    fixedProperty?: string,
+  ): Promise<FoundMeasurementType[]> => {
+    const em = requestData.entityManager;
+    const file = await this.getFile(requestData, fileId);
+    if (!file.metadata || file.metadata.is_raster) {
+      throw new ErrorResponse(`File '${file.name}' is not a vector file`, StatusCodes.BAD_REQUEST);
+    }
+    // The long table is dropped and written again while long-stage runs
+    if (await hasActiveFileJob(em, JobQueues.LONG_STAGE, file, true)) {
+      throw new ErrorResponse(`File '${file.name}' is still being staged`, StatusCodes.CONFLICT);
+    }
+    const columns: { column_name: string }[] = await em.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
+      [process.env.POSTGRES_SCHEMA, getLongTableName(file.id)],
+    );
+    if (columns.length === 0) {
+      throw new ErrorResponse(`File '${file.name}' has not been staged as a long file`, StatusCodes.NOT_FOUND);
+    }
+    // One more than the limit, to tell a File at the limit from one over it
+    const query = buildMeasurementTypesQuery(roles, file.id, MAX_MEASUREMENT_TYPES + 1);
+    const missing = query.sourceColumns.find(column => !columns.some(c => c.column_name === column));
+    if (missing) {
+      throw new ErrorResponse(`Column '${missing}' is not a column of file '${file.name}'`, StatusCodes.BAD_REQUEST);
+    }
+
+    const rows: Record<string, string | number | null>[] = await withLongWorkMem(em, tx => tx.query(query.sql, query.values));
+    if (rows.length > MAX_MEASUREMENT_TYPES) {
+      const code = 'FTD_LONG_TOO_MANY_MEASUREMENT_TYPES';
+      const { message, actions } = translateJobError(code, { file_name: file.name, max: MAX_MEASUREMENT_TYPES });
+      throw new ErrorResponse(message, StatusCodes.UNPROCESSABLE_ENTITY, { code, actions });
+    }
+
+    // Earlier answers name entities by their slug when saved; a renamed one is suggested by its slug now
+    const earlier = await dataMappingService.getLongFormats(requestData);
+    const answers = (long: LongFormatMapping) => (Array.isArray(long?.measurement_types) ? long.measurement_types.filter(Boolean) : []);
+    const slugs = await loadMappingSlugs(em, earlier.flatMap(answers));
+    const longFormats = earlier.map(long => ({
+      ...long,
+      measurement_types: answers(long)
+        .map(answer => withCurrentSlugs(answer, slugs))
+        .filter((answer): answer is MeasurementTypeMapping => answer !== null),
+    }));
+    const hasProcedureCols = Object.keys(roles.procedure_cols ?? {}).length > 0;
+    const [properties, conversions, vocabulary] = await Promise.all([
+      em.getRepository(SoilPropertyEntity).find({
+        select: { id: true, slug: true, property_name: true, property_acronym: true },
+        cache: CACHE_TTL_REFERENCE_MS,
+      }),
+      em.getRepository(UnitConversionEntity).find({
+        select: { slug: true, property_id: true, original_unit_of_measurement: true },
+        cache: CACHE_TTL_REFERENCE_MS,
+      }),
+      // Only procedure values are matched against it
+      hasProcedureCols ? FileService.procedureLists(em) : {},
+    ]);
+    const sources: SuggestionSources = {
+      longFormats,
+      properties,
+      conversions,
+      procedures: [...slugs.procedure.values()],
+      vocabulary,
+      ...(fixedProperty && { fixedProperty }),
+    };
+
+    return rows.map(row => {
+      const match: FoundMeasurementType['match'] = {};
+      query.keys.forEach((key, i) => {
+        match[key] = row[`k${i}`] as string | null;
+      });
+      const suggestion = suggestMeasurementType(match, roles, sources);
+      return {
+        match,
+        row_count: Number(row['row_count']),
+        // numeric comes back as text
+        min_value: row['min_value'] === null ? null : Number(row['min_value']),
+        max_value: row['max_value'] === null ? null : Number(row['max_value']),
+        non_numeric_count: Number(row['non_numeric_count']),
+        ...(suggestion && { suggestion }),
+      };
+    });
+  };
+
+  /**
+   * Builds the raw table of a long File from its long table, one column per mapped Measurement
+   * Type (docs/adr/0081), in place of the ogr2ogr run of a wide File. Returns what it left out.
+   */
+  private async pivotLongFile(requestData: RequestData, file: FileEntity, mapping: DataMappingObject): Promise<LongFormatStats> {
+    const long = mapping.long_format!;
+    if (!long.value_col) {
+      throw new JobError('FTD_LONG_NO_VALUE_COLUMN', { file_name: file.name });
+    }
+    if (!Array.isArray(long.measurement_types) || long.measurement_types.length === 0) {
+      throw new JobError('FTD_LONG_NO_MEASUREMENT_TYPES', { file_name: file.name });
+    }
+    if (long.measurement_types.length > MAX_MEASUREMENT_TYPES) {
+      throw new JobError('FTD_LONG_TOO_MANY_MEASUREMENT_TYPES', { file_name: file.name, max: MAX_MEASUREMENT_TYPES });
+    }
+    // A mapping is checked when it is saved; this one was stored some other way
+    const problem = longFormatProblem(mapping);
+    if (problem) {
+      throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
+    }
+    // The long table is dropped and written again while long-stage runs
+    if (await hasActiveFileJob(requestData.entityManager, JobQueues.LONG_STAGE, file)) {
+      throw new JobError('FTD_LONG_STAGING_RUNNING', { file_name: file.name });
+    }
+
+    const em = requestData.entityManager;
+    const columns: { column_name: string }[] = await em.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`,
+      [process.env.POSTGRES_SCHEMA, getLongTableName(file.id)],
+    );
+    if (columns.length === 0) {
+      throw new JobError('FTD_LONG_TABLE_NOT_FOUND', { file_name: file.name });
+    }
+    const pivot = buildLongPivot(mapping, file.id);
+    const missing = pivot.sourceColumns.find(column => !columns.some(c => c.column_name === column));
+    if (missing) {
+      throw new JobError('FTD_LONG_COLUMN_NOT_FOUND', { file_name: file.name, column: missing });
+    }
+
+    const tableName = getRawTableName(file.id);
+    await em.query(`DROP TABLE IF EXISTS "${tableName}"`);
+    await em.query(pivot.createSql);
+    try {
+      await withLongWorkMem(em, tx => tx.query(pivot.insertSql, pivot.values));
+    } catch (error) {
+      await em.query(`DROP TABLE IF EXISTS "${tableName}"`);
+      throw error;
+    }
+
+    const depthRangeField = Object.keys(mapping).find(key => mapping[key] === DetectableFields.DEPTH);
+    if (depthRangeField) {
+      const nrows = await this.getValidDepthRangeCount(em, tableName, sanitizeField(depthRangeField));
+      if (nrows === 0) {
+        throw new JobError('FTD_INVALID_DEPTH_RANGE');
+      }
+    }
+
+    const [stats]: LongFormatStats[] = await withLongWorkMem(em, tx => tx.query(pivot.statsSql, pivot.values));
+    return stats!;
+  }
+
+  /**
+   * How ogr2ogr reads the geometry and CRS of a File into a table: its options, the geometry
+   * expression for the select (null where OGR passes the geometry through by itself), the source
+   * column read as geometry, and the VRT written for it, which the caller removes.
+   *
+   * `autodetectTypes` has a CSV's column types detected, as a wide File needs; without it they stay text.
+   */
+  private static geometrySource(
+    fileMetadata: VectorFileMetadata,
+    mappingGeomFields: { geomField: string | null; latField: string | null; lonField: string | null },
+    mainFilePath: string,
+    layerName: string,
+    autodetectTypes: boolean,
+  ): { opts: string[]; geometrySelect: string | null; geometryColumn: string | null; tempVrtPath: string | null } {
+    const opts: string[] = [];
+    let geometrySelect: string | null = null;
+    let geometryColumn: string | null = null;
+    let tempVrtPath: string | null = null;
+    let keepGeomColumn = 'YES';
+
+    if (!fileMetadata.geometry_detected) {
+      if (mappingGeomFields.geomField) {
+        // GEOM_POSSIBLE_NAMES is a no-op for some drivers (e.g. XLSX warns "does not support
+        // open option" and ignores it), so the column still arrives as a plain string. CAST ...
+        // AS GEOMETRY parses it from WKT/WKB/GeoJSON regardless of whether the driver-level
+        // option took effect — without it, the column round-trips as text.
+        opts.push('-oo', `GEOM_POSSIBLE_NAMES=${mappingGeomFields.geomField}`);
+        geometrySelect = `CAST("${mappingGeomFields.geomField}" AS GEOMETRY) AS geometry`;
+        geometryColumn = mappingGeomFields.geomField;
+        keepGeomColumn = 'NO';
+      } else if (mappingGeomFields.latField && mappingGeomFields.lonField) {
+        if (fileMetadata.driver === 'XLSX') {
+          tempVrtPath = FileService.createPointVrt(mainFilePath, layerName, mappingGeomFields.lonField, mappingGeomFields.latField);
+        } else {
+          opts.push('-oo', `X_POSSIBLE_NAMES=${mappingGeomFields.lonField}`, '-oo', `Y_POSSIBLE_NAMES=${mappingGeomFields.latField}`);
+          geometrySelect = `"_ogr_geometry_" AS geometry`;
+        }
+      } else if (fileMetadata.detected_fields[DetectableFields.GEOMETRY]) {
+        opts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}`);
+        geometrySelect = `CAST("${fileMetadata.detected_fields[DetectableFields.GEOMETRY]}" AS GEOMETRY) AS geometry`;
+        geometryColumn = fileMetadata.detected_fields[DetectableFields.GEOMETRY];
+        keepGeomColumn = 'NO';
+      } else if (fileMetadata.detected_fields[DetectableFields.LATITUDE] && fileMetadata.detected_fields[DetectableFields.LONGITUDE]) {
+        if (fileMetadata.driver === 'XLSX') {
+          tempVrtPath = FileService.createPointVrt(
+            mainFilePath,
+            layerName,
+            fileMetadata.detected_fields[DetectableFields.LONGITUDE],
+            fileMetadata.detected_fields[DetectableFields.LATITUDE],
+          );
+        } else {
+          opts.push(
+            '-oo',
+            `X_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LONGITUDE]}`,
+            '-oo',
+            `Y_POSSIBLE_NAMES=${fileMetadata.detected_fields[DetectableFields.LATITUDE]}`,
+          );
+          geometrySelect = `"_ogr_geometry_" AS geometry`;
+        }
+      } else {
+        throw new ErrorResponse('Geometry not found: no geometry column in user mapping or auto-detected fields', StatusCodes.BAD_REQUEST);
+      }
+    }
+
+    if (fileMetadata.driver === 'XLSX') {
+      opts.push('-oo', 'HEADERS=FORCE');
+    }
+
+    if (fileMetadata.epsg && fileMetadata.epsg !== 4326) {
+      // Reproject from the declared non-WGS84 source CRS to WGS84.
+      opts.push('-s_srs', `EPSG:${fileMetadata.epsg}`);
+      opts.push('-t_srs', 'EPSG:4326');
+    } else {
+      // Source is WGS84 or CRS unknown (assumed WGS84): assign SRID without reprojecting.
+      // -a_srs avoids GDAL 3.10.x's PostgreSQL driver spurious coordinate shift that occurs
+      // when -s_srs EPSG:4326 is combined with -t_srs EPSG:4326 on a null-SRS CSV layer.
+      opts.push('-a_srs', 'EPSG:4326');
+    }
+
+    if (fileMetadata.geometry_detected && fileMetadata.geom_column) {
+      geometryColumn = fileMetadata.geom_column;
+      if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
+        // CSV/XLSX: re-open with the sniffed column as geometry. A column literally
+        // named "WKT" becomes an unnamed OGR geometry field that cannot be referenced
+        // in SQL; OGR SQL passes the geometry through implicitly instead.
+        opts.push('-oo', `GEOM_POSSIBLE_NAMES=${fileMetadata.geom_column}`);
+        keepGeomColumn = 'NO';
+      } else {
+        // e.g. GPKG executes -sql natively (SQLite), where geometry must be selected explicitly.
+        geometrySelect = `"${fileMetadata.geom_column}" as geometry`;
+      }
+    }
+
+    if (unknownGeomDrivers.includes(fileMetadata.driver ?? '')) {
+      if (autodetectTypes) {
+        opts.push('-oo', 'AUTODETECT_TYPE=YES');
+      }
+      opts.push('-oo', 'EMPTY_STRING_AS_NULL=YES', '-oo', `KEEP_GEOM_COLUMNS=${keepGeomColumn}`);
+    }
+
+    return { opts, geometrySelect, geometryColumn, tempVrtPath };
+  }
+
+  /** Runs ogr2ogr into the database. A run GDAL itself fails is the JobError `parseErrorCode`. */
+  private static async runOgr2ogr(ogr2ogrOpts: string[], source: string, parseErrorCode: string): Promise<void> {
+    const bundleFile = path.join(__dirname, '..', 'assets', 'global-bundle.pem');
+    const sslOpts = `sslmode=verify-full sslrootcert=${bundleFile}`;
+    const pgDataset =
+      `PG:host=${process.env.POSTGRES_HOST} port=${process.env.POSTGRES_PORT} user=${process.env.POSTGRES_USER} dbname=${process.env.POSTGRES_DB} password=${await getDBPassword()} ${process.env.POSTGRES_PASSWORD ? '' : sslOpts} schemas=${process.env.POSTGRES_SCHEMA}`.replace(
+        /\n/g,
+        ' ',
+      );
+
+    log.info('Starting ogr2ogr', {
+      source,
+      opts: JSON.stringify(ogr2ogrOpts),
+    });
+
+    try {
+      await GdalCLI.ogr2ogr([...ogr2ogrOpts, pgDataset, source]);
+    } catch (translateError) {
+      const errMsg = getErrorMessage(translateError);
+      log.error('ogr2ogr failed', {
+        source,
+        target: pgDataset.replace(/password=\S+/, 'password=***'),
+        opts: JSON.stringify(ogr2ogrOpts),
+        error: errMsg,
+      });
+      if (/ogr2ogr failed \(exit \d+\)/.test(errMsg)) {
+        throw new JobError(parseErrorCode, {}, errMsg);
+      }
+      throw translateError;
+    }
+  }
 
   private async extractGeomFieldsFromMapping(
     mapping: DataMappingObject | undefined,

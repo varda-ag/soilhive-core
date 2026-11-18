@@ -397,6 +397,7 @@ describe('Plugin tokens', () => {
       '/data-filters',
       '/datasets/{datasetId}/entitlements',
       '/files/{fileId}/download',
+      '/files/{fileId}/measurement-types',
       // Recipients' emails and who redeemed, as the entitlements reads list other Subjects
       '/invites',
       '/model-runner-registrations',

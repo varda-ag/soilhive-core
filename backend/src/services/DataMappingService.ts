@@ -2,7 +2,7 @@ import { StatusCodes } from 'http-status-codes';
 import { DataCleaningConfig } from '../interfaces/DataMapping';
 import { PropertyMapping, PropertyCleaningConfig } from '../interfaces/PropertyMapping';
 import { RequestData } from '../interfaces/RequestData';
-import { DetectableFields, type DataMappingObject } from '../types/DataMapping';
+import { DetectableFields, type DataMappingObject, type LongFormatMapping } from '../types/DataMapping';
 import type { RasterMappingObject, ResolvedBandMapping } from '../interfaces/RasterMapping';
 import { ErrorResponse } from '../utils/error';
 import { getSubject } from '../utils/auth';
@@ -15,6 +15,34 @@ import SoilPropertyService from './SoilPropertyService';
 import ProcedureService from './ProcedureService';
 import { sanitizeField } from '../utils/utils';
 import { hasClasses } from '../utils/soilPropertyClasses';
+import { isLongMapping, longFormatProblem } from '../utils/longFormat';
+
+// The mapping keys that are not source columns
+const RESERVED_KEYS = ['drop_records', 'long_format'];
+
+/**
+ * The first two columns of a column mapping that are mapped the same way: to the same Soil
+ * Property, procedure and unit conversion. Most likely a slip, and on a record where both hold
+ * the same value the Bulk Load fails, since the two make one Observation. null when there is none.
+ *
+ * A Band Mapping is left alone: two bands of one property are two depths or periods. Its entries
+ * are told apart by their depth keys, which a column's entry never has. The raster mapping step
+ * requires both depths of every mapped band, so each band entry it saves carries them.
+ */
+export const sameWayMappedColumns = (mapping: DataMappingObject): [string, string] | null => {
+  const seen = new Map<string, string>();
+  for (const [column, entry] of Object.entries(mapping)) {
+    if (RESERVED_KEYS.includes(column) || entry === null || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    if ('min_depth' in entry || 'max_depth' in entry) continue;
+    const { property_id, procedure_id, conversion_id } = entry as PropertyMapping;
+    if (!property_id) continue;
+    const key = JSON.stringify([property_id, procedure_id ?? null, conversion_id ?? null]);
+    const first = seen.get(key);
+    if (first !== undefined) return [first, column];
+    seen.set(key, column);
+  }
+  return null;
+};
 
 export default class DataMappingService {
   postDataMapping = async (requestData: RequestData, dataMapping: DataMappingObject): Promise<DataMappingEntity> => {
@@ -22,6 +50,20 @@ export default class DataMappingService {
     // Validate
     if (dataMapping.drop_records && !Array.isArray(dataMapping.drop_records)) {
       throw new ErrorResponse(`drop_records must be an array of numbers`, StatusCodes.BAD_REQUEST);
+    }
+    if (dataMapping.long_format !== undefined && typeof dataMapping.long_format !== 'string') {
+      const problem = longFormatProblem(dataMapping);
+      if (problem) {
+        throw new ErrorResponse(problem, StatusCodes.BAD_REQUEST);
+      }
+    }
+    const sameWay = sameWayMappedColumns(dataMapping);
+    if (sameWay) {
+      throw new ErrorResponse(
+        `Columns '${sameWay[0]}' and '${sameWay[1]}' are mapped to the same soil property, procedure and unit. Map only one of them, or give them different procedures. ` +
+          'For a band mapping, send min_depth and max_depth on each band, null when unknown.',
+        StatusCodes.BAD_REQUEST,
+      );
     }
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
 
@@ -52,10 +94,23 @@ export default class DataMappingService {
     };
     const dataMappingEntity = await this.getDataMapping(requestData, id);
     const data_mapping = dataMappingEntity.data_mapping;
+    // The Measurement Types of a long File stand where the property columns of a wide one do, each
+    // under the column the pivot gives it in the raw table (docs/adr/0081)
+    const long = isLongMapping(data_mapping) ? data_mapping.long_format : undefined;
+    const longProperties: Record<string, PropertyMapping> = {};
+    for (const { col, match: _match, ...props } of long?.measurement_types ?? []) {
+      longProperties[col] = { ...props, property_id: props.property_id ?? long!.fixed_property_id! };
+    }
+    const propertyMappings: (PropertyMapping | string)[] = [
+      ...Object.entries(data_mapping)
+        .filter(([field]) => !RESERVED_KEYS.includes(field))
+        .map(([, mapping]) => mapping as PropertyMapping | string),
+      ...Object.values(longProperties),
+    ];
 
     const conversionSlugs: string[] = [
       ...new Set(
-        Object.values(data_mapping)
+        propertyMappings
           .filter(
             mapping =>
               typeof mapping === 'object' &&
@@ -72,7 +127,7 @@ export default class DataMappingService {
     let ucInfoMap: Map<string, UnitConversionEntity>;
     const propertySlugs: string[] = [
       ...new Set(
-        Object.values(data_mapping)
+        propertyMappings
           .filter(mapping => typeof mapping === 'object' && (mapping as PropertyMapping).property_id !== undefined)
           .map(mapping => (mapping as PropertyMapping).property_id),
       ),
@@ -91,7 +146,7 @@ export default class DataMappingService {
 
     const procedureSlugs: string[] = [
       ...new Set(
-        Object.values(data_mapping)
+        propertyMappings
           .filter(
             mapping =>
               typeof mapping === 'object' &&
@@ -114,7 +169,8 @@ export default class DataMappingService {
     );
 
     // Process metadata (string types) and property columns (object types)
-    for (const [field, mapping] of Object.entries(data_mapping)) {
+    for (const [field, mapping] of [...Object.entries(data_mapping), ...Object.entries(longProperties)]) {
+      if (long && field === 'long_format') continue;
       if ([DetectableFields.GEOMETRY, DetectableFields.LATITUDE, DetectableFields.LONGITUDE].includes(mapping as DetectableFields)) {
         continue;
       }
@@ -230,6 +286,20 @@ export default class DataMappingService {
   getDataMappings = async (requestData: RequestData): Promise<DataMappingEntity[]> => {
     const repo = requestData.entityManager.getRepository(DataMappingEntity);
     return await repo.find();
+  };
+
+  /**
+   * The long_format of each long mapping, newest first: what earlier answers to Measurement Types
+   * are read from (docs/adr/0081). Wide mappings, the most of them, are left in the database.
+   */
+  getLongFormats = async (requestData: RequestData): Promise<LongFormatMapping[]> => {
+    const rows: { long_format: LongFormatMapping }[] = await requestData.entityManager.query(
+      `SELECT data_mapping -> 'long_format' AS long_format
+       FROM data_mappings
+       WHERE jsonb_typeof(data_mapping -> 'long_format') = 'object' AND deleted_at IS NULL
+       ORDER BY created_at DESC`,
+    );
+    return rows.map(row => row.long_format);
   };
 
   getDataMapping = async (requestData: RequestData, id: string): Promise<DataMappingEntity> => {

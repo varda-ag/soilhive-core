@@ -15,6 +15,8 @@ import { EntityManager } from 'typeorm';
 import FileEntity from '../../src/entities/File';
 import { IngestionStatus } from '../../src/types/data';
 import { writableAssets } from '../assets';
+import { MappingSlugs } from '../../src/data-layer/MappingSlugs';
+import SoilPropertyEntity from '../../src/entities/SoilProperty';
 
 // Use absolute path from package root
 const vectorFilesPassPath = writableAssets('vector_files/pass');
@@ -999,6 +1001,51 @@ describe('FileService', () => {
 
     it('ignores fieldNames that appear in fieldNames but have no match in any mapping', () => {
       expect(fileService.getDetectedMapping(['col_a', 'col_missing'], [{ col_a: 'x' }])).toEqual({ col_a: 'x' });
+    });
+
+    describe('with current slugs', () => {
+      const slugs: MappingSlugs = {
+        property: new Map([['ph', 'ph-in-water']]),
+        conversion: new Map(),
+        procedure: new Map(),
+      };
+
+      it('gives an entry the current slug of its property', () => {
+        expect(fileService.getDetectedMapping(['col_a'], [{ col_a: { property_id: 'ph' } }], slugs)).toEqual({
+          col_a: { property_id: 'ph-in-water' },
+        });
+      });
+
+      it('passes over an entry whose property is gone, even a richer one', () => {
+        const gone = { property_id: 'gone', conversion_id: 'c1', min_val: 0 };
+        expect(fileService.getDetectedMapping(['col_a'], [{ col_a: { property_id: 'ph' } }, { col_a: gone }], slugs)).toEqual({
+          col_a: { property_id: 'ph-in-water' },
+        });
+      });
+
+      it('leaves metadata roles as they are', () => {
+        expect(fileService.getDetectedMapping(['top'], [{ top: 'min_depth' }], slugs)).toEqual({ top: 'min_depth' });
+      });
+    });
+
+    it('suggests a renamed property by its current slug on upload', async () => {
+      process.env.LOCAL_STORAGE_ROOT_FOLDER = vectorFilesPassPath;
+      const name = 'wide_renamed_property.csv';
+      fs.writeFileSync(path.join(vectorFilesPassPath, name), ['WKT,ph_kcl_renamed', 'POINT (12.8 42.4),6.8', ''].join('\n'));
+      const property = await addSoilProperty(`pH before rename ${Date.now()}`, (await addCategory()).id);
+      await addDataMapping({ ph_kcl_renamed: { property_id: property.slug, min_val: 0, max_val: 14 } });
+      // The trigger gives the property a new slug and keeps the old one in slug_history
+      await entityManager.update(SoilPropertyEntity, property.id, { property_name: `pH after rename ${Date.now()}` });
+      const renamed = await entityManager.findOneByOrFail(SoilPropertyEntity, { id: property.id });
+      expect(renamed.slug).not.toBe(property.slug);
+
+      const file = await fileService.createFile(requestData, { name, file_path: name });
+
+      expect((file.metadata as VectorFileMetadata).detected_mapping['ph_kcl_renamed']).toEqual({
+        property_id: renamed.slug,
+        min_val: 0,
+        max_val: 14,
+      });
     });
   });
 });

@@ -824,12 +824,15 @@ paths:
       x-entitlements-required: true
       summary: Starts async job
       description: >-
-        bulk-load, raster-load, file-to-db and bulk-delete jobs require data-admin or super-admin scope.
+        bulk-load, raster-load, file-to-db, long-stage and bulk-delete jobs require data-admin or super-admin scope.
         Their processors operate on a dataset that is not yet PUBLISHED, which only a privileged caller can resolve.
         A bulk-load, raster-load or bulk-delete job is refused with 409 while its dataset already has one of
         those, or a version-reset or version-discard, queued or running, and its dataset_id is stored as the
         dataset's current id. A bulk-load or raster-load into a version is refused with 400 when it sets
         delete_source_files: resetting the version loads its files again from their uploads.
+        A long-stage job copies a long file into a staging table of its own, which the file-to-db job of
+        a mapping with long_format then pivots. The upload does not start it: start it once the file is
+        long and its geometry and CRS are known, and again after any of them changes. It fails for a loaded file, and while the file is staged or its dataset loads.
         An export over its Export Limits or the XLSX record cap is refused with 400 when its counts finish
         within EXPORT_LIMITS_CHECK_TIMEOUT_MS (default 5 seconds); otherwise it is started and its job fails instead.
         While administrators require a signed-in user to export (exportRequiresSignIn in the theme config's exportLimits),
@@ -851,6 +854,7 @@ paths:
                 - $ref: '#/components/schemas/RasterLoadJob'
                 - $ref: '#/components/schemas/ExportJob'
                 - $ref: '#/components/schemas/FileToDbJob'
+                - $ref: '#/components/schemas/LongStageJob'
                 - $ref: '#/components/schemas/BulkDeleteJob'
               discriminator:
                 propertyName: type
@@ -859,6 +863,7 @@ paths:
                   raster-load: '#/components/schemas/RasterLoadJob'
                   export: '#/components/schemas/ExportJob'
                   file-to-db: '#/components/schemas/FileToDbJob'
+                  long-stage: '#/components/schemas/LongStageJob'
                   bulk-delete: '#/components/schemas/BulkDeleteJob'
       responses:
         '200':
@@ -3039,11 +3044,147 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /files/{fileId}/measurement-types:
+    parameters:
+      - name: fileId
+        in: path
+        required: true
+        schema:
+          type: string
+        description: File unique internal identifier
+    get:
+      x-eov-operation-handler: controllers/files
+      x-eov-operation-id: getMeasurementTypes
+      x-plugin-token-denied: true
+      summary: List the measurement types of a long file
+      description: >
+        Lists the measurement types found in a long file (one row per measured value) that the
+        long-stage job has staged: one per combination of the values of the role columns given
+        here, with suggested answers for the mapping. Ask again whenever a role column changes;
+        the file itself is not read again. Rows with no value are not counted, and with a property
+        column neither are rows with no property code.
+      tags:
+        - files
+      security:
+        - bearerAuth: [super-admin, data-admin]
+      parameters:
+        - name: value_col
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Column holding the measured value
+        - name: property_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own property code. Give this or fixed_property_id.
+        - name: fixed_property_id
+          in: query
+          schema:
+            type: string
+          description: >
+            Slug of the soil property of the whole file, for a file with no property column. Units
+            are then matched against the unit conversions of this property.
+        - name: unit_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own unit
+        - name: method_code_col
+          in: query
+          schema:
+            type: string
+          description: Column holding a method code of the file's own
+        - name: technique_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own technique values
+        - name: sample_pretreatment_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own sample pretreatment values
+        - name: laboratory_method_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own laboratory method values
+        - name: extractant_concentration_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own extractant concentration values
+        - name: extraction_ratio_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own extraction ratio values
+        - name: extraction_base_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own extraction base values
+        - name: measurement_procedure_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own measurement procedure values
+        - name: limit_of_detection_col
+          in: query
+          schema:
+            type: string
+          description: Column holding the file's own limit of detection values
+      responses:
+        '200':
+          description: Measurement types retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - measurement_types
+                properties:
+                  measurement_types:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FoundMeasurementType'
+        '400':
+          description: A column given is not a column of the file; or both or neither of property_col and fixed_property_id were given; or the file is not a vector file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: The file does not exist, or it has not been staged as a long file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A long-stage job of the file is queued or running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: >
+            The file has more measurement types than a mapping can hold. The body carries the code
+            FTD_LONG_TOO_MANY_MEASUREMENT_TYPES and the actions to take.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /mappings:
     post:
       x-eov-operation-handler: controllers/mappings
       x-eov-operation-id: createDataMapping
       summary: Create a new data mapping. This operation is idempotent
+      description: >
+        Refused with 400 when two columns are mapped the same way: to the same soil property,
+        procedure and unit conversion. A band mapping of a raster file is not checked for this.
       tags:
         - mappings
       security:
@@ -3657,6 +3798,37 @@ components:
         detected_mapping:
           type: object
           additionalProperties: true
+        detected_format:
+          type: string
+          enum: [wide, long]
+          description: >
+            Suggested from the first rows of the file. wide: one column per property. long: one row per
+            measured value. Absent on older files, which read as wide. A long file must be staged by a
+            long-stage job (POST /jobs) before its measurement types can be listed.
+        detected_long_roles:
+          type: object
+          description: The suggested role columns of a long file. Only when detected_format is long.
+          properties:
+            property_col:
+              type: string
+              nullable: true
+              description: null when the file names no property, so one is set for the whole file
+            value_col:
+              type: string
+              nullable: true
+            unit_col:
+              type: string
+              nullable: true
+            method_code_col:
+              type: string
+              nullable: true
+            procedure_cols:
+              type: object
+              description: Procedure field to the column holding it
+              additionalProperties:
+                type: string
+        long_format_stats:
+          $ref: '#/components/schemas/LongFormatStats'
         field_names:
           type: array
           items:
@@ -4551,15 +4723,28 @@ components:
           items:
             type: integer
           description: Row indices to exclude from the import
+        long_format:
+          $ref: '#/components/schemas/LongFormatMapping'
       additionalProperties:
-        oneOf:
+        # anyOf, not oneOf: a band entry also matches PropertyMapping, which leaves its other keys open
+        anyOf:
           - type: string
           - $ref: '#/components/schemas/PropertyMapping'
+          - $ref: '#/components/schemas/RasterBandMapping'
       description: >
-        Dynamic object where keys are column names from the source data.
+        Dynamic object where keys are column names from the source data, or band numbers for a
+        raster file's band mapping.
         Values can be either:
         - A string (for metadata columns like 'min_depth', 'max_depth', 'sampling_date', etc.)
         - A PropertyMapping object (for property columns with conversion/procedure info)
+        - A RasterBandMapping object (for a band of a raster file)
+
+        Two property columns mapped to the same soil property, procedure and unit conversion are
+        refused with 400. Bands are exempt, and are told apart by their min_depth and max_depth keys,
+        so a band entry must always send both, null when unknown.
+
+        A mapping with long_format is of a long file, with one row per measured value: it maps
+        measurement types in place of property columns, so it holds no PropertyMapping value.
       example:
         magnesium:
           property_id: 'magnesium'
@@ -4591,6 +4776,215 @@ components:
         procedure_id:
           type: string
           description: Optional slug for the procedure
+
+    RasterBandMapping:
+      type: object
+      description: >
+        What one band of a raster file measures. Both depth keys are required, null when unknown:
+        they are what tells a band from a property column.
+      required:
+        - property_id
+        - min_depth
+        - max_depth
+      properties:
+        property_id:
+          type: string
+          description: Slug of the soil property
+        conversion_id:
+          type: string
+          nullable: true
+          description: Slug of the unit conversion, or null when the property declares none
+        procedure_id:
+          type: string
+          nullable: true
+          description: Slug of the procedure
+        min_depth:
+          type: number
+          nullable: true
+          description: Upper depth of the band in cm, or null when unknown
+        max_depth:
+          type: number
+          nullable: true
+          description: Lower depth of the band in cm, or null when unknown
+        reference_period_start:
+          type: string
+          nullable: true
+        reference_period_stop:
+          type: string
+          nullable: true
+        layer_description:
+          type: string
+          description: Free text about the band's raster layer
+        additional_resources:
+          type: array
+          description: Files to attach to the band's raster layer
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              file_id:
+                type: string
+                description: Slug of the file
+
+    LongFormatMapping:
+      type: object
+      description: >
+        The role columns of a long file and its mapped measurement types. A measurement type is one
+        combination of property code, unit and procedure values found in the file. One that is not
+        listed is not loaded. Either property_col or fixed_property_id is set, not both.
+      required:
+        - value_col
+        - measurement_types
+      properties:
+        property_col:
+          type: string
+          description: Column holding the property code of each row
+        fixed_property_id:
+          type: string
+          description: The soil property of the whole file, for a file with no property column
+        value_col:
+          type: string
+          description: Column holding the measured value
+        unit_col:
+          type: string
+          description: Optional column holding the unit of each row
+        method_code_col:
+          type: string
+          description: Optional column holding a method code of each row
+        procedure_cols:
+          type: object
+          description: Optional. Procedure field to the column holding it
+          properties:
+            technique:
+              type: string
+            sample_pretreatment:
+              type: string
+            laboratory_method:
+              type: string
+            extractant_concentration:
+              type: string
+            extraction_ratio:
+              type: string
+            extraction_base:
+              type: string
+            measurement_procedure:
+              type: string
+            limit_of_detection:
+              type: string
+          additionalProperties: false
+        measurement_types:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/MeasurementTypeMapping'
+      example:
+        property_col: det
+        value_col: conc
+        unit_col: um
+        measurement_types:
+          - col: s1
+            match:
+              property: P_OLSEN_2
+              unit: mg kg-1
+            property_id: 'phosphorus-extractable'
+            conversion_id: 'mg-kg'
+
+    MeasurementTypeMapping:
+      type: object
+      required:
+        - col
+        - match
+      properties:
+        col:
+          type: string
+          pattern: '^s[1-9][0-9]*$'
+          description: Name of its column in the staged table, such as s1. Unique in the mapping, and kept once given.
+        match:
+          type: object
+          description: >
+            The values of the file that define the measurement type, one per role column of the mapping:
+            property, unit, method_code and the procedure fields. Compared trimmed; null or absent matches an empty cell.
+          additionalProperties:
+            type: string
+            nullable: true
+        property_id:
+          type: string
+          description: ID of the soil property. May be left out when the mapping sets fixed_property_id.
+        conversion_id:
+          type: string
+          description: Optional ID for unit conversion
+        min_val:
+          type: number
+          description: Optional minimum value constraint
+        max_val:
+          type: number
+          description: Optional maximum value constraint
+        procedure_id:
+          type: string
+          description: Optional slug for the procedure
+
+    FoundMeasurementType:
+      type: object
+      required:
+        - match
+        - row_count
+        - min_value
+        - max_value
+        - non_numeric_count
+      properties:
+        match:
+          type: object
+          description: >
+            The values of the file that define the measurement type, one per role column asked for:
+            property, unit, method_code and the procedure fields. Trimmed; null for an empty cell.
+            Goes as it is into the match of a MeasurementTypeMapping.
+          additionalProperties:
+            type: string
+            nullable: true
+        row_count:
+          type: integer
+          description: Number of rows with a value
+        min_value:
+          type: number
+          nullable: true
+          description: Lowest numeric value; null when no value is a number
+        max_value:
+          type: number
+          nullable: true
+          description: Highest numeric value; null when no value is a number
+        non_numeric_count:
+          type: integer
+          description: Number of values that are not a number
+        suggestion:
+          type: object
+          description: >
+            Suggested answers, left out when there are none. Taken from an earlier long mapping with
+            the same property code (and unit), else from a property code equal to a soil property's
+            slug, name or acronym, a unit equal to the original unit of one of its conversions, and
+            procedure values equal to entries of their lists. Case and spaces are ignored.
+          properties:
+            property_id:
+              type: string
+              description: Slug of the soil property
+            conversion_id:
+              type: string
+              description: Slug of the unit conversion
+            procedure_id:
+              type: string
+              description: Slug of the procedure an earlier mapping used
+            min_val:
+              type: number
+            max_val:
+              type: number
+            procedure:
+              type: object
+              description: >
+                List entries equal to the file's own procedure values, by procedure field, in the
+                shape POST /procedures takes. Left out when procedure_id is given.
+              additionalProperties:
+                type: string
 
     DatasetFileMappingRequest:
       type: object
@@ -4711,6 +5105,32 @@ components:
           nullable: true
           description: Optional. Dataset the file belongs to — used to surface staging errors per dataset. If omitted, errors for this job will not appear in GET /errors/datasets.
 
+    LongStageJob:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [long-stage]
+          description: Job type
+        file_id:
+          type: string
+          description: Long file to copy into its staging table, as it is
+        geom_col:
+          type: string
+          description: >
+            Optional. Column holding the geometry, as the user set it on a mapping not saved yet. Read
+            ahead of the saved mapping and of the detected columns. Not with lat_col and lon_col.
+        lat_col:
+          type: string
+          description: Optional. Latitude column, as for geom_col. Given together with lon_col.
+        lon_col:
+          type: string
+          description: Optional. Longitude column, as for geom_col. Given together with lat_col.
+        dataset_id:
+          type: string
+          nullable: true
+          description: Optional. Dataset the file belongs to — used to surface staging errors per dataset. If omitted, errors for this job will not appear in GET /errors/datasets.
+
     BulkDeleteJob:
       type: object
       properties:
@@ -4751,6 +5171,7 @@ components:
             - $ref: '#/components/schemas/BulkLoadJob'
             - $ref: '#/components/schemas/ExportJob'
             - $ref: '#/components/schemas/FileToDbJob'
+            - $ref: '#/components/schemas/LongStageJob'
             - $ref: '#/components/schemas/BulkDeleteJob'
 
     License:
@@ -5273,3 +5694,27 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/cleaningReportCellDeletions'
+        long_format:
+          $ref: '#/components/schemas/LongFormatStats'
+    LongFormatStats:
+      type: object
+      description: >
+        What the pivot of a long file left out, in rows of the file. Each row is counted once, under
+        the first reason that applies, so the values passed on to the cleaning are source_rows less
+        the rest. Written when the file is staged; only for a long file.
+      properties:
+        source_rows:
+          type: integer
+          description: Rows read from the file
+        empty_value_rows:
+          type: integer
+          description: Rows with no value
+        empty_property_rows:
+          type: integer
+          description: Rows with no property code
+        unmapped_measurement_type_rows:
+          type: integer
+          description: Rows of measurement types that are not mapped, and so are not loaded
+        repeated_values_removed:
+          type: integer
+          description: Rows that repeat the value of an earlier row at the same location, depth and measurement type

@@ -36,6 +36,11 @@ export interface OgrInfoResult {
   layers: OgrInfoLayer[];
 }
 
+export interface OgrSampleFeature {
+  properties: Record<string, unknown>;
+  geometry: unknown; // GeoJSON, null when the layer has none
+}
+
 export interface GdalInfoBand {
   band?: number;
   block?: [number, number];
@@ -123,6 +128,24 @@ export class GdalCLI {
     const { driver, layers } = await GdalCLI.ogrinfo(filePath, [`GEOM_POSSIBLE_NAMES=${geomColumn}`]);
     // A column named WKT comes back as an unnamed geometry field
     return { driver, layers: layers.map(l => ({ ...l, geomColumn: l.geomColumn ?? geomColumn })) };
+  }
+
+  /** The first `limit` features of one layer. Stops reading there, so the time does not grow with the file. */
+  static async sampleFeatures(filePath: string, layerName: string, limit: number, openOptions: string[] = []): Promise<OgrSampleFeature[]> {
+    const ooArgs = openOptions.flatMap(o => ['-oo', o]);
+    const stdout = await GdalCLI.run('ogrinfo', [
+      '-json',
+      '-features',
+      '-limit',
+      String(limit),
+      '-nocount',
+      '-noextent',
+      ...ooArgs,
+      filePath,
+      layerName,
+    ]);
+    const features: any[] = JSON.parse(stdout).layers?.[0]?.features ?? [];
+    return features.map(f => ({ properties: f.properties ?? {}, geometry: f.geometry ?? null }));
   }
 
   /**
