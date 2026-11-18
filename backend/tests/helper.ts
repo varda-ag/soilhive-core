@@ -190,6 +190,19 @@ export const getUserToken = (sub: string, email: string): string => {
   return signPasswordGrantToken({ sub, email, email_verified: true, scope: 'user', iss: TOKEN_ISSUER }, 3600);
 };
 
+/** A person's token from an identity provider that leaves `email` out of access tokens: their Subject is `sub`. */
+export const getUserTokenWithoutEmail = (sub: string): string => {
+  setupTestEnv();
+  return signPasswordGrantToken({ sub, scope: 'user', iss: TOKEN_ISSUER }, 3600);
+};
+
+/** A Machine caller's token: its Subject is `clientId`, and the `email` it carries is ignored. */
+export const getMachineToken = (clientId: string): string => {
+  setupTestEnv();
+  const claims = { sub: `${clientId}-sub`, email: `${clientId}@example.com`, gty: 'client_credentials', client_id: clientId };
+  return signPasswordGrantToken({ ...claims, scope: 'user', iss: TOKEN_ISSUER }, 3600);
+};
+
 const getToken = async (password: string): Promise<string> => {
   const res = await request(app).post('/oauth/token').type('form').send({
     grant_type: 'password',

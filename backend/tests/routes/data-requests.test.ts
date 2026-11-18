@@ -974,6 +974,22 @@ describe('Testing /data-requests routes', () => {
         await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(403);
         await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(403);
       });
+
+      it('takes the item out of pending Invites, withdrawing one left granting nothing (docs/adr/0082)', async () => {
+        const configId = await claimConfig();
+        const otherId = await claimConfig();
+        const invite = async (configs: object) =>
+          (await request(app).post('/invites').set('Authorization', `Bearer ${author()}`).send({ grants: { configs } }).expect(201)).body;
+        const only = await invite({ [configId]: ['read'] });
+        const both = await invite({ [configId]: ['read'], [otherId]: ['read'] });
+
+        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+
+        const redeem = (token: string) => request(app).post('/invites/redeem').set('Authorization', `Bearer ${stranger()}`).send({ token });
+        await redeem(only.token).expect(404);
+        const redeemed = await redeem(both.token).expect(200);
+        expect(redeemed.body.grants).toEqual({ configs: { [otherId]: ['read'] } });
+      });
     });
   });
 });
