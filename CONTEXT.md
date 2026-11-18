@@ -105,7 +105,7 @@ A short-lived token the platform issues, in every mode with sign-in, for one **P
 _Avoid_: Plugin JWT, core token, exchange token, plugin key (the key that signs it)
 
 **Entitlement**:
-A **Capability** (`preview`, `download`, `obfuscate_as_points`, `obfuscate_as_polygons`, `read`, `write`) granted to one **Subject** or to `everyone`, over one of two scopes: a Dataset, or a config item (`PUT /configs/{configId}`, keyed by its freeform id rather than a slug). Consulted only for private Datasets — a public Dataset needs none; a config item has no Visibility and is always consulted. Datasets draw from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's own raw token exists, never with a **Plugin token** — config items are local-only, the external endpoint has no notion of them. Entitlements are the access axis; **Visibility** is the attribute axis (Datasets only), and neither substitutes for the other. A non-admin caller may self-claim `write` on a plugin-owned (`plugin:{pluginId}:{id}`) config item's own Entitlements the first time it is accessed — never on a Dataset's (see ADR 0035). A Dataset Entitlement's lifetime is bound to the Dataset's *data*, not its record: it survives an **Archive** and is destroyed by a **Purge**, and only the locally held rows are, since the external endpoint's answers are outside the system's reach. Reading a config item of the `dashboards` **Config Kind** also needs `preview` on each private Dataset in its `datasets` list, and each of those Datasets must exist for the caller (ADR-0079).
+A **Capability** (`preview`, `download`, `obfuscate_as_points`, `obfuscate_as_polygons`, `read`, `write`) granted to one **Subject** or to `everyone`, over one of two scopes: a Dataset, or a config item (`PUT /configs/{configId}`, keyed by its freeform id rather than a slug). Consulted only for private Datasets — a public Dataset needs none; a config item has no Visibility and is always consulted. Datasets draw from two independent sources: rows held locally, and an external entitlements endpoint reachable only while the caller's own raw token exists, never with a **Plugin token** — config items are local-only, the external endpoint has no notion of them. Entitlements are the access axis; **Visibility** is the attribute axis (Datasets only), and neither substitutes for the other. Whoever first saves a plugin-owned (`plugin:{pluginId}:{id}`) config item, a **Privileged caller** included, gains `write` on it — never on a Dataset (see ADR 0035). A Dataset Entitlement's lifetime is bound to the Dataset's *data*, not its record: it survives an **Archive** and is destroyed by a **Purge**, and only the locally held rows are, since the external endpoint's answers are outside the system's reach. Reading a config item of the `dashboards` **Config Kind** also needs `preview` on each private Dataset in its `datasets` list, and each of those Datasets must exist for the caller (ADR-0079).
 _Avoid_: Permission, access right, grant, role
 
 **Invite**:
@@ -372,6 +372,14 @@ _Avoid_: Plugin prefix
 What a config item represents, carried as a `{kind}:` prefix on its id right after the **Plugin Namespace**, if any (`plugin:{pluginId}:dashboards:{id}`); `dashboards` is the only kind today.
 _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` storage namespaces), convention prefix
 
+**Leave** (a config item):
+A **Subject** giving up all of its own **Entitlements** on a plugin config item at once. The item stays for every other Subject that holds one. A Subject that holds none, and reaches the item only through `everyone`, cannot leave it.
+_Avoid_: Soft delete (see Flagged ambiguities), unshare (a `write` holder taking someone else's access away), remove access
+
+**Delete** (a config item):
+The end of a config item for every **Subject**. A plugin config item goes with its **Entitlements**, its place in pending **Invites**, and its attached **Data Requests** and Soil Index **Runs**.
+_Avoid_: Hard delete, soft delete (see Flagged ambiguities), **Leave** (the item stays for the others)
+
 ## Relationships
 
 - An **Export** *is scoped by* exactly one **Filter** and one or more **Datasets**, and *produces* at most one **Export Bundle**
@@ -415,7 +423,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Dataset** named by any slug it has ever held is the same Dataset to every **Entitlement** check and every read of its data: an old slug never needs less than the current one, and reaches no less
 - A **File** with a **Dataset File Mapping** is never the source of **Aggregation Units**: it holds that Dataset's data, which no **Entitlement** check would then cover
 - Every caller is either a person or a **Machine caller**, and the kind decides which claim supplies its **Subject**; the kind is independent of whether the caller is **Privileged**, and a caller of unknown kind is treated as a person
-- A non-admin **Subject** may self-claim `write` on a plugin-owned config item's own Entitlements the first time it is accessed, granting only itself; every other Entitlement write requires an existing `write` grant or a **Privileged caller** (see ADR 0035)
+- Whoever first saves a plugin-owned config item, a **Privileged caller** included, gains `write` on it, granted to its own **Subject** only; every other Entitlement write requires an existing `write` grant or a **Privileged caller** (see ADR 0035)
 - A **Purge** is preceded by exactly one **Archive** and destroys every locally held **Entitlement** to the Dataset; an **Archive** on its own destroys none
 - An **Invite** grants nothing until it is redeemed, and then only to the redeemer's own **Subject**, never to `everyone`; its creator may put into it only **Entitlements** they could grant directly
 - Only a person whose **Subject** is their email can redeem an **Invite** or make an **Access Request**: never a **Machine caller**, nor a person whose access token carries no `email`. Creating an Invite and deciding an Access Request need no email
@@ -429,7 +437,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - Withdrawing an **Invite** takes back nothing already redeemed: an **Entitlement** does not record how it was granted, so taking access back is always done on the Entitlements themselves
 - An **Invite** is redeemed whole or not at all. Its config item grants hold only while its creator still holds `write` on those items; its **Dataset** grants, made by a **Privileged caller**, do not depend on the creator afterwards
 - One **Invite** may hold grants on several config items and **Datasets** at once. A pending Invite, its recipient and who redeemed it are visible only to its creator and to those who could have created it, and only they may withdraw it
-- Nothing pending outlives what a real **Entitlement** would: a **Purge**, or deleting a plugin config item, removes that Dataset or config item from every pending **Invite** and **Access Request**; an **Archive** removes nothing
+- Nothing pending outlives what a real **Entitlement** would: a **Purge**, or a **Delete** of a plugin config item, removes that Dataset or config item from every pending **Invite** and **Access Request**; an **Archive** removes nothing. A **Leave** removes the config item from the leaver's own pending Invites only, and pending Invites never keep a config item from being Deleted
 - A job is recorded under the **Subject** that submitted it, and resolves its Entitlements under that same Subject — so what a job may read is what its submitter may read, minus whatever only the external endpoint knows
 - A **Plugin** receives exactly one **Plugin Context** (host → Plugin) and exposes exactly one **Remote Plugin** (Plugin → host); neither implies the other
 - A **Plugin** has at most one **Plugin Backend**, and names the address of its own calls to it; a **Plugin token** for it is accepted only by that Plugin's backend and, for reads, by the core
@@ -441,7 +449,9 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - A **Data Request** is attached to at most one plugin config item, fixed at submission, which must already exist; a **Plugin** only ever submits attached Data Requests, and decides itself when each one is destroyed
 - A Soil Index **Run** is attached to at most one plugin config item, fixed at submission, on the same terms as a **Data Request**; attaching protects it from being destroyed, not from being read
 - Destroying a Soil Index **Run** leaves every **Data Request** that named it untouched: a completed one keeps its answer, and one not yet run fails for want of the Run
-- Deleting a plugin config item is final for every **Subject**: its **Entitlements**, attached **Data Requests** and attached Soil Index **Runs** go with it, so it leaves every listing and no non-privileged caller can save under its id again. Deleting a host config item keeps its Entitlements
+- When a **Subject** that is not a **Privileged caller** deletes a plugin config item, it **Leaves** it; when a Privileged caller does, it **Deletes** it. A Subject can Leave with `read` alone, but only if it holds an **Entitlement** of its own
+- A plugin config item is **Deleted** when the last **Subject** holding an **Entitlement** of its own on it **Leaves**. `everyone`'s Entitlements never keep it, so those who reach it only through `everyone` lose it then
+- A **Delete** of a plugin config item is final for every **Subject**: its **Entitlements**, attached **Data Requests** and attached Soil Index **Runs** go with it, so it leaves every listing and no non-privileged caller can save under its id again. A **Leave** takes away only the leaver's own Entitlements. A host config item is never left: deleting it is a Delete that keeps its Entitlements
 - Every Dataset has exactly one **Ingestion Status**; only a **Published** one is listed, and only a **Privileged caller** is shown the rest
 - An **Archive** both sets the Ingestion Status to `ARCHIVED` and removes the Dataset from every query — so no caller, **Privileged** or not, ever sees an archived Dataset
 - A **Dataset** accepts no edits while it has a Bulk Load, Raster Load or **Purge** Queued or running; being **Queued** is only the first part of that window
@@ -530,6 +540,8 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **`related_resources` and `additional_resources` are unrelated.** `related_resources` is a Dataset column holding external URLs; `additional_resources` is a Band Mapping key declaring that Band's **Raster Layer Assets**, which are Files. The near-identical names are the only thing they share. In domain discussions say **Related Resources** for the Dataset's URLs and **Raster Layer Asset** for an attached File — never "resources" bare.
 
 - The Dataset field holding its soil properties is called **`measured_properties`** in code but stored in a column named `variables_measured` (an older name, retained). They are one field, not two. Prefer **measured properties** in discussion.
+
+- **"Soft delete" and "hard delete" of a config item are used the opposite way round.** SP-5990 calls a **Leave** "soft deletion" and a **Delete** "hard delete", but in the code the Delete is the one that sets `deleted_at` (`softDelete`). Resolved: say **Leave** and **Delete**, never soft or hard delete. `DELETE /configs/{id}` performs either one, depending on the caller.
 
 - **"Delete a Dataset" is never a single operation, and the code's names invert the distinction.** `DatasetService.deleteDataset` performs an **Archive**, not a delete; the **Purge** is the `bulk-delete` job, whose first step is to call `deleteDataset`. So "we do X on delete" is always under-specified — an Archive keeps everything and can be undone, a Purge destroys soil data and **Entitlements** and cannot. Say **Archive** or **Purge**; reserve "bulk-delete" for the queue, never for the concept. Note also that the published `DELETE /datasets/{id}` endpoint is an Archive alone: it reaches no Purge, so a Dataset deleted through it keeps all of its data and Entitlements.
 

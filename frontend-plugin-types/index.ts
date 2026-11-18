@@ -57,11 +57,13 @@ export interface PluginContext {
   // parallel requests of up to 100. Each id maps to its config and the time of its last save;
   // missing ids are simply absent from the returned map.
   usePluginConfigs: <T>(pluginId: string, ids: string[], polling?: number) => PluginQueryResult<Record<string, PluginConfigEntry<T>>>;
-  // Deletes a config item for everyone, with its entitlements, attached Data Requests and attached
-  // Soil Index Runs (one still in progress is cancelled, see ADR 0044); final.
-  // Resolves once the item has left every listing, and also when there is nothing the caller may
-  // delete (already gone, or no write: show the button only with write). Rejects on server or
-  // network errors.
+  // Leaves a config item: removes the caller's own grants, read or write, and the item stays for
+  // the others (ADR 0084). Deletes it, final and for everyone, with its entitlements, attached
+  // Data Requests and attached Soil Index Runs (one in progress is cancelled, ADR 0044), when the
+  // caller is an admin or its last holder. Resolves once the item has left the caller's listings,
+  // and also when the caller holds nothing on it. Rejects with a PluginConfigError of status 409
+  // and `shared_with_everyone: true` in its body when the caller reaches the item only through a
+  // grant to everyone, which can't be left; else on server or network errors.
   usePluginConfigDelete: (pluginId: string) => PluginMutationResult<{ id: string }, void>;
   usePluginConfigEntitlements: (pluginId: string, configId: string) => PluginQueryResult<PluginConfigEntitlements>;
   usePluginConfigEntitlementsMutation: (

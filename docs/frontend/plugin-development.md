@@ -258,19 +258,18 @@ Give an id a `{kind}:` prefix to mark what it represents, e.g. `dashboards:{id}`
 
 #### Deleting a config
 
-`context.usePluginConfigDelete(pluginId)` deletes a config for everyone. Its grants and its attached Data Requests go with it, and nobody can save under that id again. Delete from a list, not from the config's own open page:
+`context.usePluginConfigDelete(pluginId)` **leaves** a config: it removes the user's own grants, `read` or `write`, and the config stays for everyone else it is shared with. When the user is the last one holding a grant of their own, or is an admin, it **deletes** the config for everyone: its grants, attached Data Requests and Soil Index Runs go with it, and nobody can save under that id again (ADR 0084). Leave from a list, not from the config's own open page:
 
 ```tsx
 const { data: dashboards } = context.usePluginUserEntitlements(pluginId, 'dashboards');
-const { mutateAsync: deleteConfig } = context.usePluginConfigDelete(pluginId);
+const { mutateAsync: leaveConfig } = context.usePluginConfigDelete(pluginId);
 
-// Only callers with write can delete, so show the button only to them.
-Object.entries(dashboards ?? {})
-  .filter(([, capabilities]) => capabilities.includes('write'))
-  .map(([id]) => <button onClick={() => deleteConfig({ id })}>Delete</button>);
+// Readers can leave too. An admin's delete is for everyone, so say so.
+const label = context.user?.isAdmin ? 'Delete for everyone' : 'Remove';
+Object.keys(dashboards ?? {}).map(id => <button onClick={() => leaveConfig({ id })}>{label}</button>);
 ```
 
-`mutateAsync` resolves once the config has left every listing. It also resolves when there is nothing you can delete (already deleted, or no `write`), and rejects only on a server or network error.
+`mutateAsync` resolves once the config has left the user's listings. It also resolves when the user holds nothing on it. It rejects with a `PluginConfigError` of status 409 and `shared_with_everyone: true` in its body when the user reaches the config only through a grant to everyone, which they can't leave; otherwise it rejects only on a server or network error.
 
 ### Batch-fetching multiple config ids
 

@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { PluginMutationResult } from 'frontend-plugin-types';
+import type { PluginConfigError, PluginMutationResult } from 'frontend-plugin-types';
 import { useRequest } from '../api-client';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import { buildPluginConfigId } from './pluginConfigId';
 
-// 404 and 403 leave nothing this caller can delete: the item is gone (its grants go with it, see
-// ADR 0037) or was never theirs. They resolve inside mutationFn so isError stays false.
+// The DELETE is a Leave, or a Delete for an admin or the last holder (ADR 0084). 404 and 403 leave
+// nothing this caller can leave: the item is gone, or they hold no grant on it. They resolve inside
+// mutationFn so isError stays false.
 const usePluginConfigDelete = (pluginId: string): PluginMutationResult<{ id: string }, void> => {
   const queryClient = useQueryClient();
   const { request } = useRequest();
@@ -16,7 +17,11 @@ const usePluginConfigDelete = (pluginId: string): PluginMutationResult<{ id: str
       try {
         await request({ url: `${BACKEND_BASE_URL}/configs/${configId}`, method: 'DELETE', showErrorNotification: false });
       } catch (error) {
-        const { status } = (error ?? {}) as { status?: number };
+        const { status, raw } = (error ?? {}) as { status?: number; raw?: unknown };
+        if (status === 409) {
+          // Reached only through everyone's grant: the plugin explains why it stays
+          throw { status, body: raw } satisfies PluginConfigError;
+        }
         if (status !== 403 && status !== 404) {
           throw error;
         }

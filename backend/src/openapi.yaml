@@ -231,7 +231,9 @@ paths:
         when configId follows the plugin:{pluginId}:{id} convention (matching the id
         usePluginConfig builds on the frontend) and the id has never been created before
         (including soft-deleted): the row is claimed via a conflict-detecting insert, and the
-        caller who wins it is self-granted WRITE in the same request. Any other configId (a
+        caller who wins it is self-granted WRITE in the same request. A caller already allowed to
+        write, a privileged one included, is self-granted WRITE too when its save creates a
+        plugin:{pluginId}:{id} config, or brings back a deleted one (ADR-0084). Any other configId (a
         system config not matching that convention) is first-access only for a privileged caller.
         For a stored `dashboards` Config Kind id, a non-privileged caller with WRITE also needs
         `preview` on each private Dataset in the stored value's top-level `datasets` array, and
@@ -288,23 +290,32 @@ paths:
       x-eov-operation-handler: controllers/configs
       x-eov-operation-id: deleteConfig
       x-entitlements-required: true
-      summary: Delete configuration item
+      summary: Delete or leave configuration item
       description: >-
-        Requires an existing WRITE grant on the config (EVERYONE's grants count), or a privileged
-        caller. No first-access bypass — deleting is not a way to first-access an id. Also destroys
-        every data request attached to the config and, for a plugin:{pluginId}:{id} config, every
-        subject's entitlements on it, so only a privileged caller can write that id again.
+        For a plugin:{pluginId}:{id} config and a caller who is not privileged, a Leave: removes
+        every grant the caller's own Subject holds on it (READ is enough) and drops it from the
+        caller's own pending Invites. Once no Subject but EVERYONE holds a grant, the config is
+        deleted as below. A caller holding no grant of its own gets 409 with
+        `shared_with_everyone: true` when EVERYONE holds one, else 403 (ADR-0084).
+
+        Otherwise a delete, which requires an existing WRITE grant on the config (EVERYONE's grants
+        count) or a privileged caller. No first-access bypass — deleting is not a way to
+        first-access an id. Also destroys every data request and soil index run attached to the
+        config and, for a plugin:{pluginId}:{id} config, every subject's entitlements on it, so only
+        a privileged caller can write that id again.
       tags:
         - configs
       security:
         - bearerAuth: []
       responses:
         '204':
-          description: Configuration deleted successfully
+          description: Configuration left or deleted
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /configs:
     get:

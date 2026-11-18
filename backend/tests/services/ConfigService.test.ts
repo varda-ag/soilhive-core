@@ -320,17 +320,22 @@ describe('ConfigService config value entitlements', () => {
       expect(row).toBeNull();
     });
 
-    it('allows a non-privileged caller holding WRITE to delete', async () => {
+    // A Leave reads the stored grants, to tell the caller's own from EVERYONE's (docs/adr/0084)
+    it('deletes a plugin item when its only holder leaves it', async () => {
       await entityManager.getRepository('JsonStorage').save({ id: 'plugin:acme:widget', data: { v: 1 } });
+      await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2::jsonb)`, [
+        mockToken.email,
+        JSON.stringify({ configs: { 'plugin:acme:widget': [Capability.WRITE] } }),
+      ]);
       const rd = buildRequestData({ entitlements: { configs: { 'plugin:acme:widget': [Capability.WRITE] } } });
 
-      await service.deleteConfig(rd, 'plugin:acme:widget');
+      await expect(service.deleteConfig(rd, 'plugin:acme:widget')).resolves.toBe(true);
 
       const row = await entityManager.getRepository('JsonStorage').findOneBy({ id: 'plugin:acme:widget' });
       expect(row).toBeNull();
     });
 
-    it('rejects a non-privileged caller with no WRITE grant', async () => {
+    it('rejects a non-privileged caller with no grant', async () => {
       await entityManager.getRepository('JsonStorage').save({ id: 'plugin:acme:widget', data: { v: 1 } });
       const rd = buildRequestData();
 

@@ -19,6 +19,7 @@ import type {
 import type { DataFilterDTO, GISDataType } from 'types/backend';
 import type { PluginContext } from 'types/plugins';
 import { useAuthContext } from '../auth/AuthContextProvider';
+import { isAdminToken } from '../auth/tokenScopes';
 import { useDataFilterQuery as useHostDataFilterQuery } from './useDataFilterQuery';
 import { useFilter as useHostFilter } from './useFilter';
 import { useFilteredCoverageQuery as useHostFilteredCoverageQuery } from './useFilteredCoverageQuery';
@@ -140,7 +141,9 @@ export function usePluginContext(): PluginContext {
       // Narrow explicitly rather than passing `user` through as-is: it
       // carries access_token/refresh_token/id_token, which PluginContext's
       // thin contract must not leak to plugins.
-      user: user ? { profile: { name: user.profile?.name, email: user.profile?.email } } : user,
+      user: user
+        ? { profile: { name: user.profile?.name, email: user.profile?.email }, isAdmin: isAdminToken(user.access_token ?? '') }
+        : user,
       useTheme: usePluginTheme,
       useDataFilterQuery: usePluginDataFilterQuery,
       useFilteredCoverageQuery: usePluginFilteredCoverageQuery,

@@ -6,8 +6,9 @@ import { AuthConfig, OIDCConfig } from '../interfaces/AuthConfig';
 import { StatusCodes } from 'http-status-codes';
 import { PublicStorageConfig, StorageConfig } from '../interfaces/StorageConfig';
 import assert from 'assert';
-import { FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
+import { EVERYONE, FRONTEND_LOGO_CONFIG_ID, PLUGIN_CONFIG_ID_PATTERN } from '../constants/constants';
 import { RequestData } from '../interfaces/RequestData';
+import { getSubject, isPrivilegedCaller } from '../utils/auth';
 import EntitlementService, { configForbidden, hasConfigKind } from './EntitlementService';
 import InviteService from './InviteService';
 import { ConfigKind, EntitlementScope } from '../types/Entitlements';
@@ -65,8 +66,9 @@ export default class ConfigService {
 
   /**
    * `PUT /configs/{configId}`. A caller who already holds `WRITE` (or is privileged) upserts as
-   * before, once the stored value passes the dashboard dataset check (ADR-0079). Otherwise, only
-   * a fresh `plugin:` id is eligible for first access: a conflict-detecting insert (`ON CONFLICT
+   * before, once the stored value passes the dashboard dataset check (ADR-0079), and gains `WRITE`
+   * if that creates a plugin item (ADR 0084). Otherwise, only a fresh `plugin:` id is eligible
+   * for first access: a conflict-detecting insert (`ON CONFLICT
    * DO NOTHING`, not `upsert`, which would let a concurrent racer silently overwrite the winner)
    * either claims the id — granting the caller `WRITE` on it in the same transaction — or loses
    * the race/finds it already taken (including soft-deleted, since the row's PK still exists)
@@ -77,7 +79,12 @@ export default class ConfigService {
 
     if (entitlementService.canConfig(requestData, id, Capability.WRITE)) {
       await entitlementService.assertStoredConfigDatasets(requestData, id);
+      // A Deleted item counts as new: its grants went with it
+      const creates = PLUGIN_CONFIG_ID_PATTERN.test(id) && !(await repo.existsBy({ id }));
       await repo.upsert([{ id, data, deleted_at: null }], ['id']);
+      if (creates) {
+        await entitlementService.grantSelfConfigWrite(requestData, id);
+      }
       return this.readConfigRow(repo, id);
     }
 
@@ -115,13 +122,48 @@ export default class ConfigService {
     return data;
   };
 
-  // A plugin item's grants go with it, for every subject; a host item keeps them, so deleting and
-  // re-saving `theme` doesn't drop EVERYONE's read (ADR 0037). Attached Data Requests are destroyed
-  // by the controller (see controllers/configs.ts).
-  deleteConfig = async (requestData: RequestData, id: string): Promise<void> => {
+  /**
+   * `DELETE /configs/{configId}`: a Leave of a plugin item for a non-privileged caller, a Delete
+   * otherwise (docs/adr/0084). Returns whether the item was Deleted; the controller then destroys
+   * its attached Data Requests and Soil Index Runs.
+   */
+  deleteConfig = async (requestData: RequestData, id: string): Promise<boolean> => {
+    if (PLUGIN_CONFIG_ID_PATTERN.test(id) && !isPrivilegedCaller(requestData.token)) {
+      return this.leaveConfig(requestData, id);
+    }
     entitlementService.assertConfig(requestData, id, Capability.WRITE);
-    const repo = requestData.entityManager.getRepository(JsonStorage);
-    await repo.softDelete({ id });
+    await this.removeConfig(requestData, id);
+    return true;
+  };
+
+  private leaveConfig = async (requestData: RequestData, id: string): Promise<boolean> => {
+    const subject = getSubject(requestData);
+    // Leaves of one item wait for each other, so the last of two at once sees nobody left
+    await requestData.entityManager.query(`SELECT 1 FROM "jsonstorage" WHERE "id" = $1 FOR UPDATE`, [id]);
+    const holders = await entitlementService.configHolders(requestData, id);
+    if (!holders.includes(subject)) {
+      if (holders.includes(EVERYONE)) {
+        throw new ErrorResponse(`Config ${id} is shared with everyone, so it can't be left`, StatusCodes.CONFLICT, {
+          shared_with_everyone: true,
+        });
+      }
+      throw configForbidden(id, Capability.READ);
+    }
+    // Invites first, as in removeConfig
+    await new InviteService().dropFromPendingInvites(requestData, EntitlementScope.CONFIGS, id, subject);
+    await entitlementService.revokeConfig(requestData, subject, id);
+    const left = await entitlementService.configHolders(requestData, id);
+    if (left.some(holder => holder !== EVERYONE)) {
+      return false;
+    }
+    await this.removeConfig(requestData, id);
+    return true;
+  };
+
+  // A plugin item's grants go with it, for every subject; a host item keeps them, so deleting and
+  // re-saving `theme` doesn't drop EVERYONE's read (ADR 0037).
+  private removeConfig = async (requestData: RequestData, id: string): Promise<void> => {
+    await requestData.entityManager.getRepository(JsonStorage).softDelete({ id });
     if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
       // Invites first, so a redeem under way can't grant after the strip (see dropFromPendingInvites)
       await new InviteService().dropFromPendingInvites(requestData, EntitlementScope.CONFIGS, id);

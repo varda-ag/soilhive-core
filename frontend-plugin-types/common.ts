@@ -3,6 +3,9 @@ export interface PluginUser {
     name?: string;
     email?: string;
   };
+  // A data-admin or super-admin: passes every entitlement check, and deleting a config item
+  // deletes it for everyone instead of leaving it (ADR 0084).
+  isAdmin?: boolean;
 }
 
 export interface PluginQueryResult<T> {

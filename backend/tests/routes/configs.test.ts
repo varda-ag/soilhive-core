@@ -207,6 +207,36 @@ describe('Testing /configs/{id} routes', () => {
     const row = await getTestConfigFromDBById('theme');
     expect(row).toBeNull();
   });
+
+  // ADR 0084: an admin's item must not be Deleted when the last person it was shared with leaves
+  it('PUT by a Privileged caller that creates a plugin: config grants it WRITE', async () => {
+    const pluginConfigId = 'plugin:acme:widget';
+
+    await request(app).put(`/configs/${pluginConfigId}`).set(superAdminAuthHeader).send({ setting: 1 }).expect(200);
+
+    expect(Object.values(await getConfigGrants())).toEqual([{ [pluginConfigId]: ['write'] }]);
+  });
+
+  it('PUT by a Privileged caller that brings back a deleted plugin: config grants it WRITE', async () => {
+    const pluginConfigId = 'plugin:acme:widget';
+    const repo = (await getDataSource()).getRepository('JsonStorage');
+    await repo.save({ id: pluginConfigId, data: {} });
+    await repo.softDelete({ id: pluginConfigId });
+
+    await request(app).put(`/configs/${pluginConfigId}`).set(superAdminAuthHeader).send({ setting: 1 }).expect(200);
+
+    expect(Object.values(await getConfigGrants())).toEqual([{ [pluginConfigId]: ['write'] }]);
+  });
+
+  it('PUT by a Privileged caller on an existing plugin: config, or on a host config, grants nothing', async () => {
+    const pluginConfigId = 'plugin:acme:widget';
+    await (await getDataSource()).getRepository('JsonStorage').save({ id: pluginConfigId, data: {} });
+
+    await request(app).put(`/configs/${pluginConfigId}`).set(superAdminAuthHeader).send({ setting: 2 }).expect(200);
+    await request(app).put('/configs/theme').set(superAdminAuthHeader).send({ mode: 'dark' }).expect(200);
+
+    expect(await getConfigGrants()).toEqual({});
+  });
 });
 
 describe('Testing GET /configs routes', () => {
