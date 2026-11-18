@@ -1815,8 +1815,9 @@ paths:
       summary: Decide Datasets of an Access Request
       description: >-
         Approves or denies some of the request's Datasets. An approval grants straight to the
-        requester's Subject, the capabilities asked for or fewer. A denial's reason is shown to the
-        requester. A Dataset already decided is a 409.
+        requester's Subject, the capabilities asked for or fewer, and only on a Dataset still
+        published, private and not archived: otherwise it is a 409, and the Dataset can still be
+        denied. A denial's reason is shown to the requester. A Dataset already decided is a 409.
       tags:
         - access-requests
       security:
@@ -5060,6 +5061,16 @@ components:
                     type: string
                   name:
                     type: string
+                  visibility:
+                    type: string
+                    enum:
+                      - public
+                      - private
+                    description: Admins only, as `published` and `archived`. An approval needs a private, published Dataset that is not archived.
+                  published:
+                    type: boolean
+                  archived:
+                    type: boolean
               status:
                 type: string
                 enum:

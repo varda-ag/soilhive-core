@@ -5,6 +5,7 @@ import { app } from '../../src/app';
 import DatasetEntity from '../../src/entities/Dataset';
 import { RequestData } from '../../src/interfaces/RequestData';
 import AccessRequestService from '../../src/services/AccessRequestService';
+import { IngestionStatus } from '../../src/types/data';
 import { getEntityManager } from '../../src/utils/data-source';
 import { addDataset } from '../../src/utils/mock';
 import { getMachineToken, getSuperAdminToken, getUserToken, getUserTokenWithoutEmail } from '../helper';
@@ -144,6 +145,62 @@ describe('Access Requests', () => {
       const pending = await request(app).get('/access-requests').set(auth(adminToken)).expect(StatusCodes.OK);
       expect(pending.body.map((item: { id: string }) => item.id)).toEqual([second.id]);
       expect((await request(app).get('/access-requests').set(auth(janeToken))).statusCode).toBe(StatusCodes.FORBIDDEN);
+    });
+
+    describe('a Dataset changed since the request', () => {
+      const archive = async (dataset: DatasetEntity) =>
+        (await getEntityManager()).getRepository(DatasetEntity).softDelete({ id: dataset.id });
+      const update = (changes: Partial<DatasetEntity>) => async (dataset: DatasetEntity) =>
+        (await getEntityManager()).getRepository(DatasetEntity).update({ id: dataset.id }, changes);
+      const statusOf = async (requestId: string, dataset: DatasetEntity) => {
+        const [item] = await (
+          await getEntityManager()
+        ).query(`SELECT status FROM access_request_items WHERE request_id = $1 AND dataset_id = $2`, [requestId, dataset.id]);
+        return item.status;
+      };
+
+      it.each([
+        ['archived', archive],
+        ['made public', update({ visibility: 'public' })],
+        ['no longer published', update({ status: IngestionStatus.LOADED })],
+      ])('refuses to approve one %s, leaving it pending, but lets it be denied', async (_label, change) => {
+        const { id } = (await ask(janeToken, { datasets: [a.slug], capabilities: ['preview'] })).body;
+        await change(a);
+
+        expect((await decide(id, [{ dataset: a.slug, approve: true }])).statusCode).toBe(StatusCodes.CONFLICT);
+        expect(await datasetGrantsOf(JANE)).toBeUndefined();
+        expect(await statusOf(id, a)).toBe('pending');
+
+        await decide(id, [{ dataset: a.slug, approve: false, reason: 'No longer offered' }]).expect(StatusCodes.OK);
+        expect(await statusOf(id, a)).toBe('denied');
+      });
+
+      it('rolls back the other decisions sent with a refused approval', async () => {
+        const { id } = (await askForBoth()).body;
+        await archive(b);
+
+        const res = await decide(id, [
+          { dataset: a.slug, approve: true },
+          { dataset: b.slug, approve: true },
+        ]);
+
+        expect(res.statusCode).toBe(StatusCodes.CONFLICT);
+        expect(await datasetGrantsOf(JANE)).toBeUndefined();
+        expect(await statusOf(id, a)).toBe('pending');
+      });
+
+      it("shows admins each Dataset's state, and the requester none of it", async () => {
+        await askForBoth().expect(StatusCodes.CREATED);
+        await archive(b);
+
+        const pending = await request(app).get('/access-requests').set(auth(adminToken)).expect(StatusCodes.OK);
+        expect(pending.body[0].items.map((item: { dataset: object }) => item.dataset)).toEqual([
+          { slug: a.slug, name: 'Alpha', visibility: 'private', published: true, archived: false },
+          { slug: b.slug, name: 'Bravo', visibility: 'private', published: true, archived: true },
+        ]);
+        const mine = await request(app).get('/access-requests/mine').set(auth(janeToken)).expect(StatusCodes.OK);
+        expect(mine.body[0].items[1].dataset).toEqual({ slug: b.slug, name: 'Bravo' });
+      });
     });
   });
 

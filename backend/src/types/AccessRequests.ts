@@ -24,7 +24,8 @@ export interface AccessRequestDecision {
 }
 
 export interface AccessRequestItemView {
-  dataset: { slug: string; name: string };
+  /** The Dataset's state is shown to admins only: an approval needs it published, private and not archived. */
+  dataset: { slug: string; name: string; visibility?: 'public' | 'private'; published?: boolean; archived?: boolean };
   status: AccessRequestItemStatus;
   granted: Capability[] | null;
   reason: string | null;

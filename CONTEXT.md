@@ -415,6 +415,7 @@ _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` sto
 - Every **Invite** expires. One naming a recipient is used up when that recipient redeems it; one naming none is used up by its first redemption, unless its creator made it reusable until it expires
 - Approving an **Access Request** grants straight to the **Subject** that made it; it never becomes an **Invite**
 - An **Access Request** names only private, published **Datasets** and asks for `preview`, `download` or both; it may be approved for less than it asks
+- An **Access Request** is approved only for a **Dataset** still published, private and not archived, whatever it was when asked; denying it is always possible
 - An **Access Request** is decided one **Dataset** at a time and is finished when every Dataset in it is decided; its requester may withdraw it before then. A denial is final for that request only: the same Subject may ask again
 - A **Subject** has at most one pending **Access Request** per **Dataset**, and a pending Access Request never expires
 - Withdrawing an **Invite** takes back nothing already redeemed: an **Entitlement** does not record how it was granted, so taking access back is always done on the Entitlements themselves

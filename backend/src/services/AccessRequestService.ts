@@ -38,7 +38,12 @@ interface ItemRow {
   decided_at: Date | null;
   dataset_slug: string;
   dataset_name: string;
+  dataset_visibility: 'public' | 'private';
+  dataset_status: IngestionStatus;
+  dataset_archived: boolean;
 }
+
+const conflict = (message: string) => new ErrorResponse(message, StatusCodes.CONFLICT);
 
 const invalid = (message: string) => new ErrorResponse(message, StatusCodes.BAD_REQUEST);
 
@@ -137,7 +142,8 @@ export default class AccessRequestService {
 
   /**
    * Decides some of a request's Datasets. An approval grants to the requester's Subject straight
-   * away; a Dataset already decided is a 409, so two admins can't both decide it.
+   * away, and only on a Dataset still published, private and not archived; a denial always goes
+   * through. A Dataset already decided is a 409, so two admins can't both decide it.
    */
   decide = async (requestData: RequestData, id: string, decisions: AccessRequestDecision[]): Promise<AccessRequestView> => {
     const manager = requestData.entityManager;
@@ -156,6 +162,7 @@ export default class AccessRequestService {
       if (granted && (granted.length === 0 || !granted.every(capability => request.capabilities.includes(capability)))) {
         throw invalid('An approval grants what was asked for, or less');
       }
+      const slug = granted ? await this.lockApprovableDataset(requestData, item.dataset_id) : null;
       // A raw UPDATE resolves to [rows, rowCount] (TypeORM's postgres driver)
       const [, updated]: [unknown, number] = await manager.query(
         `UPDATE access_request_items
@@ -173,8 +180,8 @@ export default class AccessRequestService {
       if (updated === 0) {
         throw new ErrorResponse(`'${item.dataset_name}' was already decided`, StatusCodes.CONFLICT);
       }
-      if (granted) {
-        await entitlementService.grantTo(requestData, request.requested_by, { datasets: { [item.dataset_slug]: granted } });
+      if (granted && slug) {
+        await entitlementService.grantTo(requestData, request.requested_by, { datasets: { [slug]: granted } });
       }
     }
     return (await this.views(requestData, [request], true))[0]!;
@@ -234,6 +241,32 @@ export default class AccessRequestService {
     return new Map(rows.filter(row => datasetExistsFor(requestData.token, row.status)).map(row => [row.named, row]));
   };
 
+  /**
+   * The Dataset's current slug, once it is found still published, private and not archived. FOR
+   * SHARE makes an Archive, a visibility change or a status change wait until the approval
+   * commits, and one that committed first is seen here: no grant lands on a Dataset already gone
+   * or made public. A Purge archives first, so it is refused here too (docs/adr/0082).
+   */
+  private lockApprovableDataset = async (requestData: RequestData, datasetId: string): Promise<string> => {
+    const [dataset]: { slug: string; name: string; visibility: 'public' | 'private'; status: IngestionStatus; deleted_at: Date | null }[] =
+      await requestData.entityManager.query(`SELECT slug, name, visibility, status, deleted_at FROM datasets WHERE id = $1 FOR SHARE`, [
+        datasetId,
+      ]);
+    if (!dataset) {
+      throw new ErrorResponse('Dataset not found', StatusCodes.NOT_FOUND);
+    }
+    if (dataset.deleted_at) {
+      throw conflict(`'${dataset.name}' is archived: it can only be denied`);
+    }
+    if (dataset.status !== IngestionStatus.PUBLISHED) {
+      throw conflict(`'${dataset.name}' is not published: it can only be denied`);
+    }
+    if (dataset.visibility === 'public') {
+      throw conflict(`'${dataset.name}' is public now and needs no access: it can only be denied`);
+    }
+    return dataset.slug;
+  };
+
   private assertNonePending = async (requestData: RequestData, subject: string, datasets: DatasetRow[]): Promise<void> => {
     const pending: { request_id: string; dataset_id: string }[] = await requestData.entityManager.query(
       `SELECT request_id, dataset_id FROM access_request_items WHERE requested_by = $1 AND status = 'pending' AND dataset_id = ANY($2::uuid[])`,
@@ -248,7 +281,8 @@ export default class AccessRequestService {
 
   private items = async (requestData: RequestData, requestIds: string[]): Promise<ItemRow[]> =>
     requestData.entityManager.query(
-      `SELECT item.*, d.slug AS dataset_slug, d.name AS dataset_name
+      `SELECT item.*, d.slug AS dataset_slug, d.name AS dataset_name, d.visibility AS dataset_visibility,
+         d.status AS dataset_status, d.deleted_at IS NOT NULL AS dataset_archived
        FROM access_request_items item
        JOIN datasets d ON d.id = item.dataset_id
        WHERE item.request_id = ANY($1::uuid[])
@@ -274,7 +308,18 @@ export default class AccessRequestService {
         status: requestStatus(own),
         created_at: request.created_at.toISOString(),
         items: own.map(item => ({
-          dataset: { slug: item.dataset_slug, name: item.dataset_name },
+          dataset: {
+            slug: item.dataset_slug,
+            name: item.dataset_name,
+            // What an approval checks, so the queue can show why one would be refused
+            ...(forAdmins
+              ? {
+                  visibility: item.dataset_visibility,
+                  published: item.dataset_status === IngestionStatus.PUBLISHED,
+                  archived: item.dataset_archived,
+                }
+              : {}),
+          },
           status: item.status,
           granted: item.granted,
           reason: item.reason,
