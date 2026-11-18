@@ -2,10 +2,14 @@ import { type FC, type SVGProps } from 'react';
 import { NavLink } from 'react-router';
 import classnames from 'classnames';
 
+import type { NavMenuEntry } from 'types/components';
+
+import styles from './MenuLink.module.scss';
+
 interface Props {
-  to: string;
+  to?: string;
   text: string;
-  type?: 'internal' | 'external';
+  type?: NavMenuEntry['type'];
   className?: string;
   textClassName?: string;
   activeClassName?: string;
@@ -15,7 +19,7 @@ interface Props {
 }
 
 export default function MenuLink({
-  to,
+  to = '',
   text,
   type = 'internal',
   className,
@@ -29,19 +33,28 @@ export default function MenuLink({
     return isActive ? classnames(className, activeClassName) : className || '';
   };
 
-  return (
+  const content = (
     <>
-      {type === 'internal' ? (
-        <NavLink data-testid="sh-header-nav-link" to={to} className={getNavLinkClass} onClick={onClick}>
-          {Icon && <Icon className={iconClassName} />}
-          <span className={textClassName}>{text}</span>
-        </NavLink>
-      ) : (
-        <a className={className} href={to} target="_blank" rel="noopener noreferrer" onClick={onClick}>
-          {Icon && <Icon className={iconClassName} />}
-          <span className={textClassName}>{text}</span>
-        </a>
-      )}
+      {Icon && <Icon className={iconClassName} />}
+      <span className={textClassName}>{text}</span>
     </>
+  );
+
+  if (type === 'action') {
+    return (
+      <button type="button" data-testid="sh-header-nav-action" className={classnames(styles.Action, className)} onClick={onClick}>
+        {content}
+      </button>
+    );
+  }
+
+  return type === 'internal' ? (
+    <NavLink data-testid="sh-header-nav-link" to={to} className={getNavLinkClass} onClick={onClick}>
+      {content}
+    </NavLink>
+  ) : (
+    <a className={className} href={to} target="_blank" rel="noopener noreferrer" onClick={onClick}>
+      {content}
+    </a>
   );
 }

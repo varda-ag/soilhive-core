@@ -35,16 +35,19 @@ export default function DropdownMenuItem({ menuEntry }: Props) {
       </span>
 
       <div className={styles.Menu}>
-        {submenuEntries.map(({ name, route, type, Icon }) => (
+        {submenuEntries.map(({ name, label, route, type, Icon, onClick }) => (
           <MenuLink
-            key={route}
-            to={`${route}`}
-            text={t(name)}
+            key={name}
+            to={route}
+            text={label ?? t(name)}
             type={type}
             className={styles.MenuLink}
             activeClassName={styles.Active}
             Icon={Icon}
-            onClick={() => setIsMenuOpen(false)}
+            onClick={() => {
+              onClick?.();
+              setIsMenuOpen(false);
+            }}
           />
         ))}
       </div>
