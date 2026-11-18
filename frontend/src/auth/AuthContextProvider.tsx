@@ -95,6 +95,8 @@ function PasswordAuthProvider({ children }: { children: React.ReactNode }) {
     error: passwordAuth.error,
     user: passwordAuth.user,
     login: () => setShowLoginModal(true),
+    // Password mode has fixed users and no sign-up.
+    signup: () => setShowLoginModal(true),
     logout: passwordAuth.logout,
     authMode: AuthModes.PASSWORD,
     // Password-mode tokens do carry an `email` claim, but a synthetic one per role
@@ -124,6 +126,7 @@ function NoAuthProvider({ children }: { children: React.ReactNode }) {
     error: undefined,
     user: undefined,
     login: () => {},
+    signup: () => {},
     logout: () => {},
     authMode: AuthModes.NONE,
     isEmailBasedAuth: false,
@@ -148,6 +151,7 @@ export function SsrAuthContextProvider({ children }: { children: React.ReactNode
     error: undefined,
     user: token ? { access_token: token } : null,
     login: () => {},
+    signup: () => {},
     logout: () => {},
     authMode: AuthModes.NONE,
     isEmailBasedAuth: false,

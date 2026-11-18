@@ -1,0 +1,61 @@
+@import 'styles/variables/breakpoints';
+
+.LoginPageTemplate {
+  min-height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  padding: 1.5rem 1.25rem;
+  text-align: left;
+
+  @media (min-width: $bp-desktop) {
+    padding: 3.625rem 0 3.625rem 16.5rem;
+    justify-content: space-between;
+  }
+
+  .Content {
+    max-width: 100%;
+
+    @media (min-width: $bp-desktop) {
+      max-width: 520px;
+      padding-right: 1rem;
+    }
+
+    // The children's headings and paragraphs.
+    h3 {
+      font-size: var(--font-size-lg);
+      line-height: 1.75rem;
+      margin: 0 0 0.5rem;
+    }
+
+    p {
+      font-size: var(--font-size-md);
+      line-height: var(--line-height-lg);
+      margin: 0 0 1.5rem;
+    }
+  }
+
+  .Title {
+    font-size: var(--font-size-xl);
+    line-height: 1.75rem;
+    margin: 0 0 1rem;
+  }
+
+  .Image {
+    display: none;
+    max-width: 53%;
+    width: 620px;
+    height: auto;
+    align-self: flex-start;
+
+    @media (min-width: $bp-desktop) {
+      display: block;
+    }
+  }
+
+  .Actions {
+    display: flex;
+    gap: 1rem;
+  }
+}

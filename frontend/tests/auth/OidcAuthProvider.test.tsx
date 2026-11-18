@@ -881,6 +881,25 @@ describe('OidcAuthProvider token lifecycle', () => {
       expect(signinRedirect).toHaveBeenCalledWith({ state: { returnTo: '/', pageState } });
     });
 
+    it('starts a sign-up as a sign-in that asks for the registration screen, with the same state', () => {
+      window.history.replaceState({}, '', '/dashboards/abc');
+      const pageState = { availabilityMap: { locationName: 'Nakuru, Kenya' } };
+      const SignupTrigger = () => {
+        const { signup } = useAuthContext();
+        return <button onClick={() => signup(pageState)}>signup</button>;
+      };
+      (useReactOidcAuth as jest.Mock).mockReturnValue(buildAuth(null));
+      const { getByRole } = render(
+        <AuthContextProvider>
+          <SignupTrigger />
+        </AuthContextProvider>,
+      );
+
+      fireEvent.click(getByRole('button', { name: 'signup' }));
+
+      expect(signinRedirect).toHaveBeenCalledWith({ prompt: 'create', state: { returnTo: '/dashboards/abc', pageState } });
+    });
+
     it('hands the page state back on the sign-in callback, for the pages to put back when they mount', () => {
       renderWithUser(null);
       window.history.replaceState({}, '', '/?code=abc&state=xyz');

@@ -74,6 +74,7 @@ const MOCK_AUTH_CONTEXT = {
   isAuthenticated: false,
   isLoading: false,
   login: jest.fn(),
+  signup: jest.fn(),
   logout: jest.fn(),
   authMode: 'NONE',
 };

@@ -21,6 +21,11 @@ const LOGIN_SERVER_RETRY_MS = 30_000;
 // asks for the password rather than take that session. Shared by the tabs, like the user.
 export const IDP_SESSION_NOT_ENDED_KEY = 'auth.idpSessionNotEnded';
 
+interface SigninOptions {
+  // Opens the IdP's registration screen instead of its login.
+  isSignup?: boolean;
+}
+
 /**
  * The OIDC session for OidcAuthProvider: keeps the stored token in step with the user, renews it, ends
  * the session on a rejected renew or another tab's sign-out, and waits for an unreachable login server.
@@ -188,11 +193,14 @@ export function useOidcAuth(userManager: UserManager): AuthContext {
   // Before leaving the page, the UserManager fetches the IdP's configuration, so the redirect fails while
   // the IdP is down. Called on the UserManager, not through react-oidc-context, which hides the error and
   // would leave the click doing nothing.
-  const redirectToLogin = async (pageState?: SigninPageState) => {
+  const redirectToLogin = async (pageState?: SigninPageState, { isSignup = false }: SigninOptions = {}) => {
+    // A sign-up asks for the registration screen: standard OIDC (Initiating User Registration), a provider
+    // that does not know it shows its login. A sign-in after a sign-out that missed the IdP asks for the password.
+    const prompt = isSignup ? 'create' : localStorage.getItem(IDP_SESSION_NOT_ENDED_KEY) !== null ? 'login' : undefined;
     try {
       await userManager.signinRedirect({
         state: { returnTo: getCurrentPath(), ...(pageState && { pageState }) } satisfies SigninState,
-        ...(localStorage.getItem(IDP_SESSION_NOT_ENDED_KEY) !== null ? { prompt: 'login' } : {}),
+        ...(prompt && { prompt }),
       });
     } catch (error) {
       console.warn('Could not start the sign-in:', error);
@@ -204,12 +212,16 @@ export function useOidcAuth(userManager: UserManager): AuthContext {
   // it for a browser error page if the network is still down. Stay only when the renew got no answer at
   // all. Any other failure (a server error page, a token that fails the client's checks) may come back on
   // every try, and the login page is the only way past it: the stored user would bring it back on reload.
-  const loginAfterWait = async (pageState?: SigninPageState) => {
+  const loginAfterWait = async (pageState?: SigninPageState, options?: SigninOptions) => {
     const renew = await retryRenew();
     if (renew.outcome === 'renewed') return;
     if (renew.outcome === 'unavailable' && renew.noResponse) return showLoginServerUnreachable();
-    return redirectToLogin(pageState);
+    return redirectToLogin(pageState, options);
   };
+
+  // A sign-up goes the same way as a sign-in: a renew that brings the user back makes it needless.
+  const startSignin = (pageState?: SigninPageState, options?: SigninOptions) =>
+    void (isWaitingForLoginServer ? loginAfterWait(pageState, options) : redirectToLogin(pageState, options));
 
   // The sign-out at the IdP revokes the tokens and leaves the page for the IdP, which ends its session: it
   // takes the network. If it fails before leaving (e.g. offline), sign out on this device anyway, or the
@@ -243,7 +255,8 @@ export function useOidcAuth(userManager: UserManager): AuthContext {
     // authenticated, like the other providers, or callers gating on `user` send token-less
     // requests to auth-only routes (e.g. GET /entitlements → 401 toast).
     user: isAuthenticated ? reactOidcAuth.user : null,
-    login: pageState => void (isWaitingForLoginServer ? loginAfterWait(pageState) : redirectToLogin(pageState)),
+    login: pageState => startSignin(pageState),
+    signup: pageState => startSignin(pageState, { isSignup: true }),
     logout: () => void logout(),
     authMode: AuthModes.OIDC,
     isEmailBasedAuth,

@@ -44,6 +44,14 @@ export interface RemotePlugin {
   // The Page of that './mapInfoCard' module, attached by loadRemotes, never from the module.
   // Missing on a plugin that sets hasMapInfoCard when its card did not load.
   MapInfoCard?: React.ComponentType<{ context: PluginContext }>;
+  // Optional. Shown instead of the host's sign-in prompt when a plugin that requires auth is
+  // opened by an anonymous visitor. The host hands it its own sign-in and sign-up.
+  LoginPage?: React.ComponentType<PluginLoginPageProps>;
+}
+
+export interface PluginLoginPageProps {
+  login: () => void;
+  signup: () => void;
 }
 
 // A plugin that opens into a routable application page

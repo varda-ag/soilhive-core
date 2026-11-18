@@ -26,3 +26,4 @@ export * from './Loader/Loader';
 export * from './ToggleButton/ToggleButton';
 export * from './InfoCard/InfoCard';
 export * from './RadioButton/RadioButton';
+export * from './LoginPageTemplate/LoginPageTemplate';
