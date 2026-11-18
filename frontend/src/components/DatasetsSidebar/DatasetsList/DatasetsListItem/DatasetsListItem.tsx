@@ -55,17 +55,17 @@ export function DatasetsListItem({ dataset }: Props) {
               <Tag key={tag} text={tag} type={index > 0 ? 'primary' : undefined} />
             ))}
           </div>
+          {(isUnpublished || dataset.visibility === 'private') && (
+            <div className={styles.StatusTags}>
+              {dataset.visibility === 'private' && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}
+              {isUnpublished && <Tag className={styles.UnpublishedTag} text={t('datasets_list.unpublished')} />}
+            </div>
+          )}
         </div>
         <div className={styles.Bottom}>
           <Button size="tiny" type="custom" className={styles.MetadataButton} href={metadataPath(dataset.id)}>
             <NewTabIcon /> {t('datasets_list.metadata')}
           </Button>
-          {(isUnpublished || dataset.visibility === 'private') && (
-            <div className={styles.StatusTags}>
-              {isUnpublished && <Tag className={styles.UnpublishedTag} text={t('datasets_list.unpublished')} />}
-              {dataset.visibility === 'private' && <Tag className={styles.VisibilityTag} text={t(`datasets_list.${dataset.visibility}`)} />}
-            </div>
-          )}
         </div>
       </div>
       <div className={styles.MetaWrapper}>
