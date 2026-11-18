@@ -7,7 +7,20 @@ The frontend can report how visitors use the map, the Data Explorer and the Down
 - GTM is put on the page only after the visitor accepts the "analytics" cookies in the consent banner (`components/CookieConsentProvider.tsx`). The banner only offers that category when `GTM_CONTAINER_ID` is set.
 - `trackEvent` (`utilities/analytics.ts`) does nothing until GTM is on the page. An action taken before the consent is never sent after it.
 - GTM is loaded once per page, even though the consent library reports a stored consent on every load.
-- A visitor who withdraws the consent gets the page reloaded without GTM, so tracking stops right away.
+- "Cookie settings" in the header's Legal menu reopens the cookie preferences. It shows only when `GTM_CONTAINER_ID` is set: without it, the banner offers no choice to change. Its label comes with the banner's texts, in the banner's language: the browser's when the banner has it (en, it, es, de), English otherwise.
+- A visitor who withdraws the consent gets GA4's cookies (`_ga`, `_ga_<stream>`) deleted and the page reloaded without GTM, so tracking stops right away. GA4 sets its cookies on the widest domain it can, so they are deleted on the app's host and on each of its parent domains (`clearAnalyticsCookies` in `utilities/analytics.ts`).
+- A visitor who declines from the start has no GA4 cookie deleted: one on a parent domain may belong to another site of that domain, set with its own consent.
+
+### Consent Mode
+
+The app also passes the choice to the Google tags in the container through Google's Consent Mode v2 (`startGoogleTagManager` and `updateAnalyticsConsent` in `utilities/analytics.ts`). The commands go on the `dataLayer` through a `gtag` function, which pushes its `arguments` object: GTM ignores a command pushed as an array.
+
+| When                                                                       | Commands                                                                                                                                                         |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A visitor accepts analytics, and on every later page load, before `gtm.js` | `consent default` with `analytics_storage`, `ad_storage`, `ad_user_data` and `ad_personalization` denied, then `consent update` with `analytics_storage` granted |
+| The visitor withdraws the consent, before the reload                       | `consent update` with `analytics_storage` denied                                                                                                                 |
+
+The ad signals stay denied: the banner only asks for analytics cookies. GA4 then sends its hits with `gcs=G101` (analytics granted, ads denied). Without the update, a container that sets denied defaults of its own sends every hit with `gcs=G100`, and GA4 leaves those hits out of Realtime and of its reports.
 
 ## What the app sends
 
@@ -94,6 +107,7 @@ GA4 only shows a parameter in reports once it is registered as a dimension or me
 
 1. Run the frontend with `GTM_CONTAINER_ID` set. The container's own ID lets GTM Preview connect; any `GTM-` value is enough to inspect the `dataLayer`.
 2. Accept analytics in the cookie banner.
-3. Do the actions above and read `window.dataLayer` in the browser console. Each action adds the expected event once.
-4. Check that nothing is pushed before accepting. The app has no link to the cookie preferences yet, so withdrawing the consent is covered by `tests/components/CookieConsentProvider.test.tsx`.
-5. With GTM Preview (Tag Assistant) connected, check that each tag fires once with its parameters, and that the events reach GA4's DebugView.
+3. Read `window.dataLayer` in the browser console: the `consent default` and `consent update` commands come before the `gtm.js` entry.
+4. Do the actions above and read `window.dataLayer` again. Each action adds the expected event once.
+5. Check that nothing is pushed before accepting. Then withdraw the consent through Legal → Cookie settings: the `_ga` cookies are gone from the browser's storage tab and the page reloads without GTM.
+6. With GTM Preview (Tag Assistant) connected, check that the Consent tab shows the default and the update, that each tag fires once with its parameters, and that the events reach GA4's DebugView. The GA4 hits (`/g/collect` in the browser's network tab) carry `gcs=G101`.

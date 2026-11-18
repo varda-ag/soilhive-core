@@ -1,14 +1,12 @@
 // vanilla-cookieconsent cookie name
 export const CONSENT_COOKIE_NAME = 'cc_cookie';
 
-// Consent Mode v2 parameters
+// Consent Mode v2 parameters the app sends to GTM (utilities/analytics.ts)
 export const CONSENT_PARAMS = {
   ANALYTICS_STORAGE: 'analytics_storage',
   AD_STORAGE: 'ad_storage',
   AD_USER_DATA: 'ad_user_data',
   AD_PERSONALIZATION: 'ad_personalization',
-  FUNCTIONALITY_STORAGE: 'functionality_storage',
-  PERSONALIZATION_STORAGE: 'personalization_storage',
 } as const;
 
 // Categories used in vanilla-cookieconsent config

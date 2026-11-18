@@ -4,6 +4,7 @@ import useTheme from 'hooks/useTheme';
 import useDevice from 'hooks/useDevice';
 import useRemotes from 'hooks/useRemotes';
 import Header from 'components/Header/Header';
+import { useCookieConsent } from 'components/CookieConsentProvider';
 import { useAuthContext } from '../../../src/auth/AuthContextProvider';
 import { PluginType, type NewTabPlugin, type SinglePagePlugin } from '../../../src/types/plugins';
 
@@ -30,6 +31,10 @@ jest.mock('hooks/useTheme', () => ({
 jest.mock('hooks/useDevice', () => ({
   __esModule: true,
   default: jest.fn(),
+}));
+
+jest.mock('components/CookieConsentProvider', () => ({
+  useCookieConsent: jest.fn(),
 }));
 
 jest.mock('../../../src/auth/AuthContextProvider', () => ({
@@ -106,6 +111,12 @@ describe('Header component', () => {
 
     (useAuthContext as jest.Mock).mockReturnValue({
       isAuthenticated: false,
+    });
+
+    (useCookieConsent as jest.Mock).mockReturnValue({
+      hasOptionalCookies: false,
+      cookieSettingsLabel: 'Cookie settings',
+      showPreferences: jest.fn(),
     });
   });
 
@@ -326,6 +337,63 @@ describe('Header component', () => {
     fireEvent.click(screen.getByTestId('sh-header-hamburger'));
 
     expect(screen.getAllByTestId('mobile-menu-entry')).toHaveLength(1);
+  });
+
+  describe('Cookie settings', () => {
+    const showPreferences = jest.fn();
+
+    beforeEach(() => {
+      (useCookieConsent as jest.Mock).mockReturnValue({
+        hasOptionalCookies: true,
+        cookieSettingsLabel: 'Cookie settings',
+        showPreferences,
+      });
+    });
+
+    it('reopens the cookie preferences from the Legal menu', () => {
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Header />
+        </MemoryRouter>,
+      );
+
+      fireEvent.click(screen.getByText('Legal'));
+      fireEvent.click(screen.getByRole('button', { name: /Cookie settings/ }));
+
+      expect(showPreferences).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows the Legal menu for it even without terms or a privacy policy', () => {
+      (useTheme as jest.Mock).mockReturnValue({
+        isLoadingThemeConfig: true,
+        themeConfig: { termsAndConditionsHtml: '', privacyPolicyHtml: '' },
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Header />
+        </MemoryRouter>,
+      );
+
+      expect(screen.getByText('Legal')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Cookie settings/ })).toBeInTheDocument();
+    });
+
+    it('is left out when the banner offers only the necessary cookies', () => {
+      (useCookieConsent as jest.Mock).mockReturnValue({
+        hasOptionalCookies: false,
+        cookieSettingsLabel: 'Cookie settings',
+        showPreferences,
+      });
+
+      render(
+        <MemoryRouter initialEntries={['/']}>
+          <Header />
+        </MemoryRouter>,
+      );
+
+      expect(screen.queryByRole('button', { name: /Cookie settings/ })).not.toBeInTheDocument();
+    });
   });
 
   it('renders a single-page plugin as an internal desktop nav link and a new-tab plugin as an external link', () => {

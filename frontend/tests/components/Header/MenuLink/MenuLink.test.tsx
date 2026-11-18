@@ -106,6 +106,28 @@ describe('MenuLink component', () => {
     });
   });
 
+  describe('action', () => {
+    const renderAction = (props: Partial<Parameters<typeof MenuLink>[0]> = {}) =>
+      render(<MenuLink type="action" text="Cookie settings" {...props} />);
+
+    it('renders a button, not a link, that runs onClick', () => {
+      const onClick = jest.fn();
+      renderAction({ onClick, className: 'MenuLink' });
+
+      const button = screen.getByRole('button', { name: 'Cookie settings' });
+      expect(button).toHaveAttribute('type', 'button');
+      expect(button).toHaveClass('MenuLink');
+      expect(screen.queryByRole('link')).not.toBeInTheDocument();
+      fireEvent.click(button);
+      expect(onClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders Icon for an action', () => {
+      renderAction({ Icon: MockIcon });
+      expect(screen.getByTestId('menu-link-icon')).toBeInTheDocument();
+    });
+  });
+
   it('matches snapshot for internal link', () => {
     const { container } = renderInternal({ className: 'NavItem', activeClassName: 'Active', Icon: MockIcon });
     expect(container).toMatchSnapshot();

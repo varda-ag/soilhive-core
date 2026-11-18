@@ -1,9 +1,16 @@
+/**
+ * @jest-environment-options {"url": "https://core.dev.example.org/"}
+ */
+// A host with parent domains, for the cookies GA4 sets on a parent of the app's host
 import {
+  clearAnalyticsCookies,
   diffFilterValues,
   isGoogleTagManagerLoaded,
   loadGoogleTagManager,
+  startGoogleTagManager,
   trackEvent,
   trackMapFilterChange,
+  updateAnalyticsConsent,
 } from '../../src/utilities/analytics';
 
 type WindowWithDataLayer = Window & { dataLayer?: unknown[] };
@@ -82,6 +89,102 @@ describe('loadGoogleTagManager', () => {
     expect(isGoogleTagManagerLoaded()).toBe(false);
     loadGoogleTagManager(GTM_ID);
     expect(isGoogleTagManagerLoaded()).toBe(true);
+  });
+});
+
+// A gtag command as GTM reads it: the arguments object, not an array
+const isGtagCommand = (entry: unknown): entry is IArguments => Object.prototype.toString.call(entry) === '[object Arguments]';
+const gtagCommands = () => ((window as WindowWithDataLayer).dataLayer ?? []).filter(isGtagCommand).map(entry => Array.from(entry));
+
+describe('Consent Mode', () => {
+  beforeEach(() => {
+    document.head.querySelectorAll('script').forEach(s => s.remove());
+    document.head.appendChild(document.createElement('script'));
+    delete (window as any).dataLayer;
+  });
+
+  afterEach(() => {
+    document.head.querySelectorAll('script').forEach(s => s.remove());
+    delete (window as any).dataLayer;
+  });
+
+  it('queues the default (all denied) and the update granting analytics before gtm.js, as gtag commands', () => {
+    startGoogleTagManager(GTM_ID);
+
+    const layer = (window as WindowWithDataLayer).dataLayer as unknown[];
+    expect(layer).toHaveLength(3);
+    expect(isGtagCommand(layer[0])).toBe(true);
+    expect(Array.from(layer[0] as IArguments)).toEqual([
+      'consent',
+      'default',
+      { analytics_storage: 'denied', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' },
+    ]);
+    expect(isGtagCommand(layer[1])).toBe(true);
+    expect(Array.from(layer[1] as IArguments)).toEqual(['consent', 'update', { analytics_storage: 'granted' }]);
+    expect((layer[2] as Record<string, unknown>).event).toBe('gtm.js');
+    expect(isGoogleTagManagerLoaded()).toBe(true);
+  });
+
+  it('leaves the ad signals denied, since the app only asks for analytics cookies', () => {
+    startGoogleTagManager(GTM_ID);
+
+    const updates = gtagCommands().filter(([, action]) => action === 'update');
+    expect(updates).toHaveLength(1);
+    expect(Object.keys(updates[0][2])).toEqual(['analytics_storage']);
+  });
+
+  it('sends nothing once GTM is on the page, so a consent reported twice is sent once', () => {
+    startGoogleTagManager(GTM_ID);
+    startGoogleTagManager(GTM_ID);
+
+    expect(gtagCommands()).toHaveLength(2);
+    const gtmStarts = ((window as WindowWithDataLayer).dataLayer as Record<string, unknown>[]).filter(entry => entry.event === 'gtm.js');
+    expect(gtmStarts).toHaveLength(1);
+  });
+
+  it('queues an update denying analytics when the consent is withdrawn', () => {
+    startGoogleTagManager(GTM_ID);
+    updateAnalyticsConsent(false);
+
+    expect(gtagCommands().slice(-1)[0]).toEqual(['consent', 'update', { analytics_storage: 'denied' }]);
+  });
+});
+
+describe('clearAnalyticsCookies', () => {
+  const cookieNames = () =>
+    document.cookie
+      .split(';')
+      .map(cookie => cookie.split('=')[0].trim())
+      .filter(Boolean);
+  const deleteAll = () =>
+    cookieNames().forEach(name =>
+      ['', '; domain=dev.example.org', '; domain=example.org'].forEach(domain => {
+        document.cookie = `${name}=; path=/; max-age=0${domain}`;
+      }),
+    );
+
+  beforeEach(deleteAll);
+  afterEach(deleteAll);
+
+  it('deletes GA4 cookies set on the host, on a parent domain and on the widest one', () => {
+    document.cookie = '_ga=GA1.1.123.456; path=/';
+    document.cookie = '_ga_ABC123=GS1.1.789; path=/; domain=example.org';
+    document.cookie = '_ga_DEF456=GS1.1.789; path=/; domain=dev.example.org';
+    expect(cookieNames().sort()).toEqual(['_ga', '_ga_ABC123', '_ga_DEF456']);
+
+    clearAnalyticsCookies();
+
+    expect(cookieNames()).toEqual([]);
+  });
+
+  it('keeps the other cookies', () => {
+    document.cookie = 'cc_cookie=consent; path=/';
+    document.cookie = 'session=abc; path=/; domain=example.org';
+    document.cookie = '_ga=GA1.1.123.456; path=/; domain=example.org';
+
+    clearAnalyticsCookies();
+
+    expect(cookieNames().sort()).toEqual(['cc_cookie', 'session']);
   });
 });
 

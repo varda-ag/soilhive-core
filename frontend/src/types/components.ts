@@ -18,11 +18,14 @@ export type NestedCheckboxRef = {
 
 export type NavMenuEntry = {
   name: string;
-  route?: string;
-  type: 'internal' | 'external';
   Icon?: React.FC<React.SVGProps<SVGSVGElement>>;
   children?: NavMenuEntry[];
-};
+} & (
+  | { type: 'internal' | 'external'; route?: string; onClick?: never; label?: never }
+  // Runs onClick instead of following a route, e.g. reopening the cookie preferences. Shows label,
+  // already translated, instead of name.
+  | { type: 'action'; onClick: () => void; label: string; route?: never }
+);
 
 export type CropArea = {
   x: number;

@@ -181,7 +181,6 @@ export default class VectorDataLoad {
     dataMappingConfig: DataCleaningConfig,
     record: SoilRecord,
     datasetId: string,
-    metadataOnly = false,
   ): Promise<any> => {
     const sanitizedRecord = Object.fromEntries(
       Object.entries(record).map(([key, value]) => {
@@ -245,9 +244,8 @@ export default class VectorDataLoad {
 
     for (const [col, data] of Object.entries(dataMappingConfig.property_cols)) {
       const value = sanitizedRecord[col];
-      // A metadata-only load stores no values, so every mapped property gets its dataset layer.
       // Throwing fails the whole request, whose transaction then rolls back every record in it.
-      if (!metadataOnly && (hasClasses(data.classes) ? !isStorableClassValue(data.classes, value, col) : !value)) continue;
+      if (hasClasses(data.classes) ? !isStorableClassValue(data.classes, value, col) : !value) continue;
 
       const soilPropertyId: string = data.property_id!;
 
@@ -285,7 +283,6 @@ export default class VectorDataLoad {
         datasetLayerIdMap.set(key, row.id);
       }
     }
-    if (metadataOnly) return;
     // prep observations with dataset_layer_id
     const finalObservationRows = observationRows.map(r => {
       const datasetLayerId = datasetLayerIdMap.get(r['soil_property_key']);

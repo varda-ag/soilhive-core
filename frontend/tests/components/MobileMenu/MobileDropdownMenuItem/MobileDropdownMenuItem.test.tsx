@@ -94,6 +94,25 @@ describe('MobileDropdownMenuItem component', () => {
     expect(onLinkClick).toHaveBeenCalledTimes(1);
   });
 
+  it('runs an action entry and then onLinkClick, which closes the mobile menu', () => {
+    const showPreferences = jest.fn();
+    const onLinkClick = jest.fn();
+    renderComponent({
+      menuEntry: {
+        ...mockMenuEntry,
+        children: [{ name: 'cookie_settings', type: 'action', label: 'Cookie settings', onClick: showPreferences }],
+      },
+      onLinkClick,
+    });
+
+    const action = screen.getByTestId('mobile-menu-link');
+    expect(action).toHaveTextContent('Cookie settings');
+    fireEvent.click(action);
+
+    expect(showPreferences).toHaveBeenCalledTimes(1);
+    expect(onLinkClick).toHaveBeenCalledTimes(1);
+  });
+
   it('does not throw when onLinkClick is not provided', () => {
     renderComponent();
     expect(() => fireEvent.click(screen.getByTestId('mobile-menu-link'))).not.toThrow();

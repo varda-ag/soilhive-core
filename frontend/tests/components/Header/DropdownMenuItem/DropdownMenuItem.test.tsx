@@ -93,6 +93,22 @@ describe('DropdownMenuItem component', () => {
     expect(container.firstChild).not.toHaveClass('Opened');
   });
 
+  it('runs an action entry and closes the menu when it is clicked', () => {
+    const showPreferences = jest.fn();
+    const { container } = renderComponent({
+      ...mockMenuEntry,
+      children: [{ name: 'cookie_settings', type: 'action', label: 'Cookie settings', onClick: showPreferences }],
+    });
+    fireEvent.click(screen.getByRole('button'));
+
+    const action = screen.getByTestId('dropdown-menu-link');
+    expect(action).toHaveTextContent('Cookie settings');
+    fireEvent.click(action);
+
+    expect(showPreferences).toHaveBeenCalledTimes(1);
+    expect(container.firstChild).not.toHaveClass('Opened');
+  });
+
   it('closes the menu on outside click via useClickAway', () => {
     const { container } = renderComponent();
     fireEvent.click(screen.getByRole('button'));

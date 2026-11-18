@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import { SyntaxValidator } from 'fast-xml-validator';
-import { writeArrayBuffer, GeoTIFFImage } from 'geotiff';
+import { writeArrayBuffer, GeoTIFF, GeoTIFFImage } from 'geotiff';
 import { Polygon, MultiPolygon } from 'geojson';
 import { RasterFileFormat } from './types';
 import { FilteredRasterLayer } from '../../interfaces/DatasetFilter';
@@ -13,6 +13,7 @@ import { sanitizeField, sanitizeFilename } from '../../utils/utils';
 import { GdalCLI } from '../../utils/GdalCLI';
 import { log } from '../../utils/logger';
 import { getErrorMessage } from '../../utils/error';
+import { JobError } from '../../errors/JobError';
 import { hasClasses } from '../../utils/soilPropertyClasses';
 import { isAxisAlignedBboxPolygon } from '../../utils/geometry';
 import {
@@ -119,6 +120,7 @@ export class RasterFileWriter {
    * Output layer naming convention is {outputDir}/{dataset_slug}_{soil_property}{_depth}{_date}_{target_crs},
    * unless `layerName` gives the name (buildLayerNames, for layers that would share one).
    * Returns whether a file was written — `false` when the AOI touches no valid pixel.
+   * Throws EX_NO_DATA when the layer's File can't be opened (missing from storage, or unreadable).
    */
   async writeLayer(
     layer: FilteredRasterLayer,
@@ -126,7 +128,12 @@ export class RasterFileWriter {
     targetCrs?: number,
     layerName: string = this.buildLayerName(layer, targetCrs),
   ): Promise<boolean> {
-    const sourceTiff = await openTiff(layer.path);
+    let sourceTiff: GeoTIFF;
+    try {
+      sourceTiff = await openTiff(layer.path);
+    } catch (error) {
+      throw new JobError('EX_NO_DATA', {}, getErrorMessage(error));
+    }
     try {
       const sourceImage = await sourceTiff.getImage(0);
       const grid = gridFromImage(sourceImage);

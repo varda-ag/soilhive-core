@@ -1,6 +1,17 @@
-import { ANALYTICS_EVENTS, type AnalyticsEventName } from '../configuration/analytics';
+import { ANALYTICS_EVENTS, CONSENT_PARAMS, type AnalyticsEventName } from '../configuration/analytics';
 
 const GTM_SCRIPT_URL = 'https://www.googletagmanager.com/gtm.js';
+
+type ConsentState = Partial<Record<(typeof CONSENT_PARAMS)[keyof typeof CONSENT_PARAMS], 'granted' | 'denied'>>;
+
+// Consent Mode v2 state before the visitor's choice. The app only asks for analytics cookies, so the
+// ad signals stay denied whatever the visitor chooses.
+const DEFAULT_CONSENT: ConsentState = {
+  [CONSENT_PARAMS.ANALYTICS_STORAGE]: 'denied',
+  [CONSENT_PARAMS.AD_STORAGE]: 'denied',
+  [CONSENT_PARAMS.AD_USER_DATA]: 'denied',
+  [CONSENT_PARAMS.AD_PERSONALIZATION]: 'denied',
+};
 
 // GA4 drops the rest of a longer parameter value
 const MAX_PARAM_LENGTH = 100;
@@ -41,6 +52,60 @@ const loadGoogleTagManager = (gtmContainerId: string): void => {
 const isGoogleTagManagerLoaded = (): boolean =>
   typeof document !== 'undefined' && document.querySelector(`script[src^="${GTM_SCRIPT_URL}?id="]`) !== null;
 
+/**
+ * Google's `gtag` function, as in Google's own snippet: it queues a command on the dataLayer, which
+ * GTM runs in order once loaded. GTM only reads a command from an `arguments` object, not from an
+ * array.
+ */
+function gtag(..._command: ['consent', 'default' | 'update', ConsentState]): void {
+  window.dataLayer = window.dataLayer || [];
+  // eslint-disable-next-line prefer-rest-params
+  window.dataLayer.push(arguments);
+}
+
+/** Tells GTM's Google tags, through Consent Mode v2, whether they may store and send analytics data */
+const updateAnalyticsConsent = (granted: boolean): void =>
+  gtag('consent', 'update', { [CONSENT_PARAMS.ANALYTICS_STORAGE]: granted ? 'granted' : 'denied' });
+
+// GA4's cookies: `_ga` and `_ga_<stream>`
+const GA_COOKIE_NAME = /^_ga/;
+
+/**
+ * Deletes GA4's cookies, for a visitor who withdrew the consent. GA4 sets them on the widest domain
+ * it can (its `cookie_domain` is `auto`), usually a parent of the app's host, so they are deleted
+ * as host-only cookies and on the host and each of its parent domains.
+ */
+const clearAnalyticsCookies = (): void => {
+  const labels = window.location.hostname.split('.');
+  // core.dev.example.org → core.dev.example.org, dev.example.org, example.org: a top-level domain holds no cookie
+  const domains = [undefined, ...labels.slice(0, -1).map((_, index) => labels.slice(index).join('.'))];
+
+  document.cookie
+    .split(';')
+    .map(cookie => cookie.split('=')[0].trim())
+    .filter(name => GA_COOKIE_NAME.test(name))
+    .forEach(name =>
+      domains.forEach(domain => {
+        document.cookie = `${name}=; path=/; max-age=0${domain ? `; domain=${domain}` : ''}`;
+      }),
+    );
+};
+
+/**
+ * Puts GTM on the page for a visitor who accepted analytics cookies. The Consent Mode default (all
+ * denied) and the update granting analytics go on the dataLayer before `gtm.js`, so the first tags
+ * already run with the visitor's choice. Does nothing when GTM is already on the page.
+ *
+ * @param gtmContainerId - GTM container ID, e.g. `"GTM-XXXXXXX"`
+ */
+const startGoogleTagManager = (gtmContainerId: string): void => {
+  if (isGoogleTagManagerLoaded()) return;
+
+  gtag('consent', 'default', DEFAULT_CONSENT);
+  updateAnalyticsConsent(true);
+  loadGoogleTagManager(gtmContainerId);
+};
+
 export type AnalyticsParams = Record<string, string | number | undefined>;
 
 /**
@@ -79,4 +144,13 @@ const trackMapFilterChange = (filterName: string, previous: readonly string[], n
   );
 };
 
-export { loadGoogleTagManager, isGoogleTagManagerLoaded, trackEvent, diffFilterValues, trackMapFilterChange };
+export {
+  loadGoogleTagManager,
+  isGoogleTagManagerLoaded,
+  updateAnalyticsConsent,
+  clearAnalyticsCookies,
+  startGoogleTagManager,
+  trackEvent,
+  diffFilterValues,
+  trackMapFilterChange,
+};
