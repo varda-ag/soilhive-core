@@ -373,7 +373,7 @@ What a config item represents, carried as a `{kind}:` prefix on its id right aft
 _Avoid_: Subkey, subkey prefix, scope (reserved for the `datasets`/`configs` storage namespaces), convention prefix
 
 **Leave** (a config item):
-A **Subject** giving up all of its own **Entitlements** on a plugin config item at once. The item stays for every other Subject that holds one. A Subject that holds none, and reaches the item only through `everyone`, cannot leave it.
+A **Subject** giving up all of its own **Entitlements** on a plugin config item at once. The item stays for every other Subject that holds one. While `everyone` holds an Entitlement on the item, no Subject can leave it, except the last one holding its own, whose Leave Deletes it.
 _Avoid_: Soft delete (see Flagged ambiguities), unshare (a `write` holder taking someone else's access away), remove access
 
 **Delete** (a config item):

@@ -112,7 +112,7 @@ export default class DataRequestService {
 
   /**
    * Destroys every Data Request attached to a config item, as `DELETE /configs/{configId}` does
-   * (docs/adr/0041). The caller has already been checked for `write` on the item.
+   * (docs/adr/0041) once the item is Deleted: by an admin, or when its last holder leaves (docs/adr/0083).
    */
   deleteAttachedDataRequests = async (requestData: RequestData, configId: string): Promise<void> => {
     const jobs = (await this.jobService.findJobsInQueueByData(JobQueues.DATA_REQUESTS, { config_id: configId })).filter(

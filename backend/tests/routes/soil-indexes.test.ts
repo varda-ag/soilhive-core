@@ -356,7 +356,7 @@ describe('Soil Index Runs', () => {
       const unattached = (await submit(await crea()).expect(201)).body.id as string;
       await finishRun(unattached);
 
-      // The reader leaves, then the author's Leave, the last, Deletes the item (docs/adr/0084)
+      // The reader leaves, then the author's Leave, the last, Deletes the item (docs/adr/0083)
       await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${reader()}`).expect(204);
       await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
 

@@ -46,13 +46,19 @@ const dashboardSummary = (data: unknown, keys: string[]): unknown => {
   return Object.fromEntries(keys.filter(key => Object.hasOwn(data, key)).map(key => [key, (data as Record<string, unknown>)[key]]));
 };
 
-// The list marks a blocked dashboard, so it can open it to the 403 and not show it as failed.
-const dashboardListSummary = (data: unknown, isBlocked: boolean): unknown => {
-  if (!isBlocked) {
-    return dashboardSummary(data, DASHBOARD_SUMMARY_KEYS);
+// The list marks a blocked dashboard, so it can open it to the 403 and not show it as failed, and
+// one shared with everyone, which only an admin can remove (ADR-0083).
+const dashboardListSummary = (data: unknown, isBlocked: boolean, isSharedWithEveryone: boolean): unknown => {
+  const summary = dashboardSummary(data, isBlocked ? BLOCKED_DASHBOARD_SUMMARY_KEYS : DASHBOARD_SUMMARY_KEYS);
+  // Not an object value: dashboardSummary returned it unchanged, and so does the list
+  if (typeof summary !== 'object' || summary === null || Array.isArray(summary)) {
+    return summary;
   }
-  const summary = dashboardSummary(data, BLOCKED_DASHBOARD_SUMMARY_KEYS);
-  return typeof summary === 'object' && summary !== null ? { ...summary, datasets_blocked: true } : summary;
+  return {
+    ...summary,
+    ...(isBlocked ? { datasets_blocked: true } : {}),
+    ...(isSharedWithEveryone ? { shared_with_everyone: true } : {}),
+  };
 };
 
 export default class ConfigService {
@@ -67,7 +73,7 @@ export default class ConfigService {
   /**
    * `PUT /configs/{configId}`. A caller who already holds `WRITE` (or is privileged) upserts as
    * before, once the stored value passes the dashboard dataset check (ADR-0079), and gains `WRITE`
-   * if that creates a plugin item (ADR 0084). Otherwise, only a fresh `plugin:` id is eligible
+   * if that creates a plugin item (ADR 0083). Otherwise, only a fresh `plugin:` id is eligible
    * for first access: a conflict-detecting insert (`ON CONFLICT
    * DO NOTHING`, not `upsert`, which would let a concurrent racer silently overwrite the winner)
    * either claims the id — granting the caller `WRITE` on it in the same transaction — or loses
@@ -124,7 +130,7 @@ export default class ConfigService {
 
   /**
    * `DELETE /configs/{configId}`: a Leave of a plugin item for a non-privileged caller, a Delete
-   * otherwise (docs/adr/0084). Returns whether the item was Deleted; the controller then destroys
+   * otherwise (docs/adr/0083). Returns whether the item was Deleted; the controller then destroys
    * its attached Data Requests and Soil Index Runs.
    */
   deleteConfig = async (requestData: RequestData, id: string): Promise<boolean> => {
@@ -141,12 +147,15 @@ export default class ConfigService {
     // Leaves of one item wait for each other, so the last of two at once sees nobody left
     await requestData.entityManager.query(`SELECT 1 FROM "jsonstorage" WHERE "id" = $1 FOR UPDATE`, [id]);
     const holders = await entitlementService.configHolders(requestData, id);
-    if (!holders.includes(subject)) {
-      if (holders.includes(EVERYONE)) {
-        throw new ErrorResponse(`Config ${id} is shared with everyone, so it can't be left`, StatusCodes.CONFLICT, {
-          shared_with_everyone: true,
-        });
-      }
+    const holdsOwn = holders.includes(subject);
+    const others = holders.filter(holder => holder !== subject && holder !== EVERYONE);
+    // EVERYONE's grant would keep it in the caller's list, unless this Leave Deletes it
+    if (holders.includes(EVERYONE) && (!holdsOwn || others.length > 0)) {
+      throw new ErrorResponse(`Config ${id} is shared with everyone, so it can't be left`, StatusCodes.CONFLICT, {
+        shared_with_everyone: true,
+      });
+    }
+    if (!holdsOwn) {
       throw configForbidden(id, Capability.READ);
     }
     // Invites first, as in removeConfig
@@ -175,16 +184,22 @@ export default class ConfigService {
    * Silently omits ids the caller can't read from the result map — the same precedent
    * `getConfigs` already sets for ids that don't exist at all (see ADR 0037). A `dashboards`
    * Config Kind id returns only its summary keys. For a caller the dashboard dataset check blocks,
-   * it leaves out `soilIndexRunId` and adds `datasets_blocked: true` (ADR-0079).
+   * it leaves out `soilIndexRunId` and adds `datasets_blocked: true` (ADR-0079). One EVERYONE holds
+   * a grant on gets `shared_with_everyone: true` (ADR-0083).
    */
   getConfigs = async (requestData: RequestData, ids: string[]): Promise<Record<string, SavedConfig>> => {
     const repo = requestData.entityManager.getRepository(JsonStorage);
     const rows = await repo.find({ where: { id: In(ids) } });
     const readableRows = rows.filter(row => entitlementService.canConfig(requestData, row.id, Capability.READ));
     const denials = await entitlementService.configDatasetsDenials(requestData, readableRows);
+    const shared = readableRows.some(row => hasConfigKind(row.id, ConfigKind.DASHBOARDS))
+      ? await entitlementService.configsSharedWithEveryone(requestData)
+      : new Set<string>();
     return Object.fromEntries(
       readableRows.map(r => {
-        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS) ? dashboardListSummary(r.data, denials.has(r.id)) : r.data;
+        const data = hasConfigKind(r.id, ConfigKind.DASHBOARDS)
+          ? dashboardListSummary(r.data, denials.has(r.id), shared.has(r.id))
+          : r.data;
         return [r.id, { data, updated_at: r.updated_at!.toISOString() }];
       }),
     );

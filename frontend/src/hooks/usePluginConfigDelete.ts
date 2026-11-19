@@ -5,7 +5,7 @@ import { useRequest } from '../api-client';
 import { BACKEND_BASE_URL } from '../configuration/api';
 import { buildPluginConfigId } from './pluginConfigId';
 
-// The DELETE is a Leave, or a Delete for an admin or the last holder (ADR 0084). 404 and 403 leave
+// The DELETE is a Leave, or a Delete for an admin or the last holder (ADR 0083). 404 and 403 leave
 // nothing this caller can leave: the item is gone, or they hold no grant on it. They resolve inside
 // mutationFn so isError stays false.
 const usePluginConfigDelete = (pluginId: string): PluginMutationResult<{ id: string }, void> => {

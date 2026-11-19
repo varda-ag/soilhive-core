@@ -202,7 +202,7 @@ export default class InviteService {
    * the strip runs, and a redeem that comes after reads the Invite without the entity. The other
    * way round, a redeem between the two steps would leave a grant the strip never saw.
    *
-   * With `createdBy`, only that Subject's Invites: a Leave (docs/adr/0084).
+   * With `createdBy`, only that Subject's Invites: a Leave (docs/adr/0083).
    */
   dropFromPendingInvites = async (requestData: RequestData, scope: EntitlementScope, slug: string, createdBy?: string): Promise<void> => {
     const keys = await entitlementService.resolveSlugs(requestData, scope, slug);

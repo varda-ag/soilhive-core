@@ -320,7 +320,7 @@ describe('ConfigService config value entitlements', () => {
       expect(row).toBeNull();
     });
 
-    // A Leave reads the stored grants, to tell the caller's own from EVERYONE's (docs/adr/0084)
+    // A Leave reads the stored grants, to tell the caller's own from EVERYONE's (docs/adr/0083)
     it('deletes a plugin item when its only holder leaves it', async () => {
       await entityManager.getRepository('JsonStorage').save({ id: 'plugin:acme:widget', data: { v: 1 } });
       await entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2::jsonb)`, [

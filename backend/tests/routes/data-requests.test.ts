@@ -769,7 +769,7 @@ describe('Testing /data-requests routes', () => {
 
     const leave = (configId: string, token: string) => request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${token}`);
 
-    /** Deletes an item from claimConfig: the reader leaves, then the author, its last holder (docs/adr/0084). */
+    /** Deletes an item from claimConfig: the reader leaves, then the author, its last holder (docs/adr/0083). */
     const deleteConfig = async (configId: string) => {
       await leave(configId, reader()).expect(204);
       await leave(configId, author()).expect(204);
@@ -960,10 +960,10 @@ describe('Testing /data-requests routes', () => {
         await request(app)
           .put(`/configs/${configId}/entitlements`)
           .set('Authorization', `Bearer ${author()}`)
-          .send({ [authorEmail]: ['write'], [readerEmail]: ['read'], [EVERYONE]: ['read'] })
+          .send({ [authorEmail]: ['write'], [EVERYONE]: ['read'] })
           .expect(200);
 
-        await deleteConfig(configId);
+        await leave(configId, author()).expect(204);
 
         const entityManager = await getEntityManager();
         const rows: { id: string; configs: unknown }[] = await entityManager.query(
@@ -1010,7 +1010,7 @@ describe('Testing /data-requests routes', () => {
         await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
       });
 
-      // docs/adr/0084
+      // docs/adr/0083
       describe('by a caller who is not privileged', () => {
         const coWriterEmail = 'dr-cowriter@example.com';
         const coWriter = () => getUserToken('dr-cowriter-id', coWriterEmail);
@@ -1056,6 +1056,18 @@ describe('Testing /data-requests routes', () => {
 
           expect(res.body).toMatchObject({ status: 409, shared_with_everyone: true });
           expect(await configGrants(configId)).toEqual({ [authorEmail]: ['write'], [EVERYONE]: ['write'] });
+        });
+
+        // A 204 would say it was removed while EVERYONE's grant keeps it in the caller's list
+        it('refuses with 409 a holder of an item shared with everyone that others still hold, and changes nothing', async () => {
+          const configId = await claimConfig();
+          const grants = { [authorEmail]: ['write'], [readerEmail]: ['read'], [EVERYONE]: ['read'] };
+          await request(app).put(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${author()}`).send(grants).expect(200);
+
+          const res = await leave(configId, reader()).expect(409);
+
+          expect(res.body).toMatchObject({ status: 409, shared_with_everyone: true });
+          expect(await configGrants(configId)).toEqual(grants);
         });
 
         it('refuses with 403 a caller holding no grant when EVERYONE holds none', async () => {

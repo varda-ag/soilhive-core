@@ -208,7 +208,7 @@ describe('Testing /configs/{id} routes', () => {
     expect(row).toBeNull();
   });
 
-  // ADR 0084: an admin's item must not be Deleted when the last person it was shared with leaves
+  // ADR 0083: an admin's item must not be Deleted when the last person it was shared with leaves
   it('PUT by a Privileged caller that creates a plugin: config grants it WRITE', async () => {
     const pluginConfigId = 'plugin:acme:widget';
 
@@ -326,6 +326,18 @@ describe('Testing GET /configs routes', () => {
       await request(app).put('/configs/dashboards:1').set(superAdminAuthHeader).send({ name: 'D', widgets: [] });
       const res = await request(app).get('/configs').query({ ids: 'dashboards:1' }).set(superAdminAuthHeader);
       expect(res.body['dashboards:1'].data).toStrictEqual({ name: 'D' });
+    });
+
+    // ADR-0083: the plugin offers no Remove on it, since a Leave would be refused
+    it('marks a dashboard EVERYONE holds a grant on as shared_with_everyone', async () => {
+      await request(app).put('/configs/dashboards:1').set(superAdminAuthHeader).send({ name: 'D' });
+      await request(app).put('/configs/dashboards:2').set(superAdminAuthHeader).send({ name: 'E' });
+      await grantConfigCapability(EVERYONE, 'dashboards:1', ['read']);
+
+      const res = await request(app).get('/configs').query({ ids: 'dashboards:1,dashboards:2' }).set(superAdminAuthHeader);
+
+      expect(res.body['dashboards:1'].data).toStrictEqual({ name: 'D', shared_with_everyone: true });
+      expect(res.body['dashboards:2'].data).toStrictEqual({ name: 'E' });
     });
 
     describe('for a caller the dashboard dataset check blocks', () => {

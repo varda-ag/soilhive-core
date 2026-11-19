@@ -58,12 +58,13 @@ export interface PluginContext {
   // missing ids are simply absent from the returned map.
   usePluginConfigs: <T>(pluginId: string, ids: string[], polling?: number) => PluginQueryResult<Record<string, PluginConfigEntry<T>>>;
   // Leaves a config item: removes the caller's own grants, read or write, and the item stays for
-  // the others (ADR 0084). Deletes it, final and for everyone, with its entitlements, attached
+  // the others (ADR 0083). Deletes it, final and for everyone, with its entitlements, attached
   // Data Requests and attached Soil Index Runs (one in progress is cancelled, ADR 0044), when the
   // caller is an admin or its last holder. Resolves once the item has left the caller's listings,
   // and also when the caller holds nothing on it. Rejects with a PluginConfigError of status 409
-  // and `shared_with_everyone: true` in its body when the caller reaches the item only through a
-  // grant to everyone, which can't be left; else on server or network errors.
+  // and `shared_with_everyone: true` in its body when the item is shared with everyone, so it would
+  // stay in the caller's listings; else on server or network errors. A dashboard's entry in
+  // usePluginConfigs carries `shared_with_everyone: true` then, so the plugin can hide its button.
   usePluginConfigDelete: (pluginId: string) => PluginMutationResult<{ id: string }, void>;
   usePluginConfigEntitlements: (pluginId: string, configId: string) => PluginQueryResult<PluginConfigEntitlements>;
   usePluginConfigEntitlementsMutation: (

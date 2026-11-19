@@ -470,7 +470,21 @@ export default class EntitlementService {
       .map(row => row.id);
   };
 
-  /** Removes `subject`'s own grant on config `key`, every Capability at once (docs/adr/0084). */
+  /** The config keys EVERYONE's local grant lets anyone read. */
+  configsSharedWithEveryone = async (requestData: RequestData): Promise<Set<string>> => {
+    const rows: { configs: Record<string, unknown> | null }[] = await requestData.entityManager.query(
+      `SELECT "data"->'configs' AS configs FROM "entitlements" WHERE "id" = $1 AND "deleted_at" IS NULL`,
+      [EVERYONE],
+    );
+    const configs = Object.entries(rows[0]?.configs ?? {});
+    return new Set(
+      configs
+        .filter(([, capabilities]) => Array.isArray(capabilities) && grantsConfig(capabilities as Capability[], Capability.READ))
+        .map(([key]) => key),
+    );
+  };
+
+  /** Removes `subject`'s own grant on config `key`, every Capability at once (docs/adr/0083). */
   revokeConfig = async (requestData: RequestData, subject: string, key: string): Promise<void> => {
     await requestData.entityManager.query(
       `UPDATE "entitlements" SET "data" = jsonb_set("data", '{configs}', ("data"->'configs') - $2::text) WHERE "id" = $1 AND "data"->'configs' ? $2::text`,
@@ -480,7 +494,7 @@ export default class EntitlementService {
 
   /**
    * Self-grants `WRITE` on `key` when `ConfigService.putConfig` creates a plugin item (ADR 0054,
-   * 0084). Assumes `requestData.token` is set; its one caller sits behind mandatory `bearerAuth`.
+   * 0083). Assumes `requestData.token` is set; its one caller sits behind mandatory `bearerAuth`.
    */
   grantSelfConfigWrite = async (requestData: RequestData, key: string): Promise<void> =>
     this.grantSelf(requestData, { [EntitlementScope.CONFIGS]: { [key]: [Capability.WRITE] } });
