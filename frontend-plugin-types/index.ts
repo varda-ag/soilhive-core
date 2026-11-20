@@ -40,6 +40,7 @@ export * from './dataRequest';
 export * from './notification';
 export * from './soilIndex';
 export * from './api';
+export * from './loginPage';
 
 export interface PluginContext {
   user?: PluginUser | null;

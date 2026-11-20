@@ -1,7 +1,7 @@
 import type React from 'react';
-import type { PluginContext } from 'frontend-plugin-types';
+import type { PluginContext, PluginLoginPageProps } from 'frontend-plugin-types';
 
-export type { PluginContext };
+export type { PluginContext, PluginLoginPageProps };
 
 export interface Plugin {
   url: string; // Remote URL pointing to mf-manifest.json
@@ -47,11 +47,6 @@ export interface RemotePlugin {
   // Optional. Shown instead of the host's sign-in prompt when a plugin that requires auth is
   // opened by an anonymous visitor. The host hands it its own sign-in and sign-up.
   LoginPage?: React.ComponentType<PluginLoginPageProps>;
-}
-
-export interface PluginLoginPageProps {
-  login: () => void;
-  signup: () => void;
 }
 
 // A plugin that opens into a routable application page
