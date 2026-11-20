@@ -2,6 +2,8 @@ import type { PluginApi, PluginApiClientOptions } from './api';
 import type {
   PluginConfigEntitlements,
   PluginConfigEntry,
+  PluginConfigInvite,
+  PluginConfigInviteInput,
   PluginConfigResult,
   PluginEntitlementScope,
   PluginMutationResult,
@@ -38,6 +40,7 @@ export * from './dataRequest';
 export * from './notification';
 export * from './soilIndex';
 export * from './api';
+export * from './loginPage';
 
 export interface PluginContext {
   user?: PluginUser | null;
@@ -71,6 +74,13 @@ export interface PluginContext {
     pluginId: string,
     configId: string,
   ) => PluginMutationResult<PluginConfigEntitlements, PluginConfigEntitlements>;
+  // Holds back grants on one of the plugin's config items until someone opens the link and redeems
+  // it (see ADR 0082). Needs write on the item; the token comes back once, in the result.
+  usePluginConfigInviteCreate: (pluginId: string, configId: string) => PluginMutationResult<PluginConfigInviteInput, PluginConfigInvite>;
+  // Redeems the token of an Invite link for the signed-in user. Resolves once their grants and config
+  // reads are refetched, so what it granted can be read right after. Never toasts: a refusal rejects
+  // with a PluginInviteRedeemError. Redeeming again what the same user already redeemed resolves.
+  useInviteRedeem: () => PluginMutationResult<{ token: string }, void>;
   // Filtered to the calling plugin's own plugin:{pluginId}: namespace and unprefixed
   // (see ADR 0036) — a plugin never sees another plugin's or the host's entitlements.
   usePluginUserEntitlements: (pluginId: string, scope: PluginEntitlementScope) => PluginQueryResult<PluginConfigEntitlements>;

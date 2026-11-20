@@ -9,6 +9,7 @@ import styles from './Menu.module.scss';
 
 interface Props {
   className?: string;
+  optionClassName?: string;
   size?: ComponentSizeType;
   options: MenuOption[];
   selectedOptions?: string[] | null;
@@ -19,7 +20,17 @@ interface Props {
 }
 
 export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
-  { className, size = 'medium', options, selectedOptions, isMultiselect, keepSelection = false, showSelectedCheckIcon = false, onSelect },
+  {
+    className,
+    optionClassName,
+    size = 'medium',
+    options,
+    selectedOptions,
+    isMultiselect,
+    keepSelection = false,
+    showSelectedCheckIcon = false,
+    onSelect,
+  },
   ref: ForwardedRef<HTMLDivElement>,
 ) {
   const [currentlySelectedOptions, setCurrentlySelectedOptions] = useState<string[]>(
@@ -82,7 +93,7 @@ export const Menu = forwardRef<HTMLDivElement, Props>(function Menu(
             <div
               key={code}
               data-testid="sh-ui-menuoption"
-              className={classnames(styles.MenuOption, {
+              className={classnames(styles.MenuOption, optionClassName, {
                 [styles.Selected]: isSelected,
                 [styles.Disabled]: isDisabled,
               })}

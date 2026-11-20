@@ -33,6 +33,7 @@ const baseAuthContext: ReturnType<typeof useAuthContext> = {
   isAuthenticated: false,
   isLoading: false,
   login: jest.fn(),
+  signup: jest.fn(),
   logout: jest.fn(),
   authMode: AuthModes.NONE,
   error: undefined,

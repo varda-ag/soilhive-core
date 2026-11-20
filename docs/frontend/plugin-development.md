@@ -207,7 +207,7 @@ For an "upload via a button" flow instead of drag-and-drop, use the `onUploadCli
 
 Your exposed page component receives a `context: PluginContext` prop, typed through `frontend-plugin-types` (synced in as described above). It gives you access to host data and hooks: theme colors, soil data queries, coverage and filter queries, stored filters by id, the logged-in user, your plugin's own persisted config, dataset metadata URLs, and a client for your plugin's own backend.
 
-See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`, plus an optional `requiresAuth`.
+See `frontend-plugin-example/src/components/ProviderComponent.tsx` for a full example that uses every field. See [Module Federation § Building a remote module](./module-federation.md#building-a-remote-module) for the exact export shape the host expects: named exports `pluginId`, `name`, `route`, `type`, and `Page`, plus an optional `requiresAuth` and `LoginPage`.
 
 ### Persisting your plugin's own config
 
@@ -251,6 +251,37 @@ await setEntitlements({ ...entitlements, everyone: ['read'] });
 ```
 
 Use `['read', 'write']` instead of `['read']` if every user should be able to edit the config, not just view it.
+
+#### Sharing a config through a link
+
+To share a config with someone whose email you don't know, create an **Invite** with `context.usePluginConfigInviteCreate`. It holds the grants back until someone opens the link and redeems it (see ADR 0082). Only a caller with `write` on the config can create one, so show the share action only to them.
+
+```tsx
+const { mutateAsync: createInvite } = context.usePluginConfigInviteCreate(pluginId, 'dashboards:abc');
+
+const { token } = await createInvite({ capabilities: ['read'], reusable: false, expiresInDays: 7 });
+const link = `${window.location.origin}${window.location.pathname}#invite=${token}`;
+```
+
+- `reusable` left out means single use: the first person who redeems it uses it up.
+- `expiresInDays` is 1 to 30, 7 when left out.
+- `recipient` limits it to the person signed in with that email, and can't go with `reusable`.
+- The token comes back only here: the backend keeps only its hash, so the same link can't be read again. Put it in the fragment (`#...`), so servers never log it.
+
+When the link is opened, redeem the token with `context.useInviteRedeem()` before you read the config. `mutateAsync` resolves once the user's grants and config reads are refetched, so the read that follows sees the new access:
+
+```tsx
+const { mutateAsync: redeem } = context.useInviteRedeem();
+
+try {
+  await redeem({ token });
+} catch (error) {
+  // { status, body }: 404 unknown or withdrawn, 410 used up or expired, 403 for another account
+  // (`recipient_hint`), a sign-in with no email (`email_required`) or a creator who can no longer share it.
+}
+```
+
+The host shows no toast for a refused redemption: say what went wrong yourself. Redeeming needs a signed-in user whose sign-in carries an email (ADR 0081), so put the link on a page that requires auth: the token in the fragment stays in the address through the sign-in.
 
 #### Config Kinds
 

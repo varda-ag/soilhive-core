@@ -2,6 +2,8 @@ import type {
   PluginApi,
   PluginConfigEntitlements,
   PluginConfigEntry,
+  PluginConfigInvite,
+  PluginConfigInviteInput,
   PluginConfigResult,
   PluginContext,
   PluginDataRequest,
@@ -170,6 +172,20 @@ const configEntitlementsMutation = (): PluginMutationResult<PluginConfigEntitlem
   isError: false,
 });
 
+// A made-up token: local preview has no backend to hold the Invite, so the link redeems nothing.
+const configInviteCreate: PluginMutationResult<PluginConfigInviteInput, PluginConfigInvite> = {
+  mutateAsync: async () => ({ id: 'local-preview-invite', token: 'local-preview-token', expiresAt: new Date().toISOString() }),
+  isPending: false,
+  isError: false,
+};
+
+// Local preview has no backend: every token redeems, and grants nothing.
+const inviteRedeem: PluginMutationResult<{ token: string }, void> = {
+  mutateAsync: async () => undefined,
+  isPending: false,
+  isError: false,
+};
+
 // Stubs: local preview has no backend, so submitting rejects and every id reads as lost.
 const dataRequestSubmit: PluginMutationResult<PluginDataRequestSubmission, PluginDataRequest> = {
   mutateAsync: async () => {
@@ -241,6 +257,8 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   usePluginConfigDelete: () => pluginConfigDelete,
   usePluginConfigEntitlements: () => query(configEntitlements),
   usePluginConfigEntitlementsMutation: () => configEntitlementsMutation(),
+  usePluginConfigInviteCreate: () => configInviteCreate,
+  useInviteRedeem: () => inviteRedeem,
   usePluginUserEntitlements: () => query(configEntitlements),
   useDataRequestSubmit: () => dataRequestSubmit,
   useDataRequest: dataRequest,
