@@ -23,12 +23,16 @@ const RESOLUTION_UNAVAILABLE = -1;
 const ENVELOPE_SAMPLES_PER_SIDE = 21;
 
 /**
- * Opens a GeoTIFF for reading, handling S3 (presigned URL) and local file paths.
+ * Opens a GeoTIFF for reading, handling S3 (presigned URL) and local file paths. On S3 the reads go
+ * through a URL valid for `urlLifetimeS` seconds (getPresignedUrl's default when not given), so it
+ * must outlast them.
  */
-export async function openTiff(storagePath: string): Promise<GeoTIFF> {
+export async function openTiff(storagePath: string, urlLifetimeS?: number): Promise<GeoTIFF> {
   const config = ConfigService.getStorageConfig();
   const { mainFilePath } = await FileService.getMainFilePath(storagePath);
-  return config.storageMode === StorageModes.S3 ? fromUrl(await FileService.getPresignedUrl(storagePath)) : fromFile(mainFilePath);
+  return config.storageMode === StorageModes.S3
+    ? fromUrl(await FileService.getPresignedUrl(storagePath, urlLifetimeS))
+    : fromFile(mainFilePath);
 }
 
 /**
