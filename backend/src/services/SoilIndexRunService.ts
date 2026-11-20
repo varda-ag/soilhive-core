@@ -88,8 +88,8 @@ export default class SoilIndexRunService {
   };
 
   /**
-   * Destroys every Run attached to a config item, as `DELETE /configs/{configId}` does. The caller
-   * has already been checked for `write` on the item.
+   * Destroys every Run attached to a config item, as `DELETE /configs/{configId}` does once the
+   * item is Deleted: by an admin, or when its last holder leaves (docs/adr/0083).
    */
   deleteAttachedSoilIndexRuns = async (requestData: RequestData, configId: string): Promise<void> => {
     const jobs = (await this.jobService.findJobsInQueueByData(QUEUE, { config_id: configId })).filter(

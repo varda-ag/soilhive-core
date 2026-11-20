@@ -356,6 +356,8 @@ describe('Soil Index Runs', () => {
       const unattached = (await submit(await crea()).expect(201)).body.id as string;
       await finishRun(unattached);
 
+      // The reader leaves, then the author's Leave, the last, Deletes the item (docs/adr/0083)
+      await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${reader()}`).expect(204);
       await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
 
       await request(app).get(`/soil-indexes/${pending}`).set('Authorization', `Bearer ${author()}`).expect(404);
@@ -364,6 +366,17 @@ describe('Soil Index Runs', () => {
       expect(await tableExists(soilIndexPartition(completed))).toBe(false);
       expect(await tableExists(soilIndexTilesPartition(completed))).toBe(false);
       await request(app).get(`/soil-indexes/${unattached}`).expect(200);
+    });
+
+    it('outlives a Leave of its config item while someone still holds the item', async () => {
+      const configId = await claimConfig();
+      const id = await createAttached(configId);
+      await finishRun(id, configId);
+
+      await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+
+      await request(app).get(`/soil-indexes/${id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+      await request(app).get(`/soil-indexes/${id}/tiles`).expect(200);
     });
   });
 });

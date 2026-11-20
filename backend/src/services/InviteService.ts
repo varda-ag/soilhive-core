@@ -201,14 +201,17 @@ export default class InviteService {
    * redeem that holds an Invite's row (lockGrants), so that redeem's grant is committed by the time
    * the strip runs, and a redeem that comes after reads the Invite without the entity. The other
    * way round, a redeem between the two steps would leave a grant the strip never saw.
+   *
+   * With `createdBy`, only that Subject's Invites: a Leave (docs/adr/0083).
    */
-  dropFromPendingInvites = async (requestData: RequestData, scope: EntitlementScope, slug: string): Promise<void> => {
+  dropFromPendingInvites = async (requestData: RequestData, scope: EntitlementScope, slug: string, createdBy?: string): Promise<void> => {
     const keys = await entitlementService.resolveSlugs(requestData, scope, slug);
     const manager = requestData.entityManager;
     await manager.query(
       `UPDATE "invites" SET "grants" = jsonb_set("grants", array[$1::text], ("grants"->$1::text) - $2::text[]), "updated_at" = now()
-       WHERE "deleted_at" IS NULL AND "used_at" IS NULL AND ("grants"->$1::text) ?| $2::text[]`,
-      [scope, keys],
+       WHERE "deleted_at" IS NULL AND "used_at" IS NULL AND ("grants"->$1::text) ?| $2::text[]
+         AND ($3::text IS NULL OR "created_by" = $3::text)`,
+      [scope, keys, createdBy ?? null],
     );
     await manager.query(
       `UPDATE "invites" SET "deleted_at" = now()

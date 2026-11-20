@@ -24,11 +24,12 @@ export const getConfig = async (req: Request, res: Response) => {
 
 export const deleteConfig = async (req: Request, res: Response) => {
   const id = req.params['configId']! as string;
-  await configService.deleteConfig(req.customData, id);
+  const deleted = await configService.deleteConfig(req.customData, id);
   // Only a plugin config item can have Data Requests or Soil Index Runs attached (docs/adr/0041,
-  // 0044). Not in ConfigService: importing these services there closes a cycle through JobService
-  // and FileService, which crashes module-level instances elsewhere whenever PgBoss is loaded first.
-  if (PLUGIN_CONFIG_ID_PATTERN.test(id)) {
+  // 0044), and a Leave keeps them (docs/adr/0083). Not in ConfigService: importing these services
+  // there closes a cycle through JobService and FileService, which crashes module-level instances
+  // elsewhere whenever PgBoss is loaded first.
+  if (deleted && PLUGIN_CONFIG_ID_PATTERN.test(id)) {
     await dataRequestService.deleteAttachedDataRequests(req.customData, id);
     await soilIndexRunService.deleteAttachedSoilIndexRuns(req.customData, id);
   }
