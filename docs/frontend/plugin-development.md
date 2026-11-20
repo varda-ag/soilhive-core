@@ -141,6 +141,18 @@ function MyMapPage() {
 
 `SoilhiveMap` is a fully controlled component. It owns no state of its own. It only uses the props you pass it. `selectionState` is required. Every other prop, including the `dai` prop group, is optional. See `frontend/src/components/Map/SoilhiveMap.tsx` for the full prop reference once it is synced.
 
+### Showing the map's messages
+
+The draw tool refuses a polygon whose outline crosses itself, and tells the visitor why with a toast. `Map/` can't reach the host's notifications by itself, so pass it yours through the `showNotification` prop:
+
+```tsx
+const { showNotification } = context.useNotifications('my-plugin');
+
+<SoilhiveMap showNotification={showNotification} /* ...selectionState, onSelectionChange, etc. */ />;
+```
+
+The toast's text comes from the host's `common` namespace, the same way the rest of `Map/`'s text does (see [`Map/`'s translations](#maps-translations)). Without this prop, the polygon is still refused, but the visitor sees no message and drawing just goes on.
+
 ### Where `Map/`'s supporting files live
 
 Every file `Map/` needs from outside its own folder — `DrawControl`, `useDevice`, the map utilities, `types/backend`, `configuration/layout`, its icons and the continent boundaries — lands nested under `Map/_shared/`. It does not sit flat at the plugin root.
@@ -153,7 +165,7 @@ Treat `Map/_shared/` the same way you treat `Map/` itself: host-authoritative, n
 
 ### `Map/`'s translations
 
-`Map/`'s own text — the toolbar, the selection bar, the DAI widget — is translated with `useTranslation('availability')`, the same way the host translates it. The CLI does not vendor a copy of the translation data.
+`Map/`'s own text — the toolbar, the selection bar, the DAI widget — is translated with `useTranslation('availability')`, the same way the host translates it. The draw tool's error toast uses `useTranslation('common')`. The CLI does not vendor a copy of the translation data.
 
 Instead, `i18next` and `react-i18next` are shared as module-federation singletons. The plugin scaffold declares this sharing unconditionally, in every plugin's `module-federation.config.ts`, whether or not the plugin uses `--with-map` (see [`frontend/src/utilities/moduleFederation.ts`](../../frontend/src/utilities/moduleFederation.ts) for the host side). `module-federation.config.ts` is copied once, then yours to edit, so declaring the sharing upfront means adding `--with-map` later never requires you to edit this file.
 

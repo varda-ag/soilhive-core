@@ -13,19 +13,21 @@ let mockOnMapSelectionChange: ((event: any) => void) | undefined;
 let mockOnUploadClick: (() => void) | undefined;
 let mockOnLocationSearch: ((event: any) => void) | undefined;
 let mockCurrentMapStyleIndex: number | undefined;
+let mockMapShowNotification: unknown;
 const mockOnUpload = jest.fn();
 const mockShowNotification = jest.fn();
 
 /* eslint-disable react-hooks/globals */
 jest.mock('components/Map/SoilhiveMap', () => {
   const MockSoilhiveMap = React.forwardRef(function SoilhiveMap(
-    { onSelectionChange, onLocationSearch, onUploadClick, currentMapStyleIndex, children, footer }: any,
+    { onSelectionChange, onLocationSearch, onUploadClick, currentMapStyleIndex, showNotification, children, footer }: any,
     ref: any,
   ) {
     mockOnMapSelectionChange = onSelectionChange;
     mockOnLocationSearch = onLocationSearch;
     mockOnUploadClick = onUploadClick;
     mockCurrentMapStyleIndex = currentMapStyleIndex;
+    mockMapShowNotification = showNotification;
     React.useImperativeHandle(ref, () => ({ onUpload: mockOnUpload }));
     return (
       <div data-test-id="mock-soilhive-map">
@@ -431,6 +433,12 @@ describe('Availability', () => {
       expect(screen.getByTestId('mock-map-style-switcher')).toHaveAttribute('data-current-value', '1');
       expect(mockCurrentMapStyleIndex).toBe(1);
     });
+  });
+
+  it("gives the map the host's own showNotification, so a drawn polygon whose outline crosses itself shows a toast", () => {
+    render(<Availability />);
+
+    expect(mockMapShowNotification).toBe(mockShowNotification);
   });
 
   describe('drag and drop', () => {

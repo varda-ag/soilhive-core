@@ -137,12 +137,6 @@ describe('runSoilhivePlugin end-to-end', () => {
   it('leaves no bare host alias import inside the vendored Map/ tree — the scaffold defines none of them, so each one would fail to resolve', () => {
     runSoilhivePlugin(pluginPath, { withMap: true });
 
-    // Known gap, not fixed by this test: since SP-5652 the host's DrawControl.tsx shows its own
-    // notification through the host-only hooks/useNotifications, and cross-cutting files are
-    // copied as they are, never rewritten. A plugin gets notifications from
-    // context.useNotifications instead, so closing this needs a change to DrawControl itself.
-    const knownBareAliases = new Set([`${join('Map', '_shared', 'DrawControl.tsx')}: 'hooks/useNotifications'`]);
-
     const mapFiles = listFilesRecursive(pluginPath).filter(
       file => file.startsWith(`Map${sep}`) && (file.endsWith('.ts') || file.endsWith('.tsx')),
     );
@@ -153,7 +147,7 @@ describe('runSoilhivePlugin end-to-end', () => {
         bareAliases.push(`${relativeFile}: '${match[1]}'`);
       }
     }
-    expect(bareAliases.filter(alias => !knownBareAliases.has(alias))).toEqual([]);
+    expect(bareAliases).toEqual([]);
   });
 
   it('keeps the map in sync on a later run that omits --with-map, once a plugin has opted in', () => {
