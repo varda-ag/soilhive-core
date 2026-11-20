@@ -767,6 +767,14 @@ describe('Testing /data-requests routes', () => {
       return configId;
     };
 
+    const leave = (configId: string, token: string) => request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${token}`);
+
+    /** Deletes an item from claimConfig: the reader leaves, then the author, its last holder (docs/adr/0083). */
+    const deleteConfig = async (configId: string) => {
+      await leave(configId, reader()).expect(204);
+      await leave(configId, author()).expect(204);
+    };
+
     const submitAttached = async (configId: string, token: string = author()) => {
       const filterId = await createFilter([polygon]);
       return submit(await descriptive(filterId, { config_id: configId })).set('Authorization', `Bearer ${token}`);
@@ -808,7 +816,7 @@ describe('Testing /data-requests routes', () => {
       // author's grant; it is also what stops a Privileged caller, who needs no grant.
       it('rejects a soft-deleted config item', async () => {
         const configId = await claimConfig();
-        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await deleteConfig(configId);
 
         const res = await submitAttached(configId);
         expect(res.statusCode).toBe(404);
@@ -930,7 +938,7 @@ describe('Testing /data-requests routes', () => {
         await finishRun(completed.body.id, configId);
         const unattached = await submit(await descriptive(await createFilter([polygon]))).expect(201);
 
-        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await deleteConfig(configId);
 
         await request(app).get(`/data-requests/${running.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
         await request(app).get(`/data-requests/${completed.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
@@ -945,16 +953,17 @@ describe('Testing /data-requests routes', () => {
         expect(jobs).toEqual([{ id: running.body.id, state: 'cancelled' }]);
       });
 
+      // EVERYONE's read doesn't keep the item once its last holder leaves
       it('destroys every grant on the item, EVERYONE included, and none on other items', async () => {
         const configId = await claimConfig();
         const otherId = await claimConfig();
         await request(app)
           .put(`/configs/${configId}/entitlements`)
           .set('Authorization', `Bearer ${author()}`)
-          .send({ [authorEmail]: ['write'], [readerEmail]: ['read'], [EVERYONE]: ['read'] })
+          .send({ [authorEmail]: ['write'], [EVERYONE]: ['read'] })
           .expect(200);
 
-        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await leave(configId, author()).expect(204);
 
         const entityManager = await getEntityManager();
         const rows: { id: string; configs: unknown }[] = await entityManager.query(
@@ -969,10 +978,10 @@ describe('Testing /data-requests routes', () => {
 
       it('is final: the former author can neither save nor delete the item again', async () => {
         const configId = await claimConfig();
-        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await deleteConfig(configId);
 
         await request(app).put(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).send({ widgets: [] }).expect(403);
-        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(403);
+        await leave(configId, author()).expect(403);
       });
 
       it('takes the item out of pending Invites, withdrawing one left granting nothing (docs/adr/0082)', async () => {
@@ -983,12 +992,125 @@ describe('Testing /data-requests routes', () => {
         const only = await invite({ [configId]: ['read'] });
         const both = await invite({ [configId]: ['read'], [otherId]: ['read'] });
 
-        await request(app).delete(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(204);
+        await deleteConfig(configId);
 
         const redeem = (token: string) => request(app).post('/invites/redeem').set('Authorization', `Bearer ${stranger()}`).send({ token });
         await redeem(only.token).expect(404);
         const redeemed = await redeem(both.token).expect(200);
         expect(redeemed.body.grants).toEqual({ configs: { [otherId]: ['read'] } });
+      });
+
+      it('is a Delete for a Privileged caller, whoever still holds the item', async () => {
+        const configId = await claimConfig();
+        const created = await createAttached(configId);
+
+        await leave(configId, await getSuperAdminToken()).expect(204);
+
+        await request(app).get(`/configs/${configId}`).set('Authorization', `Bearer ${reader()}`).expect(404);
+        await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${author()}`).expect(404);
+      });
+
+      // docs/adr/0083
+      describe('by a caller who is not privileged', () => {
+        const coWriterEmail = 'dr-cowriter@example.com';
+        const coWriter = () => getUserToken('dr-cowriter-id', coWriterEmail);
+
+        const configGrants = async (configId: string) =>
+          (
+            await request(app)
+              .get(`/configs/${configId}/entitlements`)
+              .set('Authorization', `Bearer ${await getSuperAdminToken()}`)
+              .expect(200)
+          ).body;
+
+        it("is a Leave: the leaver's grant goes, and the item, its requests and the other grants stay", async () => {
+          const configId = await claimConfig();
+          const created = await createAttached(configId);
+
+          await leave(configId, author()).expect(204);
+
+          await request(app).get(`/configs/${configId}`).set('Authorization', `Bearer ${author()}`).expect(403);
+          await request(app).get(`/configs/${configId}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+          await request(app).get(`/data-requests/${created.body.id}`).set('Authorization', `Bearer ${reader()}`).expect(200);
+          expect(await configGrants(configId)).toEqual({ [readerEmail]: ['read'] });
+        });
+
+        it('lets a caller holding only read leave', async () => {
+          const configId = await claimConfig();
+
+          await leave(configId, reader()).expect(204);
+
+          await request(app).get(`/configs/${configId}`).set('Authorization', `Bearer ${reader()}`).expect(403);
+          expect(await configGrants(configId)).toEqual({ [authorEmail]: ['write'] });
+        });
+
+        it("refuses with 409 a caller who reaches the item only through EVERYONE's grant, and changes nothing", async () => {
+          const configId = await claimConfig();
+          await request(app)
+            .put(`/configs/${configId}/entitlements`)
+            .set('Authorization', `Bearer ${author()}`)
+            .send({ [authorEmail]: ['write'], [EVERYONE]: ['write'] })
+            .expect(200);
+
+          const res = await leave(configId, stranger()).expect(409);
+
+          expect(res.body).toMatchObject({ status: 409, shared_with_everyone: true });
+          expect(await configGrants(configId)).toEqual({ [authorEmail]: ['write'], [EVERYONE]: ['write'] });
+        });
+
+        // A 204 would say it was removed while EVERYONE's grant keeps it in the caller's list
+        it('refuses with 409 a holder of an item shared with everyone that others still hold, and changes nothing', async () => {
+          const configId = await claimConfig();
+          const grants = { [authorEmail]: ['write'], [readerEmail]: ['read'], [EVERYONE]: ['read'] };
+          await request(app).put(`/configs/${configId}/entitlements`).set('Authorization', `Bearer ${author()}`).send(grants).expect(200);
+
+          const res = await leave(configId, reader()).expect(409);
+
+          expect(res.body).toMatchObject({ status: 409, shared_with_everyone: true });
+          expect(await configGrants(configId)).toEqual(grants);
+        });
+
+        it('refuses with 403 a caller holding no grant when EVERYONE holds none', async () => {
+          const configId = await claimConfig();
+
+          await leave(configId, stranger()).expect(403);
+
+          expect(await configGrants(configId)).toEqual({ [authorEmail]: ['write'], [readerEmail]: ['read'] });
+        });
+
+        it("takes the item out of the leaver's own pending Invites only", async () => {
+          const configId = await claimConfig();
+          const otherId = await claimConfig();
+          await request(app)
+            .put(`/configs/${configId}/entitlements`)
+            .set('Authorization', `Bearer ${author()}`)
+            .send({ [authorEmail]: ['write'], [coWriterEmail]: ['write'] })
+            .expect(200);
+          const invite = async (token: string, configs: object) =>
+            (await request(app).post('/invites').set('Authorization', `Bearer ${token}`).send({ grants: { configs } }).expect(201)).body;
+          const only = await invite(author(), { [configId]: ['read'] });
+          const both = await invite(author(), { [configId]: ['read'], [otherId]: ['read'] });
+          const coWriters = await invite(coWriter(), { [configId]: ['read'] });
+
+          await leave(configId, author()).expect(204);
+
+          const redeem = (token: string) =>
+            request(app).post('/invites/redeem').set('Authorization', `Bearer ${stranger()}`).send({ token });
+          await redeem(only.token).expect(404);
+          expect((await redeem(both.token).expect(200)).body.grants).toEqual({ configs: { [otherId]: ['read'] } });
+          expect((await redeem(coWriters.token).expect(200)).body.grants).toEqual({ configs: { [configId]: ['read'] } });
+        });
+
+        it('Deletes the item when its last two holders leave at once', async () => {
+          const configId = await claimConfig();
+
+          await Promise.all([leave(configId, author()).expect(204), leave(configId, reader()).expect(204)]);
+
+          await request(app)
+            .get(`/configs/${configId}`)
+            .set('Authorization', `Bearer ${await getSuperAdminToken()}`)
+            .expect(404);
+        });
       });
     });
   });

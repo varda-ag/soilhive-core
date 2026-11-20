@@ -72,12 +72,21 @@ describe('usePluginConfigDelete', () => {
     expect(settled).toBe(true);
   });
 
-  it.each([403, 404])('resolves and still refetches on %i: nothing is left the caller can delete', async status => {
+  it.each([403, 404])('resolves and still refetches on %i: nothing is left the caller can leave', async status => {
     request.mockRejectedValue(httpError(status));
     const { result } = renderHook(() => usePluginConfigDelete('acme'));
 
     await expect(result.current.mutateAsync({ id: 'dashboards:abc' })).resolves.toBeUndefined();
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['entitlements'] });
+  });
+
+  it('rejects a 409 with its status and problem body, without refetching', async () => {
+    const body = { status: 409, shared_with_everyone: true };
+    request.mockRejectedValue(Object.assign(httpError(409), { raw: body }));
+    const { result } = renderHook(() => usePluginConfigDelete('acme'));
+
+    await expect(result.current.mutateAsync({ id: 'dashboards:abc' })).rejects.toEqual({ status: 409, body });
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 
   it('rejects on a server error, without refetching', async () => {

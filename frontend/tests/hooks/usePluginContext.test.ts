@@ -282,8 +282,25 @@ describe('usePluginContext', () => {
 
     const { result } = renderHook(() => usePluginContext());
 
-    expect(result.current.user).toEqual({ profile: { name: 'Ada Lovelace', email: 'ada@example.com' } });
+    expect(result.current.user).toEqual({ profile: { name: 'Ada Lovelace', email: 'ada@example.com' }, isAdmin: false });
     expect(JSON.stringify(result.current.user)).not.toContain('secret-');
+  });
+
+  it.each([
+    ['openid data-admin', true],
+    ['openid super-admin', true],
+    ['openid email', false],
+  ])('sets isAdmin from the access token scope %s', (scope, isAdmin) => {
+    const payload = btoa(JSON.stringify({ scope }));
+    useAuthContextMock.mockReturnValue({
+      ...MOCK_AUTH_CONTEXT,
+      isAuthenticated: true,
+      user: { access_token: `header.${payload}.signature`, profile: { name: 'Ada Lovelace', email: 'ada@example.com' } },
+    });
+
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.user?.isAdmin).toBe(isAdmin);
   });
 
   it('does not expose mapSelection: plugins read a stored filter by id via useFilter instead', () => {

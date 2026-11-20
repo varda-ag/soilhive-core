@@ -3,6 +3,9 @@ export interface PluginUser {
     name?: string;
     email?: string;
   };
+  // A data-admin or super-admin: passes every entitlement check, and deleting a config item
+  // deletes it for everyone instead of leaving it (ADR 0083).
+  isAdmin?: boolean;
 }
 
 export interface PluginQueryResult<T> {
@@ -12,8 +15,9 @@ export interface PluginQueryResult<T> {
   refetch?: () => Promise<unknown>;
 }
 
-// A failed config read: the HTTP status and the problem body. A 403 on a dashboard config has
-// `datasets` and `has_unavailable_datasets` in its body.
+// A failed config call: the HTTP status and the problem body. A 403 on reading a dashboard config
+// has `datasets` and `has_unavailable_datasets` in its body; a 409 on deleting one has
+// `shared_with_everyone` (ADR 0083).
 export interface PluginConfigError {
   status: number;
   body: unknown;
