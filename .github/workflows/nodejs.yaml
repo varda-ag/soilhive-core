@@ -59,3 +59,32 @@ jobs:
       use-npm: true
       use-pnpm: false
 
+  # Not through nodejs-reusable.yaml: this suite lives at the repository root, needs only the root
+  # install, and has its own script name. It reads frontend/ (UI/, Map/, package.json) to check what
+  # the soilhive-plugin CLI vendors into plugins, so a host change can break it.
+  soilhive-plugin-cli:
+    name: soilhive-plugin CLI tests
+    needs: gate
+    if: always() && (needs.gate.result == 'skipped' || needs.gate.outputs.allowed == 'true')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@739bfe42ca9233c5e6aca07c1a25a9d34aca49b0 # v6.0.7
+        with:
+          version: 10
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run soilhive-plugin CLI Tests
+        run: pnpm run test:soilhive-plugin-cli
+
