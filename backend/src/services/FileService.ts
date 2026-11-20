@@ -66,6 +66,25 @@ const ALLOWED_GEOMETRY_TYPES = new Set([
 
 const unknownGeomDrivers = ['CSV', 'XLSX'];
 
+// One client signs every presigned URL, so its credentials are fetched once, not per URL: with web
+// identity credentials (EKS) each new client called STS first. Rebuilt when the S3 config changes.
+let presignClient: { config: string; client: S3Client } | undefined;
+
+const getPresignClient = (s3Config: S3StorageConfig): S3Client => {
+  const config = JSON.stringify([s3Config.region, s3Config.endpoint, s3Config.credentials]);
+  if (presignClient?.config !== config) {
+    presignClient = {
+      config,
+      client: new S3Client({
+        region: s3Config.region,
+        ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true } : {}),
+        ...(s3Config.credentials ? { credentials: s3Config.credentials } : {}),
+      }),
+    };
+  }
+  return presignClient.client;
+};
+
 export default class FileService {
   exists = async (fileKey: string): Promise<boolean> => {
     const storage = FileService.getStorageEngine();
@@ -431,11 +450,13 @@ export default class FileService {
       throw new ErrorResponse('getPresignedUrl is only supported for S3 storage mode', StatusCodes.INTERNAL_SERVER_ERROR);
     }
     const s3Config = config.config as S3StorageConfig;
-    const s3Client = new S3Client({
-      region: s3Config.region,
-      ...(s3Config.endpoint ? { endpoint: s3Config.endpoint, forcePathStyle: true } : {}),
-      ...(s3Config.credentials ? { credentials: s3Config.credentials } : {}),
-    });
+    const s3Client = getPresignClient(s3Config);
+    // A presigned URL stops working when the credentials that signed it expire, and the shared client
+    // only renews them 5 minutes before that: renew them now if they would not outlive the URL.
+    const { expiration } = await s3Client.config.credentials();
+    if (expiration && expiration.getTime() - Date.now() < expiresIn * 1000) {
+      await s3Client.config.credentials({ forceRefresh: true });
+    }
     const key = s3Config.rootFolder ? `${s3Config.rootFolder}/${fileKey}` : fileKey;
     const command = new GetObjectCommand({ Bucket: s3Config.bucketName, Key: key });
     return getSignedUrl(s3Client, command, { expiresIn });

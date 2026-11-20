@@ -5,7 +5,9 @@ import {
   AllTouchedSweep,
   collectTouchedPixels,
   densify,
+  layerBatchSize,
   nodataPredicate,
+  pixelsInBounds,
   pixelOutline,
   toPixelSpace,
   type PixelGrid,
@@ -288,5 +290,43 @@ describe('collectTouchedPixels', () => {
       max: 10,
     });
     expect(pixels).toEqual([]);
+  });
+});
+
+describe('pixelsInBounds', () => {
+  it("counts the pixels the polygons' bounding box touches", () => {
+    // 10 × 10 pixels across a 1° square, plus one more column and row for the box straddling pixels
+    expect(pixelsInBounds([[square(0, 0, 1, 1)]], 11132)).toBeCloseTo(121);
+  });
+
+  it('spans every polygon', () => {
+    expect(pixelsInBounds([[square(0, 0, 1, 1)], [square(9, 0, 10, 1)]], 111320)).toBeCloseTo(11 * 2);
+  });
+
+  it('is Infinity when the resolution is unavailable', () => {
+    expect(pixelsInBounds([[square(0, 0, 1, 1)]], -1)).toBe(Infinity);
+  });
+});
+
+describe('layerBatchSize', () => {
+  it('keeps the minimum when a layer can fill the page', () => {
+    expect(layerBatchSize(new Array(79).fill(1e6), 200)).toBe(8);
+  });
+
+  it('takes as many layers as should fill the page when each gives a few pixels', () => {
+    expect(layerBatchSize(new Array(79).fill(4), 200)).toBe(50);
+  });
+
+  it('takes at most 64 layers', () => {
+    expect(layerBatchSize(new Array(79).fill(1), 200)).toBe(64);
+  });
+
+  it('takes no more than the layers left', () => {
+    expect(layerBatchSize(new Array(15).fill(1), 200)).toBe(15);
+    expect(layerBatchSize(new Array(3).fill(1e6), 200)).toBe(3);
+  });
+
+  it('stops at a layer of unknown resolution', () => {
+    expect(layerBatchSize([1, Infinity, ...new Array(77).fill(1)], 200)).toBe(8);
   });
 });

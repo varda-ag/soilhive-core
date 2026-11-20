@@ -68,8 +68,13 @@ const SNAP_EPSILON = 1e-6;
 // AOI edges are straight lines in EPSG:4326 (as PostGIS treats them); in a projected CRS they bend,
 // so they are densified to this many degrees before reprojection.
 const DENSIFY_STEP_DEG = 0.01;
-// Raster Layers sampled concurrently (see readRasterPixels)
-const LAYER_CONCURRENCY = 8;
+// Bounds on the Raster Layers sampled concurrently (see layerBatchSize)
+const MIN_LAYER_CONCURRENCY = 8;
+const MAX_LAYER_CONCURRENCY = 64;
+// Ground width of one degree of longitude at the equator, as resolution_m measures a geographic raster
+const METRES_PER_DEGREE = 111320;
+// How long a File's presigned URL must stay valid: a page's reads take seconds
+const URL_LIFETIME_S = 30 * 60;
 
 const WGS84 = 'EPSG:4326';
 
@@ -419,7 +424,47 @@ export interface RasterPixelLayer {
   band: number; // 1-based
   wkt: string | null; // files.metadata.wkt — the layer's native CRS (ADR 0026)
   nodata_value: number | null;
+  resolution_m: number; // -1 when unavailable
 }
+
+/**
+ * About how many pixels of a `resolutionM` grid the polygons' bounding box touches; Infinity when
+ * the resolution is unavailable. Longitude is measured at the equator, so away from it this
+ * over-counts, which only makes layerBatchSize more cautious.
+ */
+export const pixelsInBounds = (polygons: PolygonRings[], resolutionM: number): number => {
+  if (!(resolutionM > 0)) return Infinity;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const [x, y] of polygons.flatMap(polygon => polygon[0] ?? [])) {
+    minX = Math.min(minX, x!);
+    maxX = Math.max(maxX, x!);
+    minY = Math.min(minY, y!);
+    maxY = Math.max(maxY, y!);
+  }
+  if (minX > maxX) return 0;
+  const cols = ((maxX - minX) * METRES_PER_DEGREE) / resolutionM + 1;
+  const rows = ((maxY - minY) * METRES_PER_DEGREE) / resolutionM + 1;
+  return cols * rows;
+};
+
+/**
+ * How many of the next Raster Layers to sample at once, given each one's expected pixels: enough to
+ * fill the `remaining` rows of the page, within MIN_LAYER_CONCURRENCY and MAX_LAYER_CONCURRENCY. A
+ * small AOI gives a few pixels per layer, so many layers are read in one round; a large one keeps the
+ * minimum, and with it the memory of one window per layer.
+ */
+export const layerBatchSize = (expectedPixels: number[], remaining: number): number => {
+  let size = 0;
+  let pixels = 0;
+  while (size < expectedPixels.length && size < MAX_LAYER_CONCURRENCY && pixels < remaining) {
+    pixels += expectedPixels[size]!;
+    size++;
+  }
+  return Math.min(expectedPixels.length, Math.max(size, MIN_LAYER_CONCURRENCY));
+};
 
 export interface LocatedPixel extends PixelSample {
   layerId: string;
@@ -462,7 +507,7 @@ export const readRasterPixels = async (
     let opened = files.get(filePath);
     if (!opened) {
       opened = (async () => {
-        const tiff = await openTiff(filePath);
+        const tiff = await openTiff(filePath, URL_LIFETIME_S);
         tiffs.push(tiff);
         const image = await tiff.getImage(0);
         return { image, grid: gridFromImage(image), crs: await resolveCrs(filePath, wkt, image) };
@@ -510,13 +555,15 @@ export const readRasterPixels = async (
 
   try {
     const found: (PixelSample & { layerId: string; grid: PixelGrid; crs: string })[] = [];
-    // A few Raster Layers are read at once, because a point lookup reads a few pixels from each of
+    // Several Raster Layers are read at once, because a point lookup reads a few pixels from each of
     // many layers and would otherwise pay each File's storage round trips one after another. Each
-    // reads at most what is left of the page, and results are kept in layer order, so at most
-    // LAYER_CONCURRENCY - 1 layers' worth of pixels is read and discarded.
-    for (let i = 0; i < layers.length && found.length < max; i += LAYER_CONCURRENCY) {
+    // reads at most what is left of the page, and results are kept in layer order, so pixels read
+    // past a full page are discarded: layerBatchSize sizes each round to what should fill it.
+    const expectedPixels = layers.map(layer => pixelsInBounds(wgs84Polygons, layer.resolution_m));
+    for (let i = 0; i < layers.length && found.length < max; ) {
       const remaining = max - found.length;
-      const batch = layers.slice(i, i + LAYER_CONCURRENCY);
+      const batch = layers.slice(i, i + layerBatchSize(expectedPixels.slice(i), remaining));
+      i += batch.length;
       const settled = await Promise.allSettled(batch.map(layer => sampleLayer(layer, remaining)));
       // Checked first, so reads cut off by the abort aren't logged as broken layers
       signal?.throwIfAborted();

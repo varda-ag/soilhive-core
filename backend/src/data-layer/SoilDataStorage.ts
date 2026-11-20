@@ -566,6 +566,7 @@ export default class SoilDataStorage {
             band: Number(row.band),
             wkt: row.wkt,
             nodata_value: row.nodata_value,
+            resolution_m: row.resolution_m,
           })),
           aoi,
           max,
