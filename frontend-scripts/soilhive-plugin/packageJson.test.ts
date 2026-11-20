@@ -91,7 +91,7 @@ describe('mergeManagedDependencies', () => {
     expect(pkg.devDependencies['@types/react']).toBe('19.2.0');
     expect(pkg.devDependencies['@types/react-dom']).toBe('19.2.0');
     expect(pkg.dependencies.classnames).toBe('2.5.1');
-    expect(pkg.dependencies['react-router']).toBe('7.9.4');
+    expect(pkg.dependencies['react-router']).toBe('7.18.4');
     expect(pkg.dependencies['react-tooltip']).toBe('5.30.0');
     expect(pkg.dependencies['react-use']).toBe('17.6.0');
     // UI/ never imports these — depending on them would be unnecessary for a plugin

@@ -154,6 +154,7 @@ function Availability() {
           onSelectionChange={handleMapSelectionChange}
           onLocationSearch={trackLocationSearch}
           onUploadClick={() => setIsUploadModalOpen(true)}
+          showNotification={showNotification}
           geocoder={localStorage.getItem('MAP_GEOCODER') ?? ('nominatim' as any)}
           mapStyles={mapStyles}
           currentMapStyleIndex={currentMapStyleIndex}

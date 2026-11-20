@@ -2,9 +2,7 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { MaplibreTerradrawControl } from '@watergis/maplibre-gl-terradraw';
 import { useControl } from 'react-map-gl/maplibre';
-import { useTranslation } from 'react-i18next';
 import { TerraDrawPolygonMode, ValidateNotSelfIntersecting } from 'terra-draw';
-import useNotifications from 'hooks/useNotifications';
 
 import type { ControlPosition } from 'react-map-gl/maplibre';
 
@@ -12,21 +10,23 @@ export type DrawControlRef = {
   reset: () => void;
 };
 
+// No host-only import here (no hooks/, no contexts/): the soilhive-plugin CLI copies this file
+// into a plugin's Map/_shared/ as it is, and a plugin can't resolve those. Telling the visitor
+// why a polygon was refused is up to whoever renders this, through onSelfIntersectingPolygon.
 const DrawControl = forwardRef<
   DrawControlRef,
   {
     position?: ControlPosition;
     onFinish: (feature: any) => void;
+    /** Called when a finished polygon's outline crosses itself. The polygon is refused and drawing goes on. */
+    onSelfIntersectingPolygon?: () => void;
   }
->(function DrawControl({ position = 'bottom-right', onFinish }, ref) {
-  const { showNotification } = useNotifications();
-  const { t } = useTranslation('common');
-
+>(function DrawControl({ position = 'bottom-right', onFinish, onSelfIntersectingPolygon }, ref) {
   // The polygon mode's validation closure below is created once (see useControl's
-  // create factory, which never re-runs), so it reads showNotification through a
-  // ref that stays up to date on every render instead of capturing a stale value.
-  const showNotificationRef = useRef(showNotification);
-  showNotificationRef.current = showNotification;
+  // create factory, which never re-runs), so it reads the callback through a ref
+  // that stays up to date on every render instead of capturing a stale value.
+  const onSelfIntersectingPolygonRef = useRef(onSelfIntersectingPolygon);
+  onSelfIntersectingPolygonRef.current = onSelfIntersectingPolygon;
 
   const drawControl = useControl<MaplibreTerradrawControl>(
     () =>
@@ -58,18 +58,13 @@ const DrawControl = forwardRef<
             // default, would reject legitimate concave polygons - e.g. tracing a
             // coastline - whose in-progress edges cross before the shape is closed).
             // terra-draw silently keeps drawing on a failed finish validation with
-            // no event, so we surface the failure to the user here directly.
+            // no event, so we report the failure here directly.
             validation: (feature, context) => {
               if (context.updateType !== 'finish') return { valid: true };
 
               const result = ValidateNotSelfIntersecting(feature);
               if (!result.valid) {
-                showNotificationRef.current({
-                  id: 'polygon-self-intersecting',
-                  title: t('map.draw.self_intersecting_error.title'),
-                  message: t('map.draw.self_intersecting_error.message'),
-                  type: 'error',
-                });
+                onSelfIntersectingPolygonRef.current?.();
               }
               return result;
             },

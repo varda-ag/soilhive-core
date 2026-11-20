@@ -51,6 +51,13 @@ import LoadingLine from './LoadingLine/LoadingLine';
 export type MapSelection = { type: string; features: GeoJSON.GeoJSON[] };
 
 /**
+ * A toast the map asks its caller to show. Shaped so the host's own `showNotification` (from
+ * `hooks/useNotifications`, which this component must not import so it can be vendored into
+ * plugins) and a plugin's `context.useNotifications(pluginId).showNotification` both fit as they are.
+ */
+export type SoilhiveMapNotification = { id: string; title: string; message: string; type: 'error' | 'warning' | 'success' };
+
+/**
  * Kept structurally identical to (but independent of) `types/components.ts`'s own MapStyles —
  * that file is a grab-bag of unrelated types, one of which (`TableColumn`) imports
  * `primereact/column`; importing it here would drag primereact back into this component, which
@@ -134,6 +141,13 @@ interface SoilhiveMapProps {
    * drag-and-drop (through the ref) is unaffected either way.
    */
   onUploadClick?: () => void;
+  /**
+   * Shows a toast, for now only when a drawn polygon is refused because its outline crosses
+   * itself. The host passes its own `showNotification`, a plugin passes the one from
+   * `context.useNotifications(pluginId)`. Without it, the polygon is still refused, but the
+   * visitor sees no message and drawing just goes on.
+   */
+  showNotification?: (notification: SoilhiveMapNotification) => void;
 
   selectionState: SoilhiveMapSelectionState;
   dai?: SoilhiveMapDaiProps;
@@ -212,6 +226,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     onLocationSearch,
     onSelectionToolbarVisibilityChange,
     onUploadClick,
+    showNotification,
     selectionState,
     dai: daiProps,
     children,
@@ -220,6 +235,7 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
   ref,
 ) {
   const { t } = useTranslation('availability');
+  const { t: tCommon } = useTranslation('common');
 
   // selectedPoint itself is intentionally not read here — SoilhiveMap only ever *writes* it via
   // setSelectedPoint; the value is for whoever renders this component (host or plugin) to read
@@ -503,6 +519,15 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
     [applySelection, setShowDrawControl, onLocationSearch],
   );
 
+  const onSelfIntersectingPolygon = useCallback(() => {
+    showNotification?.({
+      id: 'polygon-self-intersecting',
+      title: tCommon('map.draw.self_intersecting_error.title'),
+      message: tCommon('map.draw.self_intersecting_error.message'),
+      type: 'error',
+    });
+  }, [showNotification, tCommon]);
+
   const toolbarMode: SoilhiveMapSelectionToolbarMode = useMemo(() => {
     if (showDrawControl) return 'drawing';
     if (selection.features.length > 0 && mapBounds) {
@@ -613,7 +638,14 @@ const SoilhiveMap = forwardRef<SoilhiveMapRef, SoilhiveMapProps>(function Soilhi
             visualizePitch={false}
           />
         )}
-        {showDrawControl && <DrawControl ref={drawControlRef} position="bottom-right" onFinish={onFinishDrawing} />}
+        {showDrawControl && (
+          <DrawControl
+            ref={drawControlRef}
+            position="bottom-right"
+            onFinish={onFinishDrawing}
+            onSelfIntersectingPolygon={onSelfIntersectingPolygon}
+          />
+        )}
 
         {showScale && (isDesktopLayout || isScaleMounted) && (
           <ScaleControl

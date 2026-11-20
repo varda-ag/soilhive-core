@@ -435,6 +435,29 @@ describe('SoilhiveMap', () => {
     });
   });
 
+  describe('a drawn polygon whose outline crosses itself', () => {
+    it('shows the error toast through the showNotification it was given', () => {
+      const showNotification = jest.fn();
+      render(<SoilhiveMap {...makeProps({ showNotification, selectionState: { showDrawControl: true } })} />);
+
+      act(() => mockDrawControlProps.mock.lastCall[0].onSelfIntersectingPolygon());
+
+      expect(showNotification).toHaveBeenCalledTimes(1);
+      expect(showNotification).toHaveBeenCalledWith({
+        id: 'polygon-self-intersecting',
+        title: 'Invalid polygon',
+        message: expect.stringContaining('its outline crosses itself'),
+        type: 'error',
+      });
+    });
+
+    it('shows nothing, and does not throw, when no showNotification was given', () => {
+      render(<SoilhiveMap {...makeProps({ selectionState: { showDrawControl: true } })} />);
+
+      expect(() => act(() => mockDrawControlProps.mock.lastCall[0].onSelfIntersectingPolygon())).not.toThrow();
+    });
+  });
+
   it('exposes onUpload via the forwarded ref', () => {
     const ref = createRef<SoilhiveMapRef>();
     render(<SoilhiveMap {...makeProps()} ref={ref} />);
