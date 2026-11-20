@@ -252,6 +252,37 @@ await setEntitlements({ ...entitlements, everyone: ['read'] });
 
 Use `['read', 'write']` instead of `['read']` if every user should be able to edit the config, not just view it.
 
+#### Sharing a config through a link
+
+To share a config with someone whose email you don't know, create an **Invite** with `context.usePluginConfigInviteCreate`. It holds the grants back until someone opens the link and redeems it (see ADR 0082). Only a caller with `write` on the config can create one, so show the share action only to them.
+
+```tsx
+const { mutateAsync: createInvite } = context.usePluginConfigInviteCreate(pluginId, 'dashboards:abc');
+
+const { token } = await createInvite({ capabilities: ['read'], reusable: false, expiresInDays: 7 });
+const link = `${window.location.origin}${window.location.pathname}#invite=${token}`;
+```
+
+- `reusable` left out means single use: the first person who redeems it uses it up.
+- `expiresInDays` is 1 to 30, 7 when left out.
+- `recipient` limits it to the person signed in with that email, and can't go with `reusable`.
+- The token comes back only here: the backend keeps only its hash, so the same link can't be read again. Put it in the fragment (`#...`), so servers never log it.
+
+When the link is opened, redeem the token with `context.useInviteRedeem()` before you read the config. `mutateAsync` resolves once the user's grants and config reads are refetched, so the read that follows sees the new access:
+
+```tsx
+const { mutateAsync: redeem } = context.useInviteRedeem();
+
+try {
+  await redeem({ token });
+} catch (error) {
+  // { status, body }: 404 unknown or withdrawn, 410 used up or expired, 403 for another account
+  // (`recipient_hint`), a sign-in with no email (`email_required`) or a creator who can no longer share it.
+}
+```
+
+The host shows no toast for a refused redemption: say what went wrong yourself. Redeeming needs a signed-in user whose sign-in carries an email (ADR 0081), so put the link on a page that requires auth: the token in the fragment stays in the address through the sign-in.
+
 #### Config Kinds
 
 Give an id a `{kind}:` prefix to mark what it represents, e.g. `dashboards:{id}` for a dashboard. `context.usePluginUserEntitlements(pluginId, 'dashboards')` lists only your ids of that kind, with the `dashboards:` prefix kept, so they can be passed straight back to `usePluginConfig`/`usePluginConfigs`.
