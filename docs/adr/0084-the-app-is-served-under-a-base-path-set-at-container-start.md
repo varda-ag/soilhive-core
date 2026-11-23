@@ -1,0 +1,19 @@
+# The app is served under a base path set at container start, with the prefix kept
+
+**Status:** Proposed (SP-6025)
+
+SoilHive's own deployment moves the app to `www.soilhive.ag/app`, taking that path over from the legacy platform, which moves to `/legacy`, next to a marketing site at `/`. `APP_BASE_PATH` (default `/`) sets the path the app is served under. The Node server reads it at start, so one image serves any path: it serves pages and assets under it, puts it in front of the asset URLs in `index.html`, and hands it to the browser in `window._env_`, where it sets the router's basename and the path chunks load from. A value it can't use stops the server, since falling back to `/` would serve a page whose every asset is a 404. The proxy in front forwards requests with the prefix kept, so the server sees the URL the browser sees. `/health` and `/ready` stay at the root for probes, and any other path outside the base path is a 404. `APP_BASE_URL` stays an origin, and a path in it is still ignored with a warning: absolute links are its origin, then the base path, then the in-app path.
+
+## Considered options
+
+- **Setting the path at build time** (`assetPrefix`): rejected. Each path would need its own image, and the published image could only be served at `/`. Every other setting is already read at start.
+- **The proxy removing the prefix**, as the legacy platform's route does: rejected. Every URL Express builds itself, such as a redirect, would need the prefix put back by hand, and the server could not be tried without a proxy in front. The platform's other services keep their prefix.
+- **Reading the path from `APP_BASE_URL`**: rejected. `APP_BASE_URL` is optional, as the browser falls back to its own origin, but routing needs the path either way.
+- **Accepting both, with and without the prefix**: rejected. Two code paths to test, and a URL could mean one thing to the server and another to the browser.
+
+## Consequences
+
+- The `token` cookie is set with `path=` the base path, so another site on the same host never receives a user's token. localStorage has no path, so they still share it; the keys don't clash today.
+- The consent cookie (`cc_cookie`) stays at `/`, so on `www.soilhive.ag` the marketing site and the app share one consent. Their vanilla-cookieconsent setups must keep the same cookie name and categories, and `COOKIE_DOMAIN` stays unset there, as the marketing site's cookie is host-only.
+- The OIDC redirect URIs are fixed by the backend's env, so the app must be reached on one host only. SoilHive's gateway redirects `soilhive.ag`, `app.soilhive.ag` and `beta.soilhive.ag` to `www.soilhive.ag`. Redirects for the legacy platform's old URLs live there too: the app knows nothing about them.
+- Plugins need no new field: react-router puts the basename in front of their `useNavigate` paths, and `metadataUrl` includes it. A plugin that writes an app path into `href` or `window.location` itself misses it.

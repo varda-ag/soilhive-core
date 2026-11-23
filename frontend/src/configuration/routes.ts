@@ -1,4 +1,5 @@
 import { APP_BASE_URL } from '../utilities/environmentVariables';
+import { BASE_PATH, withBasePath } from './basePath';
 
 /**
  * Route pattern for the dataset metadata page. Shared by the router, the SSR
@@ -11,7 +12,7 @@ export const METADATA_ROUTE = '/datasets/:id';
 export const TERMS_OF_USE_ROUTE = '/terms-of-use';
 export const PRIVACY_POLICY_ROUTE = '/privacy-policy';
 
-/** In-app path to a dataset's metadata page, for router links and hrefs. */
+/** In-app path to a dataset's metadata page, for router links; a plain href needs withBasePath. */
 export function metadataPath(datasetId: string): string {
   return `/datasets/${encodeURIComponent(datasetId)}`;
 }
@@ -31,12 +32,8 @@ const configuredBase: string | undefined = (() => {
     return undefined;
   }
   if (url.pathname !== '/') {
-    // The app must be served from the root of its host: the router is built
-    // without a basename, the SSR matcher anchors its patterns at '/', and
-    // static assets are served from '/'. Honouring a sub-path here would build
-    // absolute URLs that the app itself cannot route, so it is dropped rather
-    // than propagated into shared links.
-    console.warn(`APP_BASE_URL must not contain a path; ignoring "${url.pathname}". Serve the app from the root of its host.`);
+    // The path comes from APP_BASE_PATH alone (ADR 0084), so the two can't disagree.
+    console.warn(`APP_BASE_URL must not contain a path; ignoring "${url.pathname}". Set APP_BASE_PATH to serve the app under a path.`);
   }
   return url.origin;
 })();
@@ -48,9 +45,17 @@ const configuredBase: string | undefined = (() => {
  * unset. Empty when neither is available, which callers read as "stay
  * relative".
  */
-export function appBaseUrl(): string {
+function appOrigin(): string {
   if (configuredBase) return configuredBase;
   return typeof window !== 'undefined' ? window.location.origin : '';
+}
+
+/**
+ * Absolute URL of the app's home: the origin, then APP_BASE_PATH, with no
+ * trailing slash. Only the base path when there is no origin.
+ */
+export function appBaseUrl(): string {
+  return `${appOrigin()}${BASE_PATH}`;
 }
 
 /**
@@ -58,9 +63,9 @@ export function appBaseUrl(): string {
  * export payloads, links handed to plugins.
  */
 export function appUrl(path: string): string {
-  const base = appBaseUrl();
-  if (!base) return path;
-  return new URL(path, base).href;
+  const origin = appOrigin();
+  if (!origin) return withBasePath(path);
+  return new URL(withBasePath(path), origin).href;
 }
 
 /** Absolute URL of a dataset's metadata page. */

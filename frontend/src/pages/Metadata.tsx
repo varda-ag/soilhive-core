@@ -3,6 +3,7 @@ import { useParams, Navigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useMetadata } from 'hooks/useMetadata';
 import { useEntitlements, ADMIN_PORTAL_ACCESS } from 'hooks/useEntitlementsHook';
+import { withBasePath } from 'configuration/basePath';
 import { useAuthContext } from '../auth/AuthContextProvider';
 import { IngestionStatus } from 'types/backend';
 import type { FeatureCollection } from 'geojson';
@@ -156,7 +157,7 @@ export default function Metadata() {
               >
                 {t('share.button')}
               </SplitButton>
-              <Button type="secondary" size="medium" href="/">
+              <Button type="secondary" size="medium" href={withBasePath('/')}>
                 {t('go_to_platform')}
               </Button>
             </div>

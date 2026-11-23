@@ -129,6 +129,7 @@ production the Express server generates this file from OS env vars at startup):
 window._env_ = {
   BACKEND_BASE_URL: 'http://localhost:4001',
   APP_BASE_URL: 'http://localhost:3000',
+  APP_BASE_PATH: '',         // optional path the app is served under, e.g. '/app'
   MAPBOX_ACCESS_TOKEN: '',   // leave empty to disable map tiles
   GTM_CONTAINER_ID: '',      // optional Google Tag Manager container ID
   COOKIE_DOMAIN: '',         // optional cookie domain override

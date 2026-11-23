@@ -2,6 +2,11 @@ import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginSass } from '@rsbuild/plugin-sass';
 import { pluginSvgr } from '@rsbuild/plugin-svgr';
+import { normaliseBasePath } from './src/configuration/basePath';
+
+// Only for the dev and preview servers: a build serves any APP_BASE_PATH (ADR 0084).
+const devBasePath = normaliseBasePath(process.env.APP_BASE_PATH);
+if (devBasePath === undefined) throw new Error(`APP_BASE_PATH "${process.env.APP_BASE_PATH}" is not usable, e.g. /app`);
 
 const sharedAlias = {
   assets: './src/assets',
@@ -15,6 +20,9 @@ const sharedAlias = {
 };
 
 export default defineConfig({
+  server: {
+    base: devBasePath || '/',
+  },
   environments: {
     // Client-side (browser) build: React SPA + hydration entry
     web: {
@@ -28,6 +36,10 @@ export default defineConfig({
       },
       output: {
         target: 'web',
+        // Chunks find their path from the script that loaded them, and CSS
+        // url()s are relative, so one build serves any APP_BASE_PATH. The
+        // server anchors index.html's asset URLs (ADR 0084).
+        assetPrefix: 'auto',
         sourceMap: {
           // Emit public .map files so Lighthouse can map minified JS back to
           // source and developers can debug production builds.

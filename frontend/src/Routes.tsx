@@ -6,6 +6,7 @@ import PageTitle from './components/PageTitle';
 import { PluginPage } from './components/PluginPage/PluginPage';
 import PluginErrorPage from './components/PluginErrorPage/PluginErrorPage';
 import { ADMIN_ROOT } from './configuration/admin';
+import { ROUTER_BASENAME } from './configuration/basePath';
 import { METADATA_ROUTE, PRIVACY_POLICY_ROUTE, TERMS_OF_USE_ROUTE } from './configuration/routes';
 import { AdminPortalGuard } from './guards/AdminPortalGuard';
 import useRemotes from './hooks/useRemotes';
@@ -92,6 +93,7 @@ function AppRoutes() {
           </Route>
         </>,
       ),
+      { basename: ROUTER_BASENAME },
     );
   }, [isLoadingThemeConfig, isLoadingRemotes, pluginRoutes, t, themeConfig.termsAndConditionsHtml, themeConfig.privacyPolicyHtml]);
 

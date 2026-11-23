@@ -17,6 +17,7 @@ import { MetaItem } from './MetaItem/MetaItem';
 import { Capability, EntitlementScope, GISDataType, IngestionStatus } from '../../../../types/backend';
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { metadataPath } from 'configuration/routes';
+import { withBasePath } from 'configuration/basePath';
 
 type Props = {
   dataset: AvailabilityDataset;
@@ -63,7 +64,7 @@ export function DatasetsListItem({ dataset }: Props) {
           )}
         </div>
         <div className={styles.Bottom}>
-          <Button size="tiny" type="custom" className={styles.MetadataButton} href={metadataPath(dataset.id)}>
+          <Button size="tiny" type="custom" className={styles.MetadataButton} href={withBasePath(metadataPath(dataset.id))}>
             <NewTabIcon /> {t('datasets_list.metadata')}
           </Button>
         </div>

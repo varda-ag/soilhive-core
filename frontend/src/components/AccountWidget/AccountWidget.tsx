@@ -11,6 +11,7 @@ import { UserAvatar } from './UserAvatar/UserAvatar';
 
 import styles from './AccountWidget.module.scss';
 import { ADMIN_ROOT } from '../../configuration/admin';
+import { withBasePath } from '../../configuration/basePath';
 import { ADMIN_PORTAL_ACCESS, useEntitlements } from 'hooks/useEntitlementsHook';
 import { LoginButton } from './LoginButton/LoginButton';
 
@@ -53,7 +54,7 @@ export function AccountWidget() {
               {t('user_menu.my_account')}
             </a> */}
             {can(ADMIN_PORTAL_ACCESS) && (
-              <a className={styles.Option} href={ADMIN_ROOT} target="_blank" rel="noopener noreferrer">
+              <a className={styles.Option} href={withBasePath(ADMIN_ROOT)} target="_blank" rel="noopener noreferrer">
                 <SettingsIcon />
                 {t('user_menu.admin_panel')}
               </a>
