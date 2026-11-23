@@ -68,7 +68,7 @@ function AppRoutes() {
                 </>
               }
             />
-            {pluginRoutes.map(({ name, route, requiresAuth, Page }) => (
+            {pluginRoutes.map(({ name, route, requiresAuth, Page, LoginPage }) => (
               // Trailing "/*" delegates matching of every nested path (e.g. `/dashboards/list`,
               // `/dashboards/:id`) to the plugin's own router. Without it, react-router only
               // matches the exact `/${route}` URL, so any deeper/direct-linked plugin URL falls
@@ -79,7 +79,7 @@ function AppRoutes() {
                 element={
                   <>
                     <PageTitle title={`SoilHive - ${name}`} />
-                    <PluginPage name={name} requiresAuth={requiresAuth} Page={Page} />
+                    <PluginPage name={name} requiresAuth={requiresAuth} Page={Page} LoginPage={LoginPage} />
                   </>
                 }
                 // Contains an error thrown while rendering the plugin to its own route, instead of

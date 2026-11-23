@@ -4,6 +4,8 @@ import usePluginConfig from 'hooks/usePluginConfig';
 import usePluginConfigs from 'hooks/usePluginConfigs';
 import usePluginConfigDelete from 'hooks/usePluginConfigDelete';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
+import { usePluginConfigInviteCreate } from 'hooks/usePluginConfigInvite';
+import { useInviteRedeem } from 'hooks/useInviteRedeem';
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
 import { useFilter } from 'hooks/useFilter';
 import useTheme from 'hooks/useTheme';
@@ -42,6 +44,8 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
   usePluginConfigEntitlements: jest.fn(),
   usePluginConfigEntitlementsMutation: jest.fn(),
 }));
+jest.mock('hooks/usePluginConfigInvite', () => ({ usePluginConfigInviteCreate: jest.fn() }));
+jest.mock('hooks/useInviteRedeem', () => ({ useInviteRedeem: jest.fn() }));
 jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
 jest.mock('hooks/useFilter', () => ({ useFilter: jest.fn() }));
 jest.mock('hooks/usePluginDataRequest', () => ({
@@ -74,6 +78,7 @@ const MOCK_AUTH_CONTEXT = {
   isAuthenticated: false,
   isLoading: false,
   login: jest.fn(),
+  signup: jest.fn(),
   logout: jest.fn(),
   authMode: 'NONE',
 };
@@ -112,6 +117,18 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.usePluginConfigEntitlementsMutation).toBe(usePluginConfigEntitlementsMutation);
+  });
+
+  it('passes usePluginConfigInviteCreate through unchanged, since its signature already matches PluginContext', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.usePluginConfigInviteCreate).toBe(usePluginConfigInviteCreate);
+  });
+
+  it('passes useInviteRedeem through unchanged, since its signature already matches PluginContext', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.useInviteRedeem).toBe(useInviteRedeem);
   });
 
   it('passes usePluginUserEntitlements through unchanged, since its signature already matches PluginContext', () => {

@@ -34,6 +34,8 @@ import usePluginConfig from './usePluginConfig';
 import usePluginConfigs from './usePluginConfigs';
 import usePluginConfigDelete from './usePluginConfigDelete';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from './usePluginConfigEntitlements';
+import { usePluginConfigInviteCreate } from './usePluginConfigInvite';
+import { useInviteRedeem } from './useInviteRedeem';
 import { usePluginUserEntitlements } from './usePluginUserEntitlements';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from './usePluginDataRequest';
 import { useSoilIndexScore, useSoilIndexTileSource } from './useSoilIndexTiles';
@@ -162,6 +164,9 @@ export function usePluginContext(): PluginContext {
       // through directly, same as usePluginConfig/usePluginConfigs above.
       usePluginConfigEntitlements,
       usePluginConfigEntitlementsMutation,
+      usePluginConfigInviteCreate,
+      // Not namespaced by plugin: an Invite's token is the whole permission.
+      useInviteRedeem,
       usePluginUserEntitlements,
       useDataRequestSubmit: usePluginDataRequestSubmit,
       useDataRequest: usePluginDataRequest,

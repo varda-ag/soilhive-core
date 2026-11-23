@@ -48,6 +48,33 @@ export interface PluginMutationResult<TInput, TOutput> {
 export type PluginConfigEntitlementCapability = 'read' | 'write';
 export type PluginConfigEntitlements = Record<string, PluginConfigEntitlementCapability[]>;
 
+export interface PluginConfigInviteInput {
+  // What redeeming grants on the config item. Only a caller with write on it can create one.
+  capabilities: PluginConfigEntitlementCapability[];
+  // Only the person signed in with this email can redeem it. Never with reusable.
+  recipient?: string;
+  // Redeemable by many until it expires; single use when left out.
+  reusable?: boolean;
+  // 1 to 30; 7 when left out.
+  expiresInDays?: number;
+}
+
+// A refused Invite redemption: the HTTP status and the problem body (see ADR 0081). 404: unknown or
+// withdrawn. 410: used up or expired. 403: for another account (`recipient_hint` in the body, e.g.
+// `j•••@example.com`), the sign-in has no email (`email_required`), or the creator can no longer share it.
+export interface PluginInviteRedeemError {
+  status: number;
+  body: unknown;
+}
+
+export interface PluginConfigInvite {
+  id: string;
+  // Returned only here, never again: put it in the link's fragment (#...), so servers never log it.
+  token: string;
+  // ISO 8601 in UTC.
+  expiresAt: string;
+}
+
 // 'datasets' is excluded: dataset entitlements are keyed by real Dataset entities, never
 // plugin:{pluginId}:... ids, so that scope can never be non-empty for a plugin (see ADR 0036).
 export type PluginEntitlementScope = 'configs' | 'dashboards';

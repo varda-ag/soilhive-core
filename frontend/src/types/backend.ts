@@ -364,6 +364,22 @@ export interface SavedConfig<T> {
 export type ConfigEntitlementCapability = 'read' | 'write';
 export type ConfigEntitlements = Record<string, ConfigEntitlementCapability[]>;
 
+// `POST /invites` (backend/src/types/Invites.ts). Only config grants are sent from here: a Dataset
+// Invite needs an admin and is not made from a plugin.
+export interface InviteCreateBody {
+  grants: { configs: ConfigEntitlements };
+  recipient?: string;
+  reusable?: boolean;
+  expires_in_days?: number;
+}
+
+// The token comes back only once, on creation: the backend keeps only its hash.
+export interface InviteCreated {
+  id: string;
+  token: string;
+  expires_at: string;
+}
+
 /**
  * Namespace `GET /entitlements`'s mandatory `scope` query param selects (see backend ADR-0032).
  * `DASHBOARDS` is not a storage namespace of its own — it's a filtered view over `CONFIGS`,

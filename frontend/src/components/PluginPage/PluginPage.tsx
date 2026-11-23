@@ -16,10 +16,23 @@ import type { SinglePagePlugin } from 'types/plugins';
 // context of a <Router> component".
 // The sign-in gate lives here for the same reason: filtering routes by sign-in state would swap the
 // router on every sign-in/out.
-export function PluginPage({ name, requiresAuth, Page }: Pick<SinglePagePlugin, 'name' | 'requiresAuth' | 'Page'>) {
+export function PluginPage({
+  name,
+  requiresAuth,
+  Page,
+  LoginPage,
+}: Pick<SinglePagePlugin, 'name' | 'requiresAuth' | 'Page' | 'LoginPage'>) {
   const { t } = useTranslation('common');
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, login, signup } = useAuthContext();
   const pluginContext = usePluginContext();
-  if (requiresAuth && !isAuthenticated) return <SignInPrompt title={t('auth.sign_in_prompt.title', { name })} />;
+  if (requiresAuth && !isAuthenticated) {
+    // Called without arguments: a plugin that passes them as onClick must not hand the click event
+    // to the host as its page state.
+    return LoginPage ? (
+      <LoginPage login={() => login()} signup={() => signup()} />
+    ) : (
+      <SignInPrompt title={t('auth.sign_in_prompt.title', { name })} />
+    );
+  }
   return <Page context={pluginContext} />;
 }

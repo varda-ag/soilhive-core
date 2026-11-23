@@ -14,6 +14,12 @@ export type AuthContext = {
    */
   login: (pageState?: SigninPageState) => void;
   /**
+   * Starts a sign-up, the same way as `login`. Under OIDC it asks the identity provider for its
+   * registration screen (`prompt=create`); the provider must allow registration. Other modes have
+   * no sign-up, so it does what `login` does.
+   */
+  signup: (pageState?: SigninPageState) => void;
+  /**
    * Signs out. Under OIDC it also ends the session at the identity provider. When the identity provider
    * cannot be reached, it signs out on this device only, and the next `login` asks for the password again.
    */

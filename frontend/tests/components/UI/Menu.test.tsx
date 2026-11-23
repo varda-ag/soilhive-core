@@ -25,6 +25,23 @@ describe('Menu Component', () => {
     expect(menu).toHaveClass('Tiny');
   });
 
+  it('applies optionClassName to every option, next to its own classes', () => {
+    render(<Menu options={baseOptions} selectedOptions={['2']} optionClassName="CustomOption" onSelect={() => {}} />);
+
+    const options = screen.getAllByTestId('sh-ui-menuoption');
+    options.forEach(option => expect(option).toHaveClass('MenuOption', 'CustomOption'));
+    expect(options[1]).toHaveClass('Selected');
+    expect(options[2]).toHaveClass('Disabled');
+    expect(screen.getByTestId('sh-ui-menu')).not.toHaveClass('CustomOption');
+  });
+
+  it('applies className to the menu, not to its options', () => {
+    render(<Menu options={baseOptions} className="CustomMenu" onSelect={() => {}} />);
+
+    expect(screen.getByTestId('sh-ui-menu')).toHaveClass('CustomMenu');
+    screen.getAllByTestId('sh-ui-menuoption').forEach(option => expect(option).not.toHaveClass('CustomMenu'));
+  });
+
   it('marks selected option when selectedOption is passed', () => {
     const { container } = render(<Menu options={baseOptions} selectedOptions={['2']} onSelect={() => {}} showSelectedCheckIcon />);
 

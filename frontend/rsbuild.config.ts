@@ -53,6 +53,7 @@ export default defineConfig({
       html: {
         title: 'SoilHive',
         template: './src/template.html',
+        favicon: './src/assets/favicon.ico',
         tags: [
           {
             tag: 'script',
