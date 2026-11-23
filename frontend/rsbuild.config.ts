@@ -1,12 +1,8 @@
-import { defineConfig } from '@rsbuild/core';
+import { defineConfig, type RsbuildConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginSass } from '@rsbuild/plugin-sass';
 import { pluginSvgr } from '@rsbuild/plugin-svgr';
 import { normaliseBasePath } from './src/configuration/basePath';
-
-// Only for the dev and preview servers: a build serves any APP_BASE_PATH (ADR 0084).
-const devBasePath = normaliseBasePath(process.env.APP_BASE_PATH);
-if (devBasePath === undefined) throw new Error(`APP_BASE_PATH "${process.env.APP_BASE_PATH}" is not usable, e.g. /app`);
 
 const sharedAlias = {
   assets: './src/assets',
@@ -19,10 +15,7 @@ const sharedAlias = {
   utilities: './src/utilities',
 };
 
-export default defineConfig({
-  server: {
-    base: devBasePath || '/',
-  },
+const config: RsbuildConfig = {
   environments: {
     // Client-side (browser) build: React SPA + hydration entry
     web: {
@@ -96,4 +89,14 @@ export default defineConfig({
     },
   },
   plugins: [pluginReact(), pluginSass(), pluginSvgr()],
+};
+
+export default defineConfig(({ command }) => {
+  // A build serves any APP_BASE_PATH, as the Node server reads it at start
+  // (ADR 0084), so a build ignores it. Only `rsbuild dev` (pnpm dev:client)
+  // serves the app itself, so only it uses it.
+  if (command !== 'dev') return config;
+  const devBasePath = normaliseBasePath(process.env.APP_BASE_PATH);
+  if (devBasePath === undefined) throw new Error(`APP_BASE_PATH "${process.env.APP_BASE_PATH}" is not usable, e.g. /app`);
+  return { ...config, server: { base: devBasePath || '/' } };
 });

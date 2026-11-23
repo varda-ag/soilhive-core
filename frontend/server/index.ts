@@ -1,3 +1,5 @@
+// First, so asset URLs in the pages below are set under APP_BASE_PATH.
+import './publicPath';
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request } from 'express';
@@ -5,6 +7,7 @@ import compression from 'compression';
 import { render, matchSSRRoute } from '../src/entry-server';
 import { isTokenExpired } from '../src/auth/tokenClaims';
 import { BASE_PATH, normaliseBasePath, withBasePath } from '../src/configuration/basePath';
+import { anchorRelativeUrls } from './indexHtml';
 
 // Rsbuild compiles this to dist/server/index.cjs so __dirname is always
 // dist/server/ at runtime.  Client assets are always at dist/client/.
@@ -68,6 +71,9 @@ const CARTO_PRECONNECT_PATHS = new Set(['/', '/availability']);
 // ---------------------------------------------------------------------------
 
 const app = express();
+// The token cookie's path is case-sensitive, so the mount path must be too:
+// '/APP/x' would otherwise be served, and render signed out. Set before the first app.use.
+app.set('case sensitive routing', true);
 app.use(compression());
 
 // Everything but the probes is served under APP_BASE_PATH, which the proxy
@@ -127,12 +133,7 @@ app.get('/ready', (_req, res) => {
 // SSR + SPA fallback handler
 // ---------------------------------------------------------------------------
 
-// The client is built with assetPrefix 'auto', so index.html refers to its
-// assets relatively ("static/js/..."); anchor them at the base path, or a deep
-// link would resolve them under its own folder.
-const indexHtml = fs
-  .readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf-8')
-  .replace(/(\s(?:src|href)=")(static\/)/g, `$1${BASE_PATH}/$2`);
+const indexHtml = anchorRelativeUrls(fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf-8'), BASE_PATH);
 
 // Inline the runtime env config into the SPA shell so it is served with every
 // response — no separate /env-config.js request. All response paths (SSR, SPA
