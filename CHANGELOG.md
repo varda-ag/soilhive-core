@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.8.1 (2026-11-23)
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.8.0...v1.8.1
+
 ## 1.8.0 (2026-11-11)
 
 ## What's Changed
