@@ -16,7 +16,7 @@
     "dev:ssr-run": "node --watch dist/server/index.cjs",
     "dev:client": "rsbuild dev --environment web",
     "start": "node dist/server/index.cjs",
-    "preview": "rsbuild preview",
+    "preview": "pnpm build && pnpm start",
     "test": "jest --bail --passWithNoTests",
     "test:watch": "jest --clearCache && jest --watch",
     "test:coverage": "jest --clearCache && jest --coverage",

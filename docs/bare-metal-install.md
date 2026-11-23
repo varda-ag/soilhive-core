@@ -189,6 +189,7 @@ SELF_SIGNING_SECRET=put-any-random-string-here
 # CORE_PUBLIC_URL=http://localhost:4001/api/v1
 
 ## OIDC mode — overrides password mode when set
+## The three redirect URIs include the frontend's APP_BASE_PATH if it has one, e.g. http://localhost:3000/app
 # OIDC_AUTHORITY=https://<keycloak-host>/realms/<realm>
 # OIDC_CLIENT_ID=soilhive
 # OIDC_REDIRECT_URI=http://localhost:3000

@@ -63,6 +63,8 @@ Set the following backend environment variables to enable OIDC authentication (s
 - `OIDC_ISSUER` (optional): other `iss` values the identity provider's access tokens may carry, besides `OIDC_AUTHORITY`. A comma-separated list, for a provider reached under several hostnames, for example an in-cluster address that Machine callers get their tokens from. Every token's `iss` must be `OIDC_AUTHORITY` or one of these, with or without a trailing slash; `OIDC_AUTHORITY` stays accepted, so listing another issuer never refuses the browser's tokens
 - `OIDC_AUDIENCE` (optional, leave it unset for now): the `aud` values an access token for this API may carry, comma-separated. Without it, a token the identity provider issued to any client of the realm is accepted, and the backend logs a warning at startup. The SoilHive realm adds no `aud` to its access tokens yet, so setting it would refuse every sign-in. To turn it on later, first add an *Audience* mapper to the client in Keycloak (see [Keycloak setup](keycloak-setup.md)) and to the clients of Machine callers, then check that a real token carries the audience
 
+If the frontend is served under a path (`APP_BASE_PATH`, see [ADR 0084](adr/0084-the-app-is-served-under-a-base-path-set-at-container-start.md)), the three redirect URIs must include it, e.g. `http://<BASE_APP_URL>/app`. Outside that path the app answers 404, so the identity provider would send users to a page that isn't there.
+
 Users must belong to the realm `OIDC_AUTHORITY` points to, and need the `super-admin` (or `data-admin`) role to access the application as admin.
 
 - [Keycloak setup](keycloak-setup.md): Example setup for Keycloak IDP and OIDC authentication
