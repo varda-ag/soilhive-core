@@ -18,4 +18,19 @@ export default class AccessRequestEntity extends BaseTable {
 
   @Column({ type: 'text', nullable: true })
   message: string | null;
+
+  // What the requester said about themselves, unchecked. Null on requests made before these were asked for.
+  @Column({ type: 'text', nullable: true })
+  requester_name: string | null;
+
+  /** ISO 3166-1 alpha-2 code of the country the requester lives or works in. */
+  @Column({ type: 'text', nullable: true })
+  country: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  organisation: string | null;
+
+  /** Always with its `http(s)://`. */
+  @Column({ type: 'text', nullable: true })
+  organisation_website: string | null;
 }

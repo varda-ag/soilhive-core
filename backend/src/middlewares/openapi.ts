@@ -15,7 +15,7 @@ const runnerAuth = () => true;
 
 // Spec files with paths of their own, merged in here rather than listed in openapi.yaml. Each stays
 // complete on its own, so a client can be generated from it (docs/adr/0078).
-const PATH_FRAGMENTS = ['model-runners.yaml'];
+const PATH_FRAGMENTS = ['model-runners.yaml', 'access-requests.yaml'];
 const MAIN_REF = '../src/openapi.yaml#';
 
 type Spec = { paths: Record<string, unknown>; components?: Record<string, Record<string, unknown>> };

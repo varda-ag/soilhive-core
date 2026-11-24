@@ -49,6 +49,32 @@ const invalid = (message: string) => new ErrorResponse(message, StatusCodes.BAD_
 
 const notFound = () => new ErrorResponse('Access request not found', StatusCodes.NOT_FOUND);
 
+const requiredText = (value: string, field: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw invalid(`${field} must not be blank`);
+  }
+  return trimmed;
+};
+
+/** Admins open it as a link, so only http(s) with a dotted host; a bare domain gets `https://`. */
+const websiteOf = (value: string | undefined): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+  let url: URL | undefined;
+  try {
+    url = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`);
+  } catch {
+    // Left undefined, refused below
+  }
+  if (!url || !['http:', 'https:'].includes(url.protocol) || !url.hostname.includes('.')) {
+    throw invalid('organisation_website must be a website address');
+  }
+  return url.href;
+};
+
 const UNIQUE_VIOLATION = '23505';
 
 const requestStatus = (items: ItemRow[]): AccessRequestStatus => {
@@ -72,6 +98,14 @@ export default class AccessRequestService {
     if (capabilities.length === 0 || !capabilities.every(c => ACCESS_REQUEST_CAPABILITIES.includes(c))) {
       throw invalid(`An access request asks for ${ACCESS_REQUEST_CAPABILITIES.join(' or ')}`);
     }
+    // access-requests.yaml checks presence, lengths and the country code
+    const details = {
+      message: requiredText(body.message, 'message'),
+      requester_name: requiredText(body.requester_name, 'requester_name'),
+      country: body.country,
+      organisation: requiredText(body.organisation, 'organisation'),
+      organisation_website: websiteOf(body.organisation_website),
+    };
 
     const byName = await this.findDatasets(requestData, body.datasets);
     const datasets = new Map<string, DatasetRow>();
@@ -98,7 +132,7 @@ export default class AccessRequestService {
       .createQueryBuilder()
       .insert()
       .into(AccessRequestEntity)
-      .values({ requested_by: subject, capabilities, message: body.message?.trim() || null })
+      .values({ requested_by: subject, capabilities, ...details })
       .returning('*')
       .execute();
     const request = raw[0] as AccessRequestEntity;
@@ -305,6 +339,10 @@ export default class AccessRequestService {
         requested_by: request.requested_by,
         capabilities: request.capabilities,
         message: request.message,
+        requester_name: request.requester_name,
+        country: request.country,
+        organisation: request.organisation,
+        organisation_website: request.organisation_website,
         status: requestStatus(own),
         created_at: request.created_at.toISOString(),
         items: own.map(item => ({
