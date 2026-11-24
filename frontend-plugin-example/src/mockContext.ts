@@ -1,4 +1,6 @@
 import type {
+  PluginAccessRequest,
+  PluginAccessRequestInput,
   PluginApi,
   PluginConfigEntitlements,
   PluginConfigEntry,
@@ -186,6 +188,13 @@ const inviteRedeem: PluginMutationResult<{ token: string }, void> = {
   isError: false,
 };
 
+// Local preview has no backend: every request is taken, and nobody sees it.
+const accessRequestCreate: PluginMutationResult<PluginAccessRequestInput, PluginAccessRequest> = {
+  mutateAsync: async () => ({ id: 'local-preview-access-request', status: 'pending', createdAt: new Date().toISOString() }),
+  isPending: false,
+  isError: false,
+};
+
 // Stubs: local preview has no backend, so submitting rejects and every id reads as lost.
 const dataRequestSubmit: PluginMutationResult<PluginDataRequestSubmission, PluginDataRequest> = {
   mutateAsync: async () => {
@@ -259,6 +268,7 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   usePluginConfigEntitlementsMutation: () => configEntitlementsMutation(),
   usePluginConfigInviteCreate: () => configInviteCreate,
   useInviteRedeem: () => inviteRedeem,
+  useAccessRequestCreate: () => accessRequestCreate,
   usePluginUserEntitlements: () => query(configEntitlements),
   useDataRequestSubmit: () => dataRequestSubmit,
   useDataRequest: dataRequest,

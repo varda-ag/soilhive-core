@@ -295,6 +295,21 @@ try {
 
 The host shows no toast for a refused redemption: say what went wrong yourself. Redeeming needs a signed-in user whose sign-in carries an email (ADR 0081), so put the link on a page that requires auth: the token in the fragment stays in the address through the sign-in.
 
+#### Asking for access to private Datasets
+
+A user who can't read a dashboard because of its private Datasets (a 403 with `datasets`, ADR 0079) can ask admins for access with `context.useAccessRequestCreate()`. It names the Datasets by the slugs from that 403:
+
+```tsx
+const { mutateAsync: requestAccess, isPending } = context.useAccessRequestCreate();
+
+await requestAccess({ datasets: ['ds-x'], capabilities: ['preview'], message: 'Why I need it' });
+```
+
+- `capabilities` is `preview`, `download` or both. Opening a dashboard needs `preview`.
+- `message` is up to 1000 characters and shown to admins.
+- The request is keyed by the email of the user's sign-in (ADR 0081): one whose sign-in carries no email gets a 403 with `email_required`.
+- The host toasts a refusal with the backend's message, e.g. a Dataset already in one of the user's pending requests (409), or one that is public or already readable (400). `mutateAsync` still rejects, so keep the form open.
+
 #### Config Kinds
 
 Give an id a `{kind}:` prefix to mark what it represents, e.g. `dashboards:{id}` for a dashboard. `context.usePluginUserEntitlements(pluginId, 'dashboards')` lists only your ids of that kind, with the `dashboards:` prefix kept, so they can be passed straight back to `usePluginConfig`/`usePluginConfigs`.

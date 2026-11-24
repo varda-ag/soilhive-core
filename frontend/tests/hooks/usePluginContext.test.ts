@@ -6,6 +6,7 @@ import usePluginConfigDelete from 'hooks/usePluginConfigDelete';
 import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from 'hooks/usePluginConfigEntitlements';
 import { usePluginConfigInviteCreate } from 'hooks/usePluginConfigInvite';
 import { useInviteRedeem } from 'hooks/useInviteRedeem';
+import { useAccessRequestCreate } from 'hooks/useAccessRequestCreate';
 import { usePluginUserEntitlements } from 'hooks/usePluginUserEntitlements';
 import { useFilter } from 'hooks/useFilter';
 import useTheme from 'hooks/useTheme';
@@ -46,6 +47,7 @@ jest.mock('hooks/usePluginConfigEntitlements', () => ({
 }));
 jest.mock('hooks/usePluginConfigInvite', () => ({ usePluginConfigInviteCreate: jest.fn() }));
 jest.mock('hooks/useInviteRedeem', () => ({ useInviteRedeem: jest.fn() }));
+jest.mock('hooks/useAccessRequestCreate', () => ({ useAccessRequestCreate: jest.fn() }));
 jest.mock('hooks/usePluginUserEntitlements', () => ({ usePluginUserEntitlements: jest.fn() }));
 jest.mock('hooks/useFilter', () => ({ useFilter: jest.fn() }));
 jest.mock('hooks/usePluginDataRequest', () => ({
@@ -129,6 +131,12 @@ describe('usePluginContext', () => {
     const { result } = renderHook(() => usePluginContext());
 
     expect(result.current.useInviteRedeem).toBe(useInviteRedeem);
+  });
+
+  it('passes useAccessRequestCreate through unchanged, since its signature already matches PluginContext', () => {
+    const { result } = renderHook(() => usePluginContext());
+
+    expect(result.current.useAccessRequestCreate).toBe(useAccessRequestCreate);
   });
 
   it('passes usePluginUserEntitlements through unchanged, since its signature already matches PluginContext', () => {
