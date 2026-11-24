@@ -1,15 +1,27 @@
+// First, so asset URLs in the pages below are set under APP_BASE_PATH.
+import './publicPath';
 import fs from 'node:fs';
 import path from 'node:path';
 import express, { type Request } from 'express';
 import compression from 'compression';
 import { render, matchSSRRoute } from '../src/entry-server';
 import { isTokenExpired } from '../src/auth/tokenClaims';
+import { BASE_PATH, normaliseBasePath, withBasePath } from '../src/configuration/basePath';
+import { anchorRelativeUrls } from './indexHtml';
 
 // Rsbuild compiles this to dist/server/index.cjs so __dirname is always
 // dist/server/ at runtime.  Client assets are always at dist/client/.
 const CLIENT_DIST = path.resolve(__dirname, '../client');
 
 const PORT = Number(process.env.PORT ?? 3000);
+
+// Serving at '/' instead of an unusable APP_BASE_PATH would 404 every asset, so refuse to start (ADR 0084).
+if (normaliseBasePath(process.env.APP_BASE_PATH) === undefined) {
+  console.error(
+    `APP_BASE_PATH "${process.env.APP_BASE_PATH}" is not usable: give path segments of letters, digits, '-', '_' and '.', other than '.' and '..', e.g. /app`,
+  );
+  process.exit(1);
+}
 
 // Runtime env vars are injected at process start (Docker / CI) and never
 // change during the process lifetime, so build the inline env script once and
@@ -20,6 +32,7 @@ const PORT = Number(process.env.PORT ?? 3000);
 const _envVars = {
   BACKEND_BASE_URL: process.env.BACKEND_BASE_URL ?? '',
   APP_BASE_URL: process.env.APP_BASE_URL ?? '',
+  APP_BASE_PATH: BASE_PATH,
   MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN ?? '',
   GTM_CONTAINER_ID: process.env.GTM_CONTAINER_ID ?? '',
   COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? '',
@@ -58,12 +71,20 @@ const CARTO_PRECONNECT_PATHS = new Set(['/', '/availability']);
 // ---------------------------------------------------------------------------
 
 const app = express();
+// The token cookie's path is case-sensitive, so the mount path must be too:
+// '/APP/x' would otherwise be served, and render signed out. Set before the first app.use.
+app.set('case sensitive routing', true);
 app.use(compression());
 
+// Everything but the probes is served under APP_BASE_PATH, which the proxy
+// forwards with the prefix kept (ADR 0084). Paths outside it are a 404.
+const appRouter = express.Router();
+
 // Static assets with long-lived cache for hashed filenames.
-// index: false so `/` falls through to the catch-all below and is served the
-// env-inlined SPA shell (baseHtml) rather than the raw index.html on disk.
-app.use(express.static(CLIENT_DIST, { index: false }));
+// index: false so the app's root falls through to the catch-all below and is
+// served the env-inlined SPA shell (baseHtml) rather than the raw index.html on disk.
+// redirect: false so `/app` is served as it is, not 301'd to `/app/`.
+appRouter.use(express.static(CLIENT_DIST, { index: false, redirect: false }));
 
 // ---------------------------------------------------------------------------
 // SSR auth resolution
@@ -96,7 +117,8 @@ function resolveAuthToken(req: Request): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// Health check — used by load balancers and Docker HEALTHCHECK
+// Health check — used by load balancers and Docker HEALTHCHECK. At the root
+// whatever APP_BASE_PATH is, since probes hit the pod directly.
 // ---------------------------------------------------------------------------
 
 app.get('/health', (_req, res) => {
@@ -111,17 +133,18 @@ app.get('/ready', (_req, res) => {
 // SSR + SPA fallback handler
 // ---------------------------------------------------------------------------
 
-const indexHtml = fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf-8');
+const indexHtml = anchorRelativeUrls(fs.readFileSync(path.join(CLIENT_DIST, 'index.html'), 'utf-8'), BASE_PATH);
 
 // Inline the runtime env config into the SPA shell so it is served with every
 // response — no separate /env-config.js request. All response paths (SSR, SPA
 // fallback, error fallback) build on this.
 const baseHtml = indexHtml.replace('<script src="/env-config.js"></script>', ENV_SCRIPT);
 
-// Use app.use() as the catch-all — compatible with Express 4 and Express 5
+// Use use() as the catch-all — compatible with Express 4 and Express 5
 // (Express 5 removed support for the bare `*` wildcard in app.get).
-app.use((req, res) => {
-  const url = req.originalUrl;
+// req.url is the in-app URL: the router's mount path (APP_BASE_PATH) is removed.
+appRouter.use((req, res) => {
+  const url = req.url;
   const pathname = new URL(url, 'http://localhost').pathname;
 
   const linkValues = PRECONNECT_LINK ? [PRECONNECT_LINK] : [];
@@ -138,7 +161,7 @@ app.use((req, res) => {
   render(url, { authToken })
     .then(result => {
       if (result !== null && 'redirect' in result) {
-        res.redirect(302, result.redirect);
+        res.redirect(302, withBasePath(result.redirect));
         return;
       }
       if (result !== null) {
@@ -163,6 +186,11 @@ app.use((req, res) => {
       // On render failure fall back to the SPA shell so the user sees the app.
       res.status(200).set({ 'Content-Type': 'text/html' }).send(baseHtml);
     });
+});
+
+app.use(BASE_PATH || '/', appRouter);
+app.use((_req, res) => {
+  res.sendStatus(404);
 });
 
 app.listen(PORT, () => {

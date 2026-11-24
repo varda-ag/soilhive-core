@@ -27,6 +27,7 @@ Create the file before starting the dev server:
 window._env_ = {
   BACKEND_BASE_URL: 'http://localhost:4001',
   APP_BASE_URL: 'http://localhost:3000',
+  APP_BASE_PATH: '',       // optional — path the app is served under, e.g. '/app'; '' for the domain root
   MAPBOX_ACCESS_TOKEN: '<your Mapbox token, or empty string to disable the map>',
   GTM_CONTAINER_ID: '',    // optional — Google Tag Manager container ID, for usage analytics (analytics.md)
   COOKIE_DOMAIN: '',       // optional — overrides cookie domain for consent banner
@@ -34,7 +35,9 @@ window._env_ = {
 };
 ```
 
-`BACKEND_BASE_URL` must point to a running backend. `APP_BASE_URL` is the public base serving the app itself; it is used to build absolute links to the app — `og:url` on the server-rendered metadata page, the metadata URLs sent with an export, and the URLs handed to plugins. It must be an origin with no path (`https://app.example.com`) — the app has to be served from the root of its host, because the router is built without a basename, the SSR route matcher anchors its patterns at `/`, and static assets are served from `/`. A path, trailing slash, query or fragment is dropped with a warning at startup. In the browser it falls back to `window.location.origin` when unset; server-side rendering has no fallback at all. `MAPBOX_ACCESS_TOKEN` is required to render the map; the app will load without it but map tiles won't appear.
+`BACKEND_BASE_URL` must point to a running backend. `APP_BASE_URL` is the public base serving the app itself; it is used to build absolute links to the app — `og:url` on the server-rendered metadata page, the metadata URLs sent with an export, and the URLs handed to plugins. It must be an origin with no path (`https://app.example.com`): the path comes from `APP_BASE_PATH` alone. A path, trailing slash, query or fragment is dropped with a warning at startup. In the browser it falls back to `window.location.origin` when unset; server-side rendering has no fallback at all. `MAPBOX_ACCESS_TOKEN` is required to render the map; the app will load without it but map tiles won't appear.
+
+`APP_BASE_PATH` serves the app under a path, e.g. `/app` for `https://www.example.com/app` ([ADR 0084](../adr/0084-the-app-is-served-under-a-base-path-set-at-container-start.md)). `app`, `/app` and `/app/` all mean `/app`; unset, empty or `/` means the domain root. The server reads it at start, so one build serves any path, and it refuses to start on a value it can't use. A proxy in front must forward requests with the prefix kept. With `pnpm run dev:client`, set it both in the shell, for the dev server, and in `env-config.js`, for the router.
 
 In production the Express server generates `env-config.js` at startup from OS environment variables, so the file in `public/` is only used during local development.
 
@@ -129,11 +132,11 @@ import { Button } from '../../../components/UI/Button';
 
 ## Docker
 
-A `Dockerfile` is provided for containerized deployments. It runs `pnpm build` and then `node dist/server/index.cjs`. All runtime env vars (`BACKEND_BASE_URL`, `APP_BASE_URL`, `MAPBOX_ACCESS_TOKEN`, `GTM_CONTAINER_ID`, `COOKIE_DOMAIN`, `FEATURE_FLAGS`) can be passed with `--env` or Docker Compose's `environment:` block.
+A `Dockerfile` is provided for containerized deployments. It runs `pnpm build` and then `node dist/server/index.cjs`. All runtime env vars (`BACKEND_BASE_URL`, `APP_BASE_URL`, `APP_BASE_PATH`, `MAPBOX_ACCESS_TOKEN`, `GTM_CONTAINER_ID`, `COOKIE_DOMAIN`, `FEATURE_FLAGS`) can be passed with `--env` or Docker Compose's `environment:` block.
 
 ## Health checks
 
-The Express server exposes two health endpoints:
+The Express server exposes two health endpoints, at the root whatever `APP_BASE_PATH` is. Any other path outside `APP_BASE_PATH` is a 404.
 
 - `GET /health` — returns `{"status":"ok"}`, used by load balancers
 - `GET /ready` — returns `{"status":"ok"}`, used by Docker `HEALTHCHECK`

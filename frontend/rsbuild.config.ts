@@ -1,7 +1,8 @@
-import { defineConfig } from '@rsbuild/core';
+import { defineConfig, type RsbuildConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginSass } from '@rsbuild/plugin-sass';
 import { pluginSvgr } from '@rsbuild/plugin-svgr';
+import { normaliseBasePath } from './src/configuration/basePath';
 
 const sharedAlias = {
   assets: './src/assets',
@@ -14,7 +15,7 @@ const sharedAlias = {
   utilities: './src/utilities',
 };
 
-export default defineConfig({
+const config: RsbuildConfig = {
   environments: {
     // Client-side (browser) build: React SPA + hydration entry
     web: {
@@ -28,6 +29,10 @@ export default defineConfig({
       },
       output: {
         target: 'web',
+        // Chunks find their path from the script that loaded them, and CSS
+        // url()s are relative, so one build serves any APP_BASE_PATH. The
+        // server anchors index.html's asset URLs (ADR 0084).
+        assetPrefix: 'auto',
         sourceMap: {
           // Emit public .map files so Lighthouse can map minified JS back to
           // source and developers can debug production builds.
@@ -84,4 +89,14 @@ export default defineConfig({
     },
   },
   plugins: [pluginReact(), pluginSass(), pluginSvgr()],
+};
+
+export default defineConfig(({ command }) => {
+  // A build serves any APP_BASE_PATH, as the Node server reads it at start
+  // (ADR 0084), so a build ignores it. Only `rsbuild dev` (pnpm dev:client)
+  // serves the app itself, so only it uses it.
+  if (command !== 'dev') return config;
+  const devBasePath = normaliseBasePath(process.env.APP_BASE_PATH);
+  if (devBasePath === undefined) throw new Error(`APP_BASE_PATH "${process.env.APP_BASE_PATH}" is not usable, e.g. /app`);
+  return { ...config, server: { base: devBasePath || '/' } };
 });

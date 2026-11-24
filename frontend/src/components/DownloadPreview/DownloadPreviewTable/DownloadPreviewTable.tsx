@@ -13,6 +13,7 @@ import type { Feature, GeoJsonProperties, MultiPolygon, Point, Polygon } from 'g
 import { useTranslation } from 'react-i18next';
 import { backendToLocalFrontendDate } from '../../../utilities/date';
 import { metadataPath } from 'configuration/routes';
+import { withBasePath } from 'configuration/basePath';
 import { formatRasterValue } from 'utilities/formatRasterValue';
 import { ANALYTICS_EVENTS } from 'configuration/analytics';
 import { trackEvent } from 'utilities/analytics';
@@ -148,7 +149,7 @@ function DownloadPreviewTable({
           <Button
             type="tertiary"
             className={styles.MetadataButton}
-            {...(isMetadataDisabled ? { isDisabled: true } : { href: metadataPath(metadataDatasetId) })}
+            {...(isMetadataDisabled ? { isDisabled: true } : { href: withBasePath(metadataPath(metadataDatasetId)) })}
           >
             <NewspaperIcon />
             {t('download_preview.metadata')}

@@ -26,6 +26,7 @@ import Skeleton from 'react-loading-skeleton';
 import { GISDataType } from '../types/backend';
 import { VardaFoundationAttribution } from 'components/VardaFoundationAttribution/VardaFoundationAttribution';
 import { TERMS_OF_USE_ROUTE } from 'configuration/routes';
+import { withBasePath } from 'configuration/basePath';
 import { ANALYTICS_CLICKS, ANALYTICS_EVENTS } from 'configuration/analytics';
 import { trackEvent } from 'utilities/analytics';
 
@@ -307,7 +308,7 @@ function DownloadSummary() {
               />
               <label htmlFor="agree-to-terms-for-download">
                 {t('download_summary.terms_label_prefix')}{' '}
-                <a href={TERMS_OF_USE_ROUTE} target="_blank" rel="noreferrer">
+                <a href={withBasePath(TERMS_OF_USE_ROUTE)} target="_blank" rel="noreferrer">
                   {t('download_summary.terms_link')}
                 </a>
               </label>

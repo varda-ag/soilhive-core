@@ -4,9 +4,12 @@
  */
 type RoutesModule = typeof import('configuration/routes');
 
-const loadRoutes = async (appBaseUrl?: string): Promise<RoutesModule> => {
+const loadRoutes = async (appBaseUrl?: string, appBasePath?: string): Promise<RoutesModule> => {
   jest.resetModules();
-  (window as unknown as { _env_?: Record<string, string> })._env_ = appBaseUrl === undefined ? {} : { APP_BASE_URL: appBaseUrl };
+  (window as unknown as { _env_?: Record<string, string> })._env_ = {
+    ...(appBaseUrl !== undefined && { APP_BASE_URL: appBaseUrl }),
+    ...(appBasePath !== undefined && { APP_BASE_PATH: appBasePath }),
+  };
   return import('configuration/routes');
 };
 
@@ -18,6 +21,10 @@ afterEach(() => {
 describe('metadataPath', () => {
   it('builds an in-app path without the configured base', async () => {
     expect((await loadRoutes('https://soil.example.com')).metadataPath('my-dataset')).toBe('/datasets/my-dataset');
+  });
+
+  it('leaves APP_BASE_PATH to the router', async () => {
+    expect((await loadRoutes(undefined, '/app')).metadataPath('my-dataset')).toBe('/datasets/my-dataset');
   });
 
   it('percent-encodes an id that is not URL-safe', async () => {
@@ -42,6 +49,20 @@ describe('appBaseUrl', () => {
     expect(routes.appBaseUrl()).toBe('https://example.com');
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]?.[0]).toContain('must not contain a path');
+  });
+
+  it('ends with APP_BASE_PATH', async () => {
+    expect((await loadRoutes('https://example.com', '/app')).appBaseUrl()).toBe('https://example.com/app');
+  });
+
+  it('ends with APP_BASE_PATH on the window origin', async () => {
+    expect((await loadRoutes(undefined, 'app/')).appBaseUrl()).toBe('http://localhost/app');
+  });
+
+  it('takes the path from APP_BASE_PATH alone', async () => {
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    expect((await loadRoutes('https://example.com/legacy', '/app')).appBaseUrl()).toBe('https://example.com/app');
   });
 
   it('drops query and fragment from the configured value', async () => {
@@ -71,6 +92,10 @@ describe('appUrl', () => {
 
     expect((await loadRoutes('https://example.com/app')).appUrl('/terms-of-use')).toBe('https://example.com/terms-of-use');
   });
+
+  it('puts APP_BASE_PATH between the origin and the path', async () => {
+    expect((await loadRoutes('https://example.com', '/app')).appUrl('/terms-of-use')).toBe('https://example.com/app/terms-of-use');
+  });
 });
 
 describe('metadataUrl', () => {
@@ -82,6 +107,10 @@ describe('metadataUrl', () => {
     jest.spyOn(console, 'warn').mockImplementation(() => {});
 
     expect((await loadRoutes('https://example.com/app')).metadataUrl('my-dataset')).toBe('https://example.com/datasets/my-dataset');
+  });
+
+  it('is under APP_BASE_PATH', async () => {
+    expect((await loadRoutes('https://example.com', '/app')).metadataUrl('my-dataset')).toBe('https://example.com/app/datasets/my-dataset');
   });
 
   it('encodes the id exactly once', async () => {

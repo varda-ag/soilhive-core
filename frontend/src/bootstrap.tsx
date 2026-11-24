@@ -9,6 +9,7 @@ import { NotificationProvider, ThemeProvider } from './contexts';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { CookieConsentProvider } from './components/CookieConsentProvider';
 import { METADATA_ROUTE } from './configuration/routes';
+import { ROUTER_BASENAME } from './configuration/basePath';
 
 // SSR page components — loaded lazily so they are not bundled into every page.
 // The key must exactly match the `data-ssr-page` attribute injected by the server.
@@ -34,7 +35,7 @@ if (rootEl) {
               <CookieConsentProvider>
                 <SsrAuthContextProvider>
                   <ThemeProvider>
-                    <BrowserRouter>
+                    <BrowserRouter basename={ROUTER_BASENAME}>
                       <Routes>
                         <Route path={ssrPage} element={<PageComponent />} />
                       </Routes>

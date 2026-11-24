@@ -129,6 +129,7 @@ production the Express server generates this file from OS env vars at startup):
 window._env_ = {
   BACKEND_BASE_URL: 'http://localhost:4001',
   APP_BASE_URL: 'http://localhost:3000',
+  APP_BASE_PATH: '',         // optional path the app is served under, e.g. '/app'
   MAPBOX_ACCESS_TOKEN: '',   // leave empty to disable map tiles
   GTM_CONTAINER_ID: '',      // optional Google Tag Manager container ID
   COOKIE_DOMAIN: '',         // optional cookie domain override
@@ -188,6 +189,7 @@ SELF_SIGNING_SECRET=put-any-random-string-here
 # CORE_PUBLIC_URL=http://localhost:4001/api/v1
 
 ## OIDC mode — overrides password mode when set
+## The three redirect URIs include the frontend's APP_BASE_PATH if it has one, e.g. http://localhost:3000/app
 # OIDC_AUTHORITY=https://<keycloak-host>/realms/<realm>
 # OIDC_CLIENT_ID=soilhive
 # OIDC_REDIRECT_URI=http://localhost:3000

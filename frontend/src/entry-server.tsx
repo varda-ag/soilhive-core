@@ -14,6 +14,7 @@ import { ssrAuthStore } from './auth/ssrAuthStore';
 import { SsrAuthContextProvider } from './auth/AuthContextProvider';
 import { buildMetadataHeadHtml } from './utilities/buildMetadataHead';
 import { METADATA_ROUTE } from './configuration/routes';
+import { ROUTER_BASENAME, withBasePath } from './configuration/basePath';
 import type { Dataset } from 'types/backend';
 
 // Initialize i18next synchronously for SSR — no HTTP backend, no browser
@@ -73,7 +74,7 @@ export function matchSSRRoute(pathname: string): string | null {
 }
 
 /**
- * Render a URL to an HTML string.
+ * Render an in-app URL (the base path already removed) to an HTML string.
  *
  * Called by the Express server for each incoming request whose path
  * matches one of the SSR_ROUTES above.
@@ -190,7 +191,7 @@ export async function render(
         <NotificationProvider>
           <SsrAuthContextProvider>
             <ThemeProvider>
-              <StaticRouter location={pathname}>
+              <StaticRouter basename={ROUTER_BASENAME} location={withBasePath(pathname)}>
                 <Routes>
                   <Route path={matchedPattern!} element={<PageComponent />} />
                 </Routes>

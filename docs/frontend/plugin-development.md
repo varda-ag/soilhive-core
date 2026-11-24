@@ -340,11 +340,15 @@ const filterId = new URLSearchParams(window.location.search).get('filterId') ?? 
 const { data } = context.useFilter(filterId);
 ```
 
+### Moving between pages
+
+The host may be served under a path, such as `/app` (`APP_BASE_PATH`, [ADR 0084](../adr/0084-the-app-is-served-under-a-base-path-set-at-container-start.md)). Move between pages only through the host's router: `useNavigate` or `<Link>` from `react-router` with paths like `/dashboards/new`, or `context.navigateToOwnPage` on the map info card. The router puts the base path in front. Never write an app path into an `href` or `window.location` yourself: it would miss the base path.
+
 ### Linking to a dataset's metadata page
 
 Call `context.metadataUrl(datasetId)` to get the absolute URL of a dataset's metadata page. Use the dataset `id` exactly as it arrives from `context.useFilteredCoverageQuery` — it is the dataset slug, which is what the metadata route expects.
 
-The host builds the URL because the origin comes from its runtime configuration (`APP_BASE_URL`), which a remote plugin cannot read. It is a plain function, not a hook, so you can call it inside a loop or a render callback:
+The host builds the URL because the origin and path come from its runtime configuration (`APP_BASE_URL`, `APP_BASE_PATH`), which a remote plugin cannot read. It is a plain function, not a hook, so you can call it inside a loop or a render callback:
 
 ```tsx
 const Page: React.FC<{ context: PluginContext }> = ({ context }) => {

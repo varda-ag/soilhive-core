@@ -7,16 +7,23 @@
  */
 type RoutesModule = typeof import('configuration/routes');
 
-const loadRoutes = async (appBaseUrl?: string): Promise<RoutesModule> => {
+const loadRoutes = async (appBaseUrl?: string, appBasePath?: string): Promise<RoutesModule> => {
   jest.resetModules();
   if (appBaseUrl === undefined) delete process.env['APP_BASE_URL'];
   else process.env['APP_BASE_URL'] = appBaseUrl;
+  if (appBasePath === undefined) delete process.env['APP_BASE_PATH'];
+  else process.env['APP_BASE_PATH'] = appBasePath;
   return import('configuration/routes');
 };
 
 afterEach(() => {
   delete process.env['APP_BASE_URL'];
+  delete process.env['APP_BASE_PATH'];
   jest.restoreAllMocks();
+});
+
+it('puts APP_BASE_PATH after APP_BASE_URL when there is no window', async () => {
+  expect((await loadRoutes('https://example.com', '/app')).metadataUrl('my-dataset')).toBe('https://example.com/app/datasets/my-dataset');
 });
 
 it('uses APP_BASE_URL when there is no window', async () => {
@@ -40,5 +47,12 @@ describe('with no origin available at all', () => {
 
   it('leaves metadataUrl relative', async () => {
     expect((await loadRoutes()).metadataUrl('my-dataset')).toBe('/datasets/my-dataset');
+  });
+
+  it('keeps APP_BASE_PATH in the relative URLs', async () => {
+    const routes = await loadRoutes(undefined, '/app');
+
+    expect(routes.appBaseUrl()).toBe('/app');
+    expect(routes.appUrl('/terms-of-use')).toBe('/app/terms-of-use');
   });
 });
