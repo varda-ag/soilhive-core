@@ -26,10 +26,10 @@ export function LookAndFeelTabs() {
   return (
     <AdminPageTabs tabsData={tabsConfig} activeTab={pathname} onChange={navigate}>
       <div className={styles.Actions}>
-        <Button data-testid="sh-lookandfeel-cancel" type="secondary" size="tiny" onClick={resetChanges}>
+        <Button dataTestId="sh-lookandfeel-cancel" type="secondary" size="tiny" onClick={resetChanges}>
           {t('look_and_feel.cancel')}
         </Button>
-        <Button data-testid="sh-lookandfeel-publish" type="primary" size="tiny" onClick={saveChanges}>
+        <Button dataTestId="sh-lookandfeel-publish" type="primary" size="tiny" onClick={saveChanges}>
           <UploadIcon /> {t('look_and_feel.publish')}
         </Button>
       </div>

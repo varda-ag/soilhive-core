@@ -20,11 +20,11 @@ export function ColorsTab() {
         <h2 className={styles.Title}>{t('look_and_feel.colors.title')}</h2>
         <p className={styles.Message}>{t('look_and_feel.colors.message')}</p>
         <div className={styles.DefaultColorButtons}>
-          <Button data-testid="save-default-button" className={styles.Button} type="custom" size="tiny" onClick={handleDefaultColorsSave}>
+          <Button dataTestId="save-default-button" className={styles.Button} type="custom" size="tiny" onClick={handleDefaultColorsSave}>
             <BookmarkIcon /> {t('look_and_feel.colors.save_default_button')}
           </Button>
           <Button
-            data-testid="restore-default-button"
+            dataTestId="restore-default-button"
             className={styles.Button}
             type="custom"
             size="tiny"
