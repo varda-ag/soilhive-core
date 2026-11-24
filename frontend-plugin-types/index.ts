@@ -84,7 +84,8 @@ export interface PluginContext {
   // with a PluginInviteRedeemError. Redeeming again what the same user already redeemed resolves.
   useInviteRedeem: () => PluginMutationResult<{ token: string }, void>;
   // Asks admins for access to private Datasets for the signed-in user, keyed by the email of their
-  // sign-in (see ADR 0081, 0082). The host toasts a refusal, e.g. a Dataset already asked for (409).
+  // sign-in (see ADR 0081, 0082). No toast: a refusal rejects with a PluginAccessRequestError, e.g. a
+  // Dataset already asked for (409), and the plugin says what went wrong.
   useAccessRequestCreate: () => PluginMutationResult<PluginAccessRequestInput, PluginAccessRequest>;
   // Filtered to the calling plugin's own plugin:{pluginId}: namespace and unprefixed
   // (see ADR 0036) — a plugin never sees another plugin's or the host's entitlements.

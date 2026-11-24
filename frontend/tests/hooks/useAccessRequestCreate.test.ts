@@ -54,12 +54,12 @@ describe('useAccessRequestCreate', () => {
     expect(request.mock.calls[0][0].body).toEqual({ datasets: ['ds-a'], capabilities: ['preview', 'download'] });
   });
 
-  it('lets the host toast a refusal', async () => {
+  it('shows no toast for a refusal: the plugin says what went wrong', async () => {
     const { result } = renderHook(() => useAccessRequestCreate());
 
     await result.current.mutateAsync({ datasets: ['ds-a'], capabilities: ['preview'] });
 
-    expect(request.mock.calls[0][0].showErrorNotification).not.toBe(false);
+    expect(request.mock.calls[0][0].showErrorNotification).toBe(false);
   });
 
   it('gives the plugin only the id, the status and the creation time', async () => {
@@ -72,11 +72,21 @@ describe('useAccessRequestCreate', () => {
     });
   });
 
-  it('rejects with the error of a refused request', async () => {
-    const refusal = { status: 409, message: "You already asked for access to 'Ds A'" };
-    request.mockRejectedValue(refusal);
+  it('rejects with the status and the body of a refused request', async () => {
+    const body = { detail: "You already asked for access to 'Ds A'", pending_request_id: 'request-0' };
+    request.mockRejectedValue({ status: 409, statusText: 'Conflict', message: body.detail, raw: body, retryAfter: null });
     const { result } = renderHook(() => useAccessRequestCreate());
 
-    await expect(result.current.mutateAsync({ datasets: ['ds-a'], capabilities: ['preview'] })).rejects.toBe(refusal);
+    await expect(result.current.mutateAsync({ datasets: ['ds-a'], capabilities: ['preview'] })).rejects.toEqual({ status: 409, body });
+  });
+
+  it('rejects with status 0 when there was no response', async () => {
+    request.mockRejectedValue(new TypeError('Failed to fetch'));
+    const { result } = renderHook(() => useAccessRequestCreate());
+
+    await expect(result.current.mutateAsync({ datasets: ['ds-a'], capabilities: ['preview'] })).rejects.toEqual({
+      status: 0,
+      body: undefined,
+    });
   });
 });

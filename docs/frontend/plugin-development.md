@@ -308,7 +308,7 @@ await requestAccess({ datasets: ['ds-x'], capabilities: ['preview'], message: 'W
 - `capabilities` is `preview`, `download` or both. Opening a dashboard needs `preview`.
 - `message` is up to 1000 characters and shown to admins.
 - The request is keyed by the email of the user's sign-in (ADR 0081): one whose sign-in carries no email gets a 403 with `email_required`.
-- The host toasts a refusal with the backend's message, e.g. a Dataset already in one of the user's pending requests (409), or one that is public or already readable (400). `mutateAsync` still rejects, so keep the form open.
+- The host shows no toast for a refusal: say what went wrong yourself. `mutateAsync` rejects with a `PluginAccessRequestError`: the response's `status` (`0` when there was no response) and its JSON `body`. For example, a Dataset already in one of the user's pending requests is a 409 with `pending_request_id`, one that is public or already readable is a 400, and one that is unknown or unpublished is a 404.
 
 #### Config Kinds
 

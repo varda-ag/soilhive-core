@@ -18,3 +18,10 @@ export interface PluginAccessRequest {
   // ISO 8601 in UTC.
   createdAt: string;
 }
+
+// A refused Access Request: the HTTP status (0 when there was no response) and the problem body,
+// e.g. a 409 with `pending_request_id` or a 403 with `email_required`.
+export interface PluginAccessRequestError {
+  status: number;
+  body: unknown;
+}
