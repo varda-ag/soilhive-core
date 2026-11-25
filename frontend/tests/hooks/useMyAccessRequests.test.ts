@@ -44,12 +44,13 @@ describe('useMyAccessRequests', () => {
     );
   });
 
-  it('is loading while a list cached from before is read again', () => {
+  it('is loading, with no data, while a list cached from before is read again', () => {
     (useApiQuery as jest.Mock).mockReturnValue({ data: mine, isLoading: false, isFetchedAfterMount: false, isError: false, refetch });
 
     const { result } = renderHook(() => useMyAccessRequests());
 
     expect(result.current.isLoading).toBe(true);
+    expect(result.current.data).toBeUndefined();
   });
 
   it('is loading on the first read', () => {
