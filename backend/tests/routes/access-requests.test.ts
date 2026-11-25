@@ -16,9 +16,13 @@ const ABOUT_REQUESTER = { message: 'For my thesis', requester_name: 'Jane Doe', 
 
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
+const allowAccessRequests = async (dataset: DatasetEntity, allow: boolean) =>
+  (await getEntityManager()).getRepository(DatasetEntity).update({ id: dataset.id }, { allow_access_requests: allow });
+
 const addPrivateDataset = async (name: string): Promise<DatasetEntity> => {
   const dataset = await addDataset(name, [0, 0, 1, 1]);
   await (await getEntityManager()).getRepository(DatasetEntity).update({ id: dataset.id }, { visibility: 'private' });
+  await allowAccessRequests(dataset, true);
   return dataset;
 };
 
@@ -144,6 +148,15 @@ describe('Access Requests', () => {
       expect((await ask(janeToken, { datasets: [b.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.CREATED);
     });
 
+    it('refuses a Dataset that takes no access requests', async () => {
+      await allowAccessRequests(a, false);
+
+      const refused = await ask(janeToken, { datasets: [a.slug, b.slug], capabilities: ['preview'] });
+      expect(refused.statusCode).toBe(StatusCodes.BAD_REQUEST);
+      expect(refused.body.detail).toContain("doesn't take access requests");
+      expect((await ask(janeToken, { datasets: [b.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.CREATED);
+    });
+
     it('refuses a token without email and a Machine caller', async () => {
       for (const caller of [getUserTokenWithoutEmail('jane-sub'), getMachineToken('robot')]) {
         const refused = await ask(caller, { datasets: [a.slug], capabilities: ['preview'] });
@@ -173,6 +186,14 @@ describe('Access Requests', () => {
       expect(mine.body[0].items[1].decided_by).toBeUndefined();
 
       expect((await ask(janeToken, { datasets: [b.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.CREATED);
+    });
+
+    it('still approves a pending request after its Dataset stops taking new ones', async () => {
+      const { id } = (await ask(janeToken, { datasets: [a.slug], capabilities: ['preview'] })).body;
+      await allowAccessRequests(a, false);
+
+      await decide(id, [{ dataset: a.slug, approve: true }]).expect(StatusCodes.OK);
+      expect(await datasetGrantsOf(JANE)).toEqual({ [a.slug]: ['preview'] });
     });
 
     it('lets each Dataset be decided once', async () => {

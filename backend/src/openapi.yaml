@@ -4243,6 +4243,12 @@ components:
           type: string
           enum: [public, private]
           default: private
+        allow_access_requests:
+          type: boolean
+          # No `default`: the validator would write it into every PATCH that leaves this out
+          description: >-
+            Whether new Access Requests may name it, false on a new dataset. Only a private, published
+            dataset can be asked for either way. Turning it off leaves pending requests decidable.
         capabilities:
           type: array
           items:

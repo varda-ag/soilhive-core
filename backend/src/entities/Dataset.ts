@@ -104,6 +104,10 @@ export default class DatasetEntity extends BaseTable implements Dataset {
   @Column({ type: 'text', enum: ['public', 'private'], default: 'private' })
   visibility: 'public' | 'private';
 
+  // Whether new Access Requests may name it; pending ones stay decidable when it's turned off
+  @Column({ type: 'boolean', default: false })
+  allow_access_requests: boolean;
+
   @Column({ type: 'text', nullable: true, array: true })
   inferred_properties?: string[] | null;
 
