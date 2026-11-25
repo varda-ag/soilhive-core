@@ -434,6 +434,7 @@ _Avoid_: Hard delete, soft delete (see Flagged ambiguities), **Leave** (the item
 - An **Access Request** is approved only for a **Dataset** still published, private and not archived, whatever it was when asked; denying it is always possible
 - An **Access Request** is decided one **Dataset** at a time and is finished when every Dataset in it is decided; its requester may withdraw it before then. A denial is final for that request only: the same Subject may ask again
 - A **Subject** has at most one pending **Access Request** per **Dataset**, and a pending Access Request never expires
+- An **Access Request** carries what its requester said about themselves when they asked: their name, their country, their organisation, why they need the access and, if they gave one, the organisation's website. Nothing checks it against the identity provider
 - Withdrawing an **Invite** takes back nothing already redeemed: an **Entitlement** does not record how it was granted, so taking access back is always done on the Entitlements themselves
 - An **Invite** is redeemed whole or not at all. Its config item grants hold only while its creator still holds `write` on those items; its **Dataset** grants, made by a **Privileged caller**, do not depend on the creator afterwards
 - One **Invite** may hold grants on several config items and **Datasets** at once. A pending Invite, its recipient and who redeemed it are visible only to its creator and to those who could have created it, and only they may withdraw it
@@ -524,6 +525,8 @@ _Avoid_: Links, references, attachments, additional resources (the Band Mapping 
 - **"sub" was used to mean both the token claim and the Subject** — and the two are different strings whenever a token carries an email. Resolved: the **Subject** is what Entitlements and `created_by` are keyed by; `sub` is one claim that only *sometimes* supplies it. The confusion was load-bearing, not cosmetic: the request path resolved Entitlements by email while the job path resolved them by `sub`, so a job saw only `everyone`'s Entitlements and silently skipped private Datasets its submitter was entitled to. Say **Subject** in domain discussions and reserve `sub` for the JWT claim.
 
 - **"A person's email" is not always their Subject.** Where the identity provider leaves `email` out of access tokens, a person still has an email there, but their **Subject** is their `sub`. Resolved: only the access token's `email` counts. **Invites** and **Access Requests** need a Subject that is an email, so the email an Invite names and the Subject it grants to are the same address, ignoring case.
+
+- **An Access Request's "country" could be the requester's, their organisation's or their study area's.** Resolved: it is the country the requester lives or works in. A study area belongs in the request's message.
 
 - **"Self-signed token" named three different tokens** — the password-mode sign-in token, the job-to-API internal token and the presigned download token all came from one platform secret. Resolved: only the first is a domain concept, the **Password-grant token**, and of the three it is the only one whose key is published. The **Plugin token** is a fourth, signed with a key of its own and published apart.
 

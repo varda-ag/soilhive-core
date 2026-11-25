@@ -10,7 +10,7 @@ export function LoginButton() {
   if (authMode === 'none' || isLoading) return null;
 
   return (
-    <Button data-testid="sh-ui-loginbutton" type="tertiary" onClick={() => login()}>
+    <Button dataTestId="sh-ui-loginbutton" type="tertiary" onClick={() => login()}>
       <SmallUserIcon />
       {t('auth.login')}
     </Button>

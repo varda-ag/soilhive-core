@@ -16,7 +16,7 @@ jest.mock('components/AdminPortal/LookAndFeel/ColorsPreview/ColorsPreview', () =
 }));
 
 jest.mock('components/UI', () => ({
-  Button: ({ children, onClick, isDisabled, 'data-testid': testId }: any) => (
+  Button: ({ children, onClick, isDisabled, dataTestId: testId }: any) => (
     <button data-testid={testId} onClick={onClick} disabled={isDisabled}>
       {children}
     </button>

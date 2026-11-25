@@ -12,6 +12,8 @@ import { getMachineToken, getSuperAdminToken, getUserToken, getUserTokenWithoutE
 
 const JANE = 'jane@example.com';
 
+const ABOUT_REQUESTER = { message: 'For my thesis', requester_name: 'Jane Doe', country: 'NL', organisation: 'Wageningen University' };
+
 const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 const addPrivateDataset = async (name: string): Promise<DatasetEntity> => {
@@ -41,8 +43,12 @@ describe('Access Requests', () => {
     b = await addPrivateDataset('Bravo');
   });
 
-  const ask = (token: string, body: object) => request(app).post('/access-requests').set(auth(token)).send(body);
-  const askForBoth = () => ask(janeToken, { datasets: [a.slug, b.slug], capabilities: ['preview', 'download'], message: 'For my thesis' });
+  const ask = (token: string, body: object) =>
+    request(app)
+      .post('/access-requests')
+      .set(auth(token))
+      .send({ ...ABOUT_REQUESTER, ...body });
+  const askForBoth = () => ask(janeToken, { datasets: [a.slug, b.slug], capabilities: ['preview', 'download'] });
   const decide = (id: string, decisions: object[]) =>
     request(app).post(`/access-requests/${id}/decisions`).set(auth(adminToken)).send({ decisions });
 
@@ -62,6 +68,51 @@ describe('Access Requests', () => {
         ],
       });
       expect(res.body.items[0].decided_by).toBeUndefined();
+    });
+
+    it('returns what the requester said about themselves, to them and to admins', async () => {
+      const { id } = (
+        await ask(janeToken, {
+          datasets: [a.slug],
+          capabilities: ['preview'],
+          requester_name: ' Jane Doe ',
+          organisation_website: 'wur.nl',
+        })
+      ).body;
+
+      const about = { id, ...ABOUT_REQUESTER, organisation_website: 'https://wur.nl/' };
+      const mine = await request(app).get('/access-requests/mine').set(auth(janeToken)).expect(StatusCodes.OK);
+      expect(mine.body[0]).toMatchObject(about);
+      const admin = await request(app).get('/access-requests').set(auth(adminToken)).expect(StatusCodes.OK);
+      expect(admin.body[0]).toMatchObject(about);
+    });
+
+    it.each([
+      ['wur.nl', 'https://wur.nl/'],
+      ['http://example.org/team', 'http://example.org/team'],
+      ['HTTPS://Example.org', 'https://example.org/'],
+      ['  ', null],
+    ])('stores the website %p as %p', async (given, stored) => {
+      const res = await ask(janeToken, { datasets: [a.slug], capabilities: ['preview'], organisation_website: given });
+      expect(res.statusCode).toBe(StatusCodes.CREATED);
+      expect(res.body.organisation_website).toBe(stored);
+    });
+
+    it.each([
+      ['no requester_name', { requester_name: undefined }],
+      ['a blank requester_name', { requester_name: '  ' }],
+      ['no country', { country: undefined }],
+      ['a 3-letter country code', { country: 'NLD' }],
+      ['a code that is no country', { country: 'EU' }],
+      ['no organisation', { organisation: undefined }],
+      ['no message', { message: undefined }],
+      ['a blank message', { message: ' ' }],
+      ['a script as the website', { organisation_website: 'javascript:alert(1)' }],
+      ['a website with no dot', { organisation_website: 'localhost' }],
+      ['a website of another scheme', { organisation_website: 'ftp://example.org' }],
+    ])('refuses %s', async (_label, details) => {
+      const res = await ask(janeToken, { datasets: [a.slug], capabilities: ['preview'], ...details });
+      expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
 
     it('refuses a public Dataset, an unknown one, and an admin', async () => {

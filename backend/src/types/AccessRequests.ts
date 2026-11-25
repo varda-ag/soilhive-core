@@ -13,7 +13,13 @@ export type AccessRequestStatus = 'pending' | 'finished' | 'withdrawn';
 export interface AccessRequestCreateBody {
   datasets: string[];
   capabilities: Capability[];
-  message?: string;
+  message: string;
+  requester_name: string;
+  /** ISO 3166-1 alpha-2; access-requests.yaml lists the codes. */
+  country: string;
+  organisation: string;
+  /** A bare domain gets `https://`. */
+  organisation_website?: string;
 }
 
 export interface AccessRequestDecision {
@@ -39,6 +45,11 @@ export interface AccessRequestView {
   requested_by: string;
   capabilities: Capability[];
   message: string | null;
+  /** Null on requests made before these were asked for, as `message` may be. */
+  requester_name: string | null;
+  country: string | null;
+  organisation: string | null;
+  organisation_website: string | null;
   status: AccessRequestStatus;
   created_at: string;
   items: AccessRequestItemView[];

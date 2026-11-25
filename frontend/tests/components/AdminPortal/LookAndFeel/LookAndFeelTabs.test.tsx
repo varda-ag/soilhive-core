@@ -34,15 +34,7 @@ jest.mock('components/AdminPortal/AdminPageTabs/AdminPageTabs', () => ({
 }));
 
 jest.mock('components/UI', () => ({
-  Button: ({
-    children,
-    'data-testid': dataTestId,
-    onClick,
-  }: {
-    children: React.ReactNode;
-    'data-testid': string;
-    onClick?: () => void;
-  }) => (
+  Button: ({ children, dataTestId, onClick }: { children: React.ReactNode; dataTestId: string; onClick?: () => void }) => (
     <button data-testid={dataTestId} onClick={onClick}>
       {children}
     </button>
