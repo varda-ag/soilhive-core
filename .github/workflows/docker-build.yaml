@@ -31,6 +31,7 @@ jobs:
     outputs:
       imageVersion: ${{ steps.image_version.outputs.imageVersion }}
       imageSuffix: ${{ steps.image_version.outputs.imageSuffix }}
+      extraImageSuffix: ${{ steps.image_version.outputs.extraImageSuffix }}
     steps:
       - name: Set image name and version
         id: image_version
@@ -43,6 +44,8 @@ jobs:
             echo "imageSuffix=-dev" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "imageVersion=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            # Also publish release images to the -dev package, so dev/qa can deploy them
+            echo "extraImageSuffix=-dev" >> $GITHUB_OUTPUT
           fi
 
   build-push-docker-backend:
@@ -54,6 +57,7 @@ jobs:
     with:
       context: backend
       image-name: soilhive-core-backend${{ needs.image-facts.outputs.imageSuffix }}
+      extra-image-name: ${{ needs.image-facts.outputs.extraImageSuffix && format('soilhive-core-backend{0}', needs.image-facts.outputs.extraImageSuffix) || '' }}
       image-version: ${{ needs.image-facts.outputs.imageVersion }}
       aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
       aws-region: ${{ vars.AWS_REGION }}
@@ -72,6 +76,7 @@ jobs:
     with:
       context: frontend
       image-name: soilhive-core-frontend${{ needs.image-facts.outputs.imageSuffix }}
+      extra-image-name: ${{ needs.image-facts.outputs.extraImageSuffix && format('soilhive-core-frontend{0}', needs.image-facts.outputs.extraImageSuffix) || '' }}
       image-version: ${{ needs.image-facts.outputs.imageVersion }}
       aws-role-to-assume: ${{ vars.AWS_ROLE_ARN }}
       aws-region: ${{ vars.AWS_REGION }}

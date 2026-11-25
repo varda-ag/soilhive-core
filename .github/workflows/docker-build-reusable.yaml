@@ -7,6 +7,11 @@ on:
         description: The name of the Docker image to build
         type: string
         required: true
+      extra-image-name:
+        description: Optional second image name (same registry) that also gets the multi-arch manifest tag, without rebuilding
+        type: string
+        required: false
+        default: ""
       context:
         description: The build context path for the Docker build. Defaults to the repository root (.). This directory is sent to the Docker daemon during the build process
         type: string
@@ -155,9 +160,19 @@ jobs:
         env:
           IMAGE_NAME: ${{ steps.image-name.outputs.image-name }}
           IMAGE_VERSION: ${{ inputs.image-version }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          EXTRA_IMAGE_NAME: ${{ inputs.extra-image-name }}
         run: |
+          # Publishes the image under two package names when extra-image-name is set
+          # (e.g. soilhive-core-frontend and soilhive-core-frontend-dev), without rebuilding
+          TAGS=(--tag "${IMAGE_NAME}:${IMAGE_VERSION}")
+          if [[ -n "${EXTRA_IMAGE_NAME}" ]]; then
+            EXTRA_IMAGE=ghcr.io/$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')/${EXTRA_IMAGE_NAME}
+            TAGS+=(--tag "${EXTRA_IMAGE}:${IMAGE_VERSION}")
+          fi
+
           docker buildx imagetools create \
-            --tag "${IMAGE_NAME}:${IMAGE_VERSION}" \
+            "${TAGS[@]}" \
             "${IMAGE_NAME}:${IMAGE_VERSION}-amd64" \
             "${IMAGE_NAME}:${IMAGE_VERSION}-arm64"
 
@@ -303,4 +318,5 @@ jobs:
     uses: ./.github/workflows/docker-cleanup.yaml
     with:
       image-name: ${{ inputs.image-name }}
+      extra-image-name: ${{ inputs.extra-image-name }}
       image-version: ${{ inputs.image-version }}
