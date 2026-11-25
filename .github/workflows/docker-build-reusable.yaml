@@ -8,7 +8,7 @@ on:
         type: string
         required: true
       extra-image-name:
-        description: Optional second image name (same registry) that also gets the multi-arch manifest tag, without rebuilding
+        description: Optional second image name (same registry). After a successful build, the image is copied there with the same tags, without rebuilding
         type: string
         required: false
         default: ""
@@ -160,21 +160,58 @@ jobs:
         env:
           IMAGE_NAME: ${{ steps.image-name.outputs.image-name }}
           IMAGE_VERSION: ${{ inputs.image-version }}
-          REPO_OWNER: ${{ github.repository_owner }}
-          EXTRA_IMAGE_NAME: ${{ inputs.extra-image-name }}
         run: |
-          # Publishes the image under two package names when extra-image-name is set
-          # (e.g. soilhive-core-frontend and soilhive-core-frontend-dev), without rebuilding
-          TAGS=(--tag "${IMAGE_NAME}:${IMAGE_VERSION}")
-          if [[ -n "${EXTRA_IMAGE_NAME}" ]]; then
-            EXTRA_IMAGE=ghcr.io/$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')/${EXTRA_IMAGE_NAME}
-            TAGS+=(--tag "${EXTRA_IMAGE}:${IMAGE_VERSION}")
-          fi
-
           docker buildx imagetools create \
-            "${TAGS[@]}" \
+            --tag "${IMAGE_NAME}:${IMAGE_VERSION}" \
             "${IMAGE_NAME}:${IMAGE_VERSION}-amd64" \
             "${IMAGE_NAME}:${IMAGE_VERSION}-arm64"
+
+  # Copies the finished image to extra-image-name (e.g. soilhive-core-frontend-dev, so
+  # dev and qa can deploy releases), without rebuilding. It is a separate job, not in
+  # cleanup-on-failure's needs: a failure here must not fail or delete the release
+  publish-extra-image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    if: inputs.extra-image-name != ''
+
+    needs:
+      - create-image-manifest
+
+    steps:
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Copy the image to the extra package
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          INPUT_IMAGE_NAME: ${{ inputs.image-name }}
+          EXTRA_IMAGE_NAME: ${{ inputs.extra-image-name }}
+          IMAGE_VERSION: ${{ inputs.image-version }}
+        run: |
+          OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+          SOURCE=ghcr.io/${OWNER}/${INPUT_IMAGE_NAME}
+          TARGET=ghcr.io/${OWNER}/${EXTRA_IMAGE_NAME}
+
+          # Per-arch images first, as exact copies (--prefer-index=false keeps the digest),
+          # so the multi-arch image's children are tagged in the extra package too, and
+          # not left as untagged versions that a clean-up could remove
+          for ARCH in amd64 arm64; do
+            docker buildx imagetools create --prefer-index=false \
+              --tag "${TARGET}:${IMAGE_VERSION}-${ARCH}" \
+              "${SOURCE}:${IMAGE_VERSION}-${ARCH}"
+          done
+
+          # Exact copy of the multi-arch image (same digest as in the source package)
+          docker buildx imagetools create \
+            --tag "${TARGET}:${IMAGE_VERSION}" \
+            "${SOURCE}:${IMAGE_VERSION}"
 
   update-pr-comment:
     runs-on: ubuntu-latest
@@ -302,6 +339,7 @@ jobs:
 
   cleanup-on-failure:
     permissions:
+      actions: read # To read when this run attempt started
       contents: read
       pull-requests: write
       packages: write
@@ -318,5 +356,4 @@ jobs:
     uses: ./.github/workflows/docker-cleanup.yaml
     with:
       image-name: ${{ inputs.image-name }}
-      extra-image-name: ${{ inputs.extra-image-name }}
       image-version: ${{ inputs.image-version }}
