@@ -1226,6 +1226,9 @@ describe('EntitlementService', () => {
     const grant = (datasets: CapabilityGrants) =>
       entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2::jsonb)`, [mockToken.email, JSON.stringify({ datasets })]);
 
+    // Each takes Access Requests, so a 403 lists it
+    beforeEach(() => entityManager.query(`UPDATE datasets SET allow_access_requests = true`));
+
     it('passes when every private Dataset is granted preview', async () => {
       await grant({ 'dataset-2': [Capability.PREVIEW], 'dataset-3': [Capability.PREVIEW] });
       await expect(
@@ -1255,6 +1258,20 @@ describe('EntitlementService', () => {
       ).rejects.toMatchObject({
         status: 403,
         extensions: { datasets: ['dataset-1-renamed', 'dataset-3'], has_unavailable_datasets: false },
+      });
+    });
+
+    it('throws 403 on a private Dataset that takes no Access Requests, but leaves it out of datasets', async () => {
+      await entityManager.getRepository(DatasetEntity).update({ slug: 'dataset-2' }, { allow_access_requests: false });
+      await expect(service.assertConfigDatasets(requestData, DASHBOARD_ID, { datasets: ['dataset-2', 'dataset-3'] })).rejects.toMatchObject(
+        {
+          status: 403,
+          extensions: { datasets: ['dataset-3'], has_unavailable_datasets: false },
+        },
+      );
+      await expect(service.assertConfigDatasets(requestData, DASHBOARD_ID, { datasets: ['dataset-2'] })).rejects.toMatchObject({
+        status: 403,
+        extensions: { datasets: [], has_unavailable_datasets: false },
       });
     });
 
@@ -1313,6 +1330,9 @@ describe('EntitlementService', () => {
   describe('configDatasetsDenials', () => {
     const grant = (datasets: CapabilityGrants) =>
       entityManager.query(`INSERT INTO entitlements (id, data) VALUES ($1, $2::jsonb)`, [mockToken.email, JSON.stringify({ datasets })]);
+
+    // Each takes Access Requests, so a denial lists it
+    beforeEach(() => entityManager.query(`UPDATE datasets SET allow_access_requests = true`));
 
     it('maps each blocked dashboard to its denial and leaves out the others', async () => {
       await grant({ 'dataset-2': [Capability.PREVIEW] });

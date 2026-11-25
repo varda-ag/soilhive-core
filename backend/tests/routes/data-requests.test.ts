@@ -857,7 +857,9 @@ describe('Testing /data-requests routes', () => {
         let publicSlug: string;
         beforeEach(async () => {
           const privateDataset = await addDataset('dr-dashboard-private', [0, 0, 2, 2], GISDataType.POINT);
-          await (await getEntityManager()).query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [privateDataset.id]);
+          // Taking Access Requests, so the 403 lists it (ADR-0079)
+          const takesAccessRequests = `UPDATE datasets SET visibility = 'private', allow_access_requests = true WHERE id = $1`;
+          await (await getEntityManager()).query(takesAccessRequests, [privateDataset.id]);
           privateSlug = privateDataset.slug;
           publicSlug = (await addDataset('dr-dashboard-public', [0, 0, 2, 2], GISDataType.POINT)).slug;
         });

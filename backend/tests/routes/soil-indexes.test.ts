@@ -324,7 +324,9 @@ describe('Soil Index Runs', () => {
     // ADR-0079: the route loads no entitlements, so the check loads the caller's own.
     it("gates the record by preview on its dashboard's private Datasets, but not its scores and tiles", async () => {
       const dataset = await addDataset('si-dashboard-private', [0, 0, 1, 1]);
-      await (await getEntityManager()).query(`UPDATE datasets SET visibility = 'private' WHERE id = $1`, [dataset.id]);
+      // Taking Access Requests, so the 403 lists it (ADR-0079)
+      const takesAccessRequests = `UPDATE datasets SET visibility = 'private', allow_access_requests = true WHERE id = $1`;
+      await (await getEntityManager()).query(takesAccessRequests, [dataset.id]);
       const configId = await claimConfig({ widgets: [], datasets: [dataset.slug] });
       const id = await createAttached(configId);
       await finishRun(id, configId);

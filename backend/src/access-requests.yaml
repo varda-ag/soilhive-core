@@ -57,8 +57,9 @@ paths:
       description: >-
         Only for a person whose access token carries `email`, so that an approval is keyed by
         their email: anyone else gets a 403 with `email_required` (docs/adr/0081). Names
-        private, published Datasets that allow access requests (`allow_access_requests`), else a
-        400; asking for what the caller already holds on one is a 400, and
+        private, published Datasets that allow access requests (`allow_access_requests`): a public
+        one, or one that doesn't allow them, is a 400, and one not published is a 404 like an
+        unknown one. Asking for what the caller already holds on one is a 400, and
         a Dataset already in one of the caller's pending requests is a 409 carrying
         `pending_request_id` (docs/adr/0082). Carries what the requester says about themselves,
         which nothing checks.
@@ -153,7 +154,8 @@ paths:
         Approves or denies some of the request's Datasets. An approval grants straight to the
         requester's Subject, the capabilities asked for or fewer, and only on a Dataset still
         published, private and not archived: otherwise it is a 409, and the Dataset can still be
-        denied. A denial's reason is shown to the requester. A Dataset already decided is a 409.
+        denied. The admin's `reason` goes with an approval or a denial and is shown to the
+        requester. A Dataset already decided is a 409.
       tags:
         - access-requests
       security:
@@ -327,7 +329,7 @@ components:
         reason:
           type: string
           maxLength: 1000
-          description: Why it was denied, shown to the requester
+          description: The admin's message with the approval or denial, shown to the requester
 
     AccessRequest:
       type: object
@@ -426,6 +428,7 @@ components:
               reason:
                 type: string
                 nullable: true
+                description: The admin's message with the decision; null when they gave none
               decided_at:
                 type: string
                 format: date-time
