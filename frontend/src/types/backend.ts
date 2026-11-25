@@ -380,6 +380,32 @@ export interface InviteCreated {
   expires_at: string;
 }
 
+// `POST /access-requests` (backend/src/types/AccessRequests.ts).
+export interface AccessRequestCreateBody {
+  datasets: string[];
+  capabilities: ('preview' | 'download')[];
+  message: string;
+  requester_name: string;
+  country: string;
+  organisation: string;
+  organisation_website?: string;
+}
+
+// Only what the plugins read of an Access Request view.
+export interface AccessRequestCreated {
+  id: string;
+  status: 'pending' | 'finished' | 'withdrawn';
+  created_at: string;
+}
+
+// GET /access-requests/mine: the caller's own view, with each Dataset's item.
+export interface AccessRequestOwn extends AccessRequestCreated {
+  items: {
+    dataset: { slug: string; name: string };
+    status: 'pending' | 'approved' | 'denied' | 'withdrawn';
+  }[];
+}
+
 /**
  * Namespace `GET /entitlements`'s mandatory `scope` query param selects (see backend ADR-0032).
  * `DASHBOARDS` is not a storage namespace of its own — it's a filtered view over `CONFIGS`,
