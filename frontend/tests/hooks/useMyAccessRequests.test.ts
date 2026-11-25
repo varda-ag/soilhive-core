@@ -29,7 +29,7 @@ describe('useMyAccessRequests', () => {
     jest.clearAllMocks();
   });
 
-  it("reads the user's own requests, without a toast for a failed read", () => {
+  it("reads the user's own requests, without a toast or retries for a failed read", () => {
     renderHook(() => useMyAccessRequests());
 
     expect(useApiQuery).toHaveBeenCalledWith(
@@ -40,6 +40,7 @@ describe('useMyAccessRequests', () => {
         enabled: true,
         showErrorNotification: false,
         disableCache: true,
+        retry: false,
       }),
     );
   });
@@ -86,8 +87,8 @@ describe('useMyAccessRequests', () => {
     });
   });
 
-  it('has no data while loading or after a failed read', () => {
-    (useApiQuery as jest.Mock).mockReturnValue({ data: undefined, isLoading: false, isFetchedAfterMount: true, isError: true, refetch });
+  it('has no data after a failed read, also with a list cached from before', () => {
+    (useApiQuery as jest.Mock).mockReturnValue({ data: mine, isLoading: false, isFetchedAfterMount: true, isError: true, refetch });
 
     const { result } = renderHook(() => useMyAccessRequests());
 
