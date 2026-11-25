@@ -59,6 +59,7 @@ export interface Dataset {
   service_location?: string | null;
   capabilities?: Capability[];
   visibility: 'public' | 'private';
+  allow_access_requests: boolean;
   inferred_properties?: string[] | null;
   preprocessing_steps?: string | null;
   related_resources?: string[] | null;

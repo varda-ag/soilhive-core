@@ -430,7 +430,8 @@ _Avoid_: Hard delete, soft delete (see Flagged ambiguities), **Leave** (the item
 - An **Invite** naming a recipient can be redeemed only by the person whose **Subject** matches it, ignoring case; what is granted goes to that Subject as the token spells it. An attempt by anyone else leaves the Invite pending
 - Every **Invite** expires. One naming a recipient is used up when that recipient redeems it; one naming none is used up by its first redemption, unless its creator made it reusable until it expires
 - Approving an **Access Request** grants straight to the **Subject** that made it; it never becomes an **Invite**
-- An **Access Request** names only private, published **Datasets** and asks for `preview`, `download` or both; it may be approved for less than it asks
+- An **Access Request** names only private, published **Datasets** that take Access Requests, and asks for `preview`, `download` or both; it may be approved for less than it asks
+- A **Dataset** takes no **Access Requests** until an admin allows them. Turning that off stops new requests only: pending ones can still be approved or denied
 - An **Access Request** is approved only for a **Dataset** still published, private and not archived, whatever it was when asked; denying it is always possible
 - An **Access Request** is decided one **Dataset** at a time and is finished when every Dataset in it is decided; its requester may withdraw it before then. A denial is final for that request only: the same Subject may ask again
 - A **Subject** has at most one pending **Access Request** per **Dataset**, and a pending Access Request never expires

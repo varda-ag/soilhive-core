@@ -332,6 +332,23 @@ describe('Testing /datasets routes', () => {
       expect(res.body.related_resources).toEqual(updatePayload.related_resources);
     });
 
+    it('turns allow_access_requests on, keeps it through a PATCH that leaves it out, and returns it from both GETs', async () => {
+      const token = await getDataAdminToken();
+      const auth = { Authorization: `Bearer ${token}` };
+      const postRes = await request(app).post('/datasets').set(auth).send({ name: 'takes-access-requests' });
+      expect(postRes.body.allow_access_requests).toBe(false);
+
+      const on = await request(app).patch(`/datasets/${postRes.body.id}`).set(auth).send({ allow_access_requests: true });
+      expect(on.statusCode).toBe(StatusCodes.OK);
+      expect(on.body.allow_access_requests).toBe(true);
+      await request(app).patch(`/datasets/${postRes.body.id}`).set(auth).send({ author: 'Edited Author' }).expect(StatusCodes.OK);
+
+      const one = await request(app).get(`/datasets/${postRes.body.id}`).set(auth).expect(StatusCodes.OK);
+      expect(one.body.allow_access_requests).toBe(true);
+      const all = await request(app).get('/datasets').set(auth).expect(StatusCodes.OK);
+      expect(all.body.find((dataset: { id: string }) => dataset.id === postRes.body.id).allow_access_requests).toBe(true);
+    });
+
     it('should reject related_resources containing non-URI values (400)', async () => {
       const token = await getDataAdminToken();
       const postRes = await request(app).post('/datasets').set('Authorization', `Bearer ${token}`).send({ name: 'uri-validation-test' });

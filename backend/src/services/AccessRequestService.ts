@@ -26,6 +26,7 @@ interface DatasetRow {
   name: string;
   visibility: 'public' | 'private';
   status: IngestionStatus;
+  allow_access_requests: boolean;
 }
 
 interface ItemRow {
@@ -117,6 +118,10 @@ export default class AccessRequestService {
       }
       if (dataset.visibility === 'public') {
         throw invalid(`'${dataset.name}' is public and needs no access`);
+      }
+      // Only new requests: pending ones stay decidable when it's turned off
+      if (!dataset.allow_access_requests) {
+        throw invalid(`'${dataset.name}' doesn't take access requests`);
       }
       const held = datasetCapabilities(requestData, dataset);
       if (capabilities.every(capability => held.includes(capability))) {
@@ -266,7 +271,7 @@ export default class AccessRequestService {
   /** Each named slug that names a Dataset existing for the caller, with any old slug resolved (docs/adr/0057, 0071). */
   private findDatasets = async (requestData: RequestData, slugs: string[]): Promise<Map<string, DatasetRow>> => {
     const rows: DatasetRow[] = await requestData.entityManager.query(
-      `SELECT sh.slug AS named, d.id, d.slug, d.name, d.visibility, d.status
+      `SELECT sh.slug AS named, d.id, d.slug, d.name, d.visibility, d.status, d.allow_access_requests
        FROM slug_history sh
        JOIN datasets d ON d.id = sh.entity_id AND d.deleted_at IS NULL
        WHERE sh.slug = ANY($1::text[])`,

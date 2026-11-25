@@ -57,7 +57,8 @@ paths:
       description: >-
         Only for a person whose access token carries `email`, so that an approval is keyed by
         their email: anyone else gets a 403 with `email_required` (docs/adr/0081). Names
-        private, published Datasets; asking for what the caller already holds on one is a 400, and
+        private, published Datasets that allow access requests (`allow_access_requests`), else a
+        400; asking for what the caller already holds on one is a 400, and
         a Dataset already in one of the caller's pending requests is a 409 carrying
         `pending_request_id` (docs/adr/0082). Carries what the requester says about themselves,
         which nothing checks.
