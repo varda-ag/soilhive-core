@@ -14,6 +14,7 @@ import type {
   PluginFilteredData,
   PluginMutationResult,
   PluginNotificationsResult,
+  PluginOwnAccessRequest,
   PluginQueryResult,
   PluginRasterFilterCategory,
   PluginSoilDataResult,
@@ -195,6 +196,9 @@ const accessRequestCreate: PluginMutationResult<PluginAccessRequestInput, Plugin
   isError: false,
 };
 
+// ...so nothing is ever asked for already.
+const myAccessRequests: PluginQueryResult<PluginOwnAccessRequest[]> = { data: [], isLoading: false, isError: false };
+
 // Stubs: local preview has no backend, so submitting rejects and every id reads as lost.
 const dataRequestSubmit: PluginMutationResult<PluginDataRequestSubmission, PluginDataRequest> = {
   mutateAsync: async () => {
@@ -269,6 +273,7 @@ export const createMockContext = (overrides: Partial<PluginContext> = {}): Plugi
   usePluginConfigInviteCreate: () => configInviteCreate,
   useInviteRedeem: () => inviteRedeem,
   useAccessRequestCreate: () => accessRequestCreate,
+  useMyAccessRequests: () => myAccessRequests,
   usePluginUserEntitlements: () => query(configEntitlements),
   useDataRequestSubmit: () => dataRequestSubmit,
   useDataRequest: dataRequest,

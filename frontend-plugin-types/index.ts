@@ -1,4 +1,4 @@
-import type { PluginAccessRequest, PluginAccessRequestInput } from './accessRequest';
+import type { PluginAccessRequest, PluginAccessRequestInput, PluginOwnAccessRequest } from './accessRequest';
 import type { PluginApi, PluginApiClientOptions } from './api';
 import type {
   PluginConfigEntitlements,
@@ -87,6 +87,10 @@ export interface PluginContext {
   // sign-in (see ADR 0081, 0082). No toast: a refusal rejects with a PluginAccessRequestError, e.g. a
   // Dataset already asked for (409), and the plugin says what went wrong.
   useAccessRequestCreate: () => PluginMutationResult<PluginAccessRequestInput, PluginAccessRequest>;
+  // The signed-in user's own Access Requests, newest first. A Dataset already in a pending item can't
+  // be asked for again: useAccessRequestCreate refuses it with a 409. Read again, loading meanwhile,
+  // each time a component starts using it, and refetched after each one sent.
+  useMyAccessRequests: () => PluginQueryResult<PluginOwnAccessRequest[]>;
   // Filtered to the calling plugin's own plugin:{pluginId}: namespace and unprefixed
   // (see ADR 0036) — a plugin never sees another plugin's or the host's entitlements.
   usePluginUserEntitlements: (pluginId: string, scope: PluginEntitlementScope) => PluginQueryResult<PluginConfigEntitlements>;

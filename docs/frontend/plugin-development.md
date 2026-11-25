@@ -302,13 +302,32 @@ A user who can't read a dashboard because of its private Datasets (a 403 with `d
 ```tsx
 const { mutateAsync: requestAccess, isPending } = context.useAccessRequestCreate();
 
-await requestAccess({ datasets: ['ds-x'], capabilities: ['preview'], message: 'Why I need it' });
+await requestAccess({
+  datasets: ['ds-x'],
+  capabilities: ['preview'],
+  message: 'Why I need it',
+  requesterName: 'Jane Doe',
+  country: 'NL',
+  organisation: 'WUR',
+  organisationWebsite: 'wur.nl', // optional
+});
 ```
 
 - `capabilities` is `preview`, `download` or both. Opening a dashboard needs `preview`.
-- `message` is up to 1000 characters and shown to admins.
+- `message`, `requesterName`, `country`, `organisation` and `organisationWebsite` are what the user says about themselves, shown to admins as they are: nothing checks them against the sign-in. Text is trimmed, and a required field that is blank is a 400.
+- `message` is up to 1000 characters, `requesterName` and `organisation` up to 200.
+- `country` is a `PluginCountryCode`, an ISO 3166-1 alpha-2 code: the country the user lives or works in. Show the codes by name with `Intl.DisplayNames`.
+- `organisationWebsite` is an http(s) address, and a bare domain gets `https://`. Leave it out, or blank, when the user gives none.
 - The request is keyed by the email of the user's sign-in (ADR 0081): one whose sign-in carries no email gets a 403 with `email_required`.
 - The host shows no toast for a refusal: say what went wrong yourself. `mutateAsync` rejects with a `PluginAccessRequestError`: the response's `status` (`0` when there was no response) and its JSON `body`. For example, a Dataset already in one of the user's pending requests is a 409 with `pending_request_id`, one that is public or already readable is a 400, and one that is unknown or unpublished is a 404.
+
+`context.useMyAccessRequests()` lists the user's own Access Requests, newest first, each with the `slug`, `name` and `status` of its Datasets. A Dataset in an item that is still `pending` can't be asked for again: a request that names one gets the 409. Leave those out of the request, or say the access is already asked for. It is read again each time a component starts using it, since an admin may have decided meanwhile, and `isLoading` stays `true` until then, so a list read earlier never shows. It is also refetched after each request the user sends.
+
+```tsx
+const { data: myRequests } = context.useMyAccessRequests();
+const pending = new Set(myRequests?.flatMap(({ items }) => items.filter(({ status }) => status === 'pending').map(({ dataset }) => dataset.slug)));
+const toAskFor = deniedSlugs.filter(slug => !pending.has(slug));
+```
 
 #### Config Kinds
 

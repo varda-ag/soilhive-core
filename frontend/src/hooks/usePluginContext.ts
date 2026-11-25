@@ -37,6 +37,7 @@ import { usePluginConfigEntitlements, usePluginConfigEntitlementsMutation } from
 import { usePluginConfigInviteCreate } from './usePluginConfigInvite';
 import { useInviteRedeem } from './useInviteRedeem';
 import { useAccessRequestCreate } from './useAccessRequestCreate';
+import { useMyAccessRequests } from './useMyAccessRequests';
 import { usePluginUserEntitlements } from './usePluginUserEntitlements';
 import { usePluginDataRequest, usePluginDataRequestDelete, usePluginDataRequestSubmit } from './usePluginDataRequest';
 import { useSoilIndexScore, useSoilIndexTileSource } from './useSoilIndexTiles';
@@ -170,6 +171,7 @@ export function usePluginContext(): PluginContext {
       useInviteRedeem,
       // Not namespaced by plugin either: it names Datasets, which are the host's.
       useAccessRequestCreate,
+      useMyAccessRequests,
       usePluginUserEntitlements,
       useDataRequestSubmit: usePluginDataRequestSubmit,
       useDataRequest: usePluginDataRequest,
