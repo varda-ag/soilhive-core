@@ -13,7 +13,7 @@ on:
         type: string
         required: true
       image-version:
-        description: The version tag to clean up (all tags starting with this prefix will be deleted)
+        description: The version that failed to build. Deletes the tags <version>, <version>-amd64 and <version>-arm64, only on versions created by this run attempt
         type: string
         required: true
 
@@ -21,26 +21,54 @@ jobs:
   delete-images:
     runs-on: ubuntu-latest
     permissions:
+      actions: read # To read when this run attempt started
       packages: write
 
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
-      - name: Delete PR images from GHCR
+      - name: Delete images from GHCR
         env:
           OWNER: ${{ github.repository_owner }}
-          EVENT_NAME: ${{ github.event_name }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
           INPUT_IMAGE_NAME: ${{ inputs.image-name }}
           INPUT_IMAGE_VERSION: ${{ inputs.image-version }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          if [[ "${EVENT_NAME}" == "workflow_call" ]]; then
+          set -euo pipefail
+
+          # github.event_name is the caller's event inside a called workflow, never
+          # "workflow_call", so detect the workflow_call path by its required input
+          if [[ -n "${INPUT_IMAGE_NAME}" ]]; then
+            # A build failed: delete what this run pushed, and nothing else
+            if [[ -z "${INPUT_IMAGE_VERSION}" ]]; then
+              echo "::error::image-version is empty, so every tag would match. Nothing deleted"
+              exit 1
+            fi
             PACKAGE_NAMES=("${INPUT_IMAGE_NAME}")
-            TAG_PREFIX="${INPUT_IMAGE_VERSION}"
+            # Exact tags, not a prefix: v1.1.1 must not match v1.1.10 or v1.1.1-rc.1
+            EXACT_TAGS=$(jq -cn --arg v "${INPUT_IMAGE_VERSION}" '[$v, "\($v)-amd64", "\($v)-arm64"]')
+            TAG_PREFIX=""
+            # Only versions created by this run attempt, so a failed re-run of a
+            # published tag never deletes the image that is already deployed
+            CREATED_SINCE=$(gh api "repos/${REPOSITORY}/actions/runs/${RUN_ID}/attempts/${RUN_ATTEMPT}" --jq '.run_started_at')
+            if [[ -z "${CREATED_SINCE}" || "${CREATED_SINCE}" == "null" ]]; then
+              echo "::error::Could not read when this run attempt started. Nothing deleted"
+              exit 1
+            fi
           else
+            # A PR was closed: delete all its images
+            if [[ -z "${PR_NUMBER}" ]]; then
+              echo "::error::No pull request number. Nothing deleted"
+              exit 1
+            fi
             PACKAGE_NAMES=("soilhive-core-backend-dev" "soilhive-core-frontend-dev")
+            EXACT_TAGS='[]'
             TAG_PREFIX="pr-${PR_NUMBER}-"
+            CREATED_SINCE=""
           fi
 
           if gh api "/orgs/${OWNER}" --silent 2>/dev/null; then
@@ -49,35 +77,32 @@ jobs:
             API_BASE="users/${OWNER}"
           fi
 
-          echo "Looking for images with tag prefix: ${TAG_PREFIX}"
+          echo "Looking for tags ${EXACT_TAGS}, tag prefix '${TAG_PREFIX}', created since '${CREATED_SINCE}'"
 
           for PACKAGE_NAME in "${PACKAGE_NAMES[@]}"; do
             echo "Package: ${PACKAGE_NAME}"
             if ! VERSIONS=$(gh api "${API_BASE}/packages/container/${PACKAGE_NAME}/versions" \
               --paginate \
-              --jq '.[] | {id: .id, tags: .metadata.container.tags}'); then
+              --jq '.[] | {id: .id, created_at: .created_at, tags: (.metadata.container.tags // [])}'); then
               echo "Package ${PACKAGE_NAME} not found, skipping"
               continue
             fi
 
-            echo "$VERSIONS" | jq -c '.' | while IFS= read -r version; do
+            # ISO 8601 UTC timestamps compare correctly as strings
+            MATCHES=$(echo "$VERSIONS" | jq -c \
+              --argjson exact "${EXACT_TAGS}" \
+              --arg prefix "${TAG_PREFIX}" \
+              --arg since "${CREATED_SINCE}" \
+              'select(any(.tags[]; IN($exact[]) or ($prefix != "" and startswith($prefix))))
+               | select($since == "" or .created_at >= $since)')
+
+            while IFS= read -r version; do
+              [[ -n "$version" ]] || continue
               VERSION_ID=$(echo "$version" | jq -r '.id')
-              TAGS=$(echo "$version" | jq -r '.tags[]?' 2>/dev/null)
-
-              MATCH=false
-              while IFS= read -r tag; do
-                if [[ "$tag" == ${TAG_PREFIX}* ]]; then
-                  MATCH=true
-                  break
-                fi
-              done <<< "$TAGS"
-
-              if [ "$MATCH" = "true" ]; then
-                echo "Deleting version ${VERSION_ID} (tags: $(echo "$TAGS" | tr '\n' ' '))"
-                gh api --method DELETE \
-                  "${API_BASE}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
-                  && echo "Deleted ${VERSION_ID}" \
-                  || echo "Failed to delete ${VERSION_ID}, skipping"
-              fi
-            done
+              echo "Deleting version ${VERSION_ID} (tags: $(echo "$version" | jq -r '.tags | join(" ")'))"
+              gh api --method DELETE \
+                "${API_BASE}/packages/container/${PACKAGE_NAME}/versions/${VERSION_ID}" \
+                && echo "Deleted ${VERSION_ID}" \
+                || echo "Failed to delete ${VERSION_ID}, skipping"
+            done <<< "$MATCHES"
           done
