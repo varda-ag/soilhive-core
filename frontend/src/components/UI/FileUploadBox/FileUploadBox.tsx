@@ -21,6 +21,7 @@ interface Props {
   disabled?: boolean;
   caption?: string;
   title?: ReactNode;
+  readingText?: string;
   uploadingText?: string;
   processingText?: string;
   errorMessage?: string | string[] | null;
@@ -40,6 +41,7 @@ export function FileUploadBox({
       Drag and drop a file here or <span>browse</span>
     </>
   ),
+  readingText = 'Reading',
   uploadingText = 'Uploading',
   processingText = 'Processing',
   errorMessage,
@@ -67,14 +69,20 @@ export function FileUploadBox({
             <div className={styles.ProgressList}>
               {files.map(file => {
                 const progress = uploadProgress?.[file.name] || [];
+                // No progress before the request starts: the browser is still reading the file
+                // (for a cloud-only file, e.g. OneDrive, that means downloading it)
+                const reading = progress.length === 0;
                 // Progress counts bytes sent: at 100% the server is still working on the file
-                const processing = progress.length > 0 && progress.every(part => part >= 100);
+                const processing = !reading && progress.every(part => part >= 100);
+                let text = uploadingText;
+                if (reading) text = readingText;
+                else if (processing) text = processingText;
                 return (
                   <div key={file.name}>
                     <p className={styles.Title}>
-                      {processing ? processingText : uploadingText}: {file.name}
+                      {text}: {file.name}
                     </p>
-                    <ProgressBar progress={progress} indeterminate={processing} />
+                    <ProgressBar progress={progress} indeterminate={reading || processing} />
                   </div>
                 );
               })}

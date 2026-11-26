@@ -298,6 +298,7 @@
             "clear_all": "Clear all",
             "upload_error": "Error uploading file. Check the template documentation in Github.",
             "network_error": "Network error. Please check your connection and try again.",
+            "file_not_readable": "The file can't be read. If it's in a cloud folder (e.g. OneDrive), open the sync app or download the file to this device, then try again.",
             "crs_label": "Add a Coordinate Reference System (CRS)",
             "crs_label_readonly": "Detected Coordinate Reference System (CRS)",
             "crs_custom_detected": "Custom CRS detected",
