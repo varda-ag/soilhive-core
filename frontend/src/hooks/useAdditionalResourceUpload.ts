@@ -53,6 +53,8 @@ export function useAdditionalResourceUpload(onFileUploaded: (resource: { file_id
         // spatial=false: these are supplementary files (csv, xlsx, etc.), not spatial datasets, so skip GDAL metadata extraction
         xhr.open('POST', `${BACKEND_BASE_URL}/files?spatial=false`);
         xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`);
+        // Request started: FileUploadBox stops showing the file as being read
+        setUploadProgress(prev => ({ ...prev, [file.name]: [0] }));
         xhr.send(formData);
       });
     },

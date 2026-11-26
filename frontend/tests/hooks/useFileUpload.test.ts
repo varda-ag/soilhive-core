@@ -2,6 +2,11 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { useFileUpload } from 'hooks/useFileUpload';
 import { useStorageConfig } from 'hooks/useStorageConfig';
 
+jest.mock('react-i18next', () => ({
+  ...jest.requireActual('react-i18next'),
+  useTranslation: () => ({ t: (key: string) => key }),
+}));
+
 jest.mock('hooks/useDatasetsSoilData', () => ({
   ALLOWED_EXTENSIONS: ['.csv', '.gpkg', '.geojson', '.xlsx', '.kml', '.kmz', '.gml', '.zip', '.tif', '.tiff'],
   useDatasetsSoilData: jest.fn(),
@@ -233,6 +238,64 @@ describe('useFileUpload', () => {
         expect(result.current.uploadErrors).toHaveLength(1);
         expect(result.current.uploadErrors[0]).toContain('layer.csv');
       });
+    });
+
+    // e.g. a OneDrive cloud-only file while the OneDrive app is closed
+    it('reports an unreadable file without sending a request', async () => {
+      const file = new File(['data'], 'layer.csv', { type: 'text/csv' });
+      jest.spyOn(file, 'slice').mockReturnValue({
+        arrayBuffer: () => Promise.reject(new DOMException('The requested file could not be read', 'NotReadableError')),
+      } as unknown as Blob);
+
+      const onFileUploaded = jest.fn();
+      const { result } = renderHook(() => useFileUpload(onFileUploaded));
+
+      await act(async () => {
+        await result.current.handleFiles([file]);
+      });
+
+      expect(xhrMock.send).not.toHaveBeenCalled();
+      expect(onFileUploaded).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(result.current.uploadErrors).toEqual(['layer.csv: datasets.soil_data.file_not_readable']);
+      });
+    });
+  });
+
+  // No progress entry means FileUploadBox shows the file as being read
+  describe('handleFiles — progress', () => {
+    it('starts the progress at 0 once the file is read and the request starts', async () => {
+      const { result } = renderHook(() => useFileUpload(jest.fn()));
+
+      await act(async () => {
+        await result.current.handleFiles([new File(['data'], 'layer.csv', { type: 'text/csv' })]);
+      });
+
+      expect(result.current.uploadProgress['layer.csv']).toEqual([0]);
+    });
+
+    it('clears progress left from an earlier upload of the same name', async () => {
+      xhrMock.send.mockImplementationOnce(() => {
+        const [, onProgress] = xhrMock.upload.addEventListener.mock.calls[0];
+        onProgress({ lengthComputable: true, loaded: 4, total: 4 });
+        xhrMock.onreadystatechange?.();
+      });
+      const { result } = renderHook(() => useFileUpload(jest.fn()));
+
+      await act(async () => {
+        await result.current.handleFiles([new File(['data'], 'layer.csv', { type: 'text/csv' })]);
+      });
+      expect(result.current.uploadProgress['layer.csv']).toEqual([100]);
+
+      const unreadable = new File(['data'], 'layer.csv', { type: 'text/csv' });
+      jest.spyOn(unreadable, 'slice').mockReturnValue({
+        arrayBuffer: () => Promise.reject(new DOMException('The requested file could not be read', 'NotReadableError')),
+      } as unknown as Blob);
+      await act(async () => {
+        await result.current.handleFiles([unreadable]);
+      });
+
+      expect(result.current.uploadProgress['layer.csv']).toBeUndefined();
     });
   });
 

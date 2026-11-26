@@ -10,6 +10,17 @@ import { georeferenceOf } from 'utilities/georeference';
 import type { SoilDataFile } from '../types/soilDataFile';
 import type { FileRasterBandDescriptor } from 'types/backend';
 
+// A cloud-only file (e.g. OneDrive with its app closed) can't be read, and XHR
+// would report that as a network error. Reading one byte fails fast instead.
+async function isReadable(file: File): Promise<boolean> {
+  try {
+    await file.slice(0, 1).arrayBuffer();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void, allowedExtensions: string[] = ALLOWED_EXTENSIONS) {
   const { t } = useTranslation('admin');
   const { storageConfig } = useStorageConfig();
@@ -77,6 +88,8 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void, allo
 
         xhr.open('POST', `${BACKEND_BASE_URL}/files`);
         xhr.setRequestHeader('Authorization', `Bearer ${getToken()}`);
+        // Request started: FileUploadBox stops showing the file as being read
+        setUploadProgress(prev => ({ ...prev, [file.name]: [0] }));
         xhr.send(formData);
       });
     },
@@ -109,10 +122,13 @@ export function useFileUpload(onFileUploaded: (file: SoilDataFile) => void, allo
       if (validFiles.length === 0) return;
 
       setUploadingFiles(validFiles);
+      // Drop progress left from an earlier upload of the same name, so these show as being read
+      setUploadProgress(prev => Object.fromEntries(Object.entries(prev).filter(([name]) => !validFiles.some(file => file.name === name))));
 
       await Promise.allSettled(
         validFiles.map(async file => {
           try {
+            if (!(await isReadable(file))) throw new Error(t('datasets.soil_data.file_not_readable'));
             const {
               id,
               crs,
