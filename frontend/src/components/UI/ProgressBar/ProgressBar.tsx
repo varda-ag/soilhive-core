@@ -8,9 +8,10 @@ interface Props {
 }
 
 export function ProgressBar({ progress, indeterminate }: Props) {
-  if (!progress || progress.length === 0) return null;
+  // Indeterminate needs no progress, e.g. for a file still being read
+  if (!indeterminate && !progress?.length) return null;
 
-  const completed = progress.reduce((acc, part) => acc + part, 0) / progress.length;
+  const completed = progress?.length ? progress.reduce((acc, part) => acc + part, 0) / progress.length : 0;
 
   return (
     <div data-testid="sh-ui-progressbar" className={styles.ProgressBar}>

@@ -88,12 +88,22 @@ describe('FileUploadBox', () => {
     expect(screen.getByText('Reading: first.csv')).toBeInTheDocument();
   });
 
-  it('passes empty progress array when file progress is missing', () => {
+  it('shows reading, with an indeterminate bar, before any progress', () => {
     const files = [new File(['a'], 'first.csv', { type: 'text/csv' })];
 
     render(<FileUploadBox handleFiles={mockHandleFiles} caption="Upload your file" files={files} uploadProgress={{}} />);
 
-    expect(screen.getByTestId('progress-bar')).toHaveTextContent('');
+    expect(screen.getByText('Reading: first.csv')).toBeInTheDocument();
+    expect(screen.getByTestId('progress-bar')).toHaveAttribute('data-indeterminate', 'true');
+  });
+
+  it('shows uploading, with a normal bar, once progress starts at 0', () => {
+    const files = [new File(['a'], 'first.csv', { type: 'text/csv' })];
+
+    render(<FileUploadBox handleFiles={mockHandleFiles} files={files} uploadProgress={{ 'first.csv': [0] }} />);
+
+    expect(screen.getByText('Uploading: first.csv')).toBeInTheDocument();
+    expect(screen.getByTestId('progress-bar')).toHaveAttribute('data-indeterminate', 'false');
   });
 
   it('calls handleFiles on input change', () => {

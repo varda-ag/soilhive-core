@@ -12,6 +12,18 @@ if (typeof HTMLCanvasElement !== 'undefined') {
   HTMLCanvasElement.prototype.getContext = () => null;
 }
 
+// jsdom's Blob has no arrayBuffer()
+if (typeof Blob !== 'undefined' && typeof FileReader !== 'undefined' && !Blob.prototype.arrayBuffer) {
+  Blob.prototype.arrayBuffer = function (this: Blob) {
+    return new Promise<ArrayBuffer>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as ArrayBuffer);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsArrayBuffer(this);
+    });
+  };
+}
+
 if (typeof global.structuredClone === 'undefined') {
   global.structuredClone = <T>(obj: T): T => JSON.parse(JSON.stringify(obj));
 }
