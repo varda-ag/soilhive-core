@@ -152,11 +152,14 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     if (!dataset?.publication_date) {
       datasetUpdateData.publication_date = dateStringToYYYYMMDD(new Date());
     }
-    // A public dataset takes no access requests, so making it public turns them off. Left out when
-    // access is not email-based, like the access list below: the toggle is disabled then, and an
-    // access request can only come from a user whose token carries an email.
-    if (isEmailBasedAuth) {
-      datasetUpdateData.allow_access_requests = visibility === 'private' && allowAccessRequests;
+    // A public dataset takes no access requests, so making it public turns them off, however users
+    // sign in. A private one's setting is left out when access is not email-based, like the access
+    // list below: the toggle is disabled then, and an access request can only come from a user
+    // whose token carries an email.
+    if (visibility === 'public') {
+      datasetUpdateData.allow_access_requests = false;
+    } else if (isEmailBasedAuth) {
+      datasetUpdateData.allow_access_requests = allowAccessRequests;
     }
     await updateDataset.mutateAsync(datasetUpdateData);
     await queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });

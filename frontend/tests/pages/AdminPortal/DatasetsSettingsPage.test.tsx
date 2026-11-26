@@ -161,7 +161,7 @@ describe('DatasetsSettingsPage', () => {
       render(<DatasetsSettingsPage />);
       const card = screen.getByTestId('allow-access-requests');
       expect(card).toHaveTextContent('Allow access requests');
-      expect(card).toHaveTextContent('Users can request access to this dataset from the dataset list by filling a form');
+      expect(card).toHaveTextContent('Users can request access to this dataset by filling in a form');
       expect(screen.getByTestId('sh-ui-table').compareDocumentPosition(card)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(getToggle()).not.toBeChecked();
       expect(getToggle()).not.toBeDisabled();

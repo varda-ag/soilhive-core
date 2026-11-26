@@ -139,7 +139,7 @@ Choosing **Private** opens the *Who can access this dataset* panel, where you ad
 
 Below the list, the **Allow access requests** toggle decides whether other users can ask for access to this dataset themselves, with an access request that a data administrator then approves or denies. It is off for a new dataset, and it is saved when you publish. Turning it off stops new requests only: requests already sent can still be approved or denied. A public dataset takes no requests, so publishing a dataset as public turns the toggle off.
 
-> **Note:** Granting access by email only works if your platform signs users in with an identifiable email address. If it doesn't, the panel is disabled and a warning explains that no one on the list will actually be granted access, and a private dataset then stays restricted to data administrators. Users can't request access either, so the **Allow access requests** toggle is disabled too and keeps its saved value. Contact your platform administrator if per-user access is required.
+> **Note:** Granting access by email only works if your platform signs users in with an identifiable email address. If it doesn't, the panel is disabled and a warning explains that no one on the list will actually be granted access, and a private dataset then stays restricted to data administrators. Users can't request access either, so the **Allow access requests** toggle is disabled too and keeps its saved value while the dataset stays private. Contact your platform administrator if per-user access is required.
 
 **Confirming publication**
 

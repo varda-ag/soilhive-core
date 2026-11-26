@@ -80,11 +80,13 @@ describe('useDatasetsSettings', () => {
     await waitFor(() => expect(result.current.visibility).toBe('public'));
   });
 
-  it('starts with access requests off for a dataset that does not take them', async () => {
-    setupMocks({ dataset: { visibility: 'private', allow_access_requests: false } });
-    const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-    await waitFor(() => expect(result.current.visibility).toBe('private'));
-    expect(result.current.allowAccessRequests).toBe(false);
+  it('follows the saved access request setting, off when the dataset has none', async () => {
+    setupMocks({ dataset: { visibility: 'private', allow_access_requests: true } });
+    const { result, rerender } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+    await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
+    setupMocks({ dataset: { visibility: 'private' } });
+    rerender();
+    await waitFor(() => expect(result.current.allowAccessRequests).toBe(false));
   });
 
   it('initialises allowAccessRequests from the dataset API response', async () => {
@@ -385,7 +387,19 @@ describe('useDatasetsSettings', () => {
       expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED', allow_access_requests: false });
     });
 
-    it('leaves the stored access request setting alone when access is not email-based', async () => {
+    it('turns access requests off when the dataset is made public, even when access is not email-based', async () => {
+      setupMocks({
+        isEmailBasedAuth: false,
+        dataset: { visibility: 'private', publication_date: '2026-07-09', allow_access_requests: true },
+      });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
+      act(() => result.current.setVisibility('public'));
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED', allow_access_requests: false });
+    });
+
+    it('leaves the stored access request setting of a private dataset alone when access is not email-based', async () => {
       setupMocks({
         isEmailBasedAuth: false,
         dataset: { visibility: 'private', publication_date: '2026-07-09', allow_access_requests: true },

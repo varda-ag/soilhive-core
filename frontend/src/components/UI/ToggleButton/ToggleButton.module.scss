@@ -83,10 +83,15 @@
     }
   }
 
+  // Grey in a light and a dark shade, like the enabled pair, so a disabled toggle still shows whether it is on
   &.Disabled {
     .ToggleCheckbox + .ToggleSlider {
-      background-color: var(--color-neutral-dark-400);
+      background-color: var(--color-neutral-dark-200);
       cursor: not-allowed;
+    }
+
+    .ToggleCheckbox:checked + .ToggleSlider {
+      background-color: var(--color-neutral-dark-400);
     }
   }
 }
