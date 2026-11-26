@@ -26,7 +26,7 @@ export default class AccessRequestItemEntity {
   @Column({ type: 'jsonb', nullable: true })
   granted: Capability[] | null;
 
-  /** Why it was denied, shown to the requester. */
+  /** The admin's message with an approval or a denial, shown to the requester. */
   @Column({ type: 'text', nullable: true })
   reason: string | null;
 

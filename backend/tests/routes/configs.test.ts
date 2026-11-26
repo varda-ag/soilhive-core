@@ -451,10 +451,10 @@ const getConfigGrants = async (): Promise<Record<string, unknown>> => {
   return Object.fromEntries(rows.map(({ id, configs }) => [id, configs]));
 };
 
-/** A published Dataset that only grant holders may see. */
+/** A published Dataset that only grant holders may see. It takes Access Requests, so a dashboard 403 lists it (ADR-0079). */
 const addPrivateDataset = async (slug: string) => {
   await addDataset(slug, [0, 0, 1, 1]);
-  await (await getDataSource()).getRepository(DatasetEntity).update({ slug }, { visibility: 'private' });
+  await (await getDataSource()).getRepository(DatasetEntity).update({ slug }, { visibility: 'private', allow_access_requests: true });
 };
 
 /** Merges `{capabilities}` under `data.configs[configId]` for `subject`, on top of any existing grants. */

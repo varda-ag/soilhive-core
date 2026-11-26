@@ -604,10 +604,11 @@ export default class EntitlementService {
   /**
    * The configs among `configs` that the dashboard dataset check blocks for the caller, each mapped
    * to what blocks it (ADR-0079). Checks only `dashboards` Config Kind ids, and a Privileged caller
-   * passes. `datasets` names the private Datasets without `preview` by current slug. An unpublished
-   * or deleted Dataset sets only `has_unavailable_datasets`, so its id is not revealed
-   * (docs/adr/0057). Looks up the Datasets of all configs in one query, and loads the caller's own
-   * grants once when a Dataset is private, as some routes that call it load none.
+   * passes. `datasets` names, by current slug, the private Datasets without `preview` that take
+   * Access Requests: one that doesn't still blocks, but isn't listed. An unpublished or deleted
+   * Dataset sets only `has_unavailable_datasets`, so its id is not revealed (docs/adr/0057). Looks
+   * up the Datasets of all configs in one query, and loads the caller's own grants once when a
+   * Dataset is private, as some routes that call it load none.
    */
   async configDatasetsDenials(
     requestData: RequestData,
@@ -624,15 +625,14 @@ export default class EntitlementService {
     const denials = new Map<string, DashboardDatasetsDenial>();
     for (const { id, slugs } of checked) {
       const hasUnavailable = slugs.some(slug => !datasetByName.has(slug));
-      // In the dashboard's order, once each
-      const denied = new Set(
-        slugs.flatMap(slug => {
-          const dataset = datasetByName.get(slug);
-          return dataset && !datasetCapabilities(caller, dataset).includes(Capability.PREVIEW) ? [dataset.slug] : [];
-        }),
-      );
-      if (denied.size > 0 || hasUnavailable) {
-        denials.set(id, { datasets: [...denied], has_unavailable_datasets: hasUnavailable });
+      const denied = slugs.flatMap(slug => {
+        const dataset = datasetByName.get(slug);
+        return dataset && !datasetCapabilities(caller, dataset).includes(Capability.PREVIEW) ? [dataset] : [];
+      });
+      if (denied.length > 0 || hasUnavailable) {
+        // Only those the caller can ask for, in the dashboard's order and once each; the others still block it
+        const requestable = new Set(denied.filter(dataset => dataset.allow_access_requests).map(dataset => dataset.slug));
+        denials.set(id, { datasets: [...requestable], has_unavailable_datasets: hasUnavailable });
       }
     }
     return denials;

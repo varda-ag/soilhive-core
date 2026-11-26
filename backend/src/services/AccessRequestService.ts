@@ -182,7 +182,8 @@ export default class AccessRequestService {
   /**
    * Decides some of a request's Datasets. An approval grants to the requester's Subject straight
    * away, and only on a Dataset still published, private and not archived; a denial always goes
-   * through. A Dataset already decided is a 409, so two admins can't both decide it.
+   * through. Either one keeps the admin's `reason` for the requester. A Dataset already decided is
+   * a 409, so two admins can't both decide it.
    */
   decide = async (requestData: RequestData, id: string, decisions: AccessRequestDecision[]): Promise<AccessRequestView> => {
     const manager = requestData.entityManager;
@@ -212,7 +213,7 @@ export default class AccessRequestService {
           item.dataset_id,
           decision.approve ? 'approved' : 'denied',
           granted ? JSON.stringify(granted) : null,
-          decision.approve ? null : decision.reason?.trim() || null,
+          decision.reason?.trim() || null,
           decidedBy,
         ],
       );

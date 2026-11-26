@@ -119,11 +119,15 @@ describe('Access Requests', () => {
       expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST);
     });
 
-    it('refuses a public Dataset, an unknown one, and an admin', async () => {
+    it('refuses a public Dataset, an unknown or unpublished one, and an admin', async () => {
       const open = await addDataset('Open', [0, 0, 1, 1]);
       expect((await ask(janeToken, { datasets: [open.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.BAD_REQUEST);
       expect((await ask(janeToken, { datasets: ['no-such-dataset'], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.NOT_FOUND);
       expect((await ask(adminToken, { datasets: [a.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.BAD_REQUEST);
+
+      // Private and taking requests, but an unpublished Dataset reads as an unknown one (docs/adr/0057)
+      await (await getEntityManager()).getRepository(DatasetEntity).update({ id: b.id }, { status: IngestionStatus.LOADED });
+      expect((await ask(janeToken, { datasets: [b.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.NOT_FOUND);
     });
 
     it('refuses asking for what the requester already holds, but not for more', async () => {
@@ -186,6 +190,21 @@ describe('Access Requests', () => {
       expect(mine.body[0].items[1].decided_by).toBeUndefined();
 
       expect((await ask(janeToken, { datasets: [b.slug], capabilities: ['preview'] })).statusCode).toBe(StatusCodes.CREATED);
+    });
+
+    it("keeps the admin's message on an approval too, and shows it to the requester", async () => {
+      const { id } = (await askForBoth()).body;
+
+      const res = await decide(id, [
+        { dataset: a.slug, approve: true, reason: '  Granted for your thesis  ' },
+        { dataset: b.slug, approve: true, reason: ' ' },
+      ]);
+      expect(res.statusCode).toBe(StatusCodes.OK);
+      expect(res.body.items.map((item: { reason: string | null }) => item.reason)).toEqual(['Granted for your thesis', null]);
+
+      const mine = await request(app).get('/access-requests/mine').set(auth(janeToken)).expect(StatusCodes.OK);
+      expect(mine.body[0].items[0]).toMatchObject({ status: 'approved', reason: 'Granted for your thesis' });
+      expect(mine.body[0].items[1]).toMatchObject({ status: 'approved', reason: null });
     });
 
     it('still approves a pending request after its Dataset stops taking new ones', async () => {

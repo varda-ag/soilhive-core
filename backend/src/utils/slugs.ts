@@ -159,7 +159,7 @@ export const getEntitySlugs = async (requestData: RequestData, slug: string): Pr
   return results.map(sh => sh.slug);
 };
 
-export type ExistingDataset = Pick<DatasetEntity, 'slug' | 'visibility'>;
+export type ExistingDataset = Pick<DatasetEntity, 'slug' | 'visibility' | 'allow_access_requests'>;
 
 /**
  * Each of `slugs` that names a Dataset existing for the caller (docs/adr/0057), mapped to that
@@ -172,7 +172,7 @@ export const existingDatasetsByName = async (requestData: RequestData, slugs: st
   }
   // slug_history holds current slugs too (the slug trigger writes every one), so one join covers both.
   const rows: (ExistingDataset & { named: string; status: IngestionStatus })[] = await requestData.entityManager.query(
-    `SELECT sh.slug AS named, d.slug, d.status, d.visibility
+    `SELECT sh.slug AS named, d.slug, d.status, d.visibility, d.allow_access_requests
      FROM slug_history sh
      JOIN datasets d ON d.id = sh.entity_id AND d.deleted_at IS NULL
      WHERE sh.slug = ANY($1::text[])`,
@@ -181,7 +181,7 @@ export const existingDatasetsByName = async (requestData: RequestData, slugs: st
   return new Map(
     rows
       .filter(row => datasetExistsFor(requestData.token, row.status))
-      .map(row => [row.named, { slug: row.slug, visibility: row.visibility }]),
+      .map(row => [row.named, { slug: row.slug, visibility: row.visibility, allow_access_requests: row.allow_access_requests }]),
   );
 };
 

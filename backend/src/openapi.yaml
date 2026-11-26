@@ -3509,7 +3509,10 @@ components:
               type: array
               items:
                 type: string
-              description: Current slugs of the private Datasets the caller needs `preview` on.
+              description: >-
+                Current slugs of the private Datasets the caller needs `preview` on and can ask for
+                (`allow_access_requests`). One that takes no Access Requests blocks the dashboard all
+                the same but is not listed, so this can be empty.
               example: ['ds-x']
             has_unavailable_datasets:
               type: boolean

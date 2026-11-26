@@ -16,7 +16,7 @@ import { getPolygonFromBbox } from '../../src/utils/geometry';
 import FileEntity from '../../src/entities/File';
 import RasterLayerEntity from '../../src/entities/RasterLayer';
 import { GISDataType } from '../../src/types/data';
-import { getDataAdminToken } from '../helper';
+import { getDataAdminToken, getUserToken } from '../helper';
 import StatusCodes from 'http-status-codes';
 import { Capability } from '../../src/types/enums';
 import JobService from '../../src/services/JobService';
@@ -347,6 +347,25 @@ describe('Testing /datasets routes', () => {
       expect(one.body.allow_access_requests).toBe(true);
       const all = await request(app).get('/datasets').set(auth).expect(StatusCodes.OK);
       expect(all.body.find((dataset: { id: string }) => dataset.id === postRes.body.id).allow_access_requests).toBe(true);
+    });
+
+    it('returns allow_access_requests to a regular user in the list, for the "Access" button (SP-5991)', async () => {
+      const dataset = await addDataset('asks-for-access', [0, 0, 1, 1]);
+      await request(app)
+        .patch(`/datasets/${dataset.slug}`)
+        .set('Authorization', `Bearer ${await getDataAdminToken()}`)
+        .send({ visibility: 'private', allow_access_requests: true })
+        .expect(StatusCodes.OK);
+
+      const all = await request(app)
+        .get('/datasets')
+        .set('Authorization', `Bearer ${getUserToken('reader-sub', 'reader@example.com')}`)
+        .expect(StatusCodes.OK);
+      // The API's `id` is the slug
+      expect(all.body.find((listed: { id: string }) => listed.id === dataset.slug)).toMatchObject({
+        visibility: 'private',
+        allow_access_requests: true,
+      });
     });
 
     it('should reject related_resources containing non-URI values (400)', async () => {
