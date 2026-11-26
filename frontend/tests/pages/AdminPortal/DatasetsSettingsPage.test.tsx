@@ -34,6 +34,9 @@ jest.mock('components/UI', () => ({
       ))}
     </div>
   ),
+  ToggleButton: ({ checked, disabled, ariaLabel, onChange }: any) => (
+    <input type="checkbox" aria-label={ariaLabel} checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
+  ),
 }));
 
 jest.mock('components/Table/Table', () => ({
@@ -62,6 +65,7 @@ jest.mock('components/Dialog/Dialog', () => ({
 }));
 
 const setVisibility = jest.fn();
+const setAllowAccessRequests = jest.fn();
 const handleEmailChange = jest.fn();
 const handleEmailBlur = jest.fn();
 const handleAddEmail = jest.fn();
@@ -80,6 +84,8 @@ const baseHookValue = {
   hasMandatoryMetadata: true,
   visibility: 'public' as const,
   setVisibility,
+  allowAccessRequests: false,
+  setAllowAccessRequests,
   emailInput: '',
   emailError: '',
   accessEmails: [],
@@ -140,6 +146,45 @@ describe('DatasetsSettingsPage', () => {
     render(<DatasetsSettingsPage />);
     expect(screen.getByText('a@example.com')).toBeInTheDocument();
     expect(screen.getByTestId('sh-ui-icon-button')).toBeDisabled();
+  });
+
+  describe('allow access requests', () => {
+    const getToggle = () => screen.getByRole('checkbox', { name: 'Allow access requests' });
+
+    it('is not shown when visibility is public', () => {
+      render(<DatasetsSettingsPage />);
+      expect(screen.queryByTestId('allow-access-requests')).not.toBeInTheDocument();
+    });
+
+    it('is shown below the access list when visibility is private, off by default', () => {
+      (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private' });
+      render(<DatasetsSettingsPage />);
+      const card = screen.getByTestId('allow-access-requests');
+      expect(card).toHaveTextContent('Allow access requests');
+      expect(card).toHaveTextContent('Users can request access to this dataset from the dataset list by filling a form');
+      expect(screen.getByTestId('sh-ui-table').compareDocumentPosition(card)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(getToggle()).not.toBeChecked();
+      expect(getToggle()).not.toBeDisabled();
+    });
+
+    it('shows the toggle on when the dataset takes access requests', () => {
+      (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', allowAccessRequests: true });
+      render(<DatasetsSettingsPage />);
+      expect(getToggle()).toBeChecked();
+    });
+
+    it('turning the toggle on calls setAllowAccessRequests with true', () => {
+      (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private' });
+      render(<DatasetsSettingsPage />);
+      fireEvent.click(getToggle());
+      expect(setAllowAccessRequests).toHaveBeenCalledWith(true);
+    });
+
+    it('disables the toggle when access is not email-based', () => {
+      (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private', isEmailBasedAuth: false });
+      render(<DatasetsSettingsPage />);
+      expect(getToggle()).toBeDisabled();
+    });
   });
 
   it('clicking the private radio card calls setVisibility with private', () => {

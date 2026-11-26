@@ -36,6 +36,11 @@ describe('ToggleButton', () => {
     expect(onChange).toHaveBeenCalledWith(false);
   });
 
+  it('names the checkbox with ariaLabel', () => {
+    const { getByRole } = render(<ToggleButton ariaLabel="Allow access requests" />);
+    expect(getByRole('checkbox', { name: 'Allow access requests' })).toBeInTheDocument();
+  });
+
   it('disables the checkbox when disabled=true', () => {
     const { container } = render(<ToggleButton disabled />);
     expect(getCheckbox(container)).toBeDisabled();

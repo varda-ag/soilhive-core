@@ -15,9 +15,11 @@ interface Props {
    * once: Google Analytics gets the event of this name, with click_value on or off (docs/frontend/analytics.md)
    */
   dataAnalytics?: string;
+  // The checkbox's accessible name, for a toggle with no visible label of its own
+  ariaLabel?: string;
 }
 
-export function ToggleButton({ checked, onChange, size = 'medium', disabled, dataAnalytics }: Props) {
+export function ToggleButton({ checked, onChange, size = 'medium', disabled, dataAnalytics, ariaLabel }: Props) {
   const sizeClass = useMemo(
     () =>
       ({
@@ -34,6 +36,7 @@ export function ToggleButton({ checked, onChange, size = 'medium', disabled, dat
         className={styles.ToggleCheckbox}
         type="checkbox"
         data-analytics={dataAnalytics}
+        aria-label={ariaLabel}
         checked={checked}
         onChange={e => onChange?.(e.target.checked)}
         disabled={disabled}

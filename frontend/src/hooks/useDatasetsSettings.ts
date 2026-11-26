@@ -35,6 +35,7 @@ export function useDatasetsSettings(datasetId: string | undefined) {
   const updateEntitlements = useDatasetEntitlementsMutation(datasetId ?? '');
 
   const [visibility, setVisibility] = useState<Visibility>('private');
+  const [allowAccessRequests, setAllowAccessRequests] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [emailError, setEmailError] = useState('');
   const [accessEmails, setAccessEmails] = useState<AccessEmail[]>([]);
@@ -46,6 +47,10 @@ export function useDatasetsSettings(datasetId: string | undefined) {
       setVisibility(dataset.visibility as Visibility);
     }
   }, [dataset?.visibility]);
+
+  useEffect(() => {
+    setAllowAccessRequests(!!dataset?.allow_access_requests);
+  }, [dataset?.allow_access_requests]);
 
   useEffect(() => {
     if (entitlements) {
@@ -147,6 +152,12 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     if (!dataset?.publication_date) {
       datasetUpdateData.publication_date = dateStringToYYYYMMDD(new Date());
     }
+    // A public dataset takes no access requests, so making it public turns them off. Left out when
+    // access is not email-based, like the access list below: the toggle is disabled then, and an
+    // access request can only come from a user whose token carries an email.
+    if (isEmailBasedAuth) {
+      datasetUpdateData.allow_access_requests = visibility === 'private' && allowAccessRequests;
+    }
     await updateDataset.mutateAsync(datasetUpdateData);
     await queryClient.invalidateQueries({ queryKey: ['dataset', datasetId] });
     await queryClient.invalidateQueries({ queryKey: ['datasets'] });
@@ -177,6 +188,8 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     hasMandatoryMetadata,
     visibility,
     setVisibility,
+    allowAccessRequests,
+    setAllowAccessRequests,
     emailInput,
     emailError,
     accessEmails,

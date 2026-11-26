@@ -14,7 +14,7 @@ import TrashIcon from 'assets/icons/trash-icon.svg?react';
 import ShieldGlobeIcon from 'assets/icons/shield-globe-icon.svg?react';
 import { Dialog } from 'components/Dialog/Dialog';
 import { Table } from 'components/Table/Table';
-import { Button, TextInput } from 'components/UI';
+import { Button, TextInput, ToggleButton } from 'components/UI';
 import { DocumentationLink } from 'components/AdminPortal/DocumentationLink/DocumentationLink';
 import { INGESTION_DOCS_URL } from 'configuration/ingestion';
 import { metadataPath } from 'configuration/routes';
@@ -36,6 +36,8 @@ export function DatasetsSettingsPage() {
     hasMandatoryMetadata,
     visibility,
     setVisibility,
+    allowAccessRequests,
+    setAllowAccessRequests,
     emailInput,
     emailError,
     accessEmails,
@@ -198,6 +200,18 @@ export function DatasetsSettingsPage() {
                 </Button>
               </form>
               <Table<AccessEmail> value={accessEmails} columns={accessColumns} scrollHeight="auto" dataKey="email" />
+              <div className={styles.AccessRequestsCard} data-testid="allow-access-requests">
+                <div className={styles.AccessRequestsText}>
+                  <p className={styles.AccessRequestsTitle}>{t('datasets.settings.access.allow_requests.title')}</p>
+                  <p className={styles.AccessRequestsDescription}>{t('datasets.settings.access.allow_requests.description')}</p>
+                </div>
+                <ToggleButton
+                  checked={allowAccessRequests}
+                  disabled={!isEmailBasedAuth}
+                  ariaLabel={t('datasets.settings.access.allow_requests.title')}
+                  onChange={setAllowAccessRequests}
+                />
+              </div>
             </div>
           )}
         </div>

@@ -80,6 +80,19 @@ describe('useDatasetsSettings', () => {
     await waitFor(() => expect(result.current.visibility).toBe('public'));
   });
 
+  it('starts with access requests off for a dataset that does not take them', async () => {
+    setupMocks({ dataset: { visibility: 'private', allow_access_requests: false } });
+    const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+    await waitFor(() => expect(result.current.visibility).toBe('private'));
+    expect(result.current.allowAccessRequests).toBe(false);
+  });
+
+  it('initialises allowAccessRequests from the dataset API response', async () => {
+    setupMocks({ dataset: { visibility: 'private', allow_access_requests: true } });
+    const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+    await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
+  });
+
   it('initialises accessEmails from entitlements API response, preserving capabilities', async () => {
     setupMocks({ entitlements: { 'a@example.com': ['preview'], 'b@example.com': ['download'] } });
     const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
@@ -287,7 +300,7 @@ describe('useDatasetsSettings', () => {
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('public'));
       await act(() => result.current.handlePublishProceed());
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED', allow_access_requests: false });
       expect(mockNavigate).toHaveBeenCalledWith(ADMIN_PATHS.DATASETS);
     });
 
@@ -298,7 +311,7 @@ describe('useDatasetsSettings', () => {
       act(() => result.current.handleEmailChange('user@example.com'));
       act(() => result.current.handleAddEmail());
       await act(() => result.current.handlePublishProceed());
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED', allow_access_requests: false });
       expect(mockMutateAsync).toHaveBeenCalledWith({ 'user@example.com': ['preview', 'download'] });
     });
 
@@ -307,7 +320,7 @@ describe('useDatasetsSettings', () => {
       const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
       await waitFor(() => expect(result.current.visibility).toBe('private'));
       await act(() => result.current.handlePublishProceed());
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED', allow_access_requests: false });
       expect(mockMutateAsync).toHaveBeenCalledWith({});
     });
 
@@ -342,7 +355,45 @@ describe('useDatasetsSettings', () => {
       act(() => result.current.handleAddEmail());
       await act(() => result.current.handlePublishProceed());
       expect(mockMutateAsync).toHaveBeenCalledTimes(1);
-      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED' });
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED', allow_access_requests: false });
+    });
+
+    it('saves access requests as allowed when the admin turns them on for a private dataset', async () => {
+      setupMocks({ dataset: { visibility: 'private', publication_date: '2026-07-09', allow_access_requests: false } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.visibility).toBe('private'));
+      act(() => result.current.setAllowAccessRequests(true));
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED', allow_access_requests: true });
+    });
+
+    it('saves access requests as not allowed when the admin turns them off', async () => {
+      setupMocks({ dataset: { visibility: 'private', publication_date: '2026-07-09', allow_access_requests: true } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
+      act(() => result.current.setAllowAccessRequests(false));
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED', allow_access_requests: false });
+    });
+
+    it('turns access requests off when the dataset is made public', async () => {
+      setupMocks({ dataset: { visibility: 'private', publication_date: '2026-07-09', allow_access_requests: true } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
+      act(() => result.current.setVisibility('public'));
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'public', status: 'PUBLISHED', allow_access_requests: false });
+    });
+
+    it('leaves the stored access request setting alone when access is not email-based', async () => {
+      setupMocks({
+        isEmailBasedAuth: false,
+        dataset: { visibility: 'private', publication_date: '2026-07-09', allow_access_requests: true },
+      });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
     });
 
     it('closes the publish warning dialog', async () => {

@@ -83,7 +83,7 @@
     }
   }
 
-  .Disabled {
+  &.Disabled {
     .ToggleCheckbox + .ToggleSlider {
       background-color: var(--color-neutral-dark-400);
       cursor: not-allowed;

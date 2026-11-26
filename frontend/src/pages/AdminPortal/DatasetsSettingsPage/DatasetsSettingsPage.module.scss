@@ -240,6 +240,39 @@
   color: var(--color-neutral-black);
 }
 
+.AccessRequestsCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-neutral-dark-100);
+  border-radius: 8px;
+  background-color: var(--color-neutral-white);
+}
+
+.AccessRequestsText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.AccessRequestsTitle {
+  font-size: var(--font-size-md);
+  line-height: 24px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-neutral-black);
+  margin: 0;
+}
+
+.AccessRequestsDescription {
+  font-size: var(--font-size-xs);
+  line-height: 18px;
+  font-weight: var(--font-weight-regular);
+  color: var(--color-neutral-black);
+  margin: 0;
+}
+
 .TrashCell {
   display: flex;
   justify-content: flex-end;
