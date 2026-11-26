@@ -606,8 +606,9 @@ export default class EntitlementService {
    * to what blocks it (ADR-0079). Checks only `dashboards` Config Kind ids, and a Privileged caller
    * passes. `datasets` names, by current slug, the private Datasets without `preview` that take
    * Access Requests: one that doesn't still blocks, but isn't listed. An unpublished or deleted
-   * Dataset sets only `has_unavailable_datasets`, so its id is not revealed (docs/adr/0057). Looks up the Datasets of all configs in one query, and loads the caller's own
-   * grants once when a Dataset is private, as some routes that call it load none.
+   * Dataset sets only `has_unavailable_datasets`, so its id is not revealed (docs/adr/0057). Looks
+   * up the Datasets of all configs in one query, and loads the caller's own grants once when a
+   * Dataset is private, as some routes that call it load none.
    */
   async configDatasetsDenials(
     requestData: RequestData,
