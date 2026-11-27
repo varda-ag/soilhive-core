@@ -24,7 +24,7 @@ import SoilPropertyService from './SoilPropertyService';
 import { DataFilter } from '../interfaces/DatasetFilter';
 import { misplacedParameter, notASoilIndexRun, parametersProblem, SAME_CORRELATION_VARIABLES } from '../jobs/data-requests/parameters';
 import { soilIndexRunExists } from '../data-layer/SoilIndex';
-import { isPrivilegedCaller, subjectOf } from '../utils/auth';
+import { hasSubject, isPrivilegedCaller, subjectOf } from '../utils/auth';
 import { log } from '../utils/logger';
 import { outputMessage, translateJobError, translateQueueMessage } from '../errors/jobErrorMessages';
 import { assertNoUnfinishedJob, DATASET_LOCKING_QUEUES, hasRasterFileToLoad } from '../data-layer/DatasetJobs';
@@ -70,8 +70,6 @@ export default class JobService {
 
   /** The job enqueued, or the unfinished Export the request joined instead (docs/adr/0074). */
   async createJob(requestData: RequestData, data: AnyJob, options?: SendOptions): Promise<{ job: Job; joined: boolean }> {
-    const { sub } = requestData.token ?? {};
-
     // Checking preconditions
     if (
       data.type === JobQueues.BULK_LOAD ||
@@ -84,7 +82,7 @@ export default class JobService {
       data.type === JobQueues.VERSION_DISCARD ||
       data.type === JobQueues.VERSION_PUBLISH
     ) {
-      if (!sub) {
+      if (!hasSubject(requestData)) {
         throw new ErrorResponse(`Authentication required for ${data.type} jobs`, StatusCodes.UNAUTHORIZED);
       }
       if (data.anonymous) {
@@ -232,7 +230,7 @@ export default class JobService {
    * to export (docs/adr/0075). Judged before the Dataset checks: signing in may grant the download.
    */
   private checkExportSignIn = async (requestData: RequestData): Promise<void> => {
-    if (requestData.token?.sub) return;
+    if (hasSubject(requestData)) return;
     const { exportRequiresSignIn } = await getExportLimits(requestData.entityManager, {});
     if (exportRequiresSignIn) {
       throw new ErrorResponse('Exports require a signed-in user', StatusCodes.UNAUTHORIZED);

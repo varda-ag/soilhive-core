@@ -30,7 +30,6 @@ export interface StoredDataFilter {
   id: string;
   filter: DataFilterDTO;
   name?: string;
-  owner?: string;
 }
 
 export interface FilteredDatasetSummary extends FilterCriteria {

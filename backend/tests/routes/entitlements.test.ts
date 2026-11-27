@@ -90,6 +90,28 @@ describe('Testing entitlements routes', () => {
       // Updated entitlements should be reflected in dataset capabilities: "everyone" + this subject's own grant
       expect(updatedRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.OBFUSCATE_AS_POINTS]);
     });
+
+    it('stores a typed email normalized, merging keys that differ only in case (docs/adr/0085)', async () => {
+      const payload = {
+        everyone: ['download'],
+        ' Jane.Doe@Example.com': ['preview'],
+        'jane.doe@example.com': ['download'],
+        'Opaque-Sub': ['read'],
+      };
+      const expected = { everyone: ['download'], 'jane.doe@example.com': ['download', 'preview'], 'Opaque-Sub': ['read'] };
+
+      const putRes = await request(app).put(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`).send(payload);
+      expect(putRes.statusCode).toBe(StatusCodes.OK);
+      expect(putRes.body).toEqual(expected);
+
+      const res = await request(app).get(`/datasets/${slug}/entitlements`).set('Authorization', `Bearer ${token}`);
+      expect(res.body).toEqual(expected);
+
+      // The person whose token spells the email in capitals holds the grant
+      const janeToken = getUserToken('jane-sub', 'JANE.DOE@EXAMPLE.COM');
+      const janeRes = await request(app).get(`/datasets/${slug}`).set('Authorization', `Bearer ${janeToken}`);
+      expect(janeRes.body.capabilities).toEqual([Capability.DOWNLOAD, Capability.PREVIEW]);
+    });
   });
 
   describe('GET /configs/{configId}/entitlements', () => {

@@ -23,6 +23,8 @@ export default class DataFilterEntity extends BaseTable implements StoredDataFil
   @Column({ type: 'text', default: null, nullable: true })
   name?: string;
 
-  @Column({ type: 'text', default: null, nullable: true })
+  // The Subject, often an email. Left out of API responses via select: false, as anyone with a
+  // Filter's id can read it (docs/adr/0085).
+  @Column({ type: 'text', default: null, nullable: true, select: false })
   owner?: string;
 }

@@ -84,4 +84,17 @@ export default defineConfig([globalIgnores([
         // with eslint directives
         "no-console": ["error", { "allow": ['log', 'warn', 'error', 'info', 'trace'] }]
     },
+}, {
+    // The `sub` claim is not the Subject (docs/adr/0022, 0085): only these files read it
+    files: ["backend/src/**/*.ts"],
+    ignores: ["backend/src/utils/auth.ts", "backend/src/middlewares/tokenValidator.ts"],
+    rules: {
+        "no-restricted-syntax": ["error", {
+            selector: "MemberExpression[computed=false][property.name='sub']",
+            message: "Use getSubject, subjectOf or hasSubject (utils/auth.ts): the sub claim is not the Subject (ADR 0022).",
+        }, {
+            selector: "ObjectPattern > Property[key.name='sub']",
+            message: "Use getSubject, subjectOf or hasSubject (utils/auth.ts): the sub claim is not the Subject (ADR 0022).",
+        }],
+    },
 }]);
