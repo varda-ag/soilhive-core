@@ -55,6 +55,8 @@ export interface FilteredDatasetSummary extends FilterCriteria {
   name: string;
   data_type: GISDataType;
   visibility: 'public' | 'private';
+  // Whether an Access Request may name it; only a private, published dataset takes one either way
+  allow_access_requests?: boolean;
   // PUBLISHED, or LOADED for a data administrator, who is shown loaded datasets before they're published
   status?: IngestionStatus;
   dataset_layer_count: number;
@@ -71,6 +73,8 @@ export interface FilteredDataset {
   name: string;
   data_type: GISDataType;
   visibility: string;
+  // As in FilteredDatasetSummary
+  allow_access_requests?: boolean;
   // As in FilteredDatasetSummary
   status?: IngestionStatus;
 }

@@ -3895,6 +3895,11 @@ components:
           type: string
           enum: [public, private]
           default: private
+        allow_access_requests:
+          type: boolean
+          description: >-
+            Whether an Access Request may name it (`POST /access-requests`). Only a private,
+            published dataset takes one either way.
         status:
           type: string
           enum: [PUBLISHED, LOADED]
@@ -3925,6 +3930,11 @@ components:
               type: string
               enum: [public, private]
               description: Dataset visibility
+            allow_access_requests:
+              type: boolean
+              description: >-
+                Whether an Access Request may name it (`POST /access-requests`). Only a private,
+                published dataset takes one either way.
             status:
               type: string
               enum: [PUBLISHED, LOADED]

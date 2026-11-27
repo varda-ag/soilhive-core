@@ -81,6 +81,23 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       expect(mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset).status).toBe(IngestionStatus.LOADED);
     });
 
+    it('passes through whether the dataset takes Access Requests', () => {
+      const filteredDataset: FilteredDatasetSummary = {
+        id: 'dataset-requestable',
+        name: 'dataset-requestable',
+        data_type: GISDataType.POINT,
+        dataset_layer_count: 1,
+        raster_layer_count: 0,
+        visibility: 'private',
+        allow_access_requests: true,
+      };
+
+      expect(mapFilteredDatasetSummaryToAvailabilityDataset(filteredDataset).allowAccessRequests).toBe(true);
+      expect(mapFilteredDatasetSummaryToAvailabilityDataset({ ...filteredDataset, allow_access_requests: false }).allowAccessRequests).toBe(
+        false,
+      );
+    });
+
     it('should adapt valid object', () => {
       // Arrange
       const filteredDataset: FilteredDatasetSummary = {
@@ -161,6 +178,18 @@ describe.each(testTimezones)('datasetAdapter (multiple-timezones)', testTimezone
       };
 
       expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset)).toEqual(expectedAvailabilityDataset);
+    });
+
+    it('passes through whether the dataset takes Access Requests', () => {
+      const filteredDataset = {
+        id: 'dataset-3',
+        name: 'dataset-name-3',
+        data_type: GISDataType.RASTER,
+        visibility: 'private',
+        allow_access_requests: true,
+      } as FilteredDataset;
+
+      expect(mapFilteredDatasetToAvailabilityDataset(filteredDataset).allowAccessRequests).toBe(true);
     });
   });
 

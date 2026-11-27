@@ -97,11 +97,50 @@
         "polygons_suffix": "polygons",
         "raster_layers_suffix": "raster layers",
         "depth_cm_suffix": "cm",
-        "date_range_separator": "-"
+        "date_range_separator": "-",
+        "access": "Access"
     },
     "availability_mobile_navigation": {
         "datasets": "Datasets",
         "filters": "Filters",
         "map": "Map"
+    },
+    "access_request": {
+        "sign_in": "Please log in to request access to this dataset.",
+        "form": {
+            "title": "Request access",
+            "dataset": "You're asking for access to <strong>{{datasetName}}</strong>.",
+            "text": "Help us out by sharing a few details about your request, this way we can look into it more effectively. We'll be in touch as soon as we have an update!",
+            "fields": {
+                "name": "Name",
+                "email": "Email",
+                "country": "Country",
+                "organisation": "Organisation",
+                "organisationWebsite": "Organisation website",
+                "reason": "Reason for your request"
+            },
+            "country_placeholder": "Select your country",
+            "no_country_matches": "No country matches",
+            "reason_placeholder": "It'd be great if you could tell us a bit about why you need this data or what project you're working on, so we can support your request",
+            "symbols_left": "symbols left",
+            "too_long": "Use up to {{max}} characters",
+            "invalid_website": "Enter a website address, e.g. example.org",
+            "privacy": "We respect your privacy, for more info check our <a>Privacy Policy</a>",
+            "cancel": "Cancel",
+            "submit": "Request access"
+        },
+        "sent": {
+            "title": "Permission for privacy data",
+            "text": "You can check your access request status in your profile page."
+        },
+        "already_requested": {
+            "title": "You can't access this dataset",
+            "text": "You already requested access to <strong>{{datasetName}}</strong>, please check your profile page to see the request status."
+        },
+        "error": {
+            "with_reason": "Couldn't send the request: {{reason}}",
+            "without_reason": "Couldn't send the request. Please try again."
+        },
+        "close": "Close"
     }
 }

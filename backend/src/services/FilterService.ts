@@ -365,9 +365,16 @@ export default class FilterService {
     const pooledEntityManager = await getEntityManager();
     const [vectorDatasets, rasterDatasets] = await Promise.all([
       sds.filterVectorDatasets(pooledEntityManager, filter, requestData.signal, statuses),
-      sds
-        .filterRaster(pooledEntityManager, filter, requestData.signal, statuses)
-        .then(results => results.map(({ id, name, data_type, visibility, status }) => ({ id, name, data_type, visibility, status }))),
+      sds.filterRaster(pooledEntityManager, filter, requestData.signal, statuses).then(results =>
+        results.map(({ id, name, data_type, visibility, allow_access_requests, status }) => ({
+          id,
+          name,
+          data_type,
+          visibility,
+          allow_access_requests,
+          status,
+        })),
+      ),
     ]);
     return [...vectorDatasets, ...rasterDatasets];
   };

@@ -215,6 +215,27 @@ describe('Dropdown component', () => {
       expect(shownNames()).toEqual(['Organic carbon', 'Carbonates']);
     });
 
+    it('lists the options whose name has the typed text without its accents, or with a plain apostrophe', () => {
+      const COUNTRIES = [
+        { code: 'TR', name: 'Türkiye' },
+        { code: 'CI', name: 'Côte d’Ivoire' },
+        { code: 'CW', name: 'Curaçao' },
+        { code: 'DE', name: 'Germany' },
+      ];
+      const { field } = renderSearchable({ options: COUNTRIES });
+      fireEvent.focus(field);
+
+      fireEvent.change(field, { target: { value: 'turk' } });
+      expect(shownNames()).toEqual(['Türkiye']);
+      fireEvent.change(field, { target: { value: "COTE D'IVOIRE" } });
+      expect(shownNames()).toEqual(['Côte d’Ivoire']);
+      fireEvent.change(field, { target: { value: 'curacao' } });
+      expect(shownNames()).toEqual(['Curaçao']);
+      // Typed with them, as before
+      fireEvent.change(field, { target: { value: 'Türk' } });
+      expect(shownNames()).toEqual(['Türkiye']);
+    });
+
     it('lists every option again once the typed text is deleted', () => {
       const { field } = renderSearchable();
 

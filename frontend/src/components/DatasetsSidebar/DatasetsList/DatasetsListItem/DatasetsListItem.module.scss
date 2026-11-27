@@ -80,11 +80,19 @@
 
     > .Bottom {
       display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
 
       > .MetadataButton {
         font-weight: normal;
         color: var(--color-neutral-black);
         background-color: var(--color-neutral-dark-300);
+      }
+
+      // Narrower than a tiny button's 1rem, so it fits beside Metadata in the desktop sidebar, as designed
+      > .AccessButton {
+        padding-inline: 0.75rem;
+        background-color: var(--color-neutral-white);
       }
     }
   }

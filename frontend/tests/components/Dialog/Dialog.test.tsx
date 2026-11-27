@@ -21,7 +21,7 @@ jest.mock('primereact/confirmdialog', () => {
     if (!visible) return null;
     const refs = { contentRef: { current: null }, headerRef: { current: null }, footerRef: { current: null } };
     return (
-      <div className={className} aria-label={rest['aria-label']} data-testid="dialog-root">
+      <div className={className} aria-label={rest['aria-label']} data-focus-on-show={String(rest.focusOnShow)} data-testid="dialog-root">
         <div className="p-dialog-mask" data-testid="dialog-mask" onClick={onMaskClick} />
         {content?.(refs)}
       </div>
@@ -271,6 +271,59 @@ describe('Dialog', () => {
 
       fireEvent.click(screen.getByTestId('dialog-mask'));
       expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('isPrimaryDisabled', () => {
+    it('disables only the primary button, which then sends nothing', () => {
+      const onPrimary = jest.fn();
+      render(
+        <Dialog {...defaultProps} onPrimary={onPrimary} secondaryText="Cancel" primaryText="Send" isPrimaryDisabled>
+          <p>content</p>
+        </Dialog>,
+      );
+
+      expect(screen.getByRole('button', { name: 'Cancel' })).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+      expect(onPrimary).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('focusOnShow', () => {
+    it("lets PrimeReact focus the first field on opening, unless it's turned off", () => {
+      const { rerender } = render(
+        <Dialog {...defaultProps}>
+          <p>content</p>
+        </Dialog>,
+      );
+      expect(screen.getByTestId('dialog-root')).toHaveAttribute('data-focus-on-show', 'true');
+
+      rerender(
+        <Dialog {...defaultProps} focusOnShow={false}>
+          <p>content</p>
+        </Dialog>,
+      );
+      expect(screen.getByTestId('dialog-root')).toHaveAttribute('data-focus-on-show', 'false');
+    });
+
+    it('marks the content for the focus on opening only when focusOnShow is off', () => {
+      const { rerender } = render(
+        <Dialog {...defaultProps}>
+          <p>content</p>
+        </Dialog>,
+      );
+      const content = () => screen.getByText('content').parentElement!;
+      expect(content()).not.toHaveAttribute('data-pc-autofocus');
+      expect(content()).not.toHaveAttribute('tabindex');
+
+      rerender(
+        <Dialog {...defaultProps} focusOnShow={false}>
+          <p>content</p>
+        </Dialog>,
+      );
+      expect(content()).toHaveAttribute('data-pc-autofocus', 'true');
+      expect(content()).toHaveAttribute('tabindex', '-1');
     });
   });
 

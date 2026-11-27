@@ -151,7 +151,8 @@
 .PortalMenu {
     max-height: 15rem;
     overflow: auto;
-    z-index: 1000;
+    // Above PrimeReact's dialogs, whose masks start at 1100, so a Dropdown works inside a Dialog
+    z-index: 1200;
     box-shadow: var(--shadow-interface);
 }
 

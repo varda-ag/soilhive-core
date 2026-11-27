@@ -349,7 +349,7 @@ describe('Testing /datasets routes', () => {
       expect(all.body.find((dataset: { id: string }) => dataset.id === postRes.body.id).allow_access_requests).toBe(true);
     });
 
-    it('returns allow_access_requests to a regular user in the list, for the "Access" button (SP-5991)', async () => {
+    it('returns allow_access_requests to a regular user in the list', async () => {
       const dataset = await addDataset('asks-for-access', [0, 0, 1, 1]);
       await request(app)
         .patch(`/datasets/${dataset.slug}`)

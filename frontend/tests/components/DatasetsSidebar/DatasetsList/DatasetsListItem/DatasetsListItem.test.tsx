@@ -13,6 +13,14 @@ jest.mock('hooks/useEntitlementsHook', () => ({
   useEntitlements: jest.fn(),
 }));
 
+jest.mock('components/AccessRequest/DatasetAccessRequest/DatasetAccessRequest', () => ({
+  DatasetAccessRequest: ({ dataset, onClose }: any) => (
+    <div data-testid="mock-access-request" data-dataset={dataset.id}>
+      <button onClick={onClose}>close</button>
+    </div>
+  ),
+}));
+
 jest.mock('components/UI', () => ({
   __esModule: true,
   Checkbox: ({ label, value, onChange }: any) => (
@@ -20,11 +28,16 @@ jest.mock('components/UI', () => ({
       {label}
     </div>
   ),
-  Button: ({ children, href }: any) => (
-    <a data-testid="mock-button" href={href} target={href ? '_blank' : undefined} rel={href ? 'noreferrer' : undefined}>
-      {children}
-    </a>
-  ),
+  Button: ({ children, href, dataTestId, onClick }: any) =>
+    href ? (
+      <a data-testid={dataTestId ?? 'mock-button'} href={href} target="_blank" rel="noreferrer">
+        {children}
+      </a>
+    ) : (
+      <button data-testid={dataTestId ?? 'mock-button'} onClick={onClick}>
+        {children}
+      </button>
+    ),
   Tag: ({ text, type }: any) => (
     <span data-testid={`tag-${text}`} data-type={type}>
       {text}
@@ -49,10 +62,10 @@ const mockDataset = {
   },
 };
 
-function mockCapabilities(capabilities: Capability[]) {
+function mockCapabilities(capabilities: Capability[], isLoading = false) {
   (useEntitlements as jest.Mock).mockReturnValue({
     can: (capability: Capability) => capabilities.includes(capability),
-    isLoading: false,
+    isLoading,
   });
 }
 
@@ -202,5 +215,50 @@ describe('DatasetsListItem', () => {
 
     expect(screen.getByTestId('mock-checkbox')).toBeInTheDocument();
     expect(screen.queryByText(mockDataset.name, { selector: 'p' })).not.toBeInTheDocument();
+  });
+
+  describe('Access button (SP-5991)', () => {
+    const requestable = { ...mockDataset, visibility: 'private', allowAccessRequests: true, status: 'PUBLISHED' };
+    const accessButton = () => screen.queryByTestId('sh-datasets-list-item-access-button');
+
+    it('shows on a private dataset that takes Access Requests and the user can neither explore nor download', () => {
+      mockCapabilities([]);
+      render(<DatasetsListItem dataset={requestable} />);
+
+      expect(accessButton()).toHaveTextContent('Access');
+    });
+
+    it.each([
+      ['a public dataset', { ...requestable, visibility: 'public' }, []],
+      ['a dataset that takes no Access Requests', { ...requestable, allowAccessRequests: false }, []],
+      ['a dataset whose flag the list lacks', { ...requestable, allowAccessRequests: undefined }, []],
+      ['an unpublished dataset, which only an admin is shown', { ...requestable, status: 'LOADED' }, []],
+      ['a dataset the user can explore', requestable, [Capability.PREVIEW]],
+      ['a dataset the user can download', requestable, [Capability.DOWNLOAD]],
+    ])('does not show on %s', (_case, dataset, capabilities) => {
+      mockCapabilities(capabilities);
+      render(<DatasetsListItem dataset={dataset} />);
+
+      expect(accessButton()).not.toBeInTheDocument();
+    });
+
+    it("does not show while the user's entitlements load, as the dataset may turn out selectable", () => {
+      mockCapabilities([], true);
+      render(<DatasetsListItem dataset={requestable} />);
+
+      expect(accessButton()).not.toBeInTheDocument();
+    });
+
+    it('opens the request for this dataset, and closes it', () => {
+      mockCapabilities([]);
+      render(<DatasetsListItem dataset={requestable} />);
+      expect(screen.queryByTestId('mock-access-request')).not.toBeInTheDocument();
+
+      fireEvent.click(accessButton()!);
+      expect(screen.getByTestId('mock-access-request')).toHaveAttribute('data-dataset', 'dataset-1');
+
+      fireEvent.click(screen.getByRole('button', { name: 'close' }));
+      expect(screen.queryByTestId('mock-access-request')).not.toBeInTheDocument();
+    });
   });
 });
