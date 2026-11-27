@@ -1,0 +1,23 @@
+@import 'styles/variables/breakpoints';
+
+.AccessRequestStatusDialog {
+  width: 436px;
+  min-height: auto;
+
+  @media (max-width: $bp-mobile-max) {
+    width: auto;
+  }
+}
+
+.Content {
+  gap: 1rem;
+  align-items: center;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+
+.Text {
+  margin: 0;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-lg);
+}

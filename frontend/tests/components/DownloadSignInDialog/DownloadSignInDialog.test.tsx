@@ -51,6 +51,14 @@ describe('DownloadSignInDialog', () => {
     expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
   });
 
+  it('says what else the visitor logs in for when given a message', () => {
+    render(<DownloadSignInDialog visible={true} message="Please log in to request access to this dataset." onClose={onClose} />);
+
+    expect(screen.getByTestId('mock-dialog')).toHaveAttribute('aria-label', 'Please log in to request access to this dataset.');
+    expect(screen.getByTestId('dialog-content')).toHaveTextContent('Please log in to request access to this dataset.');
+    expect(screen.getByTestId('dialog-content')).not.toHaveTextContent('Please log in to download.');
+  });
+
   it('closes without logging in on Cancel', () => {
     render(<DownloadSignInDialog visible={true} onClose={onClose} />);
 

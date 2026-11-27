@@ -396,6 +396,31 @@ describe('Testing /data-filters routes', () => {
     expect(resultDatasets[0].visibility).toBe('private');
   });
 
+  it('Coverage and datasets say which datasets take Access Requests, for the "Access" button (SP-5991)', async () => {
+    const { dataset: requestable } = await addSyntheticData({ ...syntheticDataOptions, id: 70, soilPropertyNames: ['prop_requestable'] });
+    const { dataset: closed } = await addSyntheticData({ ...syntheticDataOptions, id: 71, soilPropertyNames: ['prop_closed'] });
+    const auth = { Authorization: `Bearer ${await getDataAdminToken()}` };
+    await request(app)
+      .patch(`/datasets/${requestable.slug}`)
+      .set(auth)
+      .send({ visibility: 'private', allow_access_requests: true })
+      .expect(StatusCodes.OK);
+    await request(app).patch(`/datasets/${closed.slug}`).set(auth).send({ visibility: 'private' }).expect(StatusCodes.OK);
+
+    // Signed out: the map lists private datasets to everyone
+    const resPost = await request(app)
+      .post('/data-filters')
+      .send({ parameters: {}, geometries: [filteringPolygon] });
+    const resCoverage = await request(app).get(`/data-filters/${resPost.body.id}/coverage`).expect(StatusCodes.OK);
+    const resDatasets = await request(app).get(`/data-filters/${resPost.body.id}/datasets`).expect(StatusCodes.OK);
+
+    const flagById = (datasets: (FilteredDatasetSummary | FilteredDataset)[]) =>
+      Object.fromEntries(datasets.map(ds => [ds.id, ds.allow_access_requests]));
+    const expected = { [requestable.slug]: true, [closed.slug]: false };
+    expect(flagById((resCoverage.body as FilteredData).datasets)).toEqual(expected);
+    expect(flagById(resDatasets.body as FilteredDataset[])).toEqual(expected);
+  });
+
   it('Coverage with a visibility criterion only returns matching datasets', async () => {
     const { dataset: publicDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 50, soilPropertyNames: ['prop_pub'] });
     const { dataset: privateDataset } = await addSyntheticData({ ...syntheticDataOptions, id: 51, soilPropertyNames: ['prop_priv'] });
@@ -592,8 +617,10 @@ describe('Testing /data-filters routes', () => {
     expect(ids).not.toContain(dataset.slug);
   });
 
-  it('Datasets endpoint includes visibility for raster datasets', async () => {
-    await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'private' });
+  it('Datasets endpoint includes visibility and allow_access_requests for raster datasets', async () => {
+    const layer = await addRasterData(undefined, { dataset_status: IngestionStatus.PUBLISHED, visibility: 'private' });
+    const dataSource = await getDataSource();
+    await dataSource.query(`UPDATE datasets SET allow_access_requests = true WHERE id = $1`, [layer.dataset_id]);
     const rasterPolygon = {
       type: 'Polygon',
       coordinates: [
@@ -615,6 +642,7 @@ describe('Testing /data-filters routes', () => {
     expect(datasets.length).toBeGreaterThan(0);
     expect(datasets.every(ds => ds.data_type === 'raster')).toBe(true);
     datasets.forEach(ds => expect(ds.visibility).toBe('private'));
+    datasets.forEach(ds => expect(ds.allow_access_requests).toBe(true));
   });
 
   describe('LOADED datasets', () => {

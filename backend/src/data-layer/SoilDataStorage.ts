@@ -198,6 +198,7 @@ export default class SoilDataStorage {
         ds.name AS dataset_name,
         ds.slug AS dataset_slug,
         ds.visibility,
+        ds.allow_access_requests,
         ds.status,
         -- Recorded licences plus the Dataset's when some matched Layer has none; the mapper dedupes.
         array_to_string(
@@ -216,7 +217,7 @@ export default class SoilDataStorage {
       INNER JOIN ${schema}.datasets ds ON ds.id = base_agg.dataset_id
       LEFT JOIN ${schema}.licenses license ON license.id = base_agg.license AND license.deleted_at IS NULL
       WHERE ${outerWhere.join('\n        AND ')}
-      GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.status, ds.licenses
+      GROUP BY base_agg.dataset_id, ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.allow_access_requests, ds.status, ds.licenses
     `;
 
     const results = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
@@ -229,6 +230,7 @@ export default class SoilDataStorage {
       name: row.dataset_name,
       data_type: row.gis_datatype,
       visibility: row.visibility,
+      allow_access_requests: row.allow_access_requests,
       status: row.status,
       licenses: row.licenses ? [...new Set(row.licenses.split(','))] : [],
       min_sampling_date: row.min_sampling_date,
@@ -305,7 +307,7 @@ export default class SoilDataStorage {
         ${lateralJoins.join('\n        ')}
         WHERE ${matchingDatasetsWhere.join('\n          AND ')}
       )
-      SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type, ds.visibility, ds.status
+      SELECT ds.slug AS id, ds.name, ds.gis_datatype AS data_type, ds.visibility, ds.allow_access_requests, ds.status
       FROM ${schema}.datasets ds
       WHERE ${outerWhere.join('\n        AND ')}
         AND ds.id IN (SELECT dataset_id FROM matching_datasets)
@@ -381,6 +383,7 @@ export default class SoilDataStorage {
         ds.name AS name,
         ds.gis_datatype AS data_type,
         ds.visibility AS visibility,
+        ds.allow_access_requests AS allow_access_requests,
         ds.status AS status,
         ds.licenses AS licenses,
         COUNT(rl.id) AS raster_layer_count,
@@ -393,7 +396,7 @@ export default class SoilDataStorage {
       INNER JOIN ${schema}.raster_layers rl ON rl.id = sl.id
       INNER JOIN ${schema}.datasets ds ON ds.id = rl.dataset_id
       INNER JOIN ${schema}.soil_properties sp ON sp.id = rl.soil_property_id
-      GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.status, ds.licenses
+      GROUP BY ds.slug, ds.name, ds.gis_datatype, ds.visibility, ds.allow_access_requests, ds.status, ds.licenses
     `;
 
     const rows = await runCancelableQuery(entityManager, signal, async transactionalEntityManager => {
@@ -406,6 +409,7 @@ export default class SoilDataStorage {
       name: row.name,
       data_type: row.data_type,
       visibility: row.visibility,
+      allow_access_requests: row.allow_access_requests,
       status: row.status,
       licenses: Array.isArray(row.licenses) ? row.licenses : [],
       min_sampling_date: row.min_sampling_date ?? null,

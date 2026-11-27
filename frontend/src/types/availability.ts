@@ -14,6 +14,8 @@ export type AvailabilityDataset = {
   tags: string[];
   dataType?: string;
   visibility?: string;
+  // Whether the user may ask an admin for access to it (an Access Request)
+  allowAccessRequests?: boolean;
   // LOADED for a dataset a data administrator is shown before it's published
   status?: string;
   properties: DatasetProperties;

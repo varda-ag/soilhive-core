@@ -8,6 +8,7 @@ import RullerIcon from 'assets/icons/small-ruller-icon.svg?react';
 import LayersIcon from 'assets/icons/small-layers-icon.svg?react';
 import CalendarIcon from 'assets/icons/small-calendar-icon.svg?react';
 import NewTabIcon from 'assets/icons/small-new-tab-icon.svg?react';
+import UnlockIcon from 'assets/icons/small-unlock-icon.svg?react';
 import type { AvailabilityDataset } from 'types/availability';
 
 import styles from './DatasetsListItem.module.scss';
@@ -18,18 +19,24 @@ import { Capability, EntitlementScope, GISDataType, IngestionStatus } from '../.
 import { useEntitlements } from 'hooks/useEntitlementsHook';
 import { metadataPath } from 'configuration/routes';
 import { withBasePath } from 'configuration/basePath';
+import { DatasetAccessRequest } from 'components/AccessRequest/DatasetAccessRequest/DatasetAccessRequest';
 
 type Props = {
   dataset: AvailabilityDataset;
 };
 export function DatasetsListItem({ dataset }: Props) {
   const { selectedDatasets, selectDataset, isCoverageLoading } = useAvailability();
-  const { can } = useEntitlements(EntitlementScope.DATASETS);
+  const { can, isLoading: isLoadingEntitlements } = useEntitlements(EntitlementScope.DATASETS);
   const [isOpened, setIsOpened] = useState<boolean>(false);
+  const [isAccessRequestOpen, setIsAccessRequestOpen] = useState(false);
   const { t } = useTranslation('availability');
   const isSelectable = dataset.visibility === 'public' || can(Capability.DOWNLOAD, dataset.id) || can(Capability.PREVIEW, dataset.id);
   // Loaded but not published yet: only a data administrator is shown one, to review it
   const isUnpublished = dataset.status === IngestionStatus.LOADED;
+  // A private Dataset the user can neither explore nor download, whose admins take Access Requests.
+  // Not while the user's own entitlements load, as it may turn out selectable.
+  const canRequestAccess =
+    dataset.visibility === 'private' && !!dataset.allowAccessRequests && !isUnpublished && !isSelectable && !isLoadingEntitlements;
 
   return (
     <div
@@ -67,6 +74,17 @@ export function DatasetsListItem({ dataset }: Props) {
           <Button size="tiny" type="custom" className={styles.MetadataButton} href={withBasePath(metadataPath(dataset.id))}>
             <NewTabIcon /> {t('datasets_list.metadata')}
           </Button>
+          {canRequestAccess && (
+            <Button
+              size="tiny"
+              type="secondary"
+              className={styles.AccessButton}
+              dataTestId="sh-datasets-list-item-access-button"
+              onClick={() => setIsAccessRequestOpen(true)}
+            >
+              <UnlockIcon /> {t('datasets_list.access')}
+            </Button>
+          )}
         </div>
       </div>
       <div className={styles.MetaWrapper}>
@@ -94,6 +112,7 @@ export function DatasetsListItem({ dataset }: Props) {
           </MetaItem>
         </div>
       </div>
+      {isAccessRequestOpen && <DatasetAccessRequest dataset={dataset} onClose={() => setIsAccessRequestOpen(false)} />}
     </div>
   );
 }
