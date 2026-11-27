@@ -33,12 +33,16 @@ interface Props {
   helperMessage?: string;
   showSelectedCheckIcon?: boolean;
   // Single select only. The field takes typed text, and the menu lists only the options whose name
-  // has it, in any case. Enter picks the first of them.
+  // has it, in any case and with or without accents. Enter picks the first of them.
   isSearchable?: boolean;
   // Shown in place of the menu while no option's name has the typed text.
   noMatchesMessage?: string;
   onChange: (selectedOption: string | string[], name?: string) => void;
 }
+
+// Text as the search compares it: in lower case, without accents, and with plain apostrophes, so
+// "turk" finds "Türkiye" and "cote d'ivoire" finds "Côte d’Ivoire"
+const searchableText = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').replace(/[‘’]/g, "'").toLowerCase();
 
 export function Dropdown({
   className,
@@ -105,8 +109,8 @@ export function Dropdown({
 
   // The options whose name has the typed text, or every option while none is typed.
   const shownOptions = useMemo(() => {
-    const text = searchText.trim().toLowerCase();
-    return text ? options.filter(({ name }) => name.toLowerCase().includes(text)) : options;
+    const text = searchableText(searchText.trim());
+    return text ? options.filter(({ name }) => searchableText(name).includes(text)) : options;
   }, [options, searchText]);
 
   const openDropdown = useCallback(() => {

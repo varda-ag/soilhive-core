@@ -25,7 +25,8 @@ interface Props {
   isLoading?: boolean;
   // Only the primary button, e.g. while the form it sends is incomplete
   isPrimaryDisabled?: boolean;
-  // Focuses the first field on opening; off where that would open something, like a searchable Dropdown
+  // Focuses the first field on opening. Off where that would open something, like a searchable
+  // Dropdown: the content takes the focus instead, so it still leaves the page behind the dialog.
   focusOnShow?: boolean;
   onPrimary?: () => void;
   onSecondary?: () => void;
@@ -108,7 +109,12 @@ export function Dialog({
               </button>
             </div>
           )}
-          <div className={classnames(styles.Content, contentClassName)} ref={contentRef as RefObject<HTMLDivElement>}>
+          <div
+            className={classnames(styles.Content, contentClassName)}
+            ref={contentRef as RefObject<HTMLDivElement>}
+            // PrimeReact's focus trap focuses an element so marked on opening, even with focusOnShow off
+            {...(!focusOnShow && { tabIndex: -1, 'data-pc-autofocus': true })}
+          >
             {children}
           </div>
           {!hideButtons && (

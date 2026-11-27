@@ -107,6 +107,21 @@ describe('RequestAccessDialog', () => {
     });
   });
 
+  it.each([
+    ['turk', 'TR'],
+    ["cote d'ivoire", 'CI'],
+    ['sao tome', 'ST'],
+  ])('finds a country typed without its accents: %p', (typed, code) => {
+    const { onSubmit } = renderDialog();
+    pickCountry(typed);
+    fill('Organisation', 'Varda');
+    fill('Reason for your request', 'A soil carbon study');
+
+    fireEvent.click(submitButton());
+
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ country: code }));
+  });
+
   it('takes no blank answer', () => {
     renderDialog();
     fillRequired();

@@ -31,10 +31,15 @@ export function DatasetAccessRequest({ dataset, onClose }: Props) {
   return <SignedInDatasetAccessRequest dataset={dataset} onClose={onClose} />;
 }
 
-// The backend's own words, which name the Dataset; none for a refusal without a response
+// The backend's own words, which name the Dataset, for a refusal of the request (a 4xx). None for a
+// server failure, whose words are the server's own, nor for a refusal without a response.
 const detailOf = (error: unknown): string | undefined => {
-  const body = (error as Partial<PluginAccessRequestError> | undefined)?.body as { detail?: unknown } | undefined;
-  return typeof body?.detail === 'string' && body.detail !== '' ? body.detail : undefined;
+  const { status, body } = (error ?? {}) as Partial<PluginAccessRequestError>;
+  if (status === undefined || status < 400 || status >= 500) {
+    return undefined;
+  }
+  const detail = (body as { detail?: unknown } | undefined)?.detail;
+  return typeof detail === 'string' && detail !== '' ? detail : undefined;
 };
 
 function SignedInDatasetAccessRequest({ dataset, onClose }: Props) {

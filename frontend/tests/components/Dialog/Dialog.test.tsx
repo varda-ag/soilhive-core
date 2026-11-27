@@ -306,6 +306,25 @@ describe('Dialog', () => {
       );
       expect(screen.getByTestId('dialog-root')).toHaveAttribute('data-focus-on-show', 'false');
     });
+
+    it('marks the content for the focus on opening only when focusOnShow is off', () => {
+      const { rerender } = render(
+        <Dialog {...defaultProps}>
+          <p>content</p>
+        </Dialog>,
+      );
+      const content = () => screen.getByText('content').parentElement!;
+      expect(content()).not.toHaveAttribute('data-pc-autofocus');
+      expect(content()).not.toHaveAttribute('tabindex');
+
+      rerender(
+        <Dialog {...defaultProps} focusOnShow={false}>
+          <p>content</p>
+        </Dialog>,
+      );
+      expect(content()).toHaveAttribute('data-pc-autofocus', 'true');
+      expect(content()).toHaveAttribute('tabindex', '-1');
+    });
   });
 
   describe('Esc', () => {

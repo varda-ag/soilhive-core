@@ -149,6 +149,19 @@ describe('DatasetAccessRequest', () => {
     expect(screen.getByTestId('request-form')).toBeInTheDocument();
   });
 
+  it("says a server failure in words of its own, not the server's", async () => {
+    createAccessRequest.mockRejectedValue({
+      status: 500,
+      body: { status: 500, detail: 'column "organisation" of relation "access_requests" does not exist' },
+    });
+    render(<DatasetAccessRequest dataset={DATASET} onClose={onClose} />);
+
+    await send();
+
+    expect(screen.getByTestId('send-error')).toHaveTextContent("Couldn't send the request. Please try again.");
+    expect(screen.getByTestId('request-form')).toBeInTheDocument();
+  });
+
   it('says a refusal without a response in words of its own, and clears it on the next send', async () => {
     createAccessRequest.mockRejectedValueOnce({ status: 0, body: undefined });
     createAccessRequest.mockResolvedValueOnce({ id: 'request-1', status: 'pending', createdAt: '2026-11-27T10:00:00Z' });
