@@ -1,4 +1,4 @@
-import { describe, it, expect, jest, afterEach, beforeAll, afterAll } from '@jest/globals';
+import { describe, it, expect, jest, afterEach, beforeAll, beforeEach, afterAll } from '@jest/globals';
 import { randomUUID } from 'crypto';
 import { Job } from 'pg-boss';
 import { processVersionPublish } from '../../../src/jobs/version/VersionPublishJob';
@@ -368,6 +368,12 @@ describe('version-publish', () => {
     beforeAll(async () => {
       await getPgBoss().start();
       await getPgBoss().createQueue(JobQueues.VERSION_PUBLISH);
+    });
+
+    // clearDatabase leaves pg-boss alone, and a sent job is never finished: one left by an
+    // earlier run would lock its Dataset's slug
+    beforeEach(async () => {
+      await (await getDataSource()).query(`DELETE FROM ${PG_BOSS_SCHEMA}.job WHERE name = $1`, [JobQueues.VERSION_PUBLISH]);
     });
 
     afterAll(async () => {

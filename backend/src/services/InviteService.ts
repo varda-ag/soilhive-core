@@ -16,7 +16,7 @@ import {
   type InviteStatus,
   type InviteView,
 } from '../types/Invites';
-import { getSubject, isPrivilegedCaller, requireEmailSubject, subjectOf } from '../utils/auth';
+import { getSubject, isPrivilegedCaller, normalizeSubject, requireEmailSubject, subjectOf } from '../utils/auth';
 import { ErrorResponse } from '../utils/error';
 import { existingDatasetsByName } from '../utils/slugs';
 import EntitlementService from './EntitlementService';
@@ -67,7 +67,7 @@ const toView = (invite: InviteEntity, redemptions: InviteRedemptionEntity[]): In
 export default class InviteService {
   createInvite = async (requestData: RequestData, body: InviteCreateBody): Promise<InviteCreated> => {
     const grants = await this.checkGrants(requestData, body.grants);
-    const recipient = body.recipient?.trim() || null;
+    const recipient = body.recipient?.trim() ? normalizeSubject(body.recipient) : null;
     const reusable = body.reusable ?? false;
     if (recipient && reusable) {
       throw invalid('An Invite with a recipient is used up by that recipient, so it cannot be reusable');
@@ -280,9 +280,9 @@ export default class InviteService {
     return checked;
   };
 
-  /** The recipient against the redeemer's Subject, their email, ignoring case (docs/adr/0081). */
+  /** The recipient against the redeemer's Subject, their email; both are normalized (docs/adr/0081, 0085). */
   private assertRecipient = (subject: string, recipient: string): void => {
-    if (subject.trim().toLowerCase() !== recipient.toLowerCase()) {
+    if (subject !== recipient) {
       const hint = maskEmail(recipient);
       throw new ErrorResponse(`This Invite is for ${hint}. Sign in with that account to redeem it.`, StatusCodes.FORBIDDEN, {
         recipient_hint: hint,

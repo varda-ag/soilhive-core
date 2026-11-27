@@ -73,29 +73,35 @@ const CLIENT_CREDENTIALS_GRANT = 'client_credentials';
 export const isMachineCaller = (token?: Token): boolean => token?.gty === CLIENT_CREDENTIALS_GRANT;
 
 /**
- * A person's access token `email`, exactly as sent. Undefined for a Machine caller, and when the
+ * The stored form of a Subject: one containing `@` is trimmed and lowercased, whichever claim
+ * supplied it; any other is kept as it is (docs/adr/0085). Applying it twice changes nothing.
+ */
+export const normalizeSubject = (subject: string): string => (subject.includes('@') ? subject.trim().toLowerCase() : subject);
+
+/**
+ * A person's access token `email`, normalized. Undefined for a Machine caller, and when the
  * claim is absent or blank: taken as it is, every person whose token carries a blank one would
  * share the Subject `''`, and each other's grants.
  */
 const personEmail = (token?: Token): string | undefined => {
   const email = token?.email;
-  return !isMachineCaller(token) && typeof email === 'string' && email.trim() ? email : undefined;
+  return !isMachineCaller(token) && typeof email === 'string' && email.trim() ? normalizeSubject(email) : undefined;
 };
 
 /**
  * Resolves the caller's Subject: Entitlements and every `created_by` will take this value:
  * - A **Machine caller** (`gty` equals client-credentials grant) is its `client_id`.
  * - Everyone else is their `email`, else `sub`. A blank `email` counts as none (see personEmail).
- *   Any other email is kept exactly as sent, so no existing Subject changes.
+ * The result is normalized (see normalizeSubject).
  * Note the ordering: `requireSub` runs first, so a token carrying `client_id` but no `sub` is
  * still a 401 rather than resolving to the client.
  */
 export const getSubject = (requestData: RequestData): string => {
   const sub = requireSub(requestData);
   if (isMachineCaller(requestData.token)) {
-    return requestData.token!.client_id ?? sub;
+    return normalizeSubject(requestData.token!.client_id ?? sub);
   }
-  return personEmail(requestData.token) ?? sub;
+  return personEmail(requestData.token) ?? normalizeSubject(sub);
 };
 
 /**
@@ -118,7 +124,11 @@ export const requireEmailSubject = (requestData: RequestData, action: string): s
 };
 
 /**
- * The Subject the caller acts under, or undefined when the request carries no token. Unlike
- * getSubject, an anonymous caller is not a 401: it is covered by EVERYONE's grants.
+ * The Subject the caller acts under, or undefined when the request carries no token, or one with
+ * no `sub` (a job submitted anonymously). Unlike getSubject, an anonymous caller is not a 401: it
+ * is covered by EVERYONE's grants.
  */
-export const subjectOf = (requestData: RequestData): string | undefined => (requestData.token ? getSubject(requestData) : undefined);
+export const subjectOf = (requestData: RequestData): string | undefined => (requestData.token?.sub ? getSubject(requestData) : undefined);
+
+/** Whether the request carries a token with a `sub`: a signed-in caller, or a job with a submitter. */
+export const hasSubject = (requestData: RequestData): boolean => Boolean(requestData.token?.sub);

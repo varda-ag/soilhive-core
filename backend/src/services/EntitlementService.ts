@@ -11,7 +11,7 @@ import { isCacheBypassed } from '../utils/cache-bypass';
 import { ErrorResponse, getErrorMessage } from '../utils/error';
 import { log } from '../utils/logger';
 import { existingDatasets, existingDatasetsByName, getEntitySlugs } from '../utils/slugs';
-import { datasetCapabilities, getSubject, isPrivilegedCaller, subjectOf } from '../utils/auth';
+import { datasetCapabilities, getSubject, isPrivilegedCaller, normalizeSubject, subjectOf } from '../utils/auth';
 import { getEntitlementsCacheTtlMs } from '../utils/utils';
 import { JsonStorage } from '../entities/JsonStorage';
 
@@ -78,6 +78,16 @@ const dashboardDatasetSlugs = (data: unknown): string[] => {
 /** De-duplicated, sorted union of two capability lists. */
 const mergeCapabilities = (existing: Capability[] | undefined, incoming: Capability[]): Capability[] =>
   Array.from(new Set([...(existing ?? []), ...incoming])).sort();
+
+/** Grants keyed by Subject with each key normalized; two keys that normalize alike are merged (docs/adr/0085). */
+const normalizeSubjectKeys = (grants: CapabilityGrants): CapabilityGrants => {
+  const normalized = grantsMap();
+  for (const [subject, capabilities] of Object.entries(grants)) {
+    const key = normalizeSubject(subject);
+    normalized[key] = key in normalized ? mergeCapabilities(normalized[key], capabilities) : capabilities;
+  }
+  return normalized;
+};
 
 /** One entry of the external provider's reply: a plain object whose own values are all capability lists. */
 const isEntitlementsEntry = (entry: unknown): entry is CapabilityGrants =>
@@ -164,8 +174,9 @@ export default class EntitlementService {
     requestData: RequestData,
     scope: EntitlementScope,
     slug: string,
-    entitlements: CapabilityGrants,
+    grants: CapabilityGrants,
   ): Promise<CapabilityGrants> => {
+    const entitlements = normalizeSubjectKeys(grants);
     // 1. Remove all entitlements
     await this.deleteEntityEntitlements(requestData, scope, slug);
     // 2. Group user IDs

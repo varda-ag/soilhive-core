@@ -1,7 +1,15 @@
 import { describe, it, expect } from '@jest/globals';
 import { StatusCodes } from 'http-status-codes';
 import { EntityManager } from 'typeorm';
-import { datasetCapabilities, requireSub, getSubject, requireEmailSubject } from '../../src/utils/auth';
+import {
+  datasetCapabilities,
+  requireSub,
+  getSubject,
+  requireEmailSubject,
+  normalizeSubject,
+  subjectOf,
+  hasSubject,
+} from '../../src/utils/auth';
 import { Capability } from '../../src/types/enums';
 import { ErrorResponse } from '../../src/utils/error';
 import { RequestData } from '../../src/interfaces/RequestData';
@@ -115,10 +123,25 @@ describe('getSubject', () => {
     expect(getSubject(requestData)).toBe('auth|123');
   });
 
-  it('should keep any other email exactly as sent', () => {
-    // Trimming it would move the Subject, and with it every grant already keyed by the email
-    const requestData = buildRequestData({ sub: 'auth|123', email: ' user@example.com' });
-    expect(getSubject(requestData)).toBe(' user@example.com');
+  it('should trim and lowercase the email (docs/adr/0085)', () => {
+    const requestData = buildRequestData({ sub: 'auth|123', email: ' Jane.Doe@Example.com ' });
+    expect(getSubject(requestData)).toBe('jane.doe@example.com');
+  });
+
+  it('should lowercase a sub that contains @, as Okta sends without the email claim', () => {
+    const requestData = buildRequestData({ sub: 'Jane.Doe@Example.com' });
+    expect(getSubject(requestData)).toBe('jane.doe@example.com');
+  });
+
+  it('should keep a sub without @ exactly as sent', () => {
+    // Entra ID's sub is mixed-case and case-sensitive
+    const requestData = buildRequestData({ sub: 'AbC-123_xYz' });
+    expect(getSubject(requestData)).toBe('AbC-123_xYz');
+  });
+
+  it('should keep a client_id without @ exactly as sent, and lowercase one with @', () => {
+    expect(getSubject(buildRequestData({ sub: 'sa', client_id: 'Client-1', gty: 'client_credentials' }))).toBe('Client-1');
+    expect(getSubject(buildRequestData({ sub: 'sa', client_id: 'Svc@Tenant', gty: 'client_credentials' }))).toBe('svc@tenant');
   });
 
   it('should throw a 401 ErrorResponse when the token sub is missing', () => {
@@ -142,8 +165,9 @@ describe('requireEmailSubject', () => {
     return undefined;
   };
 
-  it("should return a person's email exactly as sent, the same as their Subject", () => {
-    const requestData = buildRequestData({ sub: 'auth|123', email: ' user@example.com' });
+  it("should return a person's email normalized, the same as their Subject", () => {
+    const requestData = buildRequestData({ sub: 'auth|123', email: ' User@Example.com' });
+    expect(requireEmailSubject(requestData, 'test')).toBe('user@example.com');
     expect(requireEmailSubject(requestData, 'test')).toBe(getSubject(requestData));
   });
 
@@ -159,6 +183,41 @@ describe('requireEmailSubject', () => {
 
   it('should throw a 401 when the token is missing', () => {
     expect(statusOf(buildRequestData())).toBe(StatusCodes.UNAUTHORIZED);
+  });
+});
+
+describe('normalizeSubject', () => {
+  it.each([
+    [' Jane.Doe@Example.com\t', 'jane.doe@example.com'],
+    ['super-admin@localhost', 'super-admin@localhost'],
+    ['AbC-123', 'AbC-123'],
+    [' padded-sub ', ' padded-sub '],
+    ['everyone', 'everyone'],
+  ])('should turn %p into %p', (subject, expected) => {
+    expect(normalizeSubject(subject)).toBe(expected);
+  });
+
+  it('should change nothing when applied twice', () => {
+    expect(normalizeSubject(normalizeSubject(' A@B.C '))).toBe(normalizeSubject(' A@B.C '));
+  });
+});
+
+describe('subjectOf and hasSubject', () => {
+  it('should treat a token with no sub as anonymous, as a job submitted anonymously carries', () => {
+    const requestData = buildRequestData({ sub: undefined });
+    expect(subjectOf(requestData)).toBeUndefined();
+    expect(hasSubject(requestData)).toBe(false);
+  });
+
+  it('should treat no token as anonymous', () => {
+    expect(subjectOf(buildRequestData())).toBeUndefined();
+    expect(hasSubject(buildRequestData())).toBe(false);
+  });
+
+  it('should return the normalized Subject for a signed-in caller', () => {
+    const requestData = buildRequestData({ sub: 'auth|123', email: 'User@Example.com' });
+    expect(subjectOf(requestData)).toBe('user@example.com');
+    expect(hasSubject(requestData)).toBe(true);
   });
 });
 

@@ -100,7 +100,7 @@ Fetches the summary for a completed or in-progress download. Used on the Downloa
 Admin-only. Fetches the full list of datasets for the Admin console table, including unpublished ones. Provides mutations for creating, updating, and deleting datasets.
 
 ### `useDatasetsSettings(datasetId)`
-Fetches and manages settings for a specific dataset (visibility, publication status, etc.).
+Fetches and manages settings for a specific dataset (visibility, access list, whether it allows access requests, publication status, etc.).
 
 ### `useDatasetsSoilData(datasetId)`
 Fetches and manages the soil data configuration for a dataset during the publication wizard.
