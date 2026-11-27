@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.9.0 (2026-11-27)
+
+## What's Changed
+* fix: async job retry by @svaccari in https://github.com/varda-ag/soilhive-core/pull/976
+* feat: sp-5956 dashboard read needs access to its private datasets by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/977
+* feat: map based filters under one category by @svaccari in https://github.com/varda-ag/soilhive-core/pull/979
+* perf: faster CSV metadata extraction by @svaccari in https://github.com/varda-ag/soilhive-core/pull/980
+* feat: sp-5918 usage analytics for the map, the Data Explorer and downloads by @cristbello in https://github.com/varda-ag/soilhive-core/pull/974
+* chore: sp-5897 remove repo claude skills by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/981
+* fix: download tokens by @svaccari in https://github.com/varda-ag/soilhive-core/pull/982
+* feat: BE invite management (SP-5967) by @svaccari in https://github.com/varda-ag/soilhive-core/pull/983
+* fix: sp-5971 sign out other tabs and show a clear login-required message by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/984
+* fix: revert metadata_only flag and throw EX_NO_DATA if raster file cant be opened by @d-rom in https://github.com/varda-ag/soilhive-core/pull/987
+* fix: sp-5970 keep dataset list labels inside the card by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/986
+* fix: sp-5954 send the Consent Mode update and add a cookie settings link by @cristbello in https://github.com/varda-ag/soilhive-core/pull/988
+* feat/sp-5896-long-file-ingestion by @d-rom in https://github.com/varda-ag/soilhive-core/pull/985
+* feat: sp-5990 leaving a config item by @svaccari in https://github.com/varda-ag/soilhive-core/pull/990
+* fix: sp-5898 keep DrawControl free of host-only imports so plugins can sync the map by @cristbello in https://github.com/varda-ag/soilhive-core/pull/992
+* perf: sp-6019 faster raster rows in soil-data by @svaccari in https://github.com/varda-ag/soilhive-core/pull/993
+* feat: sp-5758 - plugins invites and login page by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/991
+* fix: sp-5971 add favicon by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/989
+* feat: sp-6025 serve the frontend under a base path by @svaccari in https://github.com/varda-ag/soilhive-core/pull/994
+* Feature/sp 5765 by @federicodelsanto in https://github.com/varda-ag/soilhive-core/pull/999
+* feat: sp-6032 requester details on access requests by @svaccari in https://github.com/varda-ag/soilhive-core/pull/998
+* fix: sp-6031 publish release images to the -dev packages so dev and qa can deploy them by @VardAlb in https://github.com/varda-ag/soilhive-core/pull/1000
+* feat: adding allow_access_requests flag by @svaccari in https://github.com/varda-ag/soilhive-core/pull/1001
+* feat: sp-5988 - create access request hook by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/997
+* fix: sp-6040 report unreadable upload files instead of a network error by @svaccari in https://github.com/varda-ag/soilhive-core/pull/1002
+* feat: sp-6039 approval message and requestable datasets in the dashboard 403 by @cristbello in https://github.com/varda-ag/soilhive-core/pull/1003
+* feat: sp-6042 - login page template image styles by @oleksiivarda in https://github.com/varda-ag/soilhive-core/pull/1004
+* fix: sp-6055 - store the Subject the same way everywhere by @svaccari in https://github.com/varda-ag/soilhive-core/pull/1006
+* feat: sp-6026 allow access requests toggle for private datasets by @cristbello in https://github.com/varda-ag/soilhive-core/pull/1005
+
+
+**Full Changelog**: https://github.com/varda-ag/soilhive-core/compare/v1.8.0...v1.9.0
+
 ## 1.8.0 (2026-11-11)
 
 ## What's Changed
