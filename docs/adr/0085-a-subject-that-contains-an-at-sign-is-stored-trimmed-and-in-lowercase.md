@@ -9,9 +9,9 @@ A one-off migration rewrites every stored Subject with `@` that isn't in this fo
 - looked up by Subject: `entitlements.id`, `invites.created_by`, `invites.recipient`, `access_requests.requested_by`, `access_request_items.requested_by`, `invite_redemptions.subject`
 - history only: `created_by` / `updated_by` on datasets, files, data_mappings and raster_filters, and `access_request_items.decided_by`
 
-Where two rows become one, `entitlements` rows merge their grants (the union of capabilities for each key), the older of two pending `access_request_items` on the same Dataset stays pending and the newer is `withdrawn`, and duplicate `invite_redemptions` keep one row.
+Where two rows become one, `entitlements` rows merge their grants (the union of capabilities for each key, leaving out values that aren't lists, which `EntitlementService` already skips), the older of two pending `access_request_items` on the same Dataset stays pending and the newer is `withdrawn`, and duplicate `invite_redemptions` keep one row.
 
-Filters now use the Subject as `owner`, like every other write. They used the raw `token.sub`, except a Run's derived Filters, which got the Subject through the job's rebuilt token. `data_filters.owner` is not migrated: we don't store which `sub` belongs to which email, so old rows keep their raw `sub` and dedup starts again once for each Filter. An ESLint rule allows reading `.sub` from a token only in `utils/auth.ts` and `tokenValidator.ts`, since that read is what split Filters from everything else.
+Filters now use the Subject as `owner`, like every other write. They used the raw `token.sub`, except a Run's derived Filters, which got the Subject through the job's rebuilt token. `data_filters.owner` is not migrated: we don't store which `sub` belongs to which email, so old rows keep their raw `sub` and dedup starts again once for each Filter. Since `owner` is now often an email, and `GET /data-filters/{filterId}` needs no token while Filter ids travel in shared links, `owner` is never in an API response. An ESLint rule allows reading `.sub` from a token only in `utils/auth.ts` and `tokenValidator.ts`, since that read is what split Filters from everything else.
 
 ## Considered options
 

@@ -37,6 +37,21 @@ describe('NormalizeSubjects migration', () => {
     expect(await query(`SELECT id FROM entitlements WHERE id IN ('Jane.Doe@Example.com', ' Solo@Example.com')`)).toEqual([]);
   });
 
+  it('merges past grants that are not lists, and leaves a row with nothing to merge as it was', async () => {
+    await query(
+      `INSERT INTO entitlements (id, data) VALUES
+        ('Mal@Example.com', '{"datasets": {"a": "preview", "b": null, "c": ["download"]}, "configs": "oops"}'),
+        ('mal@example.com', '{"datasets": {"c": ["preview"], "d": {}}, "configs": null}'),
+        ('Lone@Example.com', '{"datasets": {"a": "preview", "b": ["download"]}}')`,
+    );
+
+    await runMigration();
+
+    // Neither reader in EntitlementService uses these values, so leaving them out grants no less
+    expect(await entitlementsOf('mal@example.com')).toEqual({ datasets: { c: ['download', 'preview'] } });
+    expect(await entitlementsOf('lone@example.com')).toEqual({ datasets: { a: 'preview', b: ['download'] } });
+  });
+
   it('keeps the older of two pending Access Requests on one Dataset and withdraws the newer', async () => {
     const dataset = await addDataset('normalize-subjects-ar', [0, 0, 1, 1]);
     const [older] = await query(

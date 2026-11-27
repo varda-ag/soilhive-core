@@ -264,6 +264,25 @@ describe('Testing /data-filters routes', () => {
     expect(list.body.map((filter: { id: string }) => filter.id)).toEqual([res1.body.id]);
   });
 
+  it("Never shows a Filter's owner, which is often an email (docs/adr/0085)", async () => {
+    const auth = { Authorization: `Bearer ${getUserToken('filter-hidden-owner-sub', 'Hidden.Owner@Example.com')}` };
+    const created = await request(app)
+      .post('/data-filters')
+      .set(auth)
+      .send({ parameters: { min_depth: 43 }, geometries: [filteringPolygon] });
+    expect(created.statusCode).toBe(StatusCodes.CREATED);
+    expect(created.body).not.toHaveProperty('owner');
+
+    // A Filter id travels in shared links, and this read needs no token
+    const anonymous = await request(app).get(`/data-filters/${created.body.id}`);
+    expect(anonymous.statusCode).toBe(StatusCodes.OK);
+    expect(anonymous.body).not.toHaveProperty('owner');
+
+    const list = await request(app).get('/data-filters').set(auth);
+    expect(list.body.map((filter: { id: string }) => filter.id)).toEqual([created.body.id]);
+    expect(list.body[0]).not.toHaveProperty('owner');
+  });
+
   it('A null parameter is a different filter from an absent one', async () => {
     // min_depth: null means "layers with no recorded depth"; omitting it means unconstrained
     const resNull = await request(app)

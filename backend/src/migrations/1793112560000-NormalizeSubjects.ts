@@ -26,6 +26,8 @@ const PLAIN_COLUMNS: [table: string, column: string][] = [
 
 type Grants = Record<string, Record<string, string[]>>;
 
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
 /** Groups values by their normalized form, keeping only groups with something to rewrite. */
 const groupsToRewrite = <T>(rows: T[], subjectOf: (row: T) => string, keyOf: (row: T) => string = () => ''): T[][] => {
   const groups = new Map<string, T[]>();
@@ -36,13 +38,27 @@ const groupsToRewrite = <T>(rows: T[], subjectOf: (row: T) => string, keyOf: (ro
   return [...groups.values()].filter(group => group.some(row => subjectOf(row) !== normalize(subjectOf(row))));
 };
 
-/** The union of capabilities per scope and key. Null-prototype maps, as a key may be `__proto__`. */
-const mergeGrants = (all: Grants[]): Grants => {
+/**
+ * The union of capabilities per scope and key. A scope that isn't an object, or capabilities that
+ * aren't a list, are left out: EntitlementService skips them too, so they grant nothing. Spread as
+ * they are, `null` would throw and a string would split into letters.
+ * Null-prototype maps, as a key may be `__proto__`.
+ */
+const mergeGrants = (all: unknown[]): Grants => {
   const merged: Grants = Object.create(null);
   for (const data of all) {
-    for (const [scope, grants] of Object.entries(data ?? {})) {
+    if (!isObject(data)) {
+      continue;
+    }
+    for (const [scope, grants] of Object.entries(data)) {
+      if (!isObject(grants)) {
+        continue;
+      }
       merged[scope] ??= Object.create(null);
-      for (const [key, capabilities] of Object.entries(grants ?? {})) {
+      for (const [key, capabilities] of Object.entries(grants)) {
+        if (!Array.isArray(capabilities)) {
+          continue;
+        }
         merged[scope]![key] = [...new Set([...(merged[scope]![key] ?? []), ...capabilities])].sort();
       }
     }
@@ -69,23 +85,20 @@ export class NormalizeSubjects1793112560000 implements MigrationInterface {
   /** Rows whose ids normalize alike become one row holding the union of their grants. */
   private async mergeEntitlements(queryRunner: QueryRunner): Promise<void> {
     // Timestamps as text, ordered oldest first, so they go back unchanged whatever the time zone
-    const rows: { id: string; data: Grants; created_at: string; deleted_at: string | null }[] = await queryRunner.query(
+    const rows: { id: string; data: unknown; created_at: string; deleted_at: string | null }[] = await queryRunner.query(
       `SELECT "id", "data", "created_at"::text AS "created_at", "deleted_at"::text AS "deleted_at"
        FROM "entitlements" WHERE "id" LIKE '%@%' ORDER BY "created_at"`,
     );
     for (const group of groupsToRewrite(rows, row => row.id)) {
       const live = group.filter(row => row.deleted_at === null);
       const kept = live.length > 0 ? live : group;
+      // A row with nothing to merge into keeps its data exactly as it was
+      const data = kept.length === 1 ? kept[0]!.data : mergeGrants(kept.map(row => row.data));
       await queryRunner.query(`DELETE FROM "entitlements" WHERE "id" = ANY($1::text[])`, [group.map(row => row.id)]);
       await queryRunner.query(
         `INSERT INTO "entitlements" ("id", "data", "created_at", "updated_at", "deleted_at")
          VALUES ($1, $2::jsonb, $3::timestamp, now(), $4::timestamp)`,
-        [
-          normalize(group[0]!.id),
-          JSON.stringify(mergeGrants(kept.map(row => row.data))),
-          group[0]!.created_at,
-          live.length > 0 ? null : group[0]!.deleted_at,
-        ],
+        [normalize(group[0]!.id), JSON.stringify(data), group[0]!.created_at, live.length > 0 ? null : group[0]!.deleted_at],
       );
     }
   }

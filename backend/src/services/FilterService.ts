@@ -154,7 +154,7 @@ export default class FilterService {
        VALUES ($1::jsonb, $2, $3)
        ON CONFLICT ("owner", "filter_hash") WHERE deleted_at IS NULL AND filter_hash IS NOT NULL
        DO UPDATE SET updated_at = now()
-       RETURNING id, created_at, updated_at, deleted_at, filter, persistent, name, owner`,
+       RETURNING id, created_at, updated_at, deleted_at, filter, persistent, name`,
       [JSON.stringify(filter), filterHash, owner],
     );
     const savedFilter = rows[0]!;
@@ -201,7 +201,7 @@ export default class FilterService {
        VALUES ($1::jsonb, $2, $3, $4)
        ON CONFLICT ("owner", "filter_hash") WHERE deleted_at IS NULL AND filter_hash IS NOT NULL
        DO UPDATE SET updated_at = now()
-       RETURNING id, created_at, updated_at, deleted_at, filter, persistent, name, owner`,
+       RETURNING id, created_at, updated_at, deleted_at, filter, persistent, name`,
       [JSON.stringify({ geometries: [], parameters, source_file_id: sourceFileId }), filterHash, owner, name ?? null],
     );
     const savedFilter = rows[0]!;
