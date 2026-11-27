@@ -4,7 +4,7 @@ SoilHive is an open-source, federated data infrastructure platform for global so
 
 ## Why we built it
 
-Soil data is abundant but siloed: collected by different institutions, at different resolutions, with different taxonomies, units, and depth conventions, and rarely published in a form that's actually machine-usable. Centralizing data into a repository doesn't fix this, the harmonization problem still sits unsolved underneath. At the same time, machine learning for soil property prediction, spectral sensor calibration, and soil carbon measurement for climate reporting and carbon markets all now depend on interoperable, queryable, well-documented data at scale. SoilHive is the infrastructure layer built to close that gap.
+Soil data and information is abundant but siloed: collected by different institutions, at different resolutions, with different taxonomies, units, and depth conventions, and rarely published in a form that's actually machine-usable. Centralizing data into a repository doesn't fix this, the harmonization problem still sits unsolved underneath. At the same time, machine learning for soil property prediction, spectral sensor calibration, and soil carbon measurement for climate reporting and carbon markets all now depend on interoperable, queryable, well-documented data at scale. SoilHive is the infrastructure layer built to close that gap.
 
 ## What you can do with it
 
