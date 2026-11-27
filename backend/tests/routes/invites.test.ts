@@ -143,16 +143,24 @@ describe('Invites', () => {
       expect((await redeem(janeToken, 'not-a-token')).statusCode).toBe(StatusCodes.NOT_FOUND);
     });
 
-    it('lets only the recipient redeem, ignoring case, and leaves it pending for anyone else', async () => {
-      const { token } = (await createInvite(ownerToken, { ...readInvite, recipient: 'Jane@Example.com' })).body;
+    it('lets only the recipient redeem, whatever case it was typed in, and leaves it pending for anyone else', async () => {
+      const created = (await createInvite(ownerToken, { ...readInvite, recipient: 'Jane@Example.com' })).body;
+      // Stored normalized, like a Subject (docs/adr/0085)
+      expect(created.recipient).toBe(JANE);
+      const { token } = created;
 
       const refused = await redeem(otherToken, token);
       expect(refused.statusCode).toBe(StatusCodes.FORBIDDEN);
-      expect(refused.body.recipient_hint).toBe('J•••@Example.com');
-      expect(refused.body.detail).not.toContain('Jane@');
+      expect(refused.body.recipient_hint).toBe('j•••@example.com');
+      expect(refused.body.detail).not.toContain('jane@');
 
       await redeem(janeToken, token).expect(StatusCodes.OK);
-      // Keyed by Jane's Subject as her token spells it, not by the email the Invite names
+      expect((await grantsOf(JANE)).configs).toEqual({ [CONFIG_ID]: ['read'] });
+    });
+
+    it('lets a recipient redeem whose token spells the email in capitals', async () => {
+      const { token } = (await createInvite(ownerToken, { ...readInvite, recipient: JANE })).body;
+      await redeem(getUserToken('jane-sub', 'JANE@EXAMPLE.COM'), token).expect(StatusCodes.OK);
       expect((await grantsOf(JANE)).configs).toEqual({ [CONFIG_ID]: ['read'] });
     });
 

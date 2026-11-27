@@ -1,5 +1,7 @@
 # Identity is the Subject, not the token `sub`
 
+> **Amended by docs/adr/0085.** A Subject that contains `@` is held trimmed and in lowercase, and Filters now use the Subject too.
+
 Everything that records or authorises a caller — `datasets.created_by`, `files.created_by`, `data_mappings.created_by`, the `entitlements` table's `id`, and (as of SP-5521) a job's `created_by` — is keyed by the **Subject** (`getSubject`, `src/utils/auth.ts`). This is a deliberate inversion of the usual advice to key on the stable opaque `sub`, and jobs were the last place still keying on `sub` directly.
 
 The Subject forks on the kind of caller rather than on which claims a token happens to carry:

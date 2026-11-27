@@ -7,7 +7,7 @@ import { FilteredDatasetSummary, FilteredData, FilteredDataset } from '../../src
 import { getDataSource } from '../../src/utils/data-source';
 import * as RasterUtilsModule from '../../src/utils/raster';
 import { addRasterData, addSyntheticData, syntheticDataOptions } from '../../src/utils/mock';
-import { addRasterFilterData, addRasterFilterMappings, getDataAdminToken, getSuperAdminToken } from '../helper';
+import { addRasterFilterData, addRasterFilterMappings, getDataAdminToken, getSuperAdminToken, getUserToken } from '../helper';
 import { StatusCodes } from 'http-status-codes';
 import { IngestionStatus } from '../../src/types/data';
 import * as computeRasterFootprints from '../../src/scripts/computeRasterFootprints';
@@ -249,6 +249,19 @@ describe('Testing /data-filters routes', () => {
     const resAnon2 = await request(app).post('/data-filters').send(payload);
     expect(resAnon1.body.id).not.toBe(resOwned.body.id);
     expect(resAnon2.body.id).toBe(resAnon1.body.id);
+  });
+
+  it('Filters are owned by the normalized Subject, not the sub (docs/adr/0085)', async () => {
+    // Same email in two spellings, two subs: one Subject, so one Filter and one listing
+    const first = { Authorization: `Bearer ${getUserToken('filter-owner-sub-a', 'Filter.Owner@Example.com')}` };
+    const second = { Authorization: `Bearer ${getUserToken('filter-owner-sub-b', 'filter.owner@example.com')}` };
+    const payload = { parameters: { min_depth: 42 }, geometries: [filteringPolygon] };
+    const res1 = await request(app).post('/data-filters').set(first).send(payload);
+    const res2 = await request(app).post('/data-filters').set(second).send(payload);
+    expect(res2.body.id).toBe(res1.body.id);
+    const list = await request(app).get('/data-filters').set(second);
+    expect(list.statusCode).toBe(StatusCodes.OK);
+    expect(list.body.map((filter: { id: string }) => filter.id)).toEqual([res1.body.id]);
   });
 
   it('A null parameter is a different filter from an absent one', async () => {

@@ -26,7 +26,7 @@ import { CACHE_TTL_SPATIAL_MS, cachedCompute } from '../utils/query-cache';
 import { DaiPointRow, getDaiPointDataPrecomputed, isPrecomputableDaiParameters } from '../data-layer/DaiStats';
 import { GISDataType } from '../types/data';
 import { getEntityManager } from '../utils/data-source';
-import { listedDatasetStatuses } from '../utils/auth';
+import { listedDatasetStatuses, subjectOf } from '../utils/auth';
 
 const sds = new SoilDataStorage();
 
@@ -139,7 +139,7 @@ export default class FilterService {
     }
     const geometryIds = [...new Set(insertedGeometryIds)];
 
-    const owner = requestData.token?.sub || null;
+    const owner = subjectOf(requestData) ?? null;
     const filterHash = computeFilterHash(geometryIds, filter.parameters);
     const schema = process.env.POSTGRES_SCHEMA;
     // Upsert on canonical content identity: resubmitting an equivalent filter returns
@@ -192,7 +192,7 @@ export default class FilterService {
     input: { geometryIds: string[]; parameters: FilterCriteria; sourceFileId: string; name?: string },
   ): Promise<DataFilterEntity> => {
     const { geometryIds, parameters, sourceFileId, name } = input;
-    const owner = requestData.token?.sub || null;
+    const owner = subjectOf(requestData) ?? null;
     const filterHash = computeFilterHash(geometryIds, parameters, derivedFilterNamespace(sourceFileId));
     const schema = process.env.POSTGRES_SCHEMA;
 
@@ -292,7 +292,8 @@ export default class FilterService {
   };
 
   getFilters = async (requestData: RequestData): Promise<DataFilterEntity[]> => {
-    const owner = requestData.token?.sub;
+    // Rows from before docs/adr/0085 hold the raw `sub` and are not listed.
+    const owner = subjectOf(requestData);
     if (!owner) {
       throw new ErrorResponse('Cannot retrieve filters for unauthenticated user', StatusCodes.UNAUTHORIZED);
     }

@@ -1,5 +1,7 @@
 # Deduplicate data filters per owner by canonical content identity
 
+> **Amended by docs/adr/0085.** The owner is now the Subject for every Filter, not the raw `token.sub`. Rows written before keep their raw `sub`, so dedup starts again once for each Filter.
+
 The frontend POSTs `/data-filters` on every debounced filter change, so `data_filters` accumulates a new row per user interaction even when the submitted `DataFilterDTO` is identical to one already stored. We decided to make `createFilter` idempotent: an equivalent submission returns the existing Filter's ID instead of inserting a new row.
 
 Identity is **canonical**, not byte-based: a Filter is identified by `(owner, filter_hash)` where the hash is computed app-side over the *sorted set* of its canonical UserGeometry IDs (geometries are inserted/deduplicated first — reversing the previous insert order — then hashed) plus normalized parameters. Normalization sorts and dedupes list criteria and drops empty/absent keys, but **preserves explicit nulls**: `min_depth: null` means "match layers with no recorded depth" and is a different Filter from one omitting `min_depth` (see `SoilDataStorage` scalar handling). Geometry UUIDs are stable identity inputs because `deleteUserGeometry` never removes a geometry referenced by a filter join row.

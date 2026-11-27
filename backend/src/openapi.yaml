@@ -1588,6 +1588,8 @@ paths:
       x-eov-operation-handler: controllers/entitlements
       x-eov-operation-id: setDatasetEntitlement
       summary: Edits a dataset entitlement
+      description: >-
+        Keys are Subjects: one containing `@` is stored trimmed and in lowercase, and keys that become the same have their capabilities merged (docs/adr/0085). The response shows what was stored.
       tags:
         - datasets
       security:
@@ -1666,7 +1668,7 @@ paths:
         Requires a privileged caller, or a non-admin caller already holding WRITE on the config.
         No first-access bypass: first access to a fresh plugin:{pluginId}:{id} config now happens
         through PUT /configs/{configId} itself (its own conflict-detecting insert self-grants the
-        winner WRITE in the same request), not through this endpoint.
+        winner WRITE in the same request), not through this endpoint. Keys are Subjects: one containing `@` is stored trimmed and in lowercase, and keys that become the same have their capabilities merged (docs/adr/0085). The response shows what was stored.
       tags:
         - configs
       security:
@@ -5246,7 +5248,7 @@ components:
           type: string
           format: email
           maxLength: 320
-          description: Only the person with this email can redeem it. Never with `reusable`.
+          description: Only the person with this email can redeem it. Never with `reusable`. Stored in lowercase.
         reusable:
           type: boolean
           default: false
