@@ -172,6 +172,8 @@ export interface Dataset {
   service_location?: string | null;
   capabilities?: Capability[];
   visibility: 'public' | 'private';
+  // Whether users may file an Access Request for it; only a private, published dataset takes them
+  allow_access_requests?: boolean;
   inferred_properties?: InferredProperty[] | null;
   preprocessing_steps?: string | null;
   related_resources?: string[] | null;

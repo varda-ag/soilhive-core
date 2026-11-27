@@ -499,6 +499,10 @@
                 "email_invalid": "Please enter a valid email address",
                 "email_duplicate": "This email has already been added",
                 "email_unavailable_warning": "This platform's authentication method cannot identify individual users. As a result, access cannot be granted to specific individuals, even if emails are listed below. Contact your platform administrator if per-user access is required.",
+                "allow_requests": {
+                    "title": "Allow access requests",
+                    "description": "Users can request access to this dataset by filling in a form"
+                },
                 "remove_dialog": {
                     "title": "Delete a data administrator",
                     "message": "Do you really want to delete this admin?",

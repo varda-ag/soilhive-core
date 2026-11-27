@@ -137,13 +137,15 @@ Choose one of the two cards:
 
 Choosing **Private** opens the *Who can access this dataset* panel, where you add the email addresses of the people allowed in. Each address you add is granted preview and download rights on this dataset only. The list is saved as a whole when you publish: whatever is on screen replaces the previous list, so removing an address here revokes that person's access.
 
-> **Note:** Granting access by email only works if your platform signs users in with an identifiable email address. If it doesn't, the panel is disabled and a warning explains that no one on the list will actually be granted access, and a private dataset then stays restricted to data administrators. Contact your platform administrator if per-user access is required.
+Below the list, the **Allow access requests** toggle decides whether other users can ask for access to this dataset themselves, with an access request that a data administrator then approves or denies. It is off for a new dataset, and it is saved when you publish. Turning it off stops new requests only: requests already sent can still be approved or denied. A public dataset takes no requests, so publishing a dataset as public turns the toggle off.
+
+> **Note:** Granting access by email only works if your platform signs users in with an identifiable email address. If it doesn't, the panel is disabled and a warning explains that no one on the list will actually be granted access, and a private dataset then stays restricted to data administrators. Users can't request access either, so the **Allow access requests** toggle is disabled too and keeps its saved value while the dataset stays private. Contact your platform administrator if per-user access is required.
 
 **Confirming publication**
 
 Press **Publish** to confirm. If the platform has no Terms & Conditions and Privacy Policy configured, a dialog warns you first: a dataset license covers the data, but not how users of the platform may access, use, and handle it. You can either cancel and configure those documents (see the Look & Feel section of the Admin console) or proceed anyway.
 
-On confirmation the platform sets the status to **Published**, records today's date as the publication date (only the first time, so re-publishing later does not overwrite the original date), saves the access list if the dataset is private, and returns you to the dataset list.
+On confirmation the platform sets the status to **Published**, records today's date as the publication date (only the first time, so re-publishing later does not overwrite the original date), saves the access list and the **Allow access requests** choice if the dataset is private, and returns you to the dataset list.
 
 **After publication**
 
