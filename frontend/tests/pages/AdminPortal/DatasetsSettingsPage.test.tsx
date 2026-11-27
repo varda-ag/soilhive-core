@@ -34,9 +34,8 @@ jest.mock('components/UI', () => ({
       ))}
     </div>
   ),
-  ToggleButton: ({ checked, disabled, ariaLabel, onChange }: any) => (
-    <input type="checkbox" aria-label={ariaLabel} checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
-  ),
+  // The real one, so the tests see the checkbox's accessible name and description
+  ToggleButton: jest.requireActual('components/UI/ToggleButton/ToggleButton').ToggleButton,
 }));
 
 jest.mock('components/Table/Table', () => ({
@@ -165,6 +164,12 @@ describe('DatasetsSettingsPage', () => {
       expect(screen.getByTestId('sh-ui-table').compareDocumentPosition(card)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
       expect(getToggle()).not.toBeChecked();
       expect(getToggle()).not.toBeDisabled();
+    });
+
+    it('describes the toggle with the card text', () => {
+      (useDatasetsSettings as jest.Mock).mockReturnValue({ ...baseHookValue, visibility: 'private' });
+      render(<DatasetsSettingsPage />);
+      expect(getToggle()).toHaveAccessibleDescription('Users can request access to this dataset by filling in a form');
     });
 
     it('shows the toggle on when the dataset takes access requests', () => {

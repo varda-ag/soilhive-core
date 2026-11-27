@@ -89,12 +89,6 @@ describe('useDatasetsSettings', () => {
     await waitFor(() => expect(result.current.allowAccessRequests).toBe(false));
   });
 
-  it('initialises allowAccessRequests from the dataset API response', async () => {
-    setupMocks({ dataset: { visibility: 'private', allow_access_requests: true } });
-    const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
-    await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
-  });
-
   it('initialises accessEmails from entitlements API response, preserving capabilities', async () => {
     setupMocks({ entitlements: { 'a@example.com': ['preview'], 'b@example.com': ['download'] } });
     const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
@@ -408,6 +402,16 @@ describe('useDatasetsSettings', () => {
       await waitFor(() => expect(result.current.allowAccessRequests).toBe(true));
       await act(() => result.current.handlePublishProceed());
       expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED' });
+    });
+
+    it('starts the toggle off when a public dataset is made private, whatever it has saved', async () => {
+      setupMocks({ dataset: { visibility: 'public', publication_date: '2026-07-09', allow_access_requests: true } });
+      const { result } = renderHook(() => useDatasetsSettings('dataset-123'), { wrapper: queryClientWrapper });
+      await waitFor(() => expect(result.current.visibility).toBe('public'));
+      act(() => result.current.setVisibility('private'));
+      expect(result.current.allowAccessRequests).toBe(false);
+      await act(() => result.current.handlePublishProceed());
+      expect(mockMutateAsync).toHaveBeenCalledWith({ visibility: 'private', status: 'PUBLISHED', allow_access_requests: false });
     });
 
     it('closes the publish warning dialog', async () => {

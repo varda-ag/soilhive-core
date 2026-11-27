@@ -17,9 +17,11 @@ interface Props {
   dataAnalytics?: string;
   // The checkbox's accessible name, for a toggle with no visible label of its own
   ariaLabel?: string;
+  // The id of an element that describes what the toggle does, read out after its name
+  ariaDescribedBy?: string;
 }
 
-export function ToggleButton({ checked, onChange, size = 'medium', disabled, dataAnalytics, ariaLabel }: Props) {
+export function ToggleButton({ checked, onChange, size = 'medium', disabled, dataAnalytics, ariaLabel, ariaDescribedBy }: Props) {
   const sizeClass = useMemo(
     () =>
       ({
@@ -37,6 +39,7 @@ export function ToggleButton({ checked, onChange, size = 'medium', disabled, dat
         type="checkbox"
         data-analytics={dataAnalytics}
         aria-label={ariaLabel}
+        aria-describedby={ariaDescribedBy}
         checked={checked}
         onChange={e => onChange?.(e.target.checked)}
         disabled={disabled}

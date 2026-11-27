@@ -48,9 +48,11 @@ export function useDatasetsSettings(datasetId: string | undefined) {
     }
   }, [dataset?.visibility]);
 
+  // Only a private dataset's saved value counts: a public one takes no access requests, so making it
+  // private here starts with the toggle off, even if the API left the flag on.
   useEffect(() => {
-    setAllowAccessRequests(!!dataset?.allow_access_requests);
-  }, [dataset?.allow_access_requests]);
+    setAllowAccessRequests(dataset?.visibility === 'private' && !!dataset.allow_access_requests);
+  }, [dataset?.visibility, dataset?.allow_access_requests]);
 
   useEffect(() => {
     if (entitlements) {

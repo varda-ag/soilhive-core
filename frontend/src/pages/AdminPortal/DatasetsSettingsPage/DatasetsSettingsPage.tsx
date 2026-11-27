@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router';
 import classnames from 'classnames';
@@ -54,6 +55,7 @@ export function DatasetsSettingsPage() {
     handlePublishCancel,
     handleCancel,
   } = useDatasetsSettings(id);
+  const allowRequestsDescriptionId = useId();
 
   const accessColumns: TableColumn<AccessEmail>[] = [
     {
@@ -203,12 +205,15 @@ export function DatasetsSettingsPage() {
               <div className={styles.AccessRequestsCard} data-testid="allow-access-requests">
                 <div className={styles.AccessRequestsText}>
                   <p className={styles.AccessRequestsTitle}>{t('datasets.settings.access.allow_requests.title')}</p>
-                  <p className={styles.AccessRequestsDescription}>{t('datasets.settings.access.allow_requests.description')}</p>
+                  <p id={allowRequestsDescriptionId} className={styles.AccessRequestsDescription}>
+                    {t('datasets.settings.access.allow_requests.description')}
+                  </p>
                 </div>
                 <ToggleButton
                   checked={allowAccessRequests}
                   disabled={!isEmailBasedAuth}
                   ariaLabel={t('datasets.settings.access.allow_requests.title')}
+                  ariaDescribedBy={allowRequestsDescriptionId}
                   onChange={setAllowAccessRequests}
                 />
               </div>
